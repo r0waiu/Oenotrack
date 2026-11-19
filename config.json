@@ -1,0 +1,11 @@
+{
+  "google": {
+    "clientId": ""
+  },
+  "microsoft": {
+    "clientId": ""
+  },
+  "dropbox": {
+    "appKey": ""
+  }
+}

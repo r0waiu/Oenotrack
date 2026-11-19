@@ -1,0 +1,35 @@
+Œnotrack — traçabilité de cuverie et de chai
+Copyright (C) 2026  l'auteur d'Œnotrack et les contributeurs
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+-----------------------------------------------------------------------
+En français (résumé sans valeur juridique : seul le texte de la licence fait foi)
+
+Œnotrack est un logiciel libre : vous pouvez l'utiliser, l'étudier, le modifier et le
+redistribuer selon les termes de la licence GNU Affero General Public License, version 3
+ou (à votre choix) toute version ultérieure. Toute version modifiée doit rester sous la
+même licence ; si vous la mettez en ligne, vous devez proposer son code source à ses
+utilisateurs (article 13). Le logiciel est fourni SANS AUCUNE GARANTIE (articles 15 et 16).
+Texte complet de la licence : https://www.gnu.org/licenses/agpl-3.0.html
+
+Nom et logo : le nom « Œnotrack » et son logo ne sont pas couverts par cette licence
+(article 7 e). Une version modifiée diffusée ou mise en ligne doit porter un autre nom et
+un autre logo, et ne pas laisser croire qu'elle est la version officielle ; elle peut
+indiquer qu'elle est « basée sur Œnotrack ».
+
+Composants d'autres auteurs (chacun sous sa propre licence) : React et React DOM (MIT),
+Tailwind CSS (MIT), SheetJS Community Edition (Apache 2.0), PDF.js (Apache 2.0),
+pdf-lib (MIT), Tesseract.js et Tesseract OCR (Apache 2.0), polices diffusées par
+Google Fonts (SIL Open Font License 1.1).
