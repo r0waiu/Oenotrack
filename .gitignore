@@ -1,0 +1,11 @@
+# fabriqués par node build.mjs et tools/paquet-web.py
+dist/
+code-source.zip
+# notes de travail et test qui lit des documents privés de l'exploitation : jamais publiés
+NOTES.md
+published-fragment.html
+test/t37.mjs
+# divers
+node_modules/
+__pycache__/
+.DS_Store

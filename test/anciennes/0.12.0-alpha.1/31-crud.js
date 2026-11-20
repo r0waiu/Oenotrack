@@ -1,0 +1,492 @@
+/* ============ CRUD simples : contenants, produits, arrivages, listes, analyses, hygiène ============ */
+/* ============ PLAN DE CAVE : formes, tailles, positions ============ */
+const FORME_VB = { cuve: [80, 104], conique: [80, 104], citerne: [140, 80], fut: [104, 80], foudre: [100, 108], jarre: [80, 96], amphore: [76, 104], oeuf: [80, 104], bombonne: [70, 92] };
+const FORME_ORDER = { cuve: 1, conique: 1, citerne: 2, foudre: 3, fut: 3, oeuf: 4, jarre: 4, amphore: 4, bombonne: 5 };
+const PLAN_W = 1100, GRID = 10;
+const formeOf = (db, c) => { const t = (db.lists.typesContenant || []).find((x) => x.id === c.type); return (t && t.forme) || 'cuve'; };
+const matOf = (db, c) => (db.lists.matieres || []).find((x) => x.id === c.matiere) || { couleur: '#B9C4CC', finition: 'lisse' };
+function tileSize(db, c) { // dimension du dessin (sw × sh) et de la vignette complète (w × h, avec l'étiquette)
+  const vb = FORME_VB[formeOf(db, c)] || [80, 104]; const k = clamp(Math.pow((num(c.volMax) || 1000) / 3000, 0.3), 0.72, 1.5);
+  const sw = Math.round(vb[0] * k), sh = Math.round(vb[1] * k); return { sw, sh, w: Math.max(sw, 108), h: sh + 54 };
+}
+function freeSlot(rects, w, h) {
+  for (let y = 24; y < 6000; y += 10) for (let x = 24; x + w <= PLAN_W - 24; x += 10) {
+    if (!rects.some((r) => x < r.x + r.w + 14 && x + w + 14 > r.x && y < r.y + r.h + 14 && y + h + 14 > r.y)) return { x, y };
+  }
+  return { x: 24, y: 24 };
+}
+// Place les contenants d'un site : seulement ceux sans position (onlyMissing) ou tous (réorganisation automatique)
+function planAuto(db, siteId, onlyMissing) {
+  const mine = db.contenants.filter((c) => c.siteId === siteId);
+  const rects = []; const todo = [];
+  mine.forEach((c) => { if (onlyMissing && c.x != null && c.y != null) { const t = tileSize(db, c); rects.push({ x: c.x, y: c.y, w: t.w, h: t.h }); } else todo.push(c); });
+  todo.sort((a, b) => (FORME_ORDER[formeOf(db, a)] || 9) - (FORME_ORDER[formeOf(db, b)] || 9) || a.nom.localeCompare(b.nom, 'fr', { numeric: true }));
+  todo.forEach((c) => { const t = tileSize(db, c); const p = freeSlot(rects, t.w, t.h); c.x = p.x; c.y = p.y; rects.push({ x: p.x, y: p.y, w: t.w, h: t.h }); });
+}
+function contMove(db, id, x, y) { const c = db.contenants.find((k) => k.id === id); if (!c) return fail('Contenant introuvable.'); c.x = Math.max(0, Math.round(num(x) / GRID) * GRID); c.y = Math.max(0, Math.round(num(y) / GRID) * GRID); return okr(); }
+function planReset(db, siteId) { planAuto(db, siteId, false); return okr(); }
+
+/* ---------- sites (stock commun : un site n'isole jamais les stocks) ---------- */
+function siteSave(db, s, id) {
+  const nom = String(s.nom || '').trim(); if (!nom) return fail('Le nom du site est obligatoire.');
+  if (nameTaken(db.sites, nom, id)) return fail(`Le site « ${nom} » existe déjà.`);
+  if (id) Object.assign(db.sites.find((x) => x.id === id), { nom, adresse: s.adresse || '' });
+  else { let sid = nid(db, 'site'); while (db.sites.some((x) => x.id === sid)) sid = nid(db, 'site'); db.sites.push({ id: sid, nom, adresse: s.adresse || '', zones: [] }); }
+  return okr();
+}
+function siteDelete(db, id) {
+  if (db.sites.length <= 1) return fail('Il faut conserver au moins un site.');
+  const n = db.contenants.filter((c) => c.siteId === id).length; if (n) return fail(`Ce site contient encore ${n} contenant(s) : déplacez-les vers un autre site (fiche du contenant › Modifier) avant de le supprimer.`);
+  db.sites = db.sites.filter((x) => x.id !== id); if (db.settings.siteActif === id) db.settings.siteActif = 'all'; return okr();
+}
+function zoneSave(db, siteId, z) {
+  const st = db.sites.find((x) => x.id === siteId); if (!st) return fail('Site introuvable.');
+  const item = { label: String(z.label || '').trim(), x: Math.max(0, Math.round(num(z.x) / GRID) * GRID), y: Math.max(0, Math.round(num(z.y) / GRID) * GRID), w: Math.max(60, Math.round(num(z.w) / GRID) * GRID), h: Math.max(40, Math.round(num(z.h) / GRID) * GRID), couleur: z.couleur || '#9AA39B' };
+  if (z.id) { const cur = st.zones.find((q) => q.id === z.id); if (cur) Object.assign(cur, item); } else st.zones.push({ id: nid(db, 'zn'), ...item });
+  return okr();
+}
+function zoneDelete(db, siteId, id) { const st = db.sites.find((x) => x.id === siteId); if (st) st.zones = st.zones.filter((z) => z.id !== id); return okr(); }
+
+/* ---------- crus (villages) ---------- */
+/* ---------- parcelles (reliées à un cru) ---------- */
+const parcelleName = (db, id) => { const p = (db.parcelles || []).find((x) => x.id === id); return p ? p.nom : (id && id !== '?' ? '(parcelle supprimée)' : 'Non renseignée'); };
+function parcelleUsage(db, id) { return db.ops.filter((o) => (o.type === 'apport' && o.parcelleId === id) || (o.type === 'entree_mout' && (o.entrees || []).some((e) => e.parcelleId === id))).length; }
+function parcelleSave(db, s, id) {
+  if (!Array.isArray(db.parcelles)) db.parcelles = [];
+  const nom = String(s.nom || '').trim(); if (!nom) return fail('Le nom de la parcelle est obligatoire.');
+  if (!s.cruId || !db.crus.some((c) => c.id === s.cruId)) return fail('Choisissez le cru (village) de la parcelle.');
+  if (db.parcelles.some((p) => p.id !== id && p.cruId === s.cruId && norm(p.nom).trim() === norm(nom).trim())) return fail(`La parcelle « ${nom} » existe déjà dans ce cru.`);
+  const item = { nom, cruId: s.cruId, lieuDit: String(s.lieuDit || '').trim(), cadastre: String(s.cadastre || '').trim(), surface: hasNum(s.surface) ? num(s.surface) : null, cepageId: s.cepageId || '', annee: String(s.annee || '').trim(), apporteurId: s.apporteurId || '', notes: String(s.notes || '').trim(), masque: !!s.masque };
+  if (id) { const p = db.parcelles.find((x) => x.id === id); if (!p) return fail('Parcelle introuvable.'); Object.assign(p, item); return okr({ id }); }
+  const nid_ = nid(db, 'parc'); db.parcelles.push({ id: nid_, ...item }); return okr({ id: nid_ });
+}
+function parcelleDelete(db, id) { const n = parcelleUsage(db, id); if (n) return fail(`Parcelle utilisée par ${n} opération(s) : masquez-la plutôt que de la supprimer.`); db.parcelles = (db.parcelles || []).filter((p) => p.id !== id); return okr(); }
+
+function cruUsage(db, id) {
+  return db.ops.filter((o) => (o.type === 'apport' && o.cruId === id) || (o.type === 'entree_mout' && (o.entrees || []).some((e) => e.cruId === id)) || (o.type === 'reprise' && o.lotSpec && o.lotSpec.crus && o.lotSpec.crus[id] != null)).length;
+}
+function cruSave(db, s, id) {
+  let nid_ = null;
+  const nom = String(s.nom || '').trim(); if (!nom) return fail('Le nom du cru (village) est obligatoire.');
+  if (nameTaken(db.crus, nom, id)) return fail(`Le cru « ${nom} » existe déjà dans la liste.`);
+  if (!eDef(s.echelle)) return fail(`Choisissez le classement (${ECH.nom.toLowerCase()}) : ${ECHELLES.map((e) => e.un).join(', ')}.`);
+  const item = { nom, echelle: s.echelle, dep: String(s.dep || '').trim(), alias: String(s.alias || '').trim(), masque: !!s.masque };
+  if (id) { const c = db.crus.find((x) => x.id === id); if (!c) return fail('Cru introuvable.'); Object.assign(c, item); }
+  else { nid_ = nid(db, 'cru'); db.crus.push({ id: nid_, ...item, custom: true }); }
+  db.crus.sort((a, b) => a.nom.localeCompare(b.nom, 'fr')); return okr({ id: id || nid_ });
+}
+function cruMask(db, ids, masque) { const set = new Set(ids); let n = 0; db.crus.forEach((c) => { if (set.has(c.id) && !!c.masque !== !!masque) { c.masque = !!masque; n += 1; } }); return okr({ n }); }
+function cruDelete(db, id) {
+  const np = (db.parcelles || []).filter((p) => p.cruId === id).length; if (np) return fail(`${np} parcelle(s) sont rattachées à ce cru : changez-les de cru ou supprimez-les d’abord.`);
+  const n = cruUsage(db, id); if (n) return fail(`Ce cru est utilisé par ${n} opération(s) : changez-le dans ces opérations ou renommez-le plutôt que de le supprimer.`);
+  db.crus = db.crus.filter((c) => c.id !== id); return okr();
+}
+function cruRestore(db) { // restaure la liste du fichier d'origine : réajoute les villages manquants et rétablit leur échelle (les crus personnalisés sont conservés)
+  const def = DEFAULT_CRUS(); let added = 0, reset = 0;
+  def.forEach((d) => { const c = db.crus.find((x) => x.id === d.id); if (!c) { db.crus.push(d); added += 1; } else if (c.echelle !== d.echelle) { c.echelle = d.echelle; reset += 1; } });
+  db.crus.sort((a, b) => a.nom.localeCompare(b.nom, 'fr')); return okr({ added, reset });
+}
+
+/* ---------- apporteurs (viticulteurs, coopératives, négoce) ---------- */
+function apporteurUsage(db, id) { return db.ops.filter((o) => (o.type === 'apport' && o.apporteurId === id) || (o.type === 'entree_mout' && (o.apporteurId === id || (o.entrees || []).some((e) => e.apporteurId === id)))).length; }
+function apporteurSave(db, s, id) {
+  const nom = String(s.nom || '').trim(); if (!nom) return fail('Le nom de l’apporteur est obligatoire.');
+  if (nameTaken(db.apporteurs, nom, id)) return fail(`L’apporteur « ${nom} » existe déjà.`);
+  const item = { nom, commune: s.commune || '', contact: s.contact || '', notes: s.notes || '' };
+  let rid = id; if (id) Object.assign(db.apporteurs.find((x) => x.id === id), item); else { rid = nid(db, 'apt'); db.apporteurs.push({ id: rid, ...item }); }
+  db.apporteurs.sort((a, b) => a.nom.localeCompare(b.nom, 'fr')); return okr({ id: rid });
+}
+function apporteurDelete(db, id) { const n = apporteurUsage(db, id); if (n) return fail(`Cet apporteur est utilisé par ${n} opération(s) : il ne peut pas être supprimé.`); db.apporteurs = db.apporteurs.filter((a) => a.id !== id); return okr(); }
+
+/* ---------- opérateurs : personnes qui réalisent les opérations (salariés, saisonniers, prestataires, œnologue…) ----------
+   db.operateurs [{ id, prenom, nom, initiales, fonction, contact, notes, actif, creeLe }] ; une opération garde la liste des
+   opérateurs qui l'ont faite (op.operateurs = [ids]) ; un opérateur qui a servi n'est jamais supprimé : il est archivé. */
+const OPERATEUR_FONCTIONS = ['Exploitant', 'Chef de cave', 'Caviste', 'Ouvrier de chai', 'Saisonnier', 'Apprenti', 'Stagiaire', 'Œnologue', 'Prestataire', 'Laboratoire'];
+const operateurDe = (db, id) => (id ? ((db && db.operateurs) || []).find((x) => x && x.id === id) || null : null);
+const operateurPlein = (o) => (o ? [o.prenom, o.nom].map((x) => String(x || '').trim()).filter(Boolean).join(' ') : '');
+const operateurNom = (db, id) => operateurPlein(operateurDe(db, id));
+const operateurCourt = (db, id) => { const o = operateurDe(db, id); if (!o) return ''; const p = String(o.prenom || '').trim(); const n = String(o.nom || '').trim(); return p ? `${p}${n ? ` ${n[0].toUpperCase()}.` : ''}` : n; };
+const operateurInitiales = (o) => (!o ? '' : String(o.initiales || '').trim().toUpperCase() || [o.prenom, o.nom].map((x) => String(x || '').trim().split(/[\s'’-]+/).filter(Boolean).map((w) => w[0]).join('')).join('').toUpperCase().slice(0, 4));
+const operateursValides = (db, ids) => uniq((Array.isArray(ids) ? ids : []).filter((id) => operateurDe(db, id)));
+const operateursNoms = (db, ids, sep = ', ') => operateursValides(db, ids).map((id) => operateurNom(db, id)).join(sep);
+const operateurCle = (prenom, nom) => norm(`${prenom || ''} ${nom || ''}`).replace(/\s+/g, ' ').trim();
+// liste triée : actifs d'abord (ordre alphabétique du prénom puis du nom), archivés ensuite
+const operateursTries = (db, archives) => ((db && db.operateurs) || []).filter((o) => o && o.id && (archives || o.actif !== false))
+  .sort((a, b) => ((a.actif === false) - (b.actif === false)) || operateurPlein(a).localeCompare(operateurPlein(b), 'fr', { sensitivity: 'base' }));
+// ce qu'a fait un opérateur (et qui l'empêche d'être supprimé)
+function operateurUsage(db, id) {
+  const has = (a) => Array.isArray(a) && a.includes(id);
+  const ops = db.ops.filter((o) => has(o.operateurs)).length; const hygiene = (db.hygiene || []).filter((h) => has(h.operateurs)).length;
+  const previsions = (db.previsions || []).filter((p) => has((p.f || {}).operateurs)).length; const alertes = (db.alertes || []).filter((a) => has(a.decidePar)).length;
+  return { ops, hygiene, previsions, alertes, total: ops + hygiene + previsions + alertes };
+}
+function operateurSave(db, s, id) {
+  if (!Array.isArray(db.operateurs)) db.operateurs = [];
+  const prenom = String(s.prenom || '').trim(); const nom = String(s.nom || '').trim();
+  if (!prenom && !nom) return fail('Indiquez le prénom ou le nom de l’opérateur.');
+  if (db.operateurs.some((o) => o && o.id !== id && operateurCle(o.prenom, o.nom) === operateurCle(prenom, nom))) return fail(`L’opérateur « ${[prenom, nom].filter(Boolean).join(' ')} » existe déjà.`);
+  const item = { prenom, nom, initiales: String(s.initiales || '').trim().toUpperCase().replace(/[^A-ZÀ-Ý0-9]/g, '').slice(0, 4), fonction: String(s.fonction || '').trim(), contact: String(s.contact || '').trim(), notes: String(s.notes || ''), actif: s.actif !== false };
+  let rid = id;
+  if (id) { const o = operateurDe(db, id); if (!o) return fail('Opérateur introuvable.'); Object.assign(o, item); } // champs inconnus (versions plus récentes) conservés
+  else { rid = nid(db, 'opr'); db.operateurs.push({ id: rid, ...item, creeLe: todayISO() }); }
+  return okr({ id: rid });
+}
+function operateurActif(db, id, actif) { const o = operateurDe(db, id); if (!o) return fail('Opérateur introuvable.'); o.actif = !!actif; return okr(); }
+function operateurDelete(db, id) {
+  const o = operateurDe(db, id); if (!o) return fail('Opérateur introuvable.');
+  const u = operateurUsage(db, id);
+  if (u.total) return fail(`${operateurPlein(o)} figure dans ${u.total} enregistrement(s) (opérations, hygiène, opérations à réaliser, déclassements) : archivez-le plutôt, son historique est conservé.`);
+  db.operateurs = db.operateurs.filter((x) => x.id !== id); return okr();
+}
+
+/* ---------- apparence (couleurs des contenants) ---------- */
+function apparenceSet(db, patch) { db.apparence = { ...db.apparence, ...patch }; return okr(); }
+
+/* ---------- fractions de moût (cuvée, tailles, rebêche, lies, bourbes… : liste personnalisable) ---------- */
+function fractionCont(db, op, id, patch) {
+  if (!Array.isArray(db.lists.fractions) || !db.lists.fractions.length) db.lists.fractions = DEFAULT_FRACTIONS();
+  const L = db.lists.fractions; const lab = String((patch && patch.label) || '').trim();
+  const sfx = String((patch && patch.suffix) || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+  if (op === 'add') {
+    if (!lab) return fail('Libellé de la fraction requis.'); if (L.some((x) => norm(x.label) === norm(lab))) return fail('Cette fraction existe déjà.');
+    if (sfx && L.some((x) => x.suffix === sfx)) return fail(`Le suffixe « ${sfx} » est déjà utilisé par une autre fraction.`);
+    L.push({ id: nid(db, 'fr'), label: lab, suffix: sfx, pressurage: patch.pressurage !== false }); return okr();
+  }
+  const i = L.findIndex((x) => x.id === id); const it = L[i]; if (!it) return fail('Fraction introuvable.');
+  if (op === 'edit') {
+    if (patch.label != null) { if (!lab) return fail('Libellé requis.'); if (L.some((x) => x.id !== id && norm(x.label) === norm(lab))) return fail('Ce libellé existe déjà.'); it.label = lab; }
+    if (patch.suffix != null) { if (sfx && L.some((x) => x.id !== id && x.suffix === sfx)) return fail(`Le suffixe « ${sfx} » est déjà utilisé.`); it.suffix = sfx; }
+    if (patch.pressurage != null) it.pressurage = !!patch.pressurage;
+    return okr();
+  }
+  if (op === 'up' || op === 'down') { const j = op === 'up' ? i - 1 : i + 1; if (j < 0 || j >= L.length) return okr(); [L[i], L[j]] = [L[j], L[i]]; return okr(); }
+  if (op === 'del') { const n = listUsage(db, 'fractions', id); if (n) return fail(`Fraction utilisée ${n} fois : renommez-la plutôt que de la supprimer.`); if (L.length <= 1) return fail('Gardez au moins une fraction.'); db.lists.fractions = L.filter((x) => x.id !== id); return okr(); }
+  if (op === 'reset') { DEFAULT_FRACTIONS().forEach((d) => { if (!L.some((x) => x.id === d.id)) L.push(d); }); return okr(); }
+  return fail('Action inconnue.');
+}
+
+/* ---------- types de contenants & matières (atelier de personnalisation) ---------- */
+function typeCont(db, op, id, patch) {
+  const L = db.lists.typesContenant; const lab = String((patch && patch.label) || '').trim();
+  if (op === 'add') { if (!lab) return fail('Libellé requis.'); if (L.some((x) => norm(x.label) === norm(lab))) return fail('Ce type existe déjà.'); L.push({ id: nid(db, 'tc'), label: lab, forme: patch.forme || 'cuve' }); return okr(); }
+  const it = L.find((x) => x.id === id); if (!it) return fail('Type introuvable.');
+  if (op === 'edit') { if (patch.label != null) { if (!lab) return fail('Libellé requis.'); if (L.some((x) => x.id !== id && norm(x.label) === norm(lab))) return fail('Ce libellé existe déjà.'); it.label = lab; } if (patch.forme) it.forme = patch.forme; return okr(); }
+  if (op === 'del') { const n = listUsage(db, 'typesContenant', id); if (n) return fail(`Utilisé par ${n} contenant(s) : renommez-le plutôt.`); db.lists.typesContenant = L.filter((x) => x.id !== id); return okr(); }
+  return fail('Action inconnue.');
+}
+function matiereCont(db, op, id, patch) {
+  const L = db.lists.matieres; const lab = String((patch && patch.label) || '').trim();
+  if (op === 'add') { if (!lab) return fail('Libellé requis.'); if (L.some((x) => norm(x.label) === norm(lab))) return fail('Cette matière existe déjà.'); L.push({ id: nid(db, 'ma'), label: lab, couleur: patch.couleur || '#B9C4CC', finition: patch.finition || 'lisse' }); return okr(); }
+  const it = L.find((x) => x.id === id); if (!it) return fail('Matière introuvable.');
+  if (op === 'edit') { if (patch.label != null) { if (!lab) return fail('Libellé requis.'); if (L.some((x) => x.id !== id && norm(x.label) === norm(lab))) return fail('Ce libellé existe déjà.'); it.label = lab; } if (patch.couleur) it.couleur = patch.couleur; if (patch.finition) it.finition = patch.finition; return okr(); }
+  if (op === 'del') { const n = listUsage(db, 'matieres', id); if (n) return fail(`Utilisée par ${n} contenant(s) : renommez-la plutôt.`); db.lists.matieres = L.filter((x) => x.id !== id); return okr(); }
+  return fail('Action inconnue.');
+}
+
+/* ============ CRUD simples : contenants, produits, arrivages, listes, analyses, hygiène ============ */
+function contSave(db, s, id) {
+  const nom = String(s.nom || '').trim();
+  if (!nom) return fail('Le nom du contenant est obligatoire.');
+  if (nameTaken(db.contenants, nom, id)) return fail(`Le nom « ${nom} » est déjà utilisé : il doit être unique.`);
+  if (!(num(s.volMax) > 0)) return fail('Le volume maximal doit être supérieur à 0 L.');
+  const siteId = s.siteId && db.sites.some((x) => x.id === s.siteId) ? s.siteId : (db.sites[0] || {}).id;
+  const item = { nom, type: s.type, matiere: s.matiere, annee: s.annee ? parseInt(s.annee, 10) : null, volMax: num(s.volMax), statut: s.statut || 'actif', notes: s.notes || '', siteId };
+  if (id) {
+    const c = db.contenants.find((x) => x.id === id); if (!c) return fail('Contenant introuvable.');
+    const moved = c.siteId !== siteId;
+    Object.assign(c, item); if (moved) { c.x = null; c.y = null; planAuto(db, siteId, true); }
+  } else { const c = { id: nid(db, 'ct'), ...item, x: null, y: null }; db.contenants.push(c); planAuto(db, siteId, true); }
+  return okr();
+}
+function contDelete(db, id) {
+  const used = db.ops.some((o) => JSON.stringify(o).includes(`"${id}"`)) || db.analyses.some((a) => a.contenantId === id) || db.hygiene.some((h) => h.cibleType === 'contenant' && h.cibleId === id);
+  if (used) return fail('Ce contenant a un historique : archivez-le plutôt que de le supprimer.');
+  db.contenants = db.contenants.filter((c) => c.id !== id); return okr();
+}
+
+function fournisseurSave(db, s, id) {
+  const nom = String(s.nom || '').trim(); if (!nom) return fail('Nom du fournisseur requis.');
+  if (nameTaken(db.fournisseurs, nom, id)) return fail('Ce fournisseur existe déjà.');
+  if (id) Object.assign(db.fournisseurs.find((x) => x.id === id), { nom, contact: s.contact || '' }); else db.fournisseurs.push({ id: nid(db, 'fo'), nom, contact: s.contact || '' });
+  return okr();
+}
+function fournisseurDelete(db, id) {
+  if (db.produits.some((p) => p.fournisseurId === id) || db.arrivages.some((a) => a.fournisseurId === id)) return fail('Fournisseur utilisé par des produits ou des arrivages.');
+  db.fournisseurs = db.fournisseurs.filter((f) => f.id !== id); return okr();
+}
+
+function produitSave(db, s, id) {
+  const nom = String(s.nom || '').trim(); if (!nom) return fail('Nom du produit requis.');
+  if (nameTaken(db.produits, nom, id)) return fail(`Le produit « ${nom} » existe déjà.`);
+  const item = { nom, categorie: s.categorie, unite: s.unite, fournisseurId: s.fournisseurId || '', actif: s.actif !== false, notes: s.notes || '' };
+  if (id) Object.assign(db.produits.find((x) => x.id === id), item);
+  else {
+    const pid = nid(db, 'pr'); db.produits.push({ id: pid, ...item });
+    QUALIFS.forEach((q) => db.regles.push({ produitId: pid, qualifId: q.id, autorise: q.id === 'conv', doseMax: null }));
+  }
+  return okr();
+}
+function produitDelete(db, id) {
+  if (db.arrivages.some((a) => a.produitId === id) || JSON.stringify(db.ops).includes(`"produitId":"${id}"`)) return fail('Produit utilisé (arrivages ou opérations) : désactivez-le plutôt.');
+  db.produits = db.produits.filter((p) => p.id !== id); db.regles = db.regles.filter((r) => r.produitId !== id); return okr();
+}
+function regleSet(db, produitId, qualifId, patch) {
+  let r = db.regles.find((x) => x.produitId === produitId && x.qualifId === qualifId);
+  if (!r) { r = { produitId, qualifId, autorise: false, doseMax: null }; db.regles.push(r); }
+  Object.assign(r, patch); return okr();
+}
+
+function arrivageSave(db, s, id) {
+  if (!s.produitId) return fail('Choisissez un produit.');
+  if (!isoOK(s.date)) return fail('Date d’arrivage invalide.');
+  if (!(num(s.qty) > 0)) return fail('Quantité reçue : valeur supérieure à 0 requise.');
+  if (!String(s.numLot || '').trim()) return fail('Le numéro de lot fournisseur est obligatoire pour la traçabilité.');
+  if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.');
+  const pr = db.produits.find((p) => p.id === s.produitId);
+  const item = { produitId: s.produitId, fournisseurId: s.fournisseurId || (pr && pr.fournisseurId) || '', numLot: String(s.numLot).trim(), dluo: s.dluo || '', date: s.date, qty: num(s.qty), notes: s.notes || '' };
+  if (id) { const a = db.arrivages.find((x) => x.id === id); if (isLocked(db, a.date)) return fail('Arrivage verrouillé (campagne figée).'); Object.assign(a, item); }
+  else { const aid = nid(db, 'ar'); db.arrivages.push({ id: aid, ...item }); return okr({ id: aid }); }
+  return okr({ id });
+}
+function arrivageDelete(db, id) {
+  const a = db.arrivages.find((x) => x.id === id); if (!a) return fail('Arrivage introuvable.');
+  if (isLocked(db, a.date)) return fail('Arrivage verrouillé (campagne figée).');
+  if (JSON.stringify(db.ops).includes(`"arrivageId":"${id}"`)) return fail('Cet arrivage a déjà été utilisé dans des opérations.');
+  db.arrivages = db.arrivages.filter((x) => x.id !== id); db.docs = (db.docs || []).filter((x) => !(x.cible && x.cible.type === 'arrivage' && x.cible.id === id)); return okr();
+}
+
+/* ---------- stades du vin, couleurs du vin, échelle des crus : listes personnalisables ---------- */
+const RICH_DEFAULTS = { stades: DEFAULT_STADES, couleursVin: DEFAULT_COULEURS_VIN, echelles: DEFAULT_ECHELLES };
+const RICH_NOMS = { stades: 'stade', couleursVin: 'couleur', echelles: 'niveau' };
+function richListCont(db, key, op, id, patch) {
+  if (!Array.isArray(db.lists[key]) || !db.lists[key].length) db.lists[key] = RICH_DEFAULTS[key]();
+  const L = db.lists[key]; const nom = RICH_NOMS[key]; patch = patch || {};
+  const lab = String(patch.label || '').trim(); const hex = (c) => /^#[0-9a-f]{6}$/i.test(String(c || '')) ? c : null;
+  const renum = () => { if (key === 'echelles') L.forEach((x, i) => { x.rang = i + 1; }); };
+  const apply = (it) => {
+    if (patch.label != null) { if (!lab) return 'Libellé requis.'; if (L.some((x) => x !== it && norm(x.label) === norm(lab))) return 'Ce libellé existe déjà.'; it.label = lab; }
+    if (patch.court != null) it.court = String(patch.court).trim().slice(0, 14);
+    if (patch.un != null) it.un = String(patch.un).trim() || it.label;
+    if (patch.couleur != null && hex(patch.couleur)) it.couleur = patch.couleur;
+    if (patch.phase != null) it.phase = patch.phase;
+    if (patch.role != null) { if (patch.role) L.forEach((x) => { if (x !== it && x.role === patch.role) x.role = ''; }); it.role = patch.role; }
+    if (patch.masque != null) it.masque = !!patch.masque;
+    if (patch.melange != null) { if (patch.melange) L.forEach((x) => { x.melange = false; }); it.melange = !!patch.melange; }
+    return null;
+  };
+  if (op === 'add') {
+    if (!lab) return fail(`Libellé du ${nom} requis.`); if (L.some((x) => norm(x.label) === norm(lab))) return fail('Cet élément existe déjà.');
+    let base = norm(lab).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 20) || 'x'; let nidv = base; let k = 2; while (L.some((x) => x.id === nidv)) { nidv = `${base}_${k}`; k += 1; }
+    const it = { id: nidv, label: lab, couleur: hex(patch.couleur) || '#8C9792' };
+    if (key === 'stades') Object.assign(it, { court: String(patch.court || lab).trim().slice(0, 14), phase: patch.phase || 'vin', role: '' });
+    if (key === 'echelles') Object.assign(it, { un: String(patch.un || lab).trim(), court: String(patch.court || lab.slice(0, 4)).trim().toUpperCase().slice(0, 6), rang: L.length + 1 });
+    const pos = patch.after ? L.findIndex((x) => x.id === patch.after) : -1;
+    if (pos >= 0) L.splice(pos + 1, 0, it); else L.push(it); renum(); return okr({ id: nidv });
+  }
+  const i = L.findIndex((x) => x.id === id); const it = L[i]; if (!it) return fail('Élément introuvable.');
+  if (op === 'edit') { const e = apply(it); return e ? fail(e) : okr(); }
+  if (op === 'up' || op === 'down') { const j = op === 'up' ? i - 1 : i + 1; if (j < 0 || j >= L.length) return okr(); [L[i], L[j]] = [L[j], L[i]]; renum(); return okr(); }
+  if (op === 'del') {
+    const n = listUsage(db, key, id); if (n) return fail(`Utilisé ${n} fois : renommez-le ou masquez-le plutôt que de le supprimer.`);
+    if (L.length <= 1) return fail('Gardez au moins un élément.'); db.lists[key] = L.filter((x) => x.id !== id); if (key === 'echelles') db.lists[key].forEach((x, k) => { x.rang = k + 1; });
+    if (key === 'stades') db.lists.stadesMelanges = stadeMelanges(db).filter((r) => r.a !== id && r.b !== id && r.r !== id);
+    return okr();
+  }
+  return fail('Action inconnue.');
+}
+/* ---------- mélanges de stades (assemblages) : règles « A + B = résultat » et règle par défaut ---------- */
+function stadeMelangeSave(db, i, r) {
+  const L = stadeMelanges(db).map((x) => ({ ...x }));
+  if (!stadeDef(db, r.a) || !stadeDef(db, r.b) || !stadeDef(db, r.r)) return fail('Choisissez les deux stades mélangés et le stade obtenu.');
+  if (r.a === r.b) return fail('Choisissez deux stades différents (un même stade reste inchangé).');
+  if (L.some((x, k) => k !== i && ((x.a === r.a && x.b === r.b) || (x.a === r.b && x.b === r.a)))) return fail('Une règle existe déjà pour ces deux stades.');
+  const it = { ...(i != null && L[i] ? L[i] : {}), a: r.a, b: r.b, r: r.r }; if (i != null && L[i]) L[i] = it; else L.push(it);
+  db.lists.stadesMelanges = L; return okr();
+}
+function stadeMelangeDelete(db, i) { db.lists.stadesMelanges = stadeMelanges(db).filter((_, k) => k !== i); return okr(); }
+function stadeMelangeReset(db) { const L = stadeMelanges(db).map((x) => ({ ...x })); DEFAULT_STADES_MELANGES().forEach((d) => { if (stadeDef(db, d.a) && stadeDef(db, d.b) && stadeDef(db, d.r) && !L.some((x) => (x.a === d.a && x.b === d.b) || (x.a === d.b && x.b === d.a))) L.push(d); }); db.lists.stadesMelanges = L; return okr(); }
+
+/* ---------- catalogue des opérations : variantes et opérations personnalisées ---------- */
+function opCatUsage(db, id) {
+  const x = opDef(db, id); if (!x) return 0; const own = (o) => (o.sousType ? o.sousType === id : o.type === id);
+  return db.ops.filter(own).length + (db.previsions || []).filter((p) => (p.f && p.f.sousType ? p.f.sousType === id : p.type === id)).length;
+}
+const opCatEnsure = (db) => { if (!Array.isArray(db.lists.operations) || !db.lists.operations.length) db.lists.operations = DEFAULT_OPERATIONS(); return db.lists.operations; };
+// x : { id?, label, base, groupe, icone, aide, motif, stadeAuto, ficheId, masque, menu } · opts.fiche : modèle de fiche à créer avec l'opération
+function opCatSave(db, x, opts) {
+  opts = opts || {}; const L = opCatEnsure(db); const label = String(x.label || '').trim().slice(0, 60);
+  if (!label) return fail('Le nom de l’opération est obligatoire.');
+  const i = x.id ? L.findIndex((y) => y.id === x.id) : -1; const cur = i >= 0 ? L[i] : null;
+  if (x.id && !cur) return fail('Opération introuvable.');
+  const base = cur ? cur.base : x.base;
+  if (!cur && !OP_COMPORTEMENTS.some((c) => c[0] === base)) return fail('Choisissez le comportement de l’opération.');
+  const dup = L.find((y) => y !== cur && norm(y.label) === norm(label)); if (dup) return fail(`Une opération « ${dup.label} » existe déjà.`);
+  const sa = x.stadeAuto || (cur && cur.stadeAuto) || null;
+  if (sa && sa.actif && !stadeDef(db, sa.stade)) return fail('Choisissez le stade appliqué automatiquement (ou désactivez le changement de stade).');
+  const it = { ...(cur || {}), ...x, label, base, groupe: String(x.groupe || (cur && cur.groupe) || OP_GROUPES[1]).trim() || OP_GROUPES[1] };
+  ['icone', 'aide', 'motif'].forEach((k) => { if (it[k] != null) it[k] = String(it[k]).trim().slice(0, k === 'aide' ? 400 : k === 'icone' ? 3 : 80); if (it[k] === '') delete it[k]; });
+  if (sa) it.stadeAuto = { actif: !!sa.actif, stade: sa.stade || '' };
+  if (!cur) {
+    let slug = norm(label).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || 'op'; let id = `perso_${slug}`; let k = 2;
+    while (L.some((y) => y.id === id) || OP_LABELS0[id]) { id = `perso_${slug}_${k}`; k += 1; }
+    it.id = id; it.custom = true; if (it.menu == null) it.menu = OP_BASES_VISIBLES_MENU.includes(base);
+    if (opts.fiche) {
+      if (!db.modelesFiches) db.modelesFiches = []; const fid = `fiche_${id}`;
+      const pre = (norm(label).replace(/[^a-z]/g, '').toUpperCase().slice(0, 3) || 'OP');
+      db.modelesFiches.push({ ...clone(opts.fiche), id: fid, titre: label, prefixe: pre, version: '1', creeLe: todayISO(), modifieLe: todayISO(), types: [id], auto: id });
+      it.ficheId = fid;
+    }
+    let pos = -1; L.forEach((y, k2) => { if (y.groupe === it.groupe) pos = k2; }); if (pos >= 0) L.splice(pos + 1, 0, it); else L.push(it);
+    syncOps(db); return okr({ id: it.id });
+  }
+  L[i] = it; syncOps(db); return okr({ id: it.id });
+}
+function opCatDelete(db, id) {
+  const L = opCatEnsure(db); const x = L.find((y) => y.id === id); if (!x) return fail('Opération introuvable.');
+  if (!x.custom) return fail('Une opération d’origine ne se supprime pas : masquez-la.');
+  const n = opCatUsage(db, id); if (n) return fail(`Suppression impossible : ${n} opération(s) enregistrée(s) ou à réaliser l’utilisent. Masquez-la plutôt.`);
+  db.lists.operations = L.filter((y) => y.id !== id);
+  if (x.ficheId) db.modelesFiches = (db.modelesFiches || []).filter((t) => !(t.id === x.ficheId && t.auto === id && !(db.fiches || []).some((f) => f.modele === t.id)));
+  (db.modelesFiches || []).forEach((t) => { if (Array.isArray(t.types)) t.types = t.types.filter((k) => k !== id); });
+  syncOps(db); return okr();
+}
+function opCatMove(db, id, dir) {
+  const L = opCatEnsure(db); const i = L.findIndex((y) => y.id === id); if (i < 0) return fail('Opération introuvable.');
+  const g = L[i].groupe; let j = i + dir; while (j >= 0 && j < L.length && L[j].groupe !== g) j += dir;
+  if (j < 0 || j >= L.length) return okr(); [L[i], L[j]] = [L[j], L[i]]; return okr();
+}
+function opCatReset(db, id) {
+  const D = DEFAULT_OPERATIONS().find((y) => y.id === id); if (!D) return fail('Seules les opérations d’origine peuvent être rétablies.');
+  db.lists.operations = opCatEnsure(db).map((y) => (y.id === id ? { ...D } : y)); syncOps(db); return okr();
+}
+
+function richListReset(db, key) { if (!Array.isArray(db.lists[key])) db.lists[key] = []; RICH_DEFAULTS[key]().forEach((d) => { if (!db.lists[key].some((x) => x.id === d.id)) db.lists[key].push(d); }); return okr(); }
+// préréglage régional d'échelle : remplace la liste ; les crus rangés dans un niveau disparu deviennent « non classés »
+function echellePreset(db, presetId) {
+  const p = ECHELLE_PRESETS.find((x) => x.id === presetId); if (!p) return fail('Préréglage inconnu.');
+  db.lists.echelles = p.items.map((x) => ({ ...x })); const ids = p.items.map((x) => x.id); let n = 0;
+  db.crus.forEach((c) => { if (c.echelle && !ids.includes(c.echelle)) { c.echelle = ''; n += 1; } });
+  db.settings.echelleNom = p.titre; db.settings.echellePreset = p.id; return okr({ declasses: n });
+}
+
+/* ---------- listes modifiables ---------- */
+function listAdd(db, key, label) {
+  const l = String(label || '').trim(); if (!l) return fail('Libellé requis.');
+  if ((db.lists[key] || []).some((x) => norm(x.label) === norm(l))) return fail('Cet élément existe déjà.');
+  db.lists[key].push({ id: nid(db, 'li'), label: l }); return okr();
+}
+function listRename(db, key, id, label) {
+  const l = String(label || '').trim(); if (!l) return fail('Libellé requis.');
+  if (db.lists[key].some((x) => x.id !== id && norm(x.label) === norm(l))) return fail('Ce libellé existe déjà.');
+  db.lists[key].find((x) => x.id === id).label = l; return okr();
+}
+function listRemove(db, key, id) {
+  const n = listUsage(db, key, id); if (n > 0) return fail(`Utilisé ${n} fois : impossible de supprimer (renommez-le à la place).`);
+  db.lists[key] = db.lists[key].filter((x) => x.id !== id); return okr();
+}
+
+/* ---------- analyses ---------- */
+function analyseSave(db, s, id) {
+  if (!s.lotId) return fail('Rattachez l’analyse à un lot.');
+  if (!isoOK(s.date)) return fail('Date invalide.');
+  if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.');
+  const valeurs = {}; Object.keys(s.valeurs || {}).forEach((k) => { if (hasNum(s.valeurs[k])) valeurs[k] = num(s.valeurs[k]); });
+  if (!Object.keys(valeurs).length) return fail('Saisissez au moins une valeur.');
+  const item = { date: s.date, lotId: s.lotId, contenantId: s.contenantId || '', modeleId: s.modeleId || '', valeurs, notes: s.notes || '' };
+  if (id) { const a = db.analyses.find((x) => x.id === id); if (isLocked(db, a.date)) return fail('Analyse verrouillée (campagne figée).'); Object.assign(a, item); } else db.analyses.push({ id: nid(db, 'an'), ...item });
+  return okr();
+}
+function analyseDelete(db, id) { const a = db.analyses.find((x) => x.id === id); if (!a) return fail('Introuvable.'); if (isLocked(db, a.date)) return fail('Analyse verrouillée (campagne figée).'); db.analyses = db.analyses.filter((x) => x.id !== id); return okr(); }
+function paramSave(db, s, id) {
+  const nom = String(s.nom || '').trim(); if (!nom) return fail('Nom du paramètre requis.');
+  if (nameTaken(db.analysesParams, nom, id)) return fail('Ce paramètre existe déjà.');
+  const item = { nom, unite: s.unite || '', dec: clamp(parseInt(s.dec, 10) || 0, 0, 6) };
+  if (id) Object.assign(db.analysesParams.find((p) => p.id === id), item); else db.analysesParams.push({ id: nid(db, 'pa'), ...item });
+  return okr();
+}
+function paramDelete(db, id) {
+  if (db.analyses.some((a) => a.valeurs && a.valeurs[id] != null)) return fail('Des analyses utilisent ce paramètre.');
+  db.analysesParams = db.analysesParams.filter((p) => p.id !== id); db.analysesModeles.forEach((m) => { m.paramIds = m.paramIds.filter((x) => x !== id); }); return okr();
+}
+function modeleSave(db, s, id) {
+  const nom = String(s.nom || '').trim(); if (!nom) return fail('Nom du modèle requis.');
+  if (nameTaken(db.analysesModeles, nom, id)) return fail('Ce modèle existe déjà.');
+  const item = { nom, etape: s.etape || '', paramIds: s.paramIds || [] };
+  if (id) Object.assign(db.analysesModeles.find((m) => m.id === id), item); else db.analysesModeles.push({ id: nid(db, 'mo'), ...item });
+  return okr();
+}
+function modeleDelete(db, id) { db.analysesModeles = db.analysesModeles.filter((m) => m.id !== id); return okr(); }
+
+/* ---------- hygiène ---------- */
+function hygieneSave(db, s, id) {
+  if (!isoOK(s.date)) return fail('Date invalide.');
+  if (!s.cibleId) return fail('Choisissez un contenant ou un équipement.');
+  if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.');
+  // opérateurs choisis dans la liste (ids) ; le nom en clair reste dans « operateur » (lu par les versions antérieures)
+  const ids = Array.isArray(s.operateurs) ? operateursValides(db, s.operateurs) : null;
+  if (ids && !ids.length && (db.settings || {}).operateurObligatoire && !String(s.operateur || '').trim()) return fail('Indiquez qui a fait l’action (opérateur).');
+  const item = { date: s.date, cibleType: s.cibleType, cibleId: s.cibleId, actionId: s.actionId, produit: s.produit || '', operateur: ids && ids.length ? operateursNoms(db, ids) : (s.operateur || ''), notes: s.notes || '', ...(ids && ids.length ? { operateurs: ids } : {}) };
+  if (id) { const h = db.hygiene.find((x) => x.id === id); if (isLocked(db, h.date)) return fail('Entrée verrouillée (campagne figée).'); Object.assign(h, item); if (ids && !ids.length) delete h.operateurs; } else db.hygiene.push({ id: nid(db, 'hy'), ...item });
+  return okr();
+}
+function hygieneDelete(db, id) { const h = db.hygiene.find((x) => x.id === id); if (!h) return fail('Introuvable.'); if (isLocked(db, h.date)) return fail('Entrée verrouillée (campagne figée).'); db.hygiene = db.hygiene.filter((x) => x.id !== id); return okr(); }
+
+/* ---------- lots : métadonnées modifiables ---------- */
+function lotEdit(db, id, s) {
+  const l = db.lots.find((x) => x.id === id); if (!l) return fail('Lot introuvable.');
+  const code = String(s.code || '').trim(); if (!code) return fail('Le code lot est obligatoire.');
+  if (nameTaken(db.lots, code, id, 'code')) return fail(`Le code « ${code} » est déjà utilisé par un autre lot.`);
+  Object.assign(l, { code, designation: s.designation || '', millesime: s.millesime || '' }); return okr();
+}
+
+/* ---------- documents joints (métadonnées ; les fichiers eux-mêmes sont dans IndexedDB) ---------- */
+const docsOf = (db, type, id) => (db.docs || []).filter((x) => x.cible && x.cible.type === type && x.cible.id === id);
+function docMetaAdd(db, m) {
+  if (!m || !m.id || !m.cible || !m.cible.id) return fail('Document invalide.');
+  if (!db.docs) db.docs = [];
+  db.docs.push({ id: m.id, nom: String(m.nom || 'document'), mime: m.mime || '', taille: num(m.taille), cat: m.cat || 'autre', cible: { type: m.cible.type, id: m.cible.id }, date: m.date || todayISO() });
+  return okr();
+}
+function docMetaEdit(db, id, patch) { const x = (db.docs || []).find((y) => y.id === id); if (!x) return fail('Document introuvable.'); if (patch.cat) x.cat = patch.cat; if (patch.nom != null && String(patch.nom).trim()) x.nom = String(patch.nom).trim(); return okr(); }
+function docMetaDel(db, id) { db.docs = (db.docs || []).filter((x) => x.id !== id); return okr(); }
+
+/* ---------- identité de l'entreprise (en-tête des fiches et rapports) ---------- */
+function entrepriseSet(db, patch) { db.entreprise = { ...(db.entreprise || {}), ...patch }; return okr(); }
+
+/* ---------- prévisions de mouvements (opérations planifiées, sans effet sur les stocks) ---------- */
+function previsionSave(db, s, id) {
+  if (!isoOK(s.date)) return fail('Date prévue invalide.');
+  if (!OP_LABELS[s.type]) return fail('Type d’opération inconnu.');
+  if (!db.previsions) db.previsions = [];
+  const item = { type: s.type, date: s.date, f: clone(s.f || {}), resume: String(s.resume || '').slice(0, 600), notes: s.notes || '' };
+  let pid = id;
+  if (id) { const p = db.previsions.find((x) => x.id === id); if (!p) return fail('Prévision introuvable.'); Object.assign(p, item); }
+  else { pid = nid(db, 'pv'); db.previsions.push({ id: pid, statut: 'prevue', creeLe: todayISO(), opId: null, ...item }); }
+  return okr({ id: pid });
+}
+function previsionStatut(db, id, statut, opId) {
+  const p = (db.previsions || []).find((x) => x.id === id); if (!p) return fail('Prévision introuvable.');
+  p.statut = statut; if (statut === 'realisee') { p.opId = opId || p.opId || null; p.realiseLe = todayISO(); } else if (statut === 'prevue') { p.opId = null; delete p.realiseLe; }
+  return okr();
+}
+function previsionDelete(db, id) { db.previsions = (db.previsions || []).filter((x) => x.id !== id); return okr(); }
+
+/* ---------- fiches d'enregistrement : journal des fiches éditées (n° d'ordre) et modèles personnalisés ---------- */
+function ficheOrdre(db, tpl, date) {
+  const n = (db.fiches || []).filter((x) => x.modele === tpl.id && x.date === date).length + 1;
+  return `${tpl.prefixe || ''}${date.slice(8, 10)}${date.slice(5, 7)}${date.slice(2, 4)}N${n}`;
+}
+function ficheAdd(db, s) {
+  if (!db.fiches) db.fiches = [];
+  const id = nid(db, 'fi'); db.fiches.push({ id, modele: s.modele, ordre: s.ordre, date: s.date, sources: s.sources || [], creeLe: todayISO() });
+  (s.sources || []).forEach((x) => { const t = x.kind === 'prev' ? (db.previsions || []).find((p) => p.id === x.id) : db.ops.find((o) => o.id === x.id); if (t) t.ficheOrdre = s.ordre; });
+  return okr({ id });
+}
+function modeleFicheSave(db, tpl) {
+  if (!tpl || !tpl.id) return fail('Modèle invalide.'); if (!String(tpl.titre || '').trim()) return fail('Le titre du modèle est obligatoire.');
+  if (!db.modelesFiches) db.modelesFiches = [];
+  const i = db.modelesFiches.findIndex((x) => x.id === tpl.id); const t = clone(tpl); t.modifieLe = todayISO();
+  if (i >= 0) db.modelesFiches[i] = t; else db.modelesFiches.push(t);
+  return okr();
+}
+function modeleFicheReset(db, id) { db.modelesFiches = (db.modelesFiches || []).filter((x) => x.id !== id); return okr(); }

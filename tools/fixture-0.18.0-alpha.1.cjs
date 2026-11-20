@@ -1,0 +1,21 @@
+// Base de test 0.18.0-alpha.1 (données fictives : jeu d'exemple + revendications personnalisées + produits d'hygiène) → test/fixtures/base-0.18.0-alpha.1-hygiene.json
+const fs = require('fs'); const path = require('path');
+const dir = path.join(__dirname, '..', 'src');
+const files = ['10-core.js', '11-crus.js', '12-vin.js', '13-operations.js', '14-formulaires.js', '15-baremes.js', '16-hygiene.js', '20-engine.js', '25-trace.js', '30-store.js', '31-crud.js', '32-sync.js', '33-cloud.js', '34-acces.js', '35-seed.js'];
+let src = files.map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n').replace(/const \{ useState[^\n]*\n/, '');
+global.window = { localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} } };
+const L = new Function('React', src + '\n;return { sampleDb, normalizeDb, richListCont, opSave, hygProduitSave, hygieneSave, docMetaAdd, operateursTries, APP_VERSION };')({});
+const must = (r) => { if (!r || r.ok === false) throw new Error(r && r.msg); return r; };
+const d = L.normalizeDb(L.sampleDb());
+const hve = must(L.richListCont(d, 'qualifs', 'add', null, { label: 'HVE', court: 'HVE', couleur: '#2F7D8C', after: 'conv', copieDe: 'conv' })).id;
+must(L.richListCont(d, 'qualifs', 'edit', 'bio', { label: 'Agriculture biologique', court: 'AB' }));
+const c2 = must(L.richListCont(d, 'qualifs', 'add', null, { label: 'Conversion bio C2', after: hve, copieDe: 'bio' })).id;
+must(L.richListCont(d, 'qualifs', 'edit', c2, { masque: true }));
+const ap = d.ops.find((o) => o.type === 'apport');
+must(L.opSave(d, { type: 'apport', date: '2026-11-17', cepageId: 'pm', kg: 1500, qualifId: hve, cruId: ap.cruId, apporteurId: ap.apporteurId, ref: 'BP-HVE-01', operateurs: ap.operateurs }));
+const pid = must(L.hygProduitSave(d, { nom: 'Nettoyant chloré démo', type: 'alcalin_chlore', concMin: 1, concMax: 2, concUnite: '%', rincage: 'oui', mention: 'danger', pictos: ['SGH05', 'SGH09'], phrasesH: 'H314 : Provoque de graves brûlures de la peau et de graves lésions des yeux.', epi: ['gants', 'lunettes'], fdsDate: '2021-05-10', revendications: ['conv', hve] })).id;
+must(L.docMetaAdd(d, { id: 'docFdsDemo', nom: 'fds-nettoyant-chlore-demo.pdf', mime: 'application/pdf', taille: 1234, cat: 'fds', cible: { type: 'produitHygiene', id: pid }, date: '2026-11-18' }));
+const c = d.contenants.find((x) => x.nom === 'Cuve 03') || d.contenants[2];
+must(L.hygieneSave(d, { date: '2026-11-18', cibleType: 'contenant', cibleId: c.id, actionId: 'nettoyage', produits: [{ produitId: pid, conc: 1.5, quantite: 2 }], methode: 'eau chaude 50 °C', operateurs: [d.operateurs.find((o) => o.actif !== false).id] }));
+const out = path.join(__dirname, '..', 'test', 'fixtures', 'base-0.18.0-alpha.1-hygiene.json');
+fs.writeFileSync(out, JSON.stringify(d)); console.log(L.APP_VERSION, out, Math.round(fs.statSync(out).size / 1024), 'Ko', d.lists.qualifs.map((q) => q.id).join(','), d.produitsHygiene.length, 'produits');

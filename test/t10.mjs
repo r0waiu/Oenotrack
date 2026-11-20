@@ -1,0 +1,14 @@
+import { open } from './ui.mjs';
+const SH = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + '/shots';
+const { browser, page, errors } = await open();
+await page.click('#tab-ops'); await page.waitForTimeout(300);
+const row = page.locator('tr', { hasText: 'GH-482-KT' }).first(); await row.locator('button:has-text("Modifier")').click(); await page.waitForTimeout(500);
+const sh = page.locator('.overlay').last();
+console.log('titre:', await sh.locator('h2').first().innerText());
+console.log('moûts:', await sh.locator('[aria-label^="Compartiment du moût"]').evaluateAll((e) => e.map((x) => x.value).join(',')));
+console.log('codes:', await sh.locator('[aria-label^="Code du lot en"]').evaluateAll((e) => e.map((x) => x.value).join(',')));
+await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
+const ov = await page.evaluate(() => { const s = [...document.querySelectorAll('.overlay')].pop(); return s.scrollWidth - s.clientWidth; });
+console.log('débordement fiche (390 px):', ov);
+await page.screenshot({ path: SH + '/m-mout-edit.png' });
+console.log('ERREURS:', errors.join('\n') || 'aucune'); await browser.close();

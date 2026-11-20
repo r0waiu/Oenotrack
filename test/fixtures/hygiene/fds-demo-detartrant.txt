@@ -1,0 +1,19 @@
+FICHE DE DONNEES DE SECURITE                                   Page 1 / 5
+Selon le règlement (CE) n° 1907/2006
+Date de révision :   07.09.2024          Version :   1.2
+1 IDENTIFICATION DE LA SUBSTANCE/DU MÉLANGE ET DE LA SOCIÉTÉ
+Nom commercial :   DETARTRANT ACIDE DEMO          Code :   DA-77
+Fournisseur :   Démo Hygiène Vinicole SAS, 3 allée des Tests, 00000 Nulle-Part
+Numéro d'appel d'urgence :   ORFILA   01 00 00 00 00
+2 IDENTIFICATION DES DANGERS
+Mention d'avertissement   :   Attention
+Mentions de danger   :   H319   Provoque une sévère irritation des yeux.
+3 COMPOSITION / INFORMATIONS SUR LES COMPOSANTS
+Nom : Acide citrique
+N° CAS : 77-92-9                      10 - 30 %
+8 CONTRÔLES DE L'EXPOSITION
+Protection des yeux :   Lunettes de protection
+Protection des mains :   Gants
+Protection respiratoire :   Pas nécessaire
+9 PROPRIÉTÉS PHYSIQUES ET CHIMIQUES
+État physique :   Liquide

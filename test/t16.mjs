@@ -1,0 +1,15 @@
+import { open, pick } from './ui.mjs';
+const SH = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + '/shots';
+const { browser, page, errors } = await open({ viewport: { width: 390, height: 844 }, mobile: true });
+const top = () => page.locator('.overlay').last();
+await page.click('#tab-ops'); await page.waitForTimeout(300);
+await page.click('main button:text-is("Soutirage")'); await page.waitForTimeout(400);
+const c = top().locator('input[role=combobox]'); await pick(page, c.nth(0), 'Cuve 03', 'Cuve 03'); await top().locator('input[inputmode=decimal]').first().fill('8'); await pick(page, c.nth(1), 'Cuve 07', 'Cuve 07');
+await page.screenshot({ path: SH + '/m-prev-form.png' });
+await top().locator('button:has-text("Planifier (à réaliser)")').click(); await page.waitForTimeout(400);
+await page.click('#tab-previsions'); await page.waitForTimeout(300);
+await page.locator('main tbody tr').first().locator('button:has-text("Fiche")').click(); await page.waitForTimeout(500);
+const ov = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+console.log('débordement page (fiche ouverte):', ov);
+await page.screenshot({ path: SH + '/m-fiche.png' });
+console.log('ERREURS:', errors.join('\n') || 'aucune'); await browser.close();
