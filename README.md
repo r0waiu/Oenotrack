@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.24.0--alpha.1-8C6E2F">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.24.0--alpha.2-8C6E2F">
   <img alt="Licence" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-1E242B">
   <img alt="Langues" src="https://img.shields.io/badge/langues-FR%20%C2%B7%20EN%20%C2%B7%20ES%20%C2%B7%20IT%20%C2%B7%20DE%20%C2%B7%20PT-5B636D">
 </p>
@@ -90,7 +90,7 @@ Dans **Paramètres › Société** (ou **Pressoir › Réglages**), choisissez *
 
 ## Langues
 
-Français, English, Español, Italiano, Deutsch, Português : la langue se choisit sur la page d’accueil, l’écran de connexion et dans **Paramètres**. À la première ouverture, Œnotrack propose celle du navigateur. La traduction de l’interface se fait par étapes : ce qui n’est pas encore traduit reste en français.
+Français, English, Español, Italiano, Deutsch, Português : la langue se choisit sur la page d’accueil, l’écran de connexion et dans **Paramètres**. À la première ouverture, Œnotrack propose celle du navigateur. La traduction de l’interface se fait par étapes : la page d’accueil, la connexion, les onglets, le **Pressoir**, la **Cuverie**, les **Opérations** (journal, déclassements, tous les formulaires), les fiches des contenants et des lots sont traduits ; ce qui ne l’est pas encore reste en français. Ce que vous saisissez (noms des cuves, désignations, produits, libellés personnalisés) n’est jamais traduit.
 
 ## Vos données
 
@@ -184,6 +184,7 @@ node build.mjs                 # src/*.js(x) + src/head.html → dist/cuverie.ht
 node test/engine.test.js       # tests du moteur (dont la compatibilité des bases de toutes les versions)
 node test/t45.mjs              # un test d’interface (Playwright) ; test/t*.mjs pour tous
 python3 tools/paquet-web.py    # dist/web/oenotrack-web/ : site prêt à mettre en ligne (+ zip)
+node tools/textes-a-traduire.cjs [fichiers]   # textes de l’interface pas encore traduits (npm install --no-save typescript)
 ```
 
 | Dossier | Contenu |
@@ -192,14 +193,14 @@ python3 tools/paquet-web.py    # dist/web/oenotrack-web/ : site prêt à mettre 
 | `src/4x-*.jsx` à `src/9x-*.jsx` | l’interface : composants, formulaires, onglets, paramètres, application |
 | `src/head.html` | styles et en-tête de la page |
 | `test/` | tests du moteur et de l’interface ; `test/anciennes/` : moteurs des versions précédentes, gelés, pour vérifier que chaque version ouvre et synchronise les bases des autres |
-| `tools/` | paquet du site, pages fixes, icônes, données de test |
+| `tools/` | paquet du site, pages fixes, icônes, données de test, textes à traduire |
 
 Les tests d’interface utilisent Playwright (Chromium), pdf-lib et pdfjs-dist installés dans `/opt/npm-tools/node_modules` (chemin à adapter à votre machine) ; les captures et fichiers produits par les tests vont dans `$OENOTRACK_TESTS` (par défaut `/tmp/oenotrack-tests`).
 
 Règles du projet :
 
 - **Compatibilité** : toute base, de toute version, s’ouvre dans toutes les autres sans rien perdre (champs inconnus gardés, une base d’essai par version, moteur précédent gelé et testé).
-- **Langues** : toute modification de l’interface est traduite dans les six langues.
+- **Langues** : toute modification de l’interface est traduite dans les six langues (tables `src/17c-…` à `src/17h-…`, une ligne par texte : français, anglais, espagnol, italien, allemand, portugais ; `tools/textes-a-traduire.cjs` liste ce qui manque).
 - **Confidentialité** : aucune donnée n’est envoyée à l’éditeur ; les clés d’API restent sur l’appareil.
 
 Signalez un problème ou proposez une amélioration dans les [Issues](https://github.com/r0waiu/Oenotrack/issues).
@@ -220,4 +221,4 @@ Le nom « Œnotrack » et son logo ne sont pas couverts par la licence : une ver
 
 It covers the **press house** (weighing register with tickets, press logbook filled as you go, AOC Champagne pressing rules: 102 litres of settled must per 160 kg, minimum *rebêches* rate, at most 6 press cycles per 24 hours per press…), the **tank room** (tanks and barrels with calibration tables, lots and their composition), **cellar operations**, **traceability and registers** (CSV/Excel), **additives, analyses and hygiene**, and **multi-user rights**. Champagne-specific rules can be switched off for other wine regions (no cap, or *crémant*: 100 litres per 150 kg).
 
-The interface is available in French, English, Spanish, Italian, German and Portuguese (translated in stages). Try it at **[oenotrack.fr](https://oenotrack.fr)**. Licence: AGPL-3.0-or-later; the name and logo are not covered by the licence.
+The interface is available in French, English, Spanish, Italian, German and Portuguese (translated in stages: welcome page, sign-in, tabs, press house, tank room, operations and their forms so far). Try it at **[oenotrack.fr](https://oenotrack.fr)**. Licence: AGPL-3.0-or-later; the name and logo are not covered by the licence.

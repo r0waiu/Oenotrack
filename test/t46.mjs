@@ -1,6 +1,6 @@
 // 0.24.0-alpha.1 : langue de l'interface — page d'accueil dans la langue du navigateur, choix sur l'accueil, la connexion, le pied de page et
 // dans Paramètres ; onglets et Pressoir traduits ; retour au français ; choix gardé sur l'appareil ; qui utilisait déjà Œnotrack reste en français ;
-// données jamais traduites ; région « autre » depuis Paramètres › Société
+// données jamais traduites ; région « autre » depuis Paramètres › Société ; 0.24.0-alpha.2 : Cuverie, fiches, Opérations et formulaires
 import { open } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests'); fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 400) : ''); };
@@ -72,6 +72,44 @@ const onglets = (pg) => pg.locator('[role=tab][id^="tab-"]').allInnerTexts();
   ok('connexion : portugais choisi', /Iniciar sessão/.test(await txt(page, '[data-connexion]')) && /Palavra-passe/i.test(await txt(page, '[data-connexion]')));
   await page.screenshot({ path: SC + '/shots/t46-connexion-pt.png' });
   ok('aucune erreur', !errors.length, errors.slice(0, 3));
+  await browser.close();
+}
+// 4. 0.24.0-alpha.2 : Cuverie, fiches du contenant et du lot, Opérations et formulaires traduits ; phrases faites de plusieurs nœuds traduites
+// d'un bloc ; retour au français à l'identique ; données (noms des cuves, codes) jamais traduites
+{
+  const { browser, page, errors } = await open({ locale: 'en-US', viewport: { width: 1440, height: 1000 } });
+  await page.click('#tab-cuverie'); await page.waitForTimeout(500);
+  let t = await txt(page, 'main');
+  ok('Cuverie en anglais : plan, boutons, indicateurs', /Cellar plan/.test(t) && /\+ New vessel/.test(t) && /Wine in the tank room/i.test(t) && /Vessels in use/i.test(t) && /\d+ \/ \d+ active/.test(t) && !/Nouveau contenant|Plan de cave|Contenants occupés|actifs/i.test(t), t.slice(0, 300));
+  await page.locator('main button', { hasText: /^Lots$/ }).first().click(); await page.waitForTimeout(300);
+  t = await txt(page, 'main');
+  ok('phrase de plusieurs nœuds traduite d’un bloc (« {n} lot(s) — lots are created by operations… »)', /\d+ lot\(s\) — lots are created by operations \(pressing, must intake, blending, tirage, opening stock\)\./.test(t), t.slice(0, 300));
+  ok('… colonnes et filtres des lots', /Vintage/i.test(t) && /Stage/i.test(t) && /In stock by stage:/i.test(t), t.slice(0, 300));
+  await page.locator('main button', { hasText: 'Cellar plan' }).first().click(); await page.waitForTimeout(300);
+  await page.locator('.pitem').nth(2).click({ force: true }); await page.waitForTimeout(400);
+  t = await txt(page, '.overlay');
+  ok('fiche du contenant en anglais', /Composition of the content/i.test(t) && /Operation history/i.test(t) && /Lots present \(\d+\)/i.test(t) && /Cuve|Fût|Bac|Foudre/.test(t), t.slice(0, 300));
+  await page.locator('.overlay button.linkish').filter({ hasText: /^[A-Z0-9][\w-]+$/ }).first().click(); await page.waitForTimeout(400);
+  t = (await page.locator('.overlay').last().innerText()).replace(/\s+/g, ' ');
+  ok('fiche du lot en anglais', /Genealogy/i.test(t) && /Material balance of the lot by season/i.test(t) && /Lot operations/i.test(t), t.slice(0, 300));
+  for (let i = 0; i < 4 && await page.locator('.overlay').count(); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); }
+  await page.click('#tab-ops'); await page.waitForTimeout(500);
+  t = await txt(page, 'main');
+  ok('Opérations en anglais : journal, nouvelle opération, résumés', /Operation log/.test(t) && /New operation/.test(t) && /→ stage: Settled/.test(t) && /Settling/.test(t), t.slice(0, 300));
+  await page.locator('[data-groupe] button', { hasText: /^≋?\s*Settling$/ }).first().click(); await page.waitForTimeout(400);
+  t = await txt(page, '.overlay');
+  ok('formulaire d’opération en anglais (débourbage)', /New operation — Settling/.test(t) && /Source portion/i.test(t) && /Destination vessel/i.test(t) && /Losses \(deposits\)/i.test(t) && /✓ Validate/.test(t) && !/Portion source|Contenant de destination|Pertes \(bourbes\)/i.test(t), t.slice(0, 400));
+  await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+  // retour au français : textes d'origine, sans espace sans largeur
+  await page.locator('footer [data-langue]').selectOption('fr'); await page.waitForTimeout(300);
+  await page.click('#tab-cuverie'); await page.waitForTimeout(300); await page.locator('main button', { hasText: /^Lots$/ }).first().click(); await page.waitForTimeout(300);
+  t = await page.locator('main').innerText();
+  ok('retour au français : phrase d’origine rétablie, aucune espace sans largeur', /\d+ lot\(s\) — les lots naissent des opérations/.test(t) && !t.includes('​'), t.slice(0, 200));
+  await page.locator('footer [data-langue]').selectOption('de'); await page.waitForTimeout(300);
+  t = await txt(page, 'main');
+  ok('allemand : même phrase traduite d’un bloc', /\d+ Partie\(n\) — Partien entstehen durch Arbeitsgänge/.test(t), t.slice(0, 200));
+  await page.screenshot({ path: SC + '/shots/t46-cuverie-de.png' });
+  ok('aucune erreur (Cuverie, Opérations)', !errors.length, errors.slice(0, 3));
   await browser.close();
 }
 console.log(ko ? `\n${ko} ÉCHEC(S)` : '\nt46 : TOUT PASSE');

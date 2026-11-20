@@ -39,21 +39,36 @@ function tradPreparer() {
   LANGUES_TRAD.forEach((lg, i) => {
     const D = TRAD[lg] = {}; table.forEach((r) => { if (r && r[0] && r[i + 1]) D[r[0]] = r[i + 1]; });
     TRAD_RE[lg] = motifs.filter((r) => r && r[0] && r[i + 1]).map((r) => {
-      const noms = []; const re = new RegExp(`^${r[0].split(/(\{[a-j]\})/).map((p) => { const m = /^\{([a-j])\}$/.exec(p); if (m) { noms.push(m[1]); return '(.+?)'; } return motifEchappe(p); }).join('')}$`, 's');
-      return { re, noms, dst: r[i + 1], src: r[0], lit: r[0].replace(/\{[a-j]\}/g, '').length };
+      // une valeur peut être vide (« Vin en cuverie{a} » : « Vin en cuverie » ou « Vin en cuverie (site) »)
+      const noms = []; const re = new RegExp(`^${r[0].split(/(\{[a-j]\})/).map((p) => { const m = /^\{([a-j])\}$/.exec(p); if (m) { noms.push(m[1]); return '(.*?)'; } return motifEchappe(p); }).join('')}$`, 's');
+      const lit = r[0].replace(/\{[a-j]\}/g, '');
+      return { re, noms, dst: r[i + 1], src: r[0], lit: lit.length, gen: !/[A-Za-zÀ-ÿ]/.test(lit) }; // gen : motif générique (« {a} · {b} », « {a} : {b} »…)
     }).sort((a, b) => b.lit - a.lit); // le motif le plus précis d'abord (« Pesée n° {a} validée. » avant « Pesée n° {a} »)
   });
 }
 // texte français → langue active (ou lg) ; inchangé s'il n'est pas (encore) traduit. Les valeurs d'un motif sont traduites à leur tour
-function traduire(texte, lg, prof) {
+// (sans leurs espaces autour). strict : pas de motif générique au premier niveau (phrase faite de plusieurs nœuds, voir 40c)
+const TRAD_CACHE = {}; // texte → traduction, par langue (les mêmes textes reviennent à chaque rendu : tableaux, listes)
+function traduire(texte, lg, prof, strict) {
   lg = lg || LANGUE; if (lg === 'fr' || texte == null || texte === '') return texte; tradPreparer();
   const D = TRAD[lg]; if (!D) return texte; const s = String(texte);
   if (D[s] !== undefined) return D[s];
-  if ((prof || 0) > 2) return s;
+  if (!prof) {
+    const C = TRAD_CACHE[lg] || (TRAD_CACHE[lg] = new Map()); const k = (strict ? '\u0001' : '') + s;
+    let r = C.get(k); if (r !== undefined) return r;
+    r = traduireMotifs(s, lg, 0, strict); if (C.size > 20000) C.clear(); C.set(k, r); return r;
+  }
+  return traduireMotifs(s, lg, prof, strict);
+}
+function traduireMotifs(s, lg, prof, strict) {
+  if ((prof || 0) > 10) return s;
   for (const m of TRAD_RE[lg] || []) {
+    if (strict && m.gen) continue;
     const r = m.re.exec(s); if (!r) continue;
-    let out = m.dst; m.noms.forEach((n, i) => { out = out.split(`{${n}}`).join(traduire(r[i + 1], lg, (prof || 0) + 1)); });
-    return out;
+    let change = false;
+    const vals = {}; m.noms.forEach((n, i) => { const c = r[i + 1]; const t = c.trim(); const tt = t ? traduire(t, lg, (prof || 0) + 1) : t; if (tt !== t) change = true; vals[n] = t ? c.replace(t, () => tt) : c; });
+    if (m.gen && !change) continue; // séparateur seul (« {a} · {b} ») : utile seulement si une partie est traduite ; sinon le séparateur suivant
+    return m.dst.replace(/\{([a-j])\}/g, (x, n) => (vals[n] !== undefined ? vals[n] : x));
   }
   return s;
 }

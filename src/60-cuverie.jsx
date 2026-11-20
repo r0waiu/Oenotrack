@@ -48,7 +48,7 @@ function ContForm({ id, onClose, siteId }) {
       {id && c.siteId !== f.siteId ? <Notice tone="info">Le contenant sera placé automatiquement sur le plan du nouveau site (vous pourrez le déplacer ensuite).</Notice> : null}
       <Group label="📏 Barème de jaugeage (facultatif)">
         <ContBareme contId={id} nomCont={f.nom} val={bar} onVal={(v) => { setBar(v); if (!v || v.phase !== 'pret') setRepris([]); }} onReprise={reprise} lecture={!peutBareme} />
-        {avecB && repris.length ? <p className="help mt-1" data-cont-repris="">Repris du cahier : {repris.join(', ')} — vérifiez-les ci-dessus.</p> : null}
+        {avecB && repris.length ? <p className="help mt-1" data-cont-repris="">Repris du cahier : {repris.map((x, i) => <span key={x}>{i ? ', ' : ''}<span>{x}</span></span>)} — vérifiez-les ci-dessus.</p> : null}
         {avecB && capB > 0 && num(f.volMax) > 0 && Math.abs(capB - num(f.volMax)) / capB > 0.03 ? <div className="mt-2"><Notice tone="info">Capacité d’après le barème : <b className="num">{fmtHL(capB)} hL</b> (fiche : {fmtHL(num(f.volMax))} hL). <Btn size="sm" onClick={() => set('volMax', String(capB))}>Utiliser la capacité du barème</Btn></Notice></div> : null}
       </Group>
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
@@ -181,7 +181,7 @@ function VueChoix({ compact }) {
   return (<>
     <L t="Contour"><select className="inp" style={{ width: 'auto' }} value={ap.contourMode || 'qualif'} onChange={(e) => set({ contourMode: e.target.value })} aria-label="Ce que montre le contour des contenants">{opts}<option value="aucun">Aucun</option></select></L>
     <L t="Intérieur"><select className="inp" style={{ width: 'auto' }} value={ap.interieurMode || 'cepage'} onChange={(e) => set({ interieurMode: e.target.value })} aria-label="Couleur de l’intérieur des contenants">{opts}</select></L>
-    <L t="Motif"><select className="inp" style={{ width: 'auto' }} value={ap.interieurMotif || ''} onChange={(e) => set({ interieurMotif: e.target.value })} aria-label="Motif de l’intérieur des contenants"><option value="">Aucun</option>{opts}</select></L>
+    <L t="Motif intérieur"><select className="inp" style={{ width: 'auto' }} value={ap.interieurMotif || ''} onChange={(e) => set({ interieurMotif: e.target.value })} aria-label="Motif de l’intérieur des contenants"><option value="">Aucun</option>{opts}</select></L>
   </>);
 }
 

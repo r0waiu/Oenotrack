@@ -2,6 +2,12 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.24.0-alpha.2 — 20/11/2026
+
+- Langues, deuxième étape : onglets Cuverie & Lots et Opérations & Assemblages, fiches du contenant et du lot, menu des contenants, déclassements et tous les formulaires d’opération traduits dans les six langues, avec le catalogue des opérations, les stades, les couleurs, les listes fournies d’origine, les opérateurs et les documents joints ; derniers textes du Pressoir complétés.
+- Les phrases qui mêlent texte et valeurs sont traduites d’un seul tenant ; ce que vous avez saisi (noms des cuves, désignations, produits, libellés personnalisés) n’est jamais traduit.
+- Plan de cave : le réglage « Motif » s’appelle désormais « Motif intérieur ».
+
 ## 0.24.0-alpha.1 — 20/11/2026
 
 - Onglet Pressoir : registre des pesées (n° continu par année, date et heure, poids brut, tare et net, caisses, état sanitaire, apporteur, cru, mention ou lieu-dit, bascule), ticket de pesée à remettre à l’apporteur ; carnet de pressoir rempli au fur et à mesure (marc chargé à son début, puis volumes de cuvée, tailles et rebêches, TAV en puissance, bourbes), validation, corrections avec motif et annulations gardées dans un journal à empreintes ; relevés par apporteur, bilan de campagne et exports CSV.
