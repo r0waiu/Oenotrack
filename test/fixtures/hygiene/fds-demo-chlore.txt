@@ -1,0 +1,59 @@
+FICHE DE DONNÉES DE SÉCURITÉ
+conforme au Règlement (CE) n° 1907/2006 (REACH), Annexe II modifié par le Règlement (UE) 2020/878
+Date d'émission : 12/04/2019   Date de révision : 15/03/2023   Remplace la fiche : 10/01/2021   Version : 4.0
+RUBRIQUE 1 : Identification de la substance/du mélange et de la société/l'entreprise
+1.1. Identificateur de produit
+Forme du produit : Mélange
+Nom du produit : NETTOYANT CHLORÉ DÉMO 123
+Code du produit : 12345
+1.2. Utilisations identifiées pertinentes de la substance ou du mélange et utilisations déconseillées
+Utilisation de la substance/mélange : Détergent alcalin chloré pour l'industrie agroalimentaire
+1.3. Renseignements concernant le fournisseur de la fiche de données de sécurité
+Hygiène Exemple SAS
+12 rue des Essais
+00000 Ville-Fictive - France
+1.4. Numéro d'appel d'urgence
+Numéro d'urgence : +33 (0)1 00 00 00 00 (centre antipoison fictif)
+RUBRIQUE 2 : Identification des dangers
+2.1. Classification de la substance ou du mélange
+Corrosif pour les métaux, catégorie 1    H290
+Corrosion cutanée, catégorie 1A    H314
+Dangereux pour le milieu aquatique - Danger aigu, catégorie 1    H400
+2.2. Éléments d'étiquetage
+Pictogrammes de danger (CLP) : GHS05 GHS09
+Mention d'avertissement (CLP) : Danger
+Mentions de danger (CLP) : H290 - Peut être corrosif pour les métaux.
+H314 - Provoque de graves brûlures de la peau et de graves lésions des yeux.
+H400 - Très toxique pour les organismes aquatiques.
+EUH031 - Au contact d'un acide, dégage un gaz toxique.
+Conseils de prudence (CLP) : P280 - Porter des gants de protection/des vêtements de protection/un équipement de protection des yeux/du visage.
+RUBRIQUE 3 : Composition/informations sur les composants
+3.2. Mélanges
+Hydroxyde de sodium   (N° CAS) 1310-73-2   (N° CE) 215-185-5   5 - 10 %   Skin Corr. 1A, H314
+Hypochlorite de sodium   (N° CAS) 7681-52-9   1 - 5 %   Skin Corr. 1B, H314 ; Aquatic Acute 1, H400
+RUBRIQUE 7 : Manipulation et stockage
+7.1. Précautions à prendre pour une manipulation sans danger
+Ne pas mélanger avec des acides.
+7.2. Conditions d'un stockage sûr, y compris d'éventuelles incompatibilités
+Conditions de stockage : Stocker dans un endroit frais et bien ventilé, à l'abri de la lumière. Conserver sur rétention.
+7.3. Utilisation(s) finale(s) particulière(s)
+RUBRIQUE 8 : Contrôles de l'exposition/protection individuelle
+8.2. Contrôles de l'exposition
+Protection des mains : Gants de protection résistants aux produits chimiques (EN 374)
+Protection oculaire : Lunettes de sécurité. Écran facial.
+Protection de la peau et du corps : Porter un vêtement de protection approprié
+Protection des voies respiratoires : Non nécessaire dans les conditions normales d'utilisation.
+RUBRIQUE 9 : Propriétés physiques et chimiques
+État physique : Liquide
+RUBRIQUE 10 : Stabilité et réactivité
+10.4. Conditions à éviter
+Chaleur.
+10.5. Matières incompatibles
+Acides. Métaux légers (aluminium, zinc).
+10.6. Produits de décomposition dangereux
+Chlore.
+RUBRIQUE 16 : Autres informations
+Texte intégral des phrases H et EUH :
+H290 Peut être corrosif pour les métaux.
+H314 Provoque de graves brûlures de la peau et de graves lésions des yeux.
+H400 Très toxique pour les organismes aquatiques.

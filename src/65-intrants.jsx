@@ -1,0 +1,108 @@
+/* ============ ONGLET 5 : INTRANTS & STOCKS (produits, fournisseurs, arrivages, règles par revendication) ============ */
+function ArrivageForm({ id, onClose }) {
+  const { db, act, defaultDate, openDocs } = useApp(); const a = id ? db.arrivages.find((x) => x.id === id) : null;
+  const [f, set, setF] = useDraft({ produitId: a ? a.produitId : '', fournisseurId: a ? a.fournisseurId : '', numLot: a ? a.numLot : '', date: a ? a.date : defaultDate, dluo: a ? a.dluo : '', qty: a ? String(a.qty) : '', notes: a ? a.notes : '' });
+  const pr = prodOf(db, f.produitId);
+  const save = (withDocs) => { const r = act((d) => arrivageSave(d, f, id), id ? 'Arrivage modifié.' : 'Arrivage enregistré.'); if (r.ok) { onClose(); if (withDocs === true && r.id) openDocs({ type: 'arrivage', id: r.id }, 'arrivage', `${prodOf(db, f.produitId).nom || 'Intrant'} · lot ${f.numLot}`); } };
+  return (
+    <FormSheet title={id ? 'Modifier l’arrivage' : 'Nouvel arrivage (lot fournisseur)'} sub="La quantité restante se décrémente automatiquement à chaque utilisation." onClose={onClose} onSave={save} extraFooter={!id ? <Btn className="mr-auto" onClick={() => save(true)}>Enregistrer et joindre des documents</Btn> : null}>
+      <Field label="Produit"><SI value={f.produitId} onChange={(v) => setF((x) => ({ ...x, produitId: v, fournisseurId: x.fournisseurId || prodOf(db, v).fournisseurId || '' }))} placeholder="Produit…" options={db.produits.filter((p) => p.actif !== false || p.id === f.produitId).sort((x, y) => x.nom.localeCompare(y.nom, 'fr')).map((p) => ({ value: p.id, label: `${p.nom} (${p.unite})` }))} /></Field>
+      <G><Field label="Fournisseur"><SI value={f.fournisseurId} onChange={(v) => set('fournisseurId', v)} placeholder="Fournisseur…" options={db.fournisseurs.map((x) => ({ value: x.id, label: x.nom }))} /></Field><Field label="N° de lot fournisseur"><TI value={f.numLot} onChange={(v) => set('numLot', v)} placeholder="ex. SK-2609" /></Field></G>
+      <G n={3}><Field label="Date de réception"><DI value={f.date} onChange={(v) => set('date', v)} /></Field><Field label="DLUO" help="Alerte visuelle à 30 jours et après péremption."><DI value={f.dluo} onChange={(v) => set('dluo', v)} /></Field><Field label={`Quantité reçue${pr.unite ? ` (${pr.unite})` : ''}`}><NI value={f.qty} onChange={(v) => set('qty', v)} /></Field></G>
+      <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
+      {id ? <Group label="Documents : certificat de conformité, fiche technique, FDS, bon de livraison…"><DocsPanel cible={{ type: 'arrivage', id }} kind="arrivage" locked={isLocked(db, a.date)} /></Group> : <div className="help">Certificats de conformité, fiches techniques et FDS : « Enregistrer et joindre des documents ».</div>}
+    </FormSheet>
+  );
+}
+function ProduitForm({ id, onClose }) {
+  const { db, act } = useApp(); const p = id ? db.produits.find((x) => x.id === id) : null;
+  const [f, set] = useDraft({ nom: p ? p.nom : '', categorie: p ? p.categorie : 'oeno', unite: p ? p.unite : 'g', fournisseurId: p ? p.fournisseurId : '', actif: p ? p.actif !== false : true, notes: p ? p.notes : '', reference: p ? p.reference || '' : '', lien: p ? p.lien || '' : '', fdsNonRequise: p ? !!p.fdsNonRequise : false });
+  const [depot, setDepot] = useState(null); const [veille, setVeille] = useState(false);
+  const save = () => { const r = act((d) => produitSave(d, f, id), id ? 'Produit modifié.' : 'Produit créé (autorisé en Conventionnel par défaut : ajustez les règles).'); if (r.ok) onClose(); };
+  const lienOk = lienNorm(f.lien); const foNom = (db.fournisseurs.find((x) => x.id === f.fournisseurId) || {}).nom || '';
+  const fds = p ? prodFdsEtat(db, { ...p, categorie: f.categorie, fdsNonRequise: f.fdsNonRequise }) : null;
+  return (
+    <FormSheet wide={!!id} title={id ? 'Modifier le produit' : 'Nouveau produit'} onClose={onClose} onSave={save}>
+      <Field label="Nom" help={f.nom.trim() && nameTaken(db.produits, f.nom, id) ? '⚠ Ce produit existe déjà.' : ''}><TI value={f.nom} onChange={(v) => set('nom', v)} autoFocus /></Field>
+      <G><Field label="Catégorie"><SI value={f.categorie} onChange={(v) => set('categorie', v)} options={Object.keys(CATEGORIES).map((k) => ({ value: k, label: CATEGORIES[k] }))} /></Field><Field label="Unité de stock"><SI value={f.unite} onChange={(v) => set('unite', v)} options={UNITES.map((u) => ({ value: u, label: u === 'u' ? 'u (pièces)' : u }))} /></Field></G>
+      <G><Field label="Fournisseur habituel"><SI value={f.fournisseurId} onChange={(v) => set('fournisseurId', v)} placeholder="—" options={db.fournisseurs.map((x) => ({ value: x.id, label: x.nom }))} /></Field><Field label="Référence (code article du fournisseur)"><TI value={f.reference} onChange={(v) => set('reference', v)} placeholder="ex. 30210" /></Field></G>
+      <Field label="Page du produit chez le fournisseur" help={f.lien.trim() && !lienOk ? '⚠ Adresse web invalide (ex. https://www.fournisseur.fr/produit).' : 'Fiche du produit sur le site du fournisseur : FT et FDS à jour, documents, conditionnements.'}>
+        <div className="flex flex-wrap items-center gap-2"><input className="inp min-w-0 flex-1" inputMode="url" value={f.lien} onChange={(e) => set('lien', e.target.value)} placeholder="https://…" aria-label="Lien vers la page du produit" style={{ minWidth: 200 }} />
+          {lienOk ? <a className="btn btn-sm" href={lienOk} target="_blank" rel="noopener noreferrer">🔗 Ouvrir</a> : null}
+          {f.nom.trim() ? <a className="btn btn-sm btn-ghost" href={rechercheWeb(`${f.nom} ${foNom}`)} target="_blank" rel="noopener noreferrer" title="Rechercher la page du produit sur le web">🌐 Chercher</a> : null}</div></Field>
+      <div className="flex flex-wrap gap-x-5 gap-y-2"><Check checked={f.actif} onChange={(v) => set('actif', v)} label="Produit actif (proposé dans les formulaires)" />{f.categorie !== 'sec' ? <Check checked={f.fdsNonRequise} onChange={(v) => set('fdsNonRequise', v)} label="FDS non requise (produit non classé dangereux, sans fiche de données de sécurité)" /> : null}</div>
+      <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
+      {p ? (<Group label={`Fiches techniques, FDS et certificats${fds ? ` — ${fds.label}` : ''}`}>
+        <DocsPanel cible={{ type: 'produit', id: p.id }} kind="produit" deposer={setDepot} aide="Chaque fichier déposé est lu (type, date de révision) ; une version plus récente remplace la précédente, qui reste dans les versions archivées." />
+        {f.categorie !== 'sec' ? <div className="mt-2 flex flex-wrap items-center gap-2 text-sm"><span className="text-ink2">En ligne :</span><VeilleChip p={p} onClick={() => setVeille(true)} /></div> : null}
+      </Group>) : <div className="help">FT, FDS et certificats : enregistrez le produit puis déposez-les ici, ou déposez-les en groupe dans Intrants › Fiches FT &amp; FDS.</div>}
+      {depot ? <FichesDepot fichiers={depot} cible={{ type: 'produit', id: p.id }} onClose={() => setDepot(null)} /> : null}
+      {veille ? <VeilleSheet id={p.id} onClose={() => setVeille(false)} /> : null}
+    </FormSheet>
+  );
+}
+function FournisseurForm({ id, onClose }) {
+  const { db, act } = useApp(); const x = id ? db.fournisseurs.find((y) => y.id === id) : null; const [f, set] = useDraft({ nom: x ? x.nom : '', contact: x ? x.contact : '' });
+  const save = () => { const r = act((d) => fournisseurSave(d, f, id), 'Fournisseur enregistré.'); if (r.ok) onClose(); };
+  return (<FormSheet title={id ? 'Modifier le fournisseur' : 'Nouveau fournisseur'} onClose={onClose} onSave={save}><Field label="Nom"><TI value={f.nom} onChange={(v) => set('nom', v)} autoFocus /></Field><Field label="Contact"><TA value={f.contact} onChange={(v) => set('contact', v)} placeholder="Téléphone, e-mail…" /></Field></FormSheet>);
+}
+
+function DoseInput({ value, onCommit, label }) {
+  const [v, setV] = useState(value == null ? '' : String(value)); useEffect(() => setV(value == null ? '' : String(value)), [value]);
+  const commit = () => { const n = v.trim() === '' ? null : num(v); if (n !== (value == null ? null : value)) onCommit(n); };
+  return <input className="inp num" style={{ minHeight: 32, padding: '2px 8px', maxWidth: 110 }} inputMode="decimal" value={v} placeholder="dose max" aria-label={label} onChange={(e) => setV(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />;
+}
+function RuleCell({ pid, qid, unit }) {
+  const { db, act } = useApp(); const r = ruleFor(db, pid, qid) || { autorise: false, doseMax: null }; const du = doseUnit(unit);
+  return (
+    <div className="flex flex-wrap items-center gap-2"><Check checked={r.autorise} label={r.autorise ? 'Autorisé' : 'Interdit'} onChange={(c) => act((d) => regleSet(d, pid, qid, { autorise: c }))} />
+      {r.autorise && du ? <span className="flex items-center gap-1 text-xs text-ink2"><DoseInput value={r.doseMax} label={`Dose légale max ${qLabel(qid)}`} onCommit={(n) => act((d) => regleSet(d, pid, qid, { doseMax: n }))} />{du}</span> : null}</div>
+  );
+}
+
+function TabIntrants() {
+  const { db, R, act, confirm, camp, setTab } = useApp();
+  const [sub, setSub] = useState('stocks'); const [form, setForm] = useState(null); const [view, setView] = useState('lots'); const [onlyStock, setOnlyStock] = useState(true); const [cat, setCat] = useState(''); const [q, setQ] = useState('');
+  const arrs = db.arrivages.map((a) => ({ id: a.id, a, pr: prodOf(db, a.produitId), rest: arrivalRest(R, a), used: R.arrUsed[a.id] || 0 })).sort((x, y) => (x.a.date < y.a.date ? 1 : -1))
+    .filter((r) => (!onlyStock || r.rest > 0.0001) && (!cat || r.pr.categorie === cat) && (!q || norm(`${r.pr.nom} ${r.a.numLot}`).includes(norm(q))));
+  const live = db.arrivages.map((a) => ({ a, rest: arrivalRest(R, a), st: dluoState(a.dluo) })).filter((x) => x.rest > 0.0001);
+  const nExp = live.filter((x) => x.st.k === 'expire').length, nSoon = live.filter((x) => x.st.k === 'bientot').length;
+  const perProd = db.produits.filter((p) => (!cat || p.categorie === cat) && (!q || norm(p.nom).includes(norm(q)))).map((p) => { const ls = live.filter((x) => x.a.produitId === p.id); const dl = ls.filter((x) => x.a.dluo).sort((x, y) => (x.a.dluo < y.a.dluo ? -1 : 1))[0]; return { id: p.id, p, total: sum(ls, (x) => x.rest), n: ls.length, dl }; }).filter((r) => !onlyStock || r.n > 0).sort((x, y) => x.p.nom.localeCompare(y.p.nom, 'fr'));
+  const ask = async (title, fn, okMsg) => { const ok = await confirm({ title, body: 'Cette suppression est définitive.', ok: 'Supprimer', danger: true }); if (ok) { const r = act(fn, okMsg); if (r && r.ok && r.docs) r.docs.forEach((k) => docDel(k).catch(() => { /* déjà absent */ })); } };
+  const RF = prodFichesResume(db); const nFds = RF.manquantes + RF.anciennes + RF.nouvelles;
+  const dChip = (a, rest) => (rest > 0.0001 ? <Chip className={dluoState(a.dluo).cls}>{dluoState(a.dluo).label}</Chip> : <Chip>épuisé</Chip>);
+  const fo = (id) => (db.fournisseurs.find((x) => x.id === id) || {}).nom || '—';
+  const prodRows = db.produits.filter((p) => (!cat || p.categorie === cat) && (!q || norm(p.nom).includes(norm(q)))).sort((x, y) => x.nom.localeCompare(y.nom, 'fr'));
+  return (
+    <div>
+      <div className="mb-5 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
+        <Kpi label="Lots en stock" value={fmt(live.length)} sub={`${fmt(db.produits.length)} produits référencés`} /><Kpi label="DLUO dépassée" value={fmt(nExp)} tone={nExp ? 'bad' : undefined} sub="lots encore en stock" /><Kpi label="DLUO < 30 jours" value={fmt(nSoon)} tone={nSoon ? 'warn' : undefined} /><Kpi label="FDS à revoir" value={fmt(RF.manquantes + RF.anciennes)} tone={RF.manquantes ? 'bad' : RF.anciennes ? 'warn' : 'ok'} sub={`${fmt(RF.manquantes)} manquante${RF.manquantes > 1 ? 's' : ''} · ${fmt(RF.anciennes)} de plus de ${PROD_FDS_ANS} ans`} /><Kpi label="Fournisseurs" value={fmt(db.fournisseurs.length)} />
+      </div>
+      <SubNav value={sub} onChange={setSub} items={[{ id: 'stocks', label: 'Stocks & arrivages', badge: nExp + nSoon || null }, { id: 'regles', label: 'Produits & règles par revendication' }, { id: 'fiches', label: 'Fiches FT & FDS', badge: nFds || null }, { id: 'fourn', label: 'Fournisseurs' }]} />
+      {sub === 'fiches' ? <IntrantsFichesView /> : null}
+      {sub !== 'fourn' && sub !== 'fiches' ? <div className="mb-3 flex flex-wrap items-center gap-2"><TI value={q} onChange={setQ} placeholder="Rechercher produit, n° de lot…" style={{ width: 240 }} aria-label="Rechercher" /><SI value={cat} onChange={setCat} placeholder="Toutes catégories" style={{ width: 'auto' }} options={Object.keys(CATEGORIES).map((k) => ({ value: k, label: CATEGORIES[k] }))} aria-label="Catégorie" />
+        {sub === 'stocks' ? <><Check checked={onlyStock} onChange={setOnlyStock} label="En stock seulement" /><SI value={view} onChange={setView} style={{ width: 'auto' }} options={[{ value: 'lots', label: 'Par lot fournisseur' }, { value: 'prod', label: 'Par produit' }]} aria-label="Vue" /><span className="ml-auto" /><Btn kind="primary" disabled={camp.figee} onClick={() => setForm({ t: 'arr' })}>+ Nouvel arrivage</Btn></> : <><span className="ml-auto" /><Btn kind="primary" onClick={() => setForm({ t: 'prod' })}>+ Nouveau produit</Btn></>}</div> : null}
+      {sub === 'stocks' && view === 'lots' ? <Tbl rows={arrs} empty="Aucun arrivage pour ces critères." cols={[
+        { h: 'Produit', r: (r) => <b>{r.pr.nom}</b> }, { h: 'Fournisseur', r: (r) => fo(r.a.fournisseurId) }, { h: 'N° lot fournisseur', r: (r) => <span className="num">{r.a.numLot}</span> }, { h: 'Reçu le', r: (r) => <span className="num">{fmtDate(r.a.date)}</span> },
+        { h: 'DLUO', r: (r) => dChip(r.a, r.rest) }, { h: 'Reçu', cls: 'r', r: (r) => <span className="num">{fmt(r.a.qty, 2)} {r.pr.unite}</span> }, { h: 'Utilisé', cls: 'r', r: (r) => <span className="num">{fmt(r.used, 2)}</span> },
+        { h: 'Docs', r: (r) => <DocsButton cible={{ type: 'arrivage', id: r.a.id }} kind="arrivage" title={`${r.pr.nom} · lot ${r.a.numLot}`} /> },
+        { h: 'Restant', r: (r) => <div style={{ minWidth: 120 }}><b className={`num ${r.rest < -0.001 ? 'text-bad' : ''}`}>{fmt(r.rest, 2)} {r.pr.unite}</b><div className="bar mt-1" style={{ height: 6 }}><i style={{ width: `${clamp((r.rest / r.a.qty) * 100, 0, 100)}%`, background: 'var(--accent)' }} /></div></div> },
+        { h: '', r: (r) => (isLocked(db, r.a.date) ? <Chip>🔒 figée</Chip> : <div className="flex gap-1"><Btn size="sm" onClick={() => setForm({ t: 'arr', id: r.a.id })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => ask(`Supprimer l’arrivage ${r.a.numLot} ?`, (d) => arrivageDelete(d, r.a.id), 'Arrivage supprimé.')}>Supprimer</Btn></div>) }]} /> : null}
+      {sub === 'stocks' && view === 'prod' ? <Tbl rows={perProd} empty="Aucun produit en stock." cols={[
+        { h: 'Produit', r: (r) => <b>{r.p.nom}</b> }, { h: 'Catégorie', r: (r) => CATEGORIES[r.p.categorie] }, { h: 'Stock total', cls: 'r', r: (r) => <b className="num">{fmt(r.total, 2)} {r.p.unite}</b> }, { h: 'Lots en stock', cls: 'r', r: (r) => <span className="num">{r.n}</span> },
+        { h: 'DLUO la plus proche', r: (r) => (r.dl ? <Chip className={r.dl.st.cls}>{r.dl.st.label}</Chip> : '—') }, { h: 'Fournisseur', r: (r) => fo(r.p.fournisseurId) }]} /> : null}
+      {sub === 'regles' ? (<>
+        <Notice tone="info" title="Autorisation et dose légale maximale par revendication">{QUALIFS.map((q) => `${q.code} (rang ${q.rang})`).join(' · ')}. Un intrant « Interdit » pour la qualification de la portion déclenche une alerte de déclassement (à valider dans l’onglet « Déclassements »). Les matières sèches ne sont pas soumises aux règles. Valeurs d’exemple non officielles : adaptez-les à votre cahier des charges. <button type="button" className="linkish" onClick={() => setTab('params', 'listes')}>Modifier ou ajouter des revendications…</button></Notice>
+        <div className="mt-3 hidden md:block"><Tbl rows={prodRows} empty="Aucun produit." cols={[{ h: 'Produit', r: (p) => <div><b>{p.nom}</b>{p.actif === false ? <Chip className="ml-1">inactif</Chip> : null}{['manquante', 'ancienne'].includes(prodFdsEtat(db, p).k) ? <span className="ml-1"><FdsChipProd p={p} /></span> : null}<div className="text-xs text-ink2">{CATEGORIES[p.categorie]} · {p.unite} · {fo(p.fournisseurId)}</div></div> },
+          ...QUALIFS.map((qd) => ({ h: `${qd.code} (rang ${qd.rang})`, r: (p) => (p.categorie === 'sec' ? <span className="text-xs text-ink2">sans objet</span> : <RuleCell pid={p.id} qid={qd.id} unit={p.unite} />) })),
+          { h: '', r: (p) => <div className="flex gap-1"><Btn size="sm" onClick={() => setForm({ t: 'prod', id: p.id })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => ask(`Supprimer « ${p.nom} » ?`, (d) => produitDelete(d, p.id), 'Produit supprimé.')}>Supprimer</Btn></div> }]} /></div>
+        <div className="mt-3 space-y-2 md:hidden">{prodRows.map((p) => (<div key={p.id} className="card p-3"><div className="flex items-start justify-between gap-2"><div><b>{p.nom}</b><div className="text-xs text-ink2">{CATEGORIES[p.categorie]} · {p.unite} · {fo(p.fournisseurId)}</div></div><Btn size="sm" onClick={() => setForm({ t: 'prod', id: p.id })}>Modifier</Btn></div>
+          {p.categorie === 'sec' ? <div className="mt-2 text-xs text-ink2">Matière sèche : sans règle de revendication.</div> : QUALIFS.map((qd) => <div key={qd.id} className="mt-2 border-t border-line pt-2"><div className="mb-1"><QChip id={qd.id} /></div><RuleCell pid={p.id} qid={qd.id} unit={p.unite} /></div>)}</div>))}</div>
+      </>) : null}
+      {sub === 'fourn' ? <Sec title="Fournisseurs" right={<Btn kind="primary" onClick={() => setForm({ t: 'fo' })}>+ Nouveau fournisseur</Btn>}><Tbl rows={db.fournisseurs} empty="Aucun fournisseur." cols={[{ h: 'Nom', r: (x) => <b>{x.nom}</b> }, { h: 'Contact', r: (x) => x.contact || '—' }, { h: 'Produits', cls: 'r', r: (x) => <span className="num">{db.produits.filter((p) => p.fournisseurId === x.id).length}</span> }, { h: 'Arrivages', cls: 'r', r: (x) => <span className="num">{db.arrivages.filter((a) => a.fournisseurId === x.id).length}</span> },
+        { h: '', r: (x) => <div className="flex gap-1"><Btn size="sm" onClick={() => setForm({ t: 'fo', id: x.id })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => ask(`Supprimer « ${x.nom} » ?`, (d) => fournisseurDelete(d, x.id), 'Fournisseur supprimé.')}>Supprimer</Btn></div> }]} /></Sec> : null}
+      {form && form.t === 'arr' ? <ArrivageForm id={form.id} onClose={() => setForm(null)} /> : form && form.t === 'prod' ? <ProduitForm id={form.id} onClose={() => setForm(null)} /> : form && form.t === 'fo' ? <FournisseurForm id={form.id} onClose={() => setForm(null)} /> : null}
+    </div>
+  );
+}
+TABS_REG.intrants = TabIntrants;

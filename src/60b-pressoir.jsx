@@ -1,0 +1,435 @@
+/* ============ ONGLET PRESSOIR (0.24.0-alpha.1) : registre des pesées, carnet de pressoir, relevés, bilan, journal, réglages ============
+   Moteur : 19-pressoir.js. Une pesée est une opération « apport » (proposée aussitôt dans les pressurages de l'onglet Opérations),
+   un marc une opération « pressurage » (ses lots de cuvée, tailles et rebêches entrent dans les cuves). */
+const pMaintenant = () => new Date().toISOString();
+const kgTxt = (x) => `${fmt(x)} kg`;
+const heureDe = (iso) => { const d = new Date(iso || ''); return Number.isNaN(d.getTime()) ? '' : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+const etatLabel = (id) => (ETATS_SANITAIRES.find((e) => e.id === id) || {}).label || '';
+const peseeOrigine = (db, o) => [o.cruId ? cruName(db, o.cruId) : '', o.parcelleId ? parcelleName(db, o.parcelleId) : '', (o.pesee || {}).mention || ''].filter(Boolean).join(' · ');
+const peseeLibelle = (db, o, reste) => `${o.pesee && o.pesee.num ? `n° ${o.pesee.num}` : 'sans n°'} · ${fmtDate(o.date)}${o.pesee && o.pesee.heure ? ` ${o.pesee.heure}` : ''} · ${lbl(db, 'cepages', o.cepageId)} · ${o.apporteurId ? apporteurName(db, o.apporteurId) : 'exploitation'}${o.cruId ? ` · ${cruName(db, o.cruId)}` : ''}${reste != null ? ` · reste ${kgTxt(reste)}` : ''}`;
+// code de la pressée suivante (P26-06…) : d'après les codes des pressées seulement, pas ceux de leurs fractions
+function codeMarcSuivant(db, date) {
+  const yy = pad(yearOf(date) % 100); const re = new RegExp(`^P${yy}-(\\d+)$`);
+  let n = Math.max(0, ...(db.lots || []).map((l) => { const m = re.exec(String(l.code || '')); return m ? num(m[1]) : 0; })) + 1;
+  let c = `P${yy}-${pad(n)}`; while (codeLotPris(db, c)) { n += 1; c = `P${yy}-${pad(n)}`; } return c;
+}
+const statutChip = (x, objet) => (x && x.valide ? <Chip tone="ok">validé{objet === 'pesee' ? 'e' : ''}</Chip> : x && x.enCours ? <Chip tone="info">en cours</Chip> : <Chip tone="warn">à valider</Chip>);
+// droits (identifiants activés) : saisie au pressoir ; correction d'une saisie validée : droit « corriger »
+function usePressoirDroits() {
+  const { db, uid } = useApp(); const secu = securiteActive(db);
+  const ecrit = !secu || niveauModule(db, uid, 'pressoir') === 'ecriture' || niveauModule(db, uid, 'ops') === 'ecriture';
+  return { secu, ecrit, corriger: ecrit && (!secu || peut(db, uid, 'modifier')), annuler: ecrit && (!secu || peut(db, uid, 'supprimer')), params: !secu || niveauModule(db, uid, 'params') === 'ecriture' };
+}
+
+/* ---------- motif (correction, annulation) ---------- */
+function MotifSheet({ title, body, ok = 'Confirmer', danger, onClose }) {
+  const [m, setM] = useState('');
+  return (
+    <Sheet title={title} onClose={() => onClose(null)} footer={<><Btn onClick={() => onClose(null)}>Annuler</Btn><Btn kind={danger ? 'danger' : 'primary'} disabled={!m.trim()} onClick={() => onClose(m.trim())}>{ok}</Btn></>}>
+      <div className="space-y-3">{body ? <p className="text-sm text-ink2">{body}</p> : null}
+        <Field label="Motif (obligatoire, gardé au journal du pressoir)"><TA value={m} onChange={setM} rows={3} autoFocus placeholder="ex. erreur de saisie du poids, pesée enregistrée deux fois…" data-motif="" /></Field></div>
+    </Sheet>
+  );
+}
+
+/* ---------- pesée : saisie ---------- */
+function PeseeForm({ id, onClose, onTicket }) {
+  const { db, act, defaultDate, moi, uid, camp } = useApp(); const o = id ? db.ops.find((x) => x.id === id) : null; const p0 = (o && o.pesee) || {};
+  const droits = usePressoirDroits(); const P = pressoirParams(db); const bal = balancesDe(db);
+  const valide = !!p0.valide; const lecture = !droits.ecrit || (valide && !droits.corriger) || (o && isLocked(db, o.date));
+  const [f, set, setF] = useDraft(o ? { date: o.date, heure: p0.heure || '', apporteurId: o.apporteurId || '', cruId: o.cruId || '', parcelleId: o.parcelleId || '', cepageId: o.cepageId, qualifId: o.qualifId || 'conv', mention: p0.mention || '', brutKg: hasNum(p0.brutKg) ? String(p0.brutKg) : '', tareKg: hasNum(p0.tareKg) ? String(p0.tareKg) : '', kg: String(o.kg), caisses: p0.caisses ? String(p0.caisses) : '', etat: p0.etat || '', heureCueillette: p0.heureCueillette || '', balanceId: p0.balanceId || '', ref: o.ref || '', notes: o.notes || '', operateurs: o.operateurs || [], valider: true, motif: '' }
+    : { date: defaultDate, heure: heureNow(), apporteurId: '', cruId: '', parcelleId: '', cepageId: (db.lists.cepages[0] || {}).id || '', qualifId: 'conv', mention: '', brutKg: '', tareKg: '', kg: '', caisses: '', etat: 'sain', heureCueillette: '', balanceId: (bal[0] || {}).id || '', ref: '', notes: '', operateurs: moi ? [moi] : [], valider: true, motif: '' });
+  const net = hasNum(f.brutKg) && hasNum(f.tareKg) ? r2(num(f.brutKg) - num(f.tareKg)) : hasNum(f.kg) ? num(f.kg) : 0;
+  const pris = o ? r2(num(o.kg) - peseeReste(db, o.id)) : 0;
+  const save = () => {
+    const r = act((d) => peseeSave(d, f, id || null, { motif: f.motif, par: uid, maintenant: pMaintenant(), valider: f.valider }), id ? 'Pesée modifiée.' : 'Pesée inscrite au registre.');
+    if (r && r.ok) { onClose(); if (!id && onTicket) onTicket(r.op.id); }
+  };
+  const num0 = p0.num || numeroSuivant(db, 'pesee', yearOf(f.date));
+  return (
+    <FormSheet readOnly={lecture} title={o ? `Pesée n° ${p0.num || '—'}` : 'Nouvelle pesée'} sub={o ? `${fmtDate(o.date)}${p0.heure ? ` · ${p0.heure}` : ''} — registre des pesées ${yearOf(o.date)}` : `Registre des pesées ${yearOf(f.date)} : n° ${num0}`} onClose={onClose} onSave={save} saveLabel={o ? 'Enregistrer' : f.valider ? 'Peser et valider' : 'Enregistrer'} wide>
+      {valide ? <Notice tone="info" title={`Pesée validée le ${fmtDateHeure(p0.valide.le)}`}>Une correction reste possible : elle est gardée au journal du pressoir avec son motif (valeurs d’avant et d’après).{pris > 0 ? ` ${kgTxt(pris)} de cette pesée sont déjà chargés dans un marc.` : ''}</Notice> : null}
+      {lecture && droits.ecrit && valide ? <Notice tone="info" title="Consultation">Votre profil ne permet pas de corriger une pesée validée.</Notice> : null}
+      <G n={3}><Field label="Date"><DI value={f.date} onChange={(v) => set('date', v)} /></Field><Field label="Heure de la pesée"><input className="inp num" type="time" value={f.heure} onChange={(e) => set('heure', e.target.value)} aria-label="Heure de la pesée" data-heure="" /></Field>
+        <Field label="Balance / bascule">{bal.length ? <SI value={f.balanceId} onChange={(v) => set('balanceId', v)} placeholder="Choisir…" options={bal.map((b) => ({ value: b.id, label: `${b.nom}${b.valideJusquau ? ` (vignette au ${fmtDate(b.valideJusquau)})` : ''}` }))} /> : <div className="help pt-2">Ajoutez la bascule dans Pressoir › Réglages.</div>}</Field></G>
+      <G><Field label="Apporteur" help="Vide : raisins de l’exploitation. Pressurage à façon : le nom de l’apporteur est obligatoire au registre."><ApporteurSelect value={f.apporteurId} role="apporteur" onChange={(v) => setF((x) => ({ ...x, apporteurId: v, ...(v && !x.cruId && apporteurCruAuto(db, v) ? { cruId: apporteurCruAuto(db, v) } : {}) }))} /></Field>
+        <Field label="Cru (village)"><CruSelect value={f.cruId} onChange={(v) => set('cruId', v)} /><CrusProposes ids={[f.apporteurId]} cruId={f.cruId} onPick={(c) => set('cruId', c)} /></Field></G>
+      <G n={3}><Field label="Parcelle (facultatif)"><ParcelleSelect value={f.parcelleId} preset={{ cruId: f.cruId, cepageId: f.cepageId, apporteurId: f.apporteurId }} onChange={(v) => { const pc = (db.parcelles || []).find((x) => x.id === v); setF((x) => ({ ...x, parcelleId: v, ...(pc ? { cruId: pc.cruId || x.cruId, ...(pc.cepageId ? { cepageId: pc.cepageId } : {}), ...(pc.apporteurId ? { apporteurId: pc.apporteurId } : {}) } : {}) })); }} /></Field>
+        <Field label="Cépage"><SI value={f.cepageId} onChange={(v) => set('cepageId', v)} options={opts(db, 'cepages')} /></Field>
+        <Field label="Revendication"><SI value={f.qualifId} onChange={(v) => set('qualifId', v)} options={qualifOptions(db, f.qualifId)} /></Field></G>
+      <Field label="Revendication particulière : mention, lieu-dit…" help={P.registre ? 'Inscrite au registre et reprise au carnet de pressoir (origine des raisins).' : ''}><TI value={f.mention} onChange={(v) => set('mention', v)} placeholder="ex. lieu-dit « Les Chétillons », mention premier cru…" /></Field>
+      <Group label="Poids">
+        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))' }}>
+          <label className="block"><span className="help">Poids brut (kg)</span><NI value={f.brutKg} onChange={(v) => set('brutKg', v)} placeholder="ex. 4 300" aria-label="Poids brut" data-brut="" /></label>
+          <label className="block"><span className="help">Tare (kg)</span><NI value={f.tareKg} onChange={(v) => set('tareKg', v)} placeholder="caisses, palettes" aria-label="Tare" data-tare="" /></label>
+          {hasNum(f.brutKg) && hasNum(f.tareKg) ? <div><span className="help">Poids net</span><div className="disp text-2xl" data-net="">{kgTxt(net)}</div></div>
+            : <label className="block"><span className="help">ou poids net (kg)</span><NI value={f.kg} onChange={(v) => set('kg', v)} placeholder="ex. 4 000" aria-label="Poids net" data-netkg="" /></label>}
+          <label className="block"><span className="help">Caisses (nombre)</span><NI value={f.caisses} onChange={(v) => set('caisses', v)} aria-label="Nombre de caisses" /></label>
+        </div>
+      </Group>
+      <G n={3}><Field label="État sanitaire"><SI value={f.etat} onChange={(v) => set('etat', v)} placeholder="—" options={ETATS_SANITAIRES.map((e) => ({ value: e.id, label: e.label }))} /></Field>
+        <Field label="Heure de cueillette (facultatif)"><input className="inp num" type="time" value={f.heureCueillette} onChange={(e) => set('heureCueillette', e.target.value)} aria-label="Heure de cueillette" /></Field>
+        <Field label="N° de bon / ticket (facultatif)"><TI value={f.ref} onChange={(v) => set('ref', v)} /></Field></G>
+      <OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label="Pesée faite par" help={db.settings.operateurObligatoire && !o ? 'Obligatoire (réglage de la société).' : ''} />
+      <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></Field>
+      {!valide && !lecture ? <Check checked={f.valider} onChange={(v) => set('valider', v)} label="Valider la pesée (inscrite au registre ; ensuite, toute correction demande un motif)" /> : null}
+      {valide && !lecture ? <Field label="Motif de la correction (obligatoire si vous changez la pesée)"><TI value={f.motif} onChange={(v) => set('motif', v)} placeholder="ex. erreur de lecture de la bascule" data-motif-correction="" /></Field> : null}
+    </FormSheet>
+  );
+}
+
+/* ---------- ticket de pesée (remis à l'apporteur) ---------- */
+function TicketPesee({ id, onClose }) {
+  const { db } = useApp(); const ref = useRef(null); const o = db.ops.find((x) => x.id === id); const p = (o && o.pesee) || {};
+  const out = useReportOutput(ref, `ticket-pesee-${o ? yearOf(o.date) : ''}-${p.num || ''}`);
+  if (!o) return null;
+  const e = db.entreprise || {}; const b = p.balanceId ? balancesDe(db).find((x) => x.id === p.balanceId) : null; const ap = (db.apporteurs || []).find((a) => a.id === o.apporteurId);
+  const site = (db.sites || [])[0] || {}; const lignes = [['Centre de pressurage', [e.nom || db.settings.domaine || site.nom, e.adresse || site.adresse].filter(Boolean).join(' — ') || '—'], ['Apporteur', ap ? [ap.nom, ap.commune].filter(Boolean).join(', ') : 'Raisins de l’exploitation'], ['Date et heure de la pesée', `${fmtDate(o.date)} · ${p.heure || '—'}`],
+    ['Cépage', lbl(db, 'cepages', o.cepageId)], ['Cru (village)', o.cruId ? cruName(db, o.cruId) : '—'], ['Parcelle', o.parcelleId ? parcelleName(db, o.parcelleId) : '—'], ['Revendication', qLabel(o.qualifId)], ['Revendication particulière (mention, lieu-dit)', p.mention || '—'],
+    ['Poids brut', hasNum(p.brutKg) ? kgTxt(p.brutKg) : '—'], ['Tare', hasNum(p.tareKg) ? kgTxt(p.tareKg) : '—'], ['Poids net', kgTxt(o.kg)], ['Caisses', p.caisses || '—'], ['État sanitaire', etatLabel(p.etat) || '—'], ['Heure de cueillette', p.heureCueillette || '—'],
+    ['Balance', b ? `${b.nom}${b.valideJusquau ? ` — vérification valable jusqu’au ${fmtDate(b.valideJusquau)}` : ''}` : '—'], ['N° de bon', o.ref || '—'], ['Pesée faite par', operateursNoms(db, o.operateurs) || '—']];
+  return (
+    <Sheet title={`Ticket de pesée n° ${p.num || '—'}`} sub="À remettre à l’apporteur" onClose={onClose}
+      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+      <div ref={ref} className="report" data-ticket="">
+        <ReportHead title={`Ticket de pesée n° ${p.num || '—'} — ${yearOf(o.date)}`} sub={`${fmtDate(o.date)} · ${p.heure || '—'}`} />
+        <table><tbody>{lignes.map(([k, v]) => <tr key={k}><th style={{ width: '42%', textAlign: 'left' }}>{k}</th><td>{v}</td></tr>)}</tbody></table>
+        <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>{p.valide ? `Pesée inscrite au registre des pesées sous le n° ${p.num}, validée le ${fmtDateHeure(p.valide.le)}.` : 'Pesée non encore validée au registre.'}{champenois(db) ? ' Registre tenu selon le cahier des charges de l’AOC Champagne (chapitre II).' : ''}</p>
+        <div style={{ display: 'flex', gap: 24, marginTop: 28 }}><div style={{ flex: 1, borderTop: '1px solid #999', paddingTop: 4, fontSize: 11 }}>Signature de l’apporteur</div><div style={{ flex: 1, borderTop: '1px solid #999', paddingTop: 4, fontSize: 11 }}>Signature du centre de pressurage</div></div>
+      </div>
+    </Sheet>
+  );
+}
+
+/* ---------- registre des pesées ---------- */
+function PeseesView({ annee }) {
+  const { db, act, camp, uid } = useApp(); const droits = usePressoirDroits();
+  const [form, setForm] = useState(null); const [ticket, setTicket] = useState(null); const [annul, setAnnul] = useState(null); const [q, setQ] = useState(''); const [jour, setJour] = useState('');
+  const L = peseesDe(db, annee).slice().reverse(); const auj = todayISO();
+  const rows = L.filter((o) => (!jour || o.date === jour) && (!q || norm(`${apporteurName(db, o.apporteurId)} ${peseeOrigine(db, o)} ${lbl(db, 'cepages', o.cepageId)} ${(o.pesee || {}).num || ''}`).includes(norm(q))));
+  const reste = (o) => peseeReste(db, o.id); const duJour = L.filter((o) => o.date === auj);
+  const aValider = L.filter((o) => !(o.pesee && o.pesee.valide)).length; const P = pressoirParams(db);
+  const valider = (o) => act((d) => peseeValider(d, o.id, { par: uid, maintenant: pMaintenant() }), `Pesée n° ${(o.pesee || {}).num || ''} validée.`);
+  const annuler = (motif) => { const o = annul; setAnnul(null); if (motif) act((d) => registreAnnuler(d, o.id, { motif, par: uid, maintenant: pMaintenant() }), 'Pesée annulée : gardée au journal du pressoir.'); };
+  const jours = uniq(L.map((o) => o.date));
+  return (
+    <div>
+      <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
+        <Kpi label="Pesées" value={L.length} sub={`${fmt(sum(L, (o) => o.kg))} kg de raisin`} />
+        <Kpi label="Aujourd’hui" value={duJour.length} sub={duJour.length ? `${fmt(sum(duJour, (o) => o.kg))} kg` : 'aucune pesée'} />
+        <Kpi label="Reste à presser" value={kgTxt(sum(L, reste))} sub={`${L.filter((o) => reste(o) > 0.5).length} pesée(s)`} tone={sum(L, reste) > 0.5 ? 'warn' : undefined} />
+        {P.registre ? <Kpi label="À valider" value={aValider} tone={aValider ? 'warn' : 'ok'} sub={aValider ? 'pesées non validées' : 'registre à jour'} /> : null}
+      </div>
+      <Sec title={`Registre des pesées ${annee}`} right={<><input className="inp" style={{ width: 200 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher…" aria-label="Rechercher une pesée" />
+        <SI value={jour} onChange={setJour} placeholder="Tous les jours" style={{ width: 'auto' }} options={jours.map((j) => ({ value: j, label: fmtDate(j) }))} aria-label="Jour" />
+        {droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouvelle-pesee="">+ Nouvelle pesée</Btn> : null}</>}>
+        <Tbl rows={rows} empty={L.length ? 'Aucune pesée pour ces critères.' : 'Aucune pesée cette année : « + Nouvelle pesée » à l’arrivée de chaque chargement de raisins.'} cols={[
+          { h: 'N°', r: (o) => <b className="num" data-num-pesee="">{(o.pesee || {}).num || '—'}</b> },
+          { h: 'Date', r: (o) => <span className="num whitespace-nowrap">{fmtDate(o.date)} {(o.pesee || {}).heure || ''}</span> },
+          { h: 'Apporteur', r: (o) => (o.apporteurId ? apporteurName(db, o.apporteurId) : <span className="text-ink2">exploitation</span>) },
+          { h: 'Origine', cls: 'hm', r: (o) => <span className="text-sm">{peseeOrigine(db, o) || '—'}</span> },
+          { h: 'Cépage', r: (o) => lbl(db, 'cepages', o.cepageId) }, { h: 'Revendication', cls: 'hm', r: (o) => <QChip id={o.qualifId} /> },
+          { h: 'Poids net', cls: 'r', r: (o) => <span className="num whitespace-nowrap" title={hasNum((o.pesee || {}).brutKg) ? `brut ${kgTxt(o.pesee.brutKg)} − tare ${kgTxt(o.pesee.tareKg)}` : ''}>{kgTxt(o.kg)}</span> },
+          { h: 'Reste', cls: 'r', r: (o) => { const x = reste(o); return <span className={cx('num whitespace-nowrap', x > 0.5 ? 'text-warn' : 'text-ink2')}>{x > 0.5 ? kgTxt(x) : 'pressée'}</span>; } },
+          { h: 'Statut', r: (o) => statutChip(o.pesee, 'pesee') },
+          { h: '', r: (o) => <div className="flex flex-wrap gap-1"><Btn size="sm" onClick={() => setTicket(o.id)} title="Ticket à remettre à l’apporteur">Ticket</Btn><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? 'Modifier' : 'Voir'}</Btn>
+            {droits.ecrit && !(o.pesee && o.pesee.valide) && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => valider(o)}>Valider</Btn> : null}
+            {droits.annuler && !isLocked(db, o.date) && reste(o) >= num(o.kg) - 0.5 ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} />
+        <p className="help mt-2">Chaque pesée reçoit un n° continu dans l’année ; une pesée annulée garde son n° (journal). Les pesées sont aussitôt proposées dans le carnet de pressoir et dans les pressurages de l’onglet Opérations.</p>
+      </Sec>
+      {form ? <PeseeForm id={form.id} onClose={() => setForm(null)} onTicket={(id) => setTicket(id)} /> : null}
+      {ticket ? <TicketPesee id={ticket} onClose={() => setTicket(null)} /> : null}
+      {annul ? <MotifSheet title={`Annuler la pesée n° ${(annul.pesee || {}).num || ''} ?`} body="La pesée est retirée du registre ; son n° n’est jamais réattribué et une copie est gardée au journal du pressoir." ok="Annuler la pesée" danger onClose={annuler} /> : null}
+    </div>
+  );
+}
+
+/* ---------- marc : chargement, volumes, validation ---------- */
+function MarcForm({ id, onClose }) {
+  const { db, act, defaultDate, moi, uid, toast } = useApp(); const o = id ? db.ops.find((x) => x.id === id) : null; const m0 = (o && o.marc) || {};
+  const droits = usePressoirDroits(); const P = pressoirParams(db); const PR = pressoirsDe(db);
+  const valide = !!m0.valide; const lecture = !droits.ecrit || (valide && !droits.corriger) || (o && isLocked(db, o.date));
+  const fracs = fracPress(db, ((o && o.fractions) || []).map((x) => x.fractionId));
+  const frac0 = {}; fracs.forEach((fr) => { const x = ((o && o.fractions) || []).find((y) => y.fractionId === fr.id); frac0[fr.id] = { volL: x ? String(x.volL) : '', contenantId: x ? x.contenantId : '', code: x ? x.code : '' }; });
+  const [f, set, setF] = useDraft(o ? { date: o.date, heureDebut: m0.heureDebut || '', heureFin: m0.heureFin || '', equipementId: o.equipementId || '', charges: (o.charges || []).map((c) => ({ apportId: c.apportId, kg: String(c.kg) })), code: (o.parentSpec || {}).code || '', designation: (o.parentSpec || {}).designation || '', millesime: (o.parentSpec || {}).millesime || '', qualifId: (o.parentSpec || {}).qualifId || '', frac: frac0, tavp: hasNum(m0.tavp) ? String(m0.tavp) : '', bourbesL: hasNum(m0.bourbesL) ? String(m0.bourbesL) : '', sousCharge: m0.sousCharge || '', notes: o.notes || '', operateurs: o.operateurs || [], motif: '', valider: false }
+    : { date: defaultDate, heureDebut: heureNow(), heureFin: '', equipementId: (PR[0] || {}).id || '', charges: [], code: codeMarcSuivant(db, defaultDate), designation: '', millesime: '', qualifId: '', frac: frac0, tavp: '', bourbesL: '', sousCharge: '', notes: '', operateurs: moi ? [moi] : [], motif: '', valider: false });
+  const pr = PR.find((x) => x.id === f.equipementId);
+  const dispo = db.ops.filter((x) => x.type === 'apport' && x.date <= f.date && yearOf(x.date) === yearOf(f.date) && (peseeReste(db, x.id, id) > 0.5 || f.charges.some((c) => c.apportId === x.id))).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : num((b.pesee || {}).num) - num((a.pesee || {}).num)));
+  const setCh = (charges) => setF((x) => { const first = db.ops.find((y) => y.id === (charges[0] || {}).apportId); return { ...x, charges, designation: x.designation || (first ? `${lbl(db, 'cepages', first.cepageId)} ${yearOf(x.date)} – marc` : '') }; });
+  const totKg = sum(f.charges, (c) => c.kg);
+  // chargement : pesées du jour non pressées, jusqu'à la capacité du pressoir
+  const remplir = () => { const cap = (pr && pr.capaciteKg) || 0; let reste = cap > 0 ? cap - totKg : Infinity; const add = [];
+    dispo.filter((x) => x.date === f.date && !f.charges.some((c) => c.apportId === x.id)).reverse().forEach((x) => { if (reste <= 0.5) return; const r = peseeReste(db, x.id, id); const k = Math.min(r, reste); if (k > 0.5) { add.push({ apportId: x.id, kg: String(r2(k)) }); reste -= k; } });
+    if (!add.length) toast('Aucune pesée du jour à charger.', 'bad'); else setCh([...f.charges, ...add]); };
+  // aperçu des contrôles (sans enregistrer)
+  const apercu = useMemo(() => { const r = marcSpec(db, f, o); if (!r.ok) return { err: r.msg, ctl: [] }; const op = { ...r.spec, id: id || '_nouveau', marc: { ...(o && o.marc), ...r.spec.marc, saisiLe: m0.saisiLe || pMaintenant() } };
+    const d = { ...db, ops: id ? db.ops.map((x) => (x.id === id ? op : x)) : [...db.ops, op] }; return { err: '', ctl: marcControles(d, op), vol: marcVolumes(d, op) }; }, [f, db]);
+  const save = (val) => {
+    const r = act((d) => { const s = marcSave(d, f, id || null, { motif: f.motif, par: uid, maintenant: pMaintenant() }); if (!s.ok || !val) return s; return marcValider(d, s.op.id, { par: uid, maintenant: pMaintenant() }); },
+      val ? 'Marc validé au carnet de pressoir.' : id ? 'Marc enregistré.' : 'Marc chargé : complétez les volumes à la fin du pressurage.');
+    if (r && r.ok) onClose();
+  };
+  const plafond = P.ratioKg > 0 && P.ratioL > 0 && totKg > 0 ? (totKg * P.ratioL) / P.ratioKg : 0;
+  const bloquants = apercu.ctl.filter((c) => c.niveau === 'bloquant'); const alertes = apercu.ctl.filter((c) => c.niveau === 'alerte');
+  const fr = (fid, patch) => setF((x) => ({ ...x, frac: { ...x.frac, [fid]: { ...x.frac[fid], ...patch } } }));
+  return (
+    <FormSheet readOnly={lecture} wide title={o ? `Marc n° ${m0.num || '—'}${o.parentSpec ? ` — ${o.parentSpec.code}` : ''}` : 'Charger un marc'} sub={`Carnet de pressoir ${yearOf(f.date)}${o ? '' : ` : marc n° ${numeroSuivant(db, 'marc', yearOf(f.date))}`}`} onClose={onClose}
+      onSave={() => save(false)} saveLabel={o ? 'Enregistrer' : 'Charger le marc'}
+      secondary={!lecture && !valide ? <Btn kind="primary" onClick={() => save(true)} disabled={!!apercu.err || bloquants.length > 0} title={bloquants.length ? bloquants.map((c) => c.msg).join(' ') : 'Enregistrer et valider le marc'} data-valider-marc="">Enregistrer et valider</Btn> : null}>
+      {valide ? <Notice tone="info" title={`Marc validé le ${fmtDateHeure(m0.valide.le)}`}>Une correction reste possible : elle est gardée au journal du pressoir avec son motif.</Notice> : !o ? <Notice tone="info">Le carnet se remplit au fur et à mesure : enregistrez le marc dès le chargement (heure du début, pesées chargées), puis complétez les volumes, le TAV en puissance et les bourbes.</Notice> : null}
+      <G n={3}><Field label="Date"><DI value={f.date} onChange={(v) => set('date', v)} /></Field>
+        <Field label="Heure du début"><input className="inp num" type="time" value={f.heureDebut} onChange={(e) => set('heureDebut', e.target.value)} aria-label="Heure du début du pressurage" data-heure-debut="" /></Field>
+        <Field label="Heure de fin (facultatif)"><input className="inp num" type="time" value={f.heureFin} onChange={(e) => set('heureFin', e.target.value)} aria-label="Heure de fin du pressurage" /></Field></G>
+      <G><Field label="Pressoir">{PR.length ? <SI value={f.equipementId} onChange={(v) => set('equipementId', v)} options={PR.map((x) => ({ value: x.id, label: `${x.nom}${x.capaciteKg ? ` — ${fmt(x.capaciteKg)} kg` : ''}` }))} /> : <div className="help pt-2">Ajoutez un pressoir dans Pressoir › Réglages (ou Paramètres › Listes › Équipements).</div>}</Field>
+        <Field label="Code du lot (pressée)" help="Les fractions prennent ce code suivi de leur suffixe (C, T1, R…)."><TI value={f.code} onChange={(v) => set('code', v)} /></Field></G>
+      <Group label={`Pesées chargées${totKg ? ` : ${kgTxt(totKg)}${pr && pr.capaciteKg ? ` pour ${kgTxt(pr.capaciteKg)} agréés` : ''}` : ''}`}>
+        <div className="space-y-2" data-charges="">{f.charges.map((c, i) => (
+          <div key={i} className="grid items-end gap-2" style={{ gridTemplateColumns: 'minmax(0,3fr) minmax(90px,1fr) auto' }}>
+            <SI value={c.apportId} onChange={(v) => setCh(f.charges.map((x, k) => (k === i ? { apportId: v, kg: v ? String(r2(peseeReste(db, v, id))) : '' } : x)))} placeholder="Choisir une pesée…" options={dispo.filter((x) => x.id === c.apportId || !f.charges.some((y) => y.apportId === x.id)).map((x) => ({ value: x.id, label: peseeLibelle(db, x, r2(peseeReste(db, x.id, id))) }))} aria-label={`Pesée ${i + 1}`} />
+            <NI value={c.kg} onChange={(v) => setCh(f.charges.map((x, k) => (k === i ? { ...x, kg: v } : x)))} placeholder="kg" aria-label={`Poids chargé ${i + 1}`} />
+            <Btn kind="danger" size="sm" aria-label="Retirer" onClick={() => setCh(f.charges.filter((_, k) => k !== i))}>✕</Btn>
+          </div>))}
+          <div className="flex flex-wrap gap-2"><Btn size="sm" onClick={() => setCh([...f.charges, { apportId: '', kg: '' }])}>+ Ajouter une pesée</Btn><Btn size="sm" kind="ghost" onClick={remplir} data-remplir="">Charger les pesées du jour</Btn>
+            {!dispo.length ? <span className="help">Aucune pesée à presser à cette date : enregistrez d’abord les pesées (onglet Pesées).</span> : null}</div>
+        </div>
+      </Group>
+      {pr && pr.capaciteKg && totKg > 0 && totKg < pr.capaciteKg * 0.98 && P.chargementPlein ? <Field label="Motif du sous-chargement (exceptionnel)"><TI value={f.sousCharge} onChange={(v) => set('sousCharge', v)} placeholder="ex. fin de cueillette, cépage seul…" /></Field> : null}
+      <Group label="Moûts obtenus" help={plafond ? `Plafond revendicable (cuvée + tailles) : ${fmtL(plafond)} — ${P.ratioL} L de ${P.volume} pour ${P.ratioKg} kg. Au-delà : rebêches.` : 'Renseignez le volume et la cuve de chaque fraction à la fin du pressurage.'}>
+        <div className="space-y-2" data-fractions="">{fracs.map((x) => (
+          <div key={x.id} className="grid items-end gap-2" style={{ gridTemplateColumns: 'minmax(80px,.8fr) minmax(0,1fr) minmax(0,1.6fr) minmax(0,1fr)' }}>
+            <div className="pb-2 text-sm font-semibold">{x.label}</div>
+            <VI value={f.frac[x.id] ? f.frac[x.id].volL : ''} onChange={(v) => fr(x.id, { volL: v })} placeholder="hL" aria-label={`Volume ${x.label}`} />
+            <SI value={f.frac[x.id] ? f.frac[x.id].contenantId : ''} onChange={(v) => fr(x.id, { contenantId: v })} placeholder="Cuve…" options={contOptions(db)} aria-label={`Cuve ${x.label}`} />
+            <TI value={f.frac[x.id] ? f.frac[x.id].code : ''} onChange={(v) => fr(x.id, { code: v })} placeholder={`${f.code || 'code'}-${x.suffix}`} aria-label={`Code ${x.label}`} />
+          </div>))}</div>
+      </Group>
+      {apercu.vol && apercu.vol.total > 0 ? <div className="flex flex-wrap gap-2 text-sm" data-volumes=""><Chip>cuvée {fmtL(apercu.vol.cuvee)}</Chip><Chip>tailles {fmtL(apercu.vol.taille)}</Chip><Chip>rebêches {fmtL(apercu.vol.rebeche)}</Chip><Chip tone={plafond && apercu.vol.aoc > plafond + 0.5 ? 'bad' : 'ok'}>revendicable {fmtL(apercu.vol.aoc)}{plafond ? ` / ${fmtL(plafond)}` : ''}</Chip>{totKg > 0 ? <Chip>{fmt((apercu.vol.total / totKg) * (P.ratioKg || 100), 1)} L / {P.ratioKg || 100} kg</Chip> : null}</div> : null}
+      <G n={3}><Field label="TAV en puissance (% vol.)" help={P.registre ? 'Obligatoire au carnet.' : ''}><NI value={f.tavp} onChange={(v) => set('tavp', v)} placeholder="ex. 10,2" aria-label="TAV en puissance" data-tavp="" /></Field>
+        <Field label="Bourbes (hL, en fin de débourbage)" help={P.bourbesMax ? `Attendu : ${fmt(P.bourbesMin)} à ${fmt(P.bourbesMax)} % des moûts.` : ''}><VI value={f.bourbesL} onChange={(v) => set('bourbesL', v)} placeholder="hL" aria-label="Bourbes" /></Field>
+        <Field label="Désignation"><TI value={f.designation} onChange={(v) => set('designation', v)} /></Field></G>
+      <OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label="Pressurage fait par" />
+      <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></Field>
+      {apercu.err && f.charges.length ? <Notice tone="warn">{apercu.err}</Notice> : null}
+      {bloquants.map((c, i) => <Notice key={`b${i}`} tone="bad">{c.msg}</Notice>)}
+      {alertes.map((c, i) => <Notice key={`a${i}`} tone="warn">{c.msg}</Notice>)}
+      {valide && !lecture ? <Field label="Motif de la correction (obligatoire si vous changez le marc)"><TI value={f.motif} onChange={(v) => set('motif', v)} data-motif-correction="" /></Field> : null}
+    </FormSheet>
+  );
+}
+
+/* ---------- carnet de pressoir ---------- */
+function MarcsView({ annee }) {
+  const { db, act, camp, uid, showLot } = useApp(); const droits = usePressoirDroits();
+  const [form, setForm] = useState(null); const [annul, setAnnul] = useState(null); const [imp, setImp] = useState(false);
+  const L = marcsDe(db, annee).slice().reverse(); const P = pressoirParams(db);
+  const valider = (o) => act((d) => marcValider(d, o.id, { par: uid, maintenant: pMaintenant() }), `Marc n° ${(o.marc || {}).num || ''} validé.`);
+  const annuler = (motif) => { const o = annul; setAnnul(null); if (motif) act((d) => registreAnnuler(d, o.id, { motif, par: uid, maintenant: pMaintenant() }), 'Marc annulé : gardé au journal du pressoir.'); };
+  const ce = (o) => { const m = marcCepages(db, o); return Object.keys(m).map((k) => `${lbl(db, 'cepages', k)} ${fmt(m[k])} kg`).join(' · '); };
+  const enCours = L.filter((o) => o.marc && o.marc.enCours).length; const aValider = L.filter((o) => !(o.marc && o.marc.valide)).length;
+  return (
+    <div>
+      <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
+        <Kpi label="Marcs" value={L.length} sub={`${fmt(sum(L, marcKg))} kg pressés`} /><Kpi label="Moûts" value={fmtL(sum(L, (o) => marcVolumes(db, o).total))} sub={`dont rebêches ${fmtL(sum(L, (o) => marcVolumes(db, o).rebeche))}`} />
+        <Kpi label="En cours" value={enCours} tone={enCours ? 'warn' : undefined} sub="volumes à compléter" /><Kpi label="À valider" value={aValider} tone={aValider ? 'warn' : 'ok'} sub={aValider ? 'marcs non validés' : 'carnet à jour'} />
+      </div>
+      <Sec title={`Carnet de pressoir ${annee}`} right={<><Btn onClick={() => setImp(true)} disabled={!L.length}>🖨 Imprimer le carnet</Btn>{droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouveau-marc="">+ Charger un marc</Btn> : null}</>}>
+        <Tbl rows={L} empty="Aucun marc cette année : « + Charger un marc » au début de chaque pressurage." cols={[
+          { h: 'N°', r: (o) => <b className="num" data-num-marc="">{(o.marc || {}).num || '—'}</b> },
+          { h: 'Date', r: (o) => <span className="num whitespace-nowrap">{fmtDate(o.date)} {(o.marc || {}).heureDebut || ''}{(o.marc || {}).heureFin ? `–${o.marc.heureFin}` : ''}</span> },
+          { h: 'Pressoir', cls: 'hm', r: (o) => lbl(db, 'equipements', o.equipementId) },
+          { h: 'Raisins', r: (o) => <span className="text-sm"><b className="num">{kgTxt(marcKg(o))}</b><span className="block text-xs text-ink2">{ce(o)}</span></span> },
+          { h: 'Moûts', r: (o) => { const v = marcVolumes(db, o); return v.total ? <span className="text-sm num">cuvée {fmtL(v.cuvee)}{v.taille ? ` · tailles ${fmtL(v.taille)}` : ''}{v.rebeche ? ` · rebêches ${fmtL(v.rebeche)}` : ''}</span> : <span className="text-xs text-ink2">à compléter</span>; } },
+          { h: 'TAV puiss.', cls: 'r hm', r: (o) => (hasNum((o.marc || {}).tavp) ? <span className="num">{fmt(o.marc.tavp, 1)} %</span> : '—') },
+          { h: 'Lot', cls: 'hm', r: (o) => (o.parentLotId ? <button type="button" className="linkish" onClick={() => showLot(o.parentLotId)}>{(o.parentSpec || {}).code}</button> : '—') },
+          { h: 'Contrôles', r: (o) => { const c = marcControles(db, o); const b = c.filter((x) => x.niveau === 'bloquant').length; const a = c.filter((x) => x.niveau === 'alerte').length; return (o.marc && o.marc.valide && !b && !a) ? <Chip tone="ok">conforme</Chip> : <span className="flex flex-wrap gap-1" title={c.map((x) => x.msg).join('\n')}>{b ? <Chip tone="bad">{b} bloquant{b > 1 ? 's' : ''}</Chip> : null}{a ? <Chip tone="warn">{a} alerte{a > 1 ? 's' : ''}</Chip> : null}{!b && !a ? <Chip tone="ok">conforme</Chip> : null}</span>; } },
+          { h: 'Statut', r: (o) => statutChip(o.marc, 'marc') },
+          { h: '', r: (o) => <div className="flex flex-wrap gap-1"><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? (o.marc && o.marc.enCours ? 'Compléter' : 'Modifier') : 'Voir'}</Btn>
+            {droits.ecrit && o.marc && !o.marc.valide && !o.marc.enCours && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => valider(o)}>Valider</Btn> : null}
+            {droits.annuler && !isLocked(db, o.date) && !dependentsOf(db, o).length ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} />
+        <p className="help mt-2">{P.ratioKg ? `Plafond : ${P.ratioL} L de ${P.volume} pour ${P.ratioKg} kg (bloquant)${P.cadenceMax ? ` ; ${P.cadenceMax} marcs au plus par 24 h et par pressoir` : ''}${P.marcKg && P.cuveeL ? ` ; usage : ${fmtL(P.cuveeL)} de cuvée et ${fmtL(P.tailleL)} de taille pour ${fmt(P.marcKg)} kg (alerte)` : ''}.` : 'Profil sans plafond : aucun contrôle réglementaire de rendement au pressurage.'} Un marc validé crée ses lots dans les cuves (onglet Cuverie) ; il apparaît aussi dans l’onglet Opérations (pressurage).</p>
+      </Sec>
+      {form ? <MarcForm id={form.id} onClose={() => setForm(null)} /> : null}
+      {annul ? <MotifSheet title={`Annuler le marc n° ${(annul.marc || {}).num || ''} ?`} body="Le marc est retiré du carnet (ses lots aussi, s’ils n’ont pas servi depuis) ; son n° n’est jamais réattribué et une copie est gardée au journal." ok="Annuler le marc" danger onClose={annuler} /> : null}
+      {imp ? <CarnetImpression annee={annee} onClose={() => setImp(false)} /> : null}
+    </div>
+  );
+}
+function CarnetImpression({ annee, onClose }) {
+  const { db } = useApp(); const ref = useRef(null); const out = useReportOutput(ref, `carnet-pressoir-${annee}`);
+  const L = marcsDe(db, annee); const fr = fracPress(db).filter((x) => fracRole(db, x.id) !== 'autre');
+  const rows = L.map((o) => { const m = o.marc || {}; const ce = marcCepages(db, o); const orig = uniq((o.charges || []).map((c) => db.ops.find((x) => x.id === c.apportId)).filter(Boolean).map((a) => [a.apporteurId ? apporteurName(db, a.apporteurId) : '', a.cruId ? cruName(db, a.cruId) : '', (a.pesee || {}).mention || ''].filter(Boolean).join(' · '))).join(' | ');
+    return [m.num || '', fmtDate(o.date), `${m.heureDebut || ''}${m.heureFin ? `–${m.heureFin}` : ''}`, lbl(db, 'equipements', o.equipementId), Object.keys(ce).map((k) => `${lbl(db, 'cepages', k)} ${fmt(ce[k])}`).join(', '), orig, ...fr.map((x) => fmtHL(sum((o.fractions || []).filter((y) => y.fractionId === x.id), (y) => y.volL))), hasNum(m.tavp) ? fmt(m.tavp, 1) : '', hasNum(m.bourbesL) ? fmtHL(m.bourbesL) : '', m.valide ? 'validé' : 'à valider']; });
+  return (
+    <Sheet wide title={`Carnet de pressoir ${annee}`} onClose={onClose} footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+      <div ref={ref} className="report"><ReportHead title={`Carnet de pressoir — vendanges ${annee}`} sub={`${L.length} marc(s)`} />
+        <RTable head={['N°', 'Date', 'Heures', 'Pressoir', 'Poids par cépage (kg)', 'Apporteurs · origine', ...fr.map((x) => `${x.label} (hL)`), 'TAV puiss.', 'Bourbes (hL)', 'Statut']} rows={rows} empty="Aucun marc." /></div>
+    </Sheet>
+  );
+}
+
+/* ---------- relevés par apporteur ---------- */
+function RelevesView({ annee }) {
+  const { db } = useApp(); const [imp, setImp] = useState(false);
+  const L = releveApporteurs(db, annee).sort((a, b) => String(apporteurName(db, a.apporteurId)).localeCompare(String(apporteurName(db, b.apporteurId)), 'fr'));
+  return (
+    <div>
+      <Notice tone="info">Répartition des moûts de chaque marc au prorata du poids net apporté (document de suivi pour les apporteurs, pas un registre réglementaire).</Notice>
+      <Sec className="mt-4" title={`Relevés ${annee}`} right={<Btn kind="primary" onClick={() => setImp(true)} disabled={!L.length}>🖨 Imprimer les relevés</Btn>}>
+        <Tbl rows={L.map((r) => ({ ...r, id: r.apporteurId || '_expl' }))} empty="Aucun marc cette année." cols={[
+          { h: 'Apporteur', r: (r) => <b>{releveNom(db, r.apporteurId)}</b> }, { h: 'Raisins pressés', cls: 'r', r: (r) => <span className="num">{kgTxt(r.kg)}</span> },
+          { h: 'Cuvée', cls: 'r', r: (r) => <span className="num">{fmtL(r.cuvee)}</span> }, { h: 'Tailles', cls: 'r', r: (r) => <span className="num">{fmtL(r.taille)}</span> }, { h: 'Rebêches', cls: 'r', r: (r) => <span className="num">{fmtL(r.rebeche)}</span> },
+          { h: 'Total moûts', cls: 'r', r: (r) => <b className="num">{fmtL(r.total)}</b> }, { h: 'Marcs', r: (r) => <span className="text-xs">{r.marcs.map((m) => `n° ${m.num || '?'}`).join(', ')}</span> }]} />
+      </Sec>
+      {imp ? <RelevesImpression annee={annee} L={L} onClose={() => setImp(false)} /> : null}
+    </div>
+  );
+}
+const releveNom = (db, id) => (id ? apporteurName(db, id) : 'Raisins de l’exploitation');
+function RelevesImpression({ annee, L, onClose }) {
+  const { db } = useApp(); const ref = useRef(null); const out = useReportOutput(ref, `releves-apporteurs-${annee}`);
+  return (
+    <Sheet wide title={`Relevés par apporteur — ${annee}`} sub="une page par apporteur" onClose={onClose} footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+      <div ref={ref} className="report">
+        {L.map((r, i) => <div key={i} className="rpt-item"><ReportHead title={`Relevé de pressurage — ${releveNom(db, r.apporteurId)}`} sub={`Vendanges ${annee} · répartition au prorata du poids`} />
+          <RTable head={['Marc', 'Date', 'Poids apporté (kg)', 'Part du marc', 'Cuvée (hL)', 'Tailles (hL)', 'Rebêches (hL)']} rows={r.marcs.map((m) => [`n° ${m.num || '?'}`, fmtDate(m.date), fmt(m.kg), pct(m.part), fmtHL(m.cuvee), fmtHL(m.taille), fmtHL(m.rebeche)])} />
+          <p><b>Total : {kgTxt(r.kg)} · cuvée {fmtL(r.cuvee)} · tailles {fmtL(r.taille)} · rebêches {fmtL(r.rebeche)}</b></p></div>)}
+      </div>
+    </Sheet>
+  );
+}
+
+/* ---------- bilan de campagne et exports ---------- */
+function BilanPressoirView({ annee }) {
+  const { db, toast } = useApp(); const b = useMemo(() => bilanPressoir(db, annee), [db, annee]); const P = b.params;
+  const exporter = async (quoi) => { const csv = '﻿' + (quoi === 'pesees' ? registrePeseesCsv(db, annee) : carnetPressoirCsv(db, annee)); const nom = quoi === 'pesees' ? `registre-pesees-${annee}.csv` : `carnet-pressoir-${annee}.csv`;
+    const r = await saveFile(nom, csv, 'text/csv;charset=utf-8'); if (r.ok) toast(`Export : ${nom}`); else if (!r.declined) toast(failMsg(r), 'bad'); };
+  return (
+    <div>
+      <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
+        <Kpi label="Raisins pesés" value={kgTxt(b.kgPeses)} sub={`${b.nbPesees} pesée(s)`} /><Kpi label="Raisins pressés" value={kgTxt(b.kgPresses)} sub={`${b.nbMarcs} marc(s) en ${b.jours} jour(s)`} />
+        <Kpi label="Moûts revendicables" value={fmtL(b.volumes.aoc)} sub={b.kgPresses ? `${fmt((b.volumes.aoc / b.kgPresses) * 160, 1)} L / 160 kg` : ''} /><Kpi label="Rebêches" value={fmtL(b.volumes.rebeche)} sub={b.tauxRebeches ? `minimum ${fmt(b.tauxRebeches, 1)} %` : 'pas de minimum cette année'} />
+        <Kpi label="Bourbes" value={fmtL(b.volumes.bourbes)} sub={b.volumes.total ? `${fmt((b.volumes.bourbes / b.volumes.total) * 100, 1)} % des moûts` : ''} />
+      </div>
+      <Sec title="À surveiller">
+        {b.alertes.length ? <div className="space-y-2" data-alertes-pressoir="">{b.alertes.map((a, i) => <Notice key={i} tone={a.niveau === 'bloquant' ? 'bad' : 'warn'}>{a.msg}</Notice>)}</div> : <Notice tone="ok">Rien à signaler pour les vendanges {annee}.</Notice>}
+        {b.nonValides.pesees || b.nonValides.marcs ? <p className="help mt-2">{b.nonValides.pesees ? `${b.nonValides.pesees} pesée(s) ` : ''}{b.nonValides.pesees && b.nonValides.marcs ? 'et ' : ''}{b.nonValides.marcs ? `${b.nonValides.marcs} marc(s) ` : ''}à valider.</p> : null}
+      </Sec>
+      <Sec title="Cadence des pressoirs">
+        <Tbl rows={b.pressoirs} empty="Aucun marc." cols={[{ h: 'Pressoir', r: (x) => <b>{x.nom}</b> }, { h: 'Agrément', r: (x) => (x.h24 ? '24 h/24' : x.agrement || '—') }, { h: 'Marcs', cls: 'r', r: (x) => x.nb },
+          { h: 'Maximum en 24 h', cls: 'r', r: (x) => <Chip tone={P.cadenceMax && x.max24 > P.cadenceMax ? 'bad' : 'ok'}>{x.max24}{P.cadenceMax ? ` / ${P.cadenceMax}` : ''}</Chip> }, { h: 'Moyenne par jour', cls: 'r', r: (x) => <Chip tone={x.plafondMoy && x.moyenne > x.plafondMoy ? 'warn' : ''}>{fmt(x.moyenne, 2)}{x.plafondMoy ? ` / ${x.plafondMoy}` : ''}</Chip> }]} />
+      </Sec>
+      <Sec title="Dates limites">
+        <ul className="list-disc pl-5 text-sm space-y-1">{b.limiteRebeches ? <li>Rebêches à livrer en distillerie avant le <b>{fmtDate(b.limiteRebeches)}</b> (garder le justificatif).</li> : null}{b.limiteBourbes ? <li>Bourbes à éliminer avant le <b>{fmtDate(b.limiteBourbes)}</b>.</li> : null}
+          {(P.dates[annee] || {}).finPressurage ? <li>Fin des pressurages : {fmtDate(P.dates[annee].finPressurage)}.</li> : null}{(P.dates[annee] || {}).remiseCarnets ? <li>Remise des carnets : {fmtDate(P.dates[annee].remiseCarnets)}.</li> : null}
+          {!b.limiteRebeches && !b.limiteBourbes ? <li className="text-ink2">Aucune date limite dans ce profil.</li> : null}</ul>
+      </Sec>
+      <Sec title="Exports">
+        <div className="flex flex-wrap gap-2"><Btn onClick={() => exporter('pesees')} data-export-pesees="">⬇ Registre des pesées (CSV)</Btn><Btn onClick={() => exporter('carnet')} data-export-carnet="">⬇ Carnet de pressoir (CSV)</Btn></div>
+        <p className="help mt-2">Séparateur « ; », s’ouvre dans Excel. Les deux registres sont aussi dans l’onglet Registres (exports CSV / Excel de la campagne). Aucun format d’échange officiel n’est publié : ces fichiers servent de copie et de contrôle.</p>
+      </Sec>
+    </div>
+  );
+}
+
+/* ---------- journal du pressoir ---------- */
+function JournalPressoirView({ annee }) {
+  const { db, act, uid } = useApp(); const droits = usePressoirDroits();
+  const J = journalTrie(db).filter((j) => num(j.annee) === annee).reverse(); const alt = new Set(journalAlteres(db).map((j) => j && j.id));
+  const ecarts = registreEcarts(db).filter((x) => yearOf(x.op.date) === annee); const doubles = [...registreDoublons(db, 'pesee', annee).map((x) => ({ ...x, objet: 'pesee' })), ...registreDoublons(db, 'marc', annee).map((x) => ({ ...x, objet: 'marc' }))];
+  const ACT = { validation: ['validation', 'ok'], correction: ['correction', 'warn'], annulation: ['annulation', 'bad'] };
+  const champsDiff = (j) => { if (!j.avant || !j.apres) return ''; return uniq([...Object.keys(j.avant), ...Object.keys(j.apres)]).filter((k) => JSON.stringify(j.avant[k]) !== JSON.stringify(j.apres[k])).map((k) => `${k} : ${JSON.stringify(j.avant[k]) || '—'} → ${JSON.stringify(j.apres[k]) || '—'}`).join(' ; '); };
+  const renum = (op) => act((d) => registreRenumeroter(d, op.id, { par: uid, maintenant: pMaintenant() }), 'Nouveau n° attribué (journal).');
+  return (
+    <div>
+      {alt.size ? <Notice tone="bad" title="Journal modifié hors d’Œnotrack">{alt.size} ligne(s) ne correspondent plus à leur empreinte : le fichier de la base a été modifié à la main.</Notice> : null}
+      {ecarts.length ? <Notice tone="warn" title="Saisies validées modifiées hors du registre">{ecarts.map((x) => `${x.op.type === 'apport' ? 'Pesée' : 'Marc'} n° ${(x.op.pesee || x.op.marc || {}).num}`).join(', ')} : modifiées sans motif (version antérieure d’Œnotrack ou fichier modifié). Vérifiez-les puis enregistrez une correction avec son motif.</Notice> : null}
+      {doubles.length ? <Sec title="N° en double (synchronisation)"><div className="space-y-2">{doubles.map((x) => <div key={`${x.objet}${x.num}`} className="card flex flex-wrap items-center gap-2 p-2 text-sm"><b>{x.objet === 'pesee' ? 'Pesée' : 'Marc'} n° {x.num}</b>{x.ops.map((o, k) => <span key={o.id} className="flex items-center gap-1">{x.objet === 'pesee' ? peseeLibelle(db, o) : `${fmtDate(o.date)} ${(o.marc || {}).heureDebut || ''} · ${(o.parentSpec || {}).code || ''}`}{k > 0 && droits.ecrit ? <Btn size="sm" onClick={() => renum(o)}>Nouveau n°</Btn> : null}</span>)}</div>)}</div></Sec> : null}
+      <Sec title={`Journal ${annee} (${J.length})`}>
+        <Tbl rows={J} empty="Aucune entrée." cols={[
+          { h: 'Quand', r: (j) => <span className="num whitespace-nowrap">{fmtDateHeure(j.quand)}</span> }, { h: 'Saisie', r: (j) => <b>{j.objet === 'pesee' ? 'Pesée' : 'Marc'} n° {j.num || '—'}</b> },
+          { h: 'Action', r: (j) => <Chip tone={(ACT[j.action] || [])[1]}>{(ACT[j.action] || [j.action])[0]}</Chip> }, { h: 'Motif', r: (j) => <span className="text-sm">{j.motif || '—'}</span> },
+          { h: 'Détail', cls: 'hm', r: (j) => <span className="text-xs text-ink2 break-all">{j.action === 'correction' ? champsDiff(j) : j.action === 'annulation' && j.avant ? `copie : ${j.avant.date ? fmtDate(j.avant.date) : ''} ${j.avant.kg ? kgTxt(j.avant.kg) : ''}` : ''}</span> },
+          { h: 'Par', cls: 'hm', r: (j) => (j.par ? utilisateurNom(db, j.par) : '—') }, { h: 'Empreinte', r: (j) => (alt.has(j.id) ? <Chip tone="bad">altérée</Chip> : <span className="num text-xs text-ink2" title={j.h}>✓ {String(j.h || '').slice(0, 8)}</span>) }]} />
+        <p className="help mt-2">Le journal ne s’efface pas : validations, corrections (valeurs d’avant et d’après, motif) et annulations (copie de la saisie). Chaque ligne porte une empreinte SHA-256 qui révèle une modification faite hors d’Œnotrack.</p>
+      </Sec>
+    </div>
+  );
+}
+
+/* ---------- réglages : région, profil de pressurage, pressoirs et balances, dates ---------- */
+// région viticole : Champagne (spécificités champenoises) ou autre région (Pressoir › Réglages et Paramètres › Société)
+function RegionChoix() {
+  const { db, act, confirm } = useApp(); const droits = usePressoirDroits(); const reg = regionDe(db);
+  const changerRegion = async (r) => {
+    if (r === reg) return;
+    if (r === 'autre') { const ok = await confirm({ title: 'Désactiver les spécificités champenoises ?', body: 'Le profil de pressurage passe « sans plafond » (vous pourrez choisir « crémant ») ; le registre des pesées devient facultatif. Les villages de l’échelle des crus en Champagne jamais utilisés seront masqués des listes de saisie (rien n’est supprimé ; ils reviennent si vous repassez en Champagne). Choisissez aussi le classement de votre région dans Paramètres › Crus & parcelles.', ok: 'Autre région viticole' }); if (!ok) return;
+      act((d) => regionSet(d, 'autre', { crus: true }), 'Région : autre région viticole.'); return; }
+    act((d) => regionSet(d, 'champagne'), 'Région : Champagne (règles de l’AOC Champagne).');
+  };
+  return (<div>
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Région viticole">{REGIONS.map((r) => <Btn key={r.id} kind={reg === r.id ? 'primary' : undefined} aria-pressed={reg === r.id} disabled={!droits.params} onClick={() => changerRegion(r.id)} data-region={r.id}>{r.id === 'champagne' ? '🥂 ' : '🍇 '}{r.label}</Btn>)}</div>
+    <p className="help mt-2">{reg === 'champagne' ? 'Spécificités champenoises actives : contrôles du cahier des charges de l’AOC Champagne au pressoir (registre des pesées, carnet de pressoir, rendement au pressurage, rebêches, cadence), échelle des crus.' : `Spécificités champenoises désactivées.${crusMasquesRegion(db) ? ` ${crusMasquesRegion(db)} villages champenois masqués des listes de saisie.` : ''} Profil de pressurage de votre appellation : Pressoir › Réglages.`}</p>
+  </div>);
+}
+function ReglagesPressoirView({ annee }) {
+  const { db, act } = useApp(); const droits = usePressoirDroits(); const P = pressoirParams(db); const reg = regionDe(db);
+  const [nv, setNv] = useState({}); const [nouv, setNouv] = useState(''); const [sorte, setSorte] = useState('pressoir');
+  useEffect(() => { setNv({}); }, [P.id]);
+  const champ = (k, label, unite, aide) => { const brut = ((db.settings.pressoir || {}).valeurs || {})[k]; const v = nv[k] !== undefined ? nv[k] : hasNum(brut) ? String(brut) : '';
+    return <label key={k} className="block"><span className="lbl">{label}</span><div className="flex items-center gap-1"><input className="inp num" inputMode="decimal" value={v} placeholder={String(PRESSOIR_PROFILS[P.id][k] || 0).replace('.', ',')} disabled={!droits.params} onChange={(e) => setNv((x) => ({ ...x, [k]: e.target.value }))} onBlur={() => { if (nv[k] === undefined) return; act((d) => pressoirParamsSet(d, { valeurs: { [k]: nv[k] } }), 'Réglage du pressoir enregistré.'); setNv((x) => { const y = { ...x }; delete y[k]; return y; }); }} aria-label={label} data-reglage={k} />{unite ? <span className="text-sm text-ink2">{unite}</span> : null}</div>{aide ? <span className="help block">{aide}</span> : null}</label>; };
+  const taux = ((db.settings.pressoir || {}).rebechesPct || {})[annee];
+  const PR = pressoirsDe(db); const BA = balancesDe(db);
+  return (
+    <div className="space-y-6">
+      <Sec title="Région viticole"><RegionChoix /></Sec>
+      <Sec title="Profil de pressurage">
+        <div className="flex flex-wrap gap-2">{Object.keys(PRESSOIR_PROFILS).filter((k) => reg === 'champagne' || k !== 'champagne').map((k) => <Btn key={k} kind={P.id === k ? 'primary' : undefined} aria-pressed={P.id === k} disabled={!droits.params} onClick={() => act((d) => pressoirParamsSet(d, { profil: k }), `Profil : ${PRESSOIR_PROFILS[k].nom}.`)} data-profil={k}>{PRESSOIR_PROFILS[k].nom}</Btn>)}</div>
+        <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))' }}>
+          {champ('ratioL', `Moûts au plus (${P.volume})`, 'L', 'pour le poids ci-contre ; un arrêté peut réduire ce volume')}{champ('ratioKg', 'Pour un poids de', 'kg')}
+          {champ('marcKg', 'Marc d’usage', 'kg')}{champ('cuveeL', 'Cuvée d’usage', 'L', 'alerte seulement')}{champ('tailleL', 'Taille d’usage', 'L', 'alerte seulement')}
+          {champ('bourbesMin', 'Bourbes au moins', '%')}{champ('bourbesMax', 'Bourbes au plus', '%')}{champ('cadenceMax', 'Marcs au plus par 24 h', 'par pressoir')}
+          {champ('capaciteMin', 'Capacité des pressoirs au moins', 'kg')}{champ('capaciteMax', 'au plus', 'kg')}{champ('tavpMin', 'TAV en puissance au moins', '% vol.')}{champ('saisieDiffereeMin', 'Saisie différée signalée après', 'min')}
+          <label className="block"><span className="lbl">Rebêches : taux minimum {annee}</span><div className="flex items-center gap-1"><input className="inp num" inputMode="decimal" disabled={!droits.params} defaultValue={hasNum(taux) ? String(taux) : ''} key={`${annee}-${taux}`} placeholder={String(rebechesTaux(P, annee))} onBlur={(e) => { const v = e.target.value; if (v === (hasNum(taux) ? String(taux) : '')) return; act((d) => pressoirParamsSet(d, { rebechesPct: { [annee]: v } }), 'Taux de rebêches enregistré.'); }} aria-label={`Taux minimum de rebêches ${annee}`} data-rebeches-pct="" /><span className="text-sm text-ink2">%</span></div><span className="help block">fixé chaque année entre 0 et 10 % (0 % en 2024 et 2025)</span></label>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-4"><Check checked={P.registre} disabled={!droits.params} onChange={(v) => act((d) => pressoirParamsSet(d, { registre: v }))} label="Registre des pesées et carnet de pressoir obligatoires (toute pesée, tout marc numéroté ; TAV en puissance exigé)" /><Check checked={P.chargementPlein} disabled={!droits.params} onChange={(v) => act((d) => pressoirParamsSet(d, { chargementPlein: v }))} label="Pressoirs chargés à leur capacité agréée (sous-chargement signalé)" /></div>
+        <p className="help mt-2">Valeurs vides : celles du profil. {P.id === 'champagne' ? 'AOC Champagne : cahier des charges homologué par l’arrêté du 31 juillet 2025 (rendement au pressurage, rebêches, bourbes, cadence) ; usages de la profession pour la cuvée et la taille.' : P.id === 'cremant' ? 'Crémants : 100 litres pour 150 kg de raisins (cahiers des charges des AOC crémant) ; vérifiez celui de votre appellation.' : 'Aucun plafond : les volumes sont libres.'}</p>
+      </Sec>
+      <Sec title="Pressoirs et balances" right={droits.params ? <><SI value={sorte} onChange={setSorte} style={{ width: 'auto' }} options={[{ value: 'pressoir', label: 'Pressoir' }, { value: 'balance', label: 'Balance / bascule' }]} aria-label="Type d’équipement" /><input className="inp" style={{ width: 220 }} value={nouv} onChange={(e) => setNouv(e.target.value)} placeholder={sorte === 'balance' ? 'ex. Bascule 3 t' : 'ex. Pressoir Coquard 8 000 kg'} aria-label="Nom du nouvel équipement" /><Btn onClick={() => { const r = act((d) => equipementAjouter(d, nouv, sorte), 'Équipement ajouté.'); if (r.ok) setNouv(''); }} disabled={!nouv.trim()}>+ Ajouter</Btn></> : null}>
+        <Tbl rows={PR} empty="Aucun pressoir : ajoutez-en un (capacité agréée)." cols={[{ h: 'Pressoir', r: (x) => <b>{x.nom}</b> },
+          { h: 'Capacité agréée (kg)', r: (x) => <input className="inp num" style={{ width: 110 }} inputMode="decimal" defaultValue={x.capaciteKg || ''} key={`${x.id}-${x.capaciteKg}`} disabled={!droits.params} onBlur={(e) => { if (num(e.target.value) !== x.capaciteKg) act((d) => equipementPressoirSet(d, x.id, { pressoir: { capaciteKg: e.target.value } }), 'Capacité enregistrée.'); }} aria-label={`Capacité de ${x.nom}`} /> },
+          { h: 'Agrément', r: (x) => <SI value={x.agrement} onChange={(v) => act((d) => equipementPressoirSet(d, x.id, { pressoir: { agrement: v } }))} options={[{ value: 'qualitatif', label: 'qualitatif (4 marcs / jour en moyenne)' }, { value: 'simple', label: 'simple (5 en moyenne)' }]} aria-label={`Agrément de ${x.nom}`} /> },
+          { h: '24 h/24', r: (x) => <Check checked={x.h24} disabled={!droits.params} onChange={(v) => act((d) => equipementPressoirSet(d, x.id, { pressoir: { h24: v } }))} label="" /> }]} />
+        <div className="mt-3"><Tbl rows={BA} empty="Aucune balance : ajoutez la bascule du centre de pressurage." cols={[{ h: 'Balance', r: (x) => <b>{x.nom}</b> },
+          { h: 'Vérification valable jusqu’au', r: (x) => <DI value={x.valideJusquau} onChange={(v) => act((d) => equipementPressoirSet(d, x.id, { balance: { valideJusquau: v } }))} disabled={!droits.params} aria-label={`Validité de ${x.nom}`} /> },
+          { h: 'Vignette / référence', r: (x) => <input className="inp" defaultValue={x.ref} key={`${x.id}-${x.ref}`} disabled={!droits.params} onBlur={(e) => { if (e.target.value !== x.ref) act((d) => equipementPressoirSet(d, x.id, { balance: { ref: e.target.value } })); }} aria-label={`Référence de ${x.nom}`} /> },
+          { h: 'État', r: (x) => (x.valideJusquau ? (x.valideJusquau < todayISO() ? <Chip tone="bad">périmée</Chip> : <Chip tone="ok">valable</Chip>) : <Chip>non renseignée</Chip>) }]} /></div>
+        <p className="help mt-2">La pesée se fait sur le lieu du pressurage, avec une balance adaptée (vignette de vérification conseillée). Les équipements sont aussi dans Paramètres › Listes › Équipements.</p>
+      </Sec>
+      <Sec title={`Dates de la campagne ${annee}`}>
+        <div className="flex flex-wrap gap-4">{[['finPressurage', 'Fin des pressurages'], ['remiseCarnets', 'Remise des carnets']].map(([k, l]) => <label key={k} className="block"><span className="lbl">{l}</span><DI value={((P.dates[annee] || {})[k]) || ''} disabled={!droits.params} onChange={(v) => act((d) => pressoirParamsSet(d, { dates: { [annee]: { [k]: v } } }))} aria-label={l} /></label>)}</div>
+        <p className="help mt-2">Dates fixées chaque année par l’interprofession : facultatives, elles déclenchent un rappel dans le bilan.</p>
+      </Sec>
+    </div>
+  );
+}
+
+/* ---------- onglet ---------- */
+function TabPressoir() {
+  const { db, camp } = useApp(); const P = pressoirParams(db);
+  const annees = anneesPressoir(db); const a0 = yearOf(camp.debut);
+  const [annee, setAnnee] = useState(annees.includes(a0) ? a0 : annees[0]);
+  const b = useMemo(() => bilanPressoir(db, annee), [db, annee]);
+  const nP = P.registre ? b.nonValides.pesees : 0; const nB = b.alertes.filter((a) => a.niveau === 'bloquant').length;
+  const items = [{ id: 'pesees', label: 'Pesées', badge: nP || null }, { id: 'marcs', label: 'Carnet de pressoir', badge: b.nonValides.marcs || null }, { id: 'releves', label: 'Relevés par apporteur' }, { id: 'bilan', label: 'Bilan', badge: nB || null }, { id: 'journal', label: 'Journal' }, { id: 'reglages', label: 'Réglages' }];
+  const [sub, setSub] = useSousOnglet(items, 'pesees');
+  const V = { pesees: PeseesView, marcs: MarcsView, releves: RelevesView, bilan: BilanPressoirView, journal: JournalPressoirView, reglages: ReglagesPressoirView }[sub] || PeseesView;
+  return (
+    <div data-pressoir="">
+      <div className="mb-3 flex flex-wrap items-center gap-2"><span data-profil-actif={P.id}><Chip tone={P.id === 'champagne' ? 'info' : ''}>{P.id === 'champagne' ? '🥂 ' : ''}{P.nom}</Chip></span>{!champenois(db) ? <Chip>autre région viticole</Chip> : null}
+        <span className="ml-auto flex items-center gap-2 text-sm"><span className="text-ink2">Vendanges</span><SI value={String(annee)} onChange={(v) => setAnnee(num(v))} style={{ width: 'auto' }} options={uniq([...annees, annee]).sort((x, y) => y - x).map((y) => ({ value: String(y), label: String(y) }))} aria-label="Année des vendanges" plain /></span></div>
+      <SubNav value={sub} onChange={setSub} items={items} />
+      <V annee={annee} />
+    </div>
+  );
+}
+TABS_REG.pressoir = TabPressoir;

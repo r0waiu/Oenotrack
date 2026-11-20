@@ -1,0 +1,20 @@
+import { open } from './ui.mjs'; import fs from 'fs';
+const SH = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + '/pdf'; fs.mkdirSync(SH, { recursive: true });
+const { browser, page, errors } = await open();
+await page.click('#tab-ops'); await page.waitForTimeout(300);
+const row = page.locator('main tbody tr', { hasText: 'GH-482-KT' }).first();
+await row.locator('button[aria-label="Fiche d’enregistrement"]').click(); await page.waitForTimeout(600);
+await page.screenshot({ path: SH + '/dialog.png' });
+const top = page.locator('.overlay').last();
+const champOpr = top.locator('label', { hasText: 'Opérateur(s)' }).locator('input'); // 0.12.0-alpha.1 : par défaut, les opérateurs de l'opération
+console.log('opérateurs par défaut :', await champOpr.getAttribute('placeholder'));
+await champOpr.fill('J. Martin');
+await top.locator('button:has-text("Vert vigne")').click(); await page.waitForTimeout(200);
+console.log('couleur en-tête :', await top.locator('.fiche .ft th').first().evaluate((el) => getComputedStyle(el).backgroundColor));
+await page.screenshot({ path: SH + '/dialog2.png' });
+await top.locator('button:has-text("Personnaliser « ")').first().click(); await page.waitForTimeout(400);
+console.log('éditeur :', await page.locator('.overlay').last().locator('h2').innerText()); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), top.locator('button:has-text("Imprimer (PDF)")').click()]);
+await dl.saveAs(SH + '/fiche.pdf'); console.log('PDF :', dl.suggestedFilename(), fs.statSync(SH + '/fiche.pdf').size, 'octets');
+console.log('toast :', await page.locator('.toast').innerText().catch(() => '-'));
+console.log('ERREURS:', errors.join('\n') || 'aucune'); await browser.close();

@@ -1,0 +1,14 @@
+import { open } from './ui.mjs';
+const { browser, page, errors } = await open();
+page.on('console', (m) => console.log('console', m.type(), m.text().slice(0, 200)));
+await page.click('#tab-ops'); await page.waitForTimeout(300);
+await page.locator('main tbody tr').first().locator('button[aria-label^="Documents"]').click(); await page.waitForTimeout(300);
+const top = page.locator('.overlay').last();
+console.log('input count', await top.locator('input[type=file]').count());
+const idbOK = await page.evaluate(() => new Promise((res) => { try { const r = indexedDB.open('t', 1); r.onsuccess = () => res('ok'); r.onerror = () => res('err ' + r.error); } catch (e) { res('throw ' + e.message); } }));
+console.log('idb', idbOK);
+await top.locator('input[aria-label="Fichiers à joindre"]').setInputFiles({ name: 'fiche.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test') });
+await page.waitForTimeout(1500);
+console.log('toast', await page.locator('.toast').innerText().catch(() => '-'));
+console.log('panel', (await top.locator('.sheet-b').innerText()).slice(0, 160).replace(/\n/g, ' | '));
+console.log('ERREURS', errors.join('\n') || 'aucune'); await browser.close();
