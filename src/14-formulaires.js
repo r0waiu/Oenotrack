@@ -4,7 +4,9 @@
    Champ personnalisé : { id 'c…' (lettres et chiffres), code (pour les formules), label, type, unite, dec, min, max, options [], formule,
                           obligatoire, defaut, aide, position 'debut'|'fin', journal }
    Valeurs saisies : op.champs [{ id, code, label, type, unite, dec, journal, valeur }] — chaque valeur garde son libellé : l'historique reste
-   lisible même si le champ est renommé ou supprimé ensuite. Les champs indispensables au calcul des stocks ne peuvent être ni masqués ni facultatifs. */
+   lisible même si le champ est renommé ou supprimé ensuite. Les champs indispensables au calcul des stocks ne peuvent être ni masqués ni facultatifs.
+   0.25.0-alpha.1 : formulaire de pesée de l'onglet Pressoir (id 'pesee', hors catalogue des opérations) ; ses mentions obligatoires du registre
+   et du ticket de pesée ne peuvent être ni masquées ni facultatives (ess), ou restent toujours affichées (fixe : apporteur, revendication particulière). */
 const CP_TYPES = [
   ['texte', 'Texte court'], ['texteLong', 'Texte long'], ['nombre', 'Nombre'], ['calcul', 'Calcul (formule)'], ['date', 'Date'], ['heure', 'Heure'],
   ['ouinon', 'Case à cocher (oui)'], ['liste', 'Liste de choix'], ['multi', 'Choix multiples'],
@@ -39,11 +41,23 @@ const CHAMPS_STD = {
   degorgement: [CH_DATE, ['sourceLotId', 'Lot de tirage', { ess: true }], ['nb', 'Bouteilles dégorgées', { ess: true }], ['prepUses', 'Liqueur d’expédition utilisée', { bare: true }], ['lignes', 'Bouchon, muselet…', { bare: true }], ['code', 'Code du lot fini', { ess: true }], ['designation', 'Désignation', { def: 'texte' }], ['dosageGL', 'Dosage (g/L)', { def: 'nombre' }]],
 };
 CHAMPS_STD.debourbage = CHAMPS_STD.transfert; CHAMPS_STD.soutirage = CHAMPS_STD.transfert;
+// pesée (onglet Pressoir) : 🔒 mentions du registre des pesées et du ticket (cahier des charges de l'AOC Champagne, ch. II-1° : date et heure,
+// poids constaté ; cépage, repris au carnet de pressoir) ; fixe : toujours affiché, rempli s'il y a lieu (nom de l'apporteur pour le pressurage
+// à façon, revendication particulière)
+CHAMPS_STD.pesee = [CH_DATE, ['heure', 'Heure de la pesée', { ess: true }], ['balanceId', 'Balance / bascule', { def: 'balance' }],
+  ['apporteurId', 'Apporteur', { fixe: true }], ['cruId', 'Cru (village)'], ['parcelleId', 'Parcelle'], ['cepageId', 'Cépage', { ess: true, def: 'cepage' }],
+  ['qualifId', 'Revendication', { def: 'qualif' }], ['mention', 'Revendication particulière : mention, lieu-dit…', { fixe: true }],
+  ['brutTare', 'Poids brut et tare', { bare: true }], ['kg', 'Poids net (kg)', { ess: true }], ['caisses', 'Caisses (nombre)', { def: 'nombre' }],
+  ['etat', 'État sanitaire', { def: 'etat' }], ['pourritureAcide', 'Pourriture acide (%)'], ['tap', 'TAP (% vol.)'], ['heureCueillette', 'Heure de cueillette'],
+  ['ref', 'N° de bon / ticket', { def: 'texte' }], ['operateurs', 'Pesée faite par', { bare: true }], ['notes', 'Notes', { def: 'texte' }]];
+// formulaires qui ne sont pas des opérations du catalogue
+const FORMULAIRES_HORS_CATALOGUE = { pesee: { id: 'pesee', base: 'pesee', label: 'Pesée (onglet Pressoir)' } };
+const formulaireCat = (db, catId) => FORMULAIRES_HORS_CATALOGUE[catId] || opDef(db, catId) || { id: catId, base: catId, label: catId };
 const CHAMPS_COMMUNS = [['vin', 'Stade et couleur du vin', { bare: true, noObl: true, vin: true }], ['operateurs', 'Opérateur(s)', { bare: true }], ['notes', 'Notes', { def: 'texte' }], ['docs', 'Documents joints', { bare: true }]];
 // opérations qui fixent le stade / la couleur du vin (mêmes listes que VIN_CREE + VIN_APRES des formulaires)
 const FORM_VIN = ['pressurage', 'entree_mout', 'assemblage', 'tirage', 'reprise', 'debourbage', 'soutirage', 'transfert', 'intrant', 'froid', 'filtration', 'suivi'];
 function champsStd(type) {
-  const L = (CHAMPS_STD[type] || [CH_DATE]).concat(CHAMPS_COMMUNS.filter((c) => !c[2].vin || FORM_VIN.includes(type)));
+  const L = (CHAMPS_STD[type] || [CH_DATE]).concat(FORMULAIRES_HORS_CATALOGUE[type] ? [] : CHAMPS_COMMUNS.filter((c) => !c[2].vin || FORM_VIN.includes(type)));
   return L.map(([k, label, o]) => ({ k, label, ...(o || {}) }));
 }
 const champStd = (type, k) => champsStd(type).find((c) => c.k === k) || null;
@@ -57,10 +71,11 @@ function formulaireDe(db, catId) {
   return { id: catId, champs: x.champs && typeof x.champs === 'object' ? x.champs : {}, perso: Array.isArray(x.perso) ? x.perso.filter((p) => p && p.id) : [], perso_: !!formulaireBrut(db, catId) };
 }
 const champCfg = (cfg, k) => (cfg && cfg.champs && cfg.champs[k]) || {};
-// réglage effectif d'un champ standard (un champ indispensable reste toujours visible et n'est jamais « obligatoire » en plus)
+// réglage effectif d'un champ standard (un champ indispensable reste toujours visible et n'est jamais « obligatoire » en plus ; un champ fixe
+// reste toujours visible et peut être rendu obligatoire)
 function champEffectif(cfg, type, k) {
   const s = champStd(type, k) || {}; const c = champCfg(cfg, k);
-  return { ...s, vis: s.ess ? 'visible' : (['visible', 'replie', 'masque'].includes(c.vis) ? c.vis : 'visible'), obligatoire: !s.ess && !s.noObl && !!c.obligatoire && c.vis !== 'masque', libelle: String(c.libelle || '').trim(), aide: String(c.aide || '').trim(), defaut: c.defaut };
+  return { ...s, vis: s.ess || s.fixe ? 'visible' : (['visible', 'replie', 'masque'].includes(c.vis) ? c.vis : 'visible'), obligatoire: !s.ess && !s.noObl && !!c.obligatoire && (!!s.fixe || c.vis !== 'masque'), libelle: String(c.libelle || '').trim(), aide: String(c.aide || '').trim(), defaut: c.defaut };
 }
 const formulairePerso = (db, catId) => !!formulaireBrut(db, catId) && (() => { const f = formulaireDe(db, catId); return f.perso.length > 0 || Object.keys(f.champs).some((k) => { const c = f.champs[k] || {}; return (c.vis && c.vis !== 'visible') || c.obligatoire || c.libelle || c.aide || (c.defaut != null && c.defaut !== ''); }); })();
 const codeDe = (label) => norm(label).replace(/[^a-z0-9]+/g, '').replace(/^[0-9]+/, '').slice(0, 20) || 'champ';
@@ -71,7 +86,8 @@ function formuleVarsStd(type, f) {
   const n = (x) => (hasNum(x) ? num(x) : null); f = f || {};
   let L = null;
   if (hasNum(f.volL)) L = num(f.volL); else if (type === 'entree_mout') L = sum(f.entrees || [], (e) => sum(e.dests || [], (d) => d.volL)); else if (['assemblage', 'tirage'].includes(type)) L = sum(f.sources || [], (s) => s.volL); else if (type === 'pressurage') L = sum(Object.values(f.frac || {}), (x) => x.volL); else if (hasNum(f.volMesure)) L = num(f.volMesure);
-  return { volume: L != null ? L / 100 : null, litres: L, kg: type === 'pressurage' ? sum(f.charges || [], (c) => c.kg) : n(f.kg), bouteilles: n(f.nbBouteilles) != null ? n(f.nbBouteilles) : n(f.nb), temperature: n(f.tempC), densite: n(f.densite), jours: n(f.jours), dosage: n(f.dosageGL) };
+  const kg = type === 'pressurage' ? sum(f.charges || [], (c) => c.kg) : type === 'pesee' && hasNum(f.brutKg) && hasNum(f.tareKg) ? num(f.brutKg) - num(f.tareKg) : n(f.kg);
+  return { volume: L != null ? L / 100 : null, litres: L, kg, bouteilles: n(f.nbBouteilles) != null ? n(f.nbBouteilles) : n(f.nb), temperature: n(f.tempC), densite: n(f.densite), jours: n(f.jours), dosage: n(f.dosageGL) };
 }
 // formules : + − × ÷, parenthèses, nombres (virgule ou point), variables (code), fonctions min, max, abs, arrondi(x[, décimales])
 function formuleAnalyser(src) {
@@ -149,6 +165,7 @@ function champStdVide(db, type, k, f) {
     case 'cepages': return !Object.keys(f.cepages || {}).some((c) => num(f.cepages[c]) > 0);
     case 'source': return !f.sourcePortionId;
     case 'densites': return !(hasNum(f.densBase) && hasNum(f.densMix));
+    case 'brutTare': return !(hasNum(f.brutKg) && hasNum(f.tareKg));
     default: return vide(f[k]);
   }
 }
@@ -188,7 +205,7 @@ const ligneDefauts = (db, catId, e) => { const cfg = formulaireDe(db, catId); co
 /* ---------- fiches à imprimer : chaque champ personnalisé devient une donnée pré-remplie (clé cf<id>) ---------- */
 const CHAMPS_FICHE = []; // [[clé, libellé (opération)]]
 function syncFormulaires(db) {
-  const L = []; ((db && db.formulaires) || []).forEach((x) => { const op = opList(db).find((o) => o.id === x.id); (x.perso || []).forEach((p) => { if (p && p.id) L.push([`cf${p.id}`, `${p.label} (${op ? op.label : x.id})`]); }); });
+  const L = []; ((db && db.formulaires) || []).forEach((x) => { const op = FORMULAIRES_HORS_CATALOGUE[x.id] || opList(db).find((o) => o.id === x.id); (x.perso || []).forEach((p) => { if (p && p.id) L.push([`cf${p.id}`, `${p.label} (${op ? op.label : x.id})`]); }); });
   CHAMPS_FICHE.splice(0, CHAMPS_FICHE.length, ...L);
 }
 // valeurs des champs personnalisés d'une fiche : { cf<id>: texte }
@@ -199,13 +216,14 @@ function champsAtomes(db, type, f) {
 
 /* ---------- enregistrement de la configuration ---------- */
 function formulaireSave(db, catId, s) {
-  const cat = opList(db).find((x) => x.id === catId) || (OP_LABELS0[catId] ? { id: catId, base: catId } : null); if (!cat) return fail('Opération introuvable.');
+  const cat = FORMULAIRES_HORS_CATALOGUE[catId] || opList(db).find((x) => x.id === catId) || (OP_LABELS0[catId] ? { id: catId, base: catId } : null); if (!cat) return fail('Opération introuvable.');
   const type = cat.base || catId; const champs = {};
   Object.keys((s && s.champs) || {}).forEach((k) => {
     const c = s.champs[k] || {}; const st = champStd(type, k); const x = {};
     if (st && st.ess) { if (c.libelle) x.libelle = String(c.libelle).trim().slice(0, 60); if (c.aide) x.aide = String(c.aide).trim().slice(0, 300); if (Object.keys(x).length) champs[k] = x; return; }
-    if (['replie', 'masque'].includes(c.vis)) x.vis = c.vis;
-    if (c.obligatoire && c.vis !== 'masque' && !(st && st.noObl)) x.obligatoire = true;
+    const fixe = !!(st && st.fixe); // toujours affiché (mention du ticket de pesée)
+    if (['replie', 'masque'].includes(c.vis) && !fixe) x.vis = c.vis;
+    if (c.obligatoire && (fixe || c.vis !== 'masque') && !(st && st.noObl)) x.obligatoire = true;
     if (c.libelle && String(c.libelle).trim() && !(st && st.bare)) x.libelle = String(c.libelle).trim().slice(0, 60);
     if (c.aide && String(c.aide).trim()) x.aide = String(c.aide).trim().slice(0, 300);
     if (c.defaut != null && c.defaut !== '' && !(Array.isArray(c.defaut) && !c.defaut.length) && (!st || st.def)) x.defaut = Array.isArray(c.defaut) ? c.defaut.slice(0, 30) : String(c.defaut).slice(0, 120);
