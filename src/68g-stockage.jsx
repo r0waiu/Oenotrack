@@ -147,6 +147,14 @@ function DossierChoix() {
   );
 }
 
+// où sont les données (0.25.0-alpha.2) : sans synchronisation, elles ne sont que dans ce navigateur, sur cet appareil ;
+// avec le Drive ou la sauvegarde en ligne, leur pastille (ci-dessous et 68f-drive.jsx) dit déjà où elles vont
+function StockageLocalChip() {
+  const { cloud, sync, setTab } = useApp();
+  if ((cloud && cloud.lie) || (sync && sync.mode && sync.mode !== 'aucun')) return null;
+  return <button type="button" className="chip" style={{ cursor: 'pointer' }} data-stockage="appareil" onClick={() => setTab('params', 'sauvegarde')}
+    title="Chaque modification est enregistrée automatiquement dans ce navigateur, sur cet appareil seulement : aucune base partagée ni synchronisation n’est active. Pour retrouver vos données sur un autre appareil ou les protéger, activez la synchronisation ou exportez une sauvegarde (Paramètres › Sauvegarde & Drive).">💻 Sur cet appareil seulement</button>;
+}
 function CloudChip() {
   const { cloud, setTab } = useApp(); if (!cloud || !cloud.lie) return null; const s = cloud.statut; const e = cloud.etat;
   const txt = e.suspendu ? 'en pause' : s === 'reconnecter' ? 'se reconnecter' : s === 'hors-ligne' ? 'hors ligne' : s === 'erreur' ? 'à vérifier' : s === 'synchro' || cloud.aEnvoyer ? 'envoi…' : 'à jour';

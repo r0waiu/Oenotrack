@@ -105,11 +105,12 @@ function OperationsView() {
                     <span>{opComportement(x.base)}</span>
                     <span>{sa && sa.actif && stadeDef(db, sa.stade) ? <>stade auto → <StadeChip id={sa.stade} compact /></> : 'pas de changement de stade'}</span>
                     <span>fiche : {fi ? fi.titre : '—'}</span>{n ? <span>{n} enregistrement{n > 1 ? 's' : ''}</span> : null}
+                    {opViaPressoir(db, { type: id }) === 'pesee' ? <span data-via-pressoir="">saisie dans l’onglet Pressoir (registre des pesées)</span> : opViaPressoir(db, { type: id }) === 'marc' ? <span data-via-pressoir="">saisie dans l’onglet Pressoir (carnet de pressoir : champs personnalisés repris)</span> : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <Btn size="sm" onClick={() => setEd({ id })}>Modifier</Btn>
-                  <Btn size="sm" onClick={() => setFe(id)} aria-label={`Formulaire de ${x.label}`} title="Champs affichés, obligatoires, valeurs par défaut, champs personnalisés">⚙ Formulaire</Btn>
+                  <Btn size="sm" onClick={() => setFe(opViaPressoir(db, { type: id }) === 'pesee' ? 'pesee' : id)} aria-label={`Formulaire de ${x.label}`} title="Champs affichés, obligatoires, valeurs par défaut, champs personnalisés">⚙ Formulaire</Btn>
                   <Btn size="sm" aria-label={`Monter ${x.label}`} onClick={() => act((d) => opCatMove(d, id, -1))}>↑</Btn>
                   <Btn size="sm" aria-label={`Descendre ${x.label}`} onClick={() => act((d) => opCatMove(d, id, 1))}>↓</Btn>
                   <Btn size="sm" onClick={() => act((d) => opCatSave(d, { id, label: x.label, masque: !x.masque }), x.masque ? 'Opération de nouveau proposée.' : 'Opération masquée.')}>{x.masque ? 'Afficher' : 'Masquer'}</Btn>

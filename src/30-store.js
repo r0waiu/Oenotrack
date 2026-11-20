@@ -118,7 +118,9 @@ function normalizeDb(d) {
   { const D = DEFAULT_OPERATIONS(); const cur = Array.isArray(dlists.operations) ? dlists.operations.filter((x) => x && x.id).map((x) => ({ ...x })) : [];
     D.forEach((x, i) => { if (cur.some((y) => y.id === x.id)) return; let pos = -1; for (let j = i - 1; j >= 0 && pos < 0; j -= 1) pos = cur.findIndex((y) => y.id === D[j].id); cur.splice(pos + 1, 0, { ...x }); });
     // opérations d'origine : les réglages de l'utilisateur priment, les nouveaux champs par défaut complètent ; comportement toujours d'origine
-    out.lists.operations = cur.map((y) => { const x = D.find((z) => z.id === y.id); return x ? { ...x, ...y, base: x.base } : (y.base ? y : { ...y, base: 'suivi' }); }); }
+    out.lists.operations = cur.map((y) => { const x = D.find((z) => z.id === y.id); return x ? { ...x, ...y, base: x.base } : (y.base ? y : { ...y, base: 'suivi' }); });
+    // libellé d'origine renommé (0.25.0-alpha.2) : « Apport vendange » → « Pesée de vendange » (un libellé choisi par l'utilisateur est gardé)
+    out.lists.operations.forEach((y) => { if (y.id === 'apport' && y.label === 'Apport vendange') y.label = 'Pesée de vendange'; }); }
   // compatibilité entre versions : les champs inconnus (créés par une version plus récente) sont conservés tels quels,
   // le marqueur de schéma ne redescend jamais, et la base garde la trace des versions qui l'ont ouverte
   out.app = APP_ID; out.schema = Math.max(SCHEMA, num(d.schema));

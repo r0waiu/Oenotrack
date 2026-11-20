@@ -48,7 +48,7 @@ function FormulaireEditor({ catId, onClose }) {
               <div key={c.k} className={cx('fe-ligne', vis === 'masque' && 'off')} data-fe-champ={c.k}>
                 <div className="fe-tete">
                   <span className="fe-nom"><b>{(!c.bare && x.libelle) || c.label}</b>{!c.bare && x.libelle ? <span className="text-xs text-ink2">({c.label})</span> : null}
-                    {c.ligne ? <Chip>par compartiment</Chip> : null}{c.ess ? (pesee ? <Chip tone="info" title="Mention obligatoire du registre des pesées et du ticket">🔒 obligatoire au registre</Chip> : <Chip tone="info" title="Sert au calcul des stocks">🔒 indispensable</Chip>) : null}{c.fixe ? <Chip tone="info" title="Mention du ticket de pesée : toujours affichée">🎫 ticket</Chip> : null}{x.obligatoire && !c.ess && vis !== 'masque' ? <Chip tone="warn">obligatoire</Chip> : null}{dt ? <Chip title="Valeur par défaut">défaut : {dt}</Chip> : null}{x.aide ? <Chip title={x.aide}>aide</Chip> : null}</span>
+                    {c.ligne ? <Chip>par compartiment</Chip> : null}{c.ess ? (pesee ? <Chip tone="info" title="Mention obligatoire du registre des pesées et du ticket">🔒 obligatoire au registre</Chip> : <Chip tone="info" title="Sert au calcul des stocks">🔒 indispensable</Chip>) : null}{c.fixe ? <Chip tone="info" title="Mention du ticket de pesée : toujours affichée">🎫 ticket</Chip> : null}{x.obligatoire && !c.ess && vis !== 'masque' ? <Chip tone="warn">obligatoire</Chip> : null}{dt ? <Chip title="Valeur par défaut">défaut : {dt}</Chip> : null}{x.aide ? <Chip title={x.aide}>aide</Chip> : null}{c.siAltere && x.siAltere !== false ? <Chip title="Affiché seulement si l’état sanitaire n’est pas « Sain »">si non sain</Chip> : null}</span>
                   <span className="fe-ctl">
                     <span className="fe-seg" role="radiogroup" aria-label={`Affichage : ${c.label}`}>{VIS_CHOIX.map(([v, ic, l]) => <button key={v} type="button" role="radio" aria-checked={vis === v} aria-label={l} disabled={c.ess || c.fixe} title={c.ess ? (pesee ? 'Mention obligatoire : toujours affichée' : 'Champ indispensable : toujours affiché') : c.fixe ? 'Mention du ticket de pesée : toujours affichée' : l} className={cx('fe-btn', vis === v && 'on', v)} onClick={() => setC(c.k, { vis: v, ...(v === 'masque' ? { obligatoire: false } : {}) })}><span aria-hidden="true">{ic}</span><span className="fe-txt"> {l}</span></button>)}</span>
                     <label className={cx('fe-obl', (c.ess || c.noObl || vis === 'masque') && 'off')} title={c.ess ? 'Toujours obligatoire' : c.noObl ? 'Ce champ ne peut pas être obligatoire' : vis === 'masque' ? 'Un champ masqué ne peut pas être obligatoire' : undefined}><input type="checkbox" checked={c.ess || (!!x.obligatoire && vis !== 'masque')} disabled={c.ess || c.noObl || vis === 'masque'} onChange={(e) => setC(c.k, { obligatoire: e.target.checked })} aria-label={`Obligatoire : ${c.label}`} /><span className="fe-txt-o">obligatoire</span><span className="fe-txt-c" aria-hidden="true">oblig.</span></label>
@@ -59,6 +59,7 @@ function FormulaireEditor({ catId, onClose }) {
                   {!c.bare ? <Field label="Libellé affiché"><TI value={x.libelle || ''} onChange={(v) => setC(c.k, { libelle: v })} placeholder={c.label} aria-label={`Libellé : ${c.label}`} /></Field> : <div className="help self-center">Bloc de saisie : libellé fixe.</div>}
                   <Field label="Aide affichée sous le champ"><TI value={x.aide || ''} onChange={(v) => setC(c.k, { aide: v })} placeholder="(aide d’origine)" aria-label={`Aide : ${c.label}`} /></Field>
                   {c.def ? <Field label={c.ligne ? 'Valeur par défaut (chaque compartiment)' : 'Valeur proposée par défaut'}><DefautInput def={c.def} value={x.defaut} onChange={(v) => setC(c.k, { defaut: v })} label={c.label} /></Field> : null}
+                  {c.siAltere ? <div className="self-center"><Check checked={x.siAltere !== false} onChange={(v) => setC(c.k, { siAltere: v })} label="Seulement si l’état sanitaire n’est pas « Sain »" /></div> : null}
                 </div> : null}
               </div>);
           })}
@@ -69,7 +70,7 @@ function FormulaireEditor({ catId, onClose }) {
           {cfg.perso.map((p, i) => (
             <div key={p.id || i} className="fe-ligne" data-fe-perso={p.label}>
               <div className="fe-tete">
-                <span className="fe-nom"><b>{p.label}</b><Chip>{cpTypeLabel(p.type)}</Chip>{p.obligatoire ? <Chip tone="warn">obligatoire</Chip> : null}{p.journal === false ? <Chip title="Pas dans le journal ni les résumés">discret</Chip> : null}
+                <span className="fe-nom"><b>{p.label}</b><Chip>{cpTypeLabel(p.type)}</Chip>{p.obligatoire ? <Chip tone="warn">obligatoire</Chip> : null}{p.journal === false ? <Chip title="Pas dans le journal ni les résumés">discret</Chip> : null}{pesee && persoSiAltere(p) ? <Chip title="Affiché seulement si l’état sanitaire n’est pas « Sain »">si non sain</Chip> : null}
                   <span className="text-xs text-ink2">{p.position === 'debut' ? 'en haut du formulaire' : 'en bas du formulaire'}{p.unite ? ` · ${p.unite}` : ''}{p.type === 'calcul' ? ` · = ${p.formule}` : ''}{(p.options || []).length ? ` · ${p.options.join(' / ')}` : ''}</span></span>
                 <span className="fe-ctl"><Btn size="sm" disabled={!i} onClick={() => movePerso(i, -1)} aria-label={`Monter ${p.label}`}>↑</Btn><Btn size="sm" disabled={i === cfg.perso.length - 1} onClick={() => movePerso(i, 1)} aria-label={`Descendre ${p.label}`}>↓</Btn><Btn size="sm" onClick={() => setEd({ i })} aria-label={`Modifier le champ ${p.label}`}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => delPerso(i)} aria-label={`Retirer le champ ${p.label}`}>✕</Btn></span>
               </div>
@@ -78,13 +79,13 @@ function FormulaireEditor({ catId, onClose }) {
           <Btn kind="primary" size="sm" onClick={() => setEd({ i: -1 })}>+ Ajouter un champ</Btn>
         </div>
       </Group>
-      {ed ? <ChampPersoForm init={ed.i >= 0 ? cfg.perso[ed.i] : null} autres={cfg.perso.filter((_, k) => k !== ed.i)} onClose={() => setEd(null)}
+      {ed ? <ChampPersoForm pesee={pesee} init={ed.i >= 0 ? cfg.perso[ed.i] : null} autres={cfg.perso.filter((_, k) => k !== ed.i)} onClose={() => setEd(null)}
         onSave={(p) => { setCfg((x) => ({ ...x, perso: ed.i >= 0 ? x.perso.map((y, k) => (k === ed.i ? p : y)) : [...x.perso, p] })); setEd(null); }} /> : null}
     </FormSheet>
   );
 }
 // un champ personnalisé : type, nom, unité, bornes, choix, formule, valeur par défaut, place
-function ChampPersoForm({ init, autres, onSave, onClose }) {
+function ChampPersoForm({ init, autres, onSave, onClose, pesee }) {
   const [p, setP] = useState(() => ({ type: 'texte', label: '', unite: '', dec: '', min: '', max: '', options: [], formule: '', obligatoire: false, defaut: '', aide: '', position: 'fin', journal: true, ...(init ? clone(init) : {}), ...(init && init.journal === false ? { journal: false } : { journal: true }) }));
   const [opts, setOpts] = useState(() => ((init && init.options) || []).join('\n')); const [err, setErr] = useState('');
   const upd = (x) => setP((y) => ({ ...y, ...x })); const num1 = CP_NUM.includes(p.type); const choix = ['liste', 'multi'].includes(p.type);
@@ -99,7 +100,7 @@ function ChampPersoForm({ init, autres, onSave, onClose }) {
     if (choix && !L.length) { setErr('Ajoutez au moins un choix (un par ligne).'); return; }
     if (p.type === 'calcul' && (!p.formule.trim() || fErr)) { setErr(`Formule : ${fErr || 'à écrire'}.`); return; }
     if (p.type === 'nombre' && hasNum(p.min) && hasNum(p.max) && num(p.min) > num(p.max)) { setErr('Le minimum dépasse le maximum.'); return; }
-    onSave({ ...p, label, code, options: choix ? L : undefined, id: p.id || nouvelIdChamp(), defaut: p.type === 'calcul' ? undefined : p.defaut });
+    onSave({ ...p, label, code, options: choix ? L : undefined, id: p.id || nouvelIdChamp(), defaut: p.type === 'calcul' ? undefined : p.defaut, ...(pesee ? { siAltere: persoSiAltere(p) } : {}) });
   };
   return (
     <FormSheet title={init ? `Champ « ${init.label} »` : 'Nouveau champ personnalisé'} sub="Il s’ajoute au formulaire de cette opération." onClose={onClose} onSave={ok} saveLabel={init ? 'Appliquer' : 'Ajouter le champ'}>
@@ -123,6 +124,7 @@ function ChampPersoForm({ init, autres, onSave, onClose }) {
         <span className="inline-flex items-center gap-2 text-sm">Place :<select className="inp" style={{ width: 'auto' }} value={p.position} onChange={(e) => upd({ position: e.target.value })} aria-label="Place du champ"><option value="debut">en haut du formulaire</option><option value="fin">en bas (avant opérateurs et notes)</option></select></span>
         {p.type !== 'calcul' ? <Check checked={!!p.obligatoire} onChange={(v) => upd({ obligatoire: v })} label={p.type === 'ouinon' ? 'Obligatoire (doit être coché pour valider)' : 'Obligatoire pour valider'} /> : null}
         <Check checked={p.journal !== false} onChange={(v) => upd({ journal: v })} label="Afficher dans le journal et les résumés" />
+        {pesee ? <Check checked={persoSiAltere(p)} onChange={(v) => upd({ siAltere: v })} label="Seulement si l’état sanitaire n’est pas « Sain » (pourriture…)" /> : null}
       </div>
       <div className="text-xs text-ink2">Code pour les formules : <b className="num">{code}</b></div>
       {err ? <div className="login-err" role="alert">{err}</div> : null}

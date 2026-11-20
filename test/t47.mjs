@@ -16,7 +16,9 @@ await page.locator('[aria-label="Année des vendanges"]').selectOption('2026'); 
 // 1. nouvelle pesée : pourriture acide et TAP proposés
 await page.locator('[data-nouvelle-pesee]').click(); await page.waitForTimeout(300);
 let f = ov(); let t = await txt(f);
-ok('formulaire de pesée : pourriture acide et TAP proposés', (await f.locator('[data-pourriture]').count()) === 1 && (await f.locator('[data-tap]').count()) === 1 && /Pourriture acide \(%\)/i.test(t) && /TAP \(% vol\.\)/i.test(t), t.slice(0, 300));
+ok('formulaire de pesée : TAP proposé ; pourriture acide masquée tant que l’état est « Sain » (0.25.0-alpha.2)', (await f.locator('[data-pourriture]').count()) === 0 && (await f.locator('[data-tap]').count()) === 1 && /TAP \(% vol\.\)/i.test(t) && /Les relevés de pourriture apparaissent/i.test(t), t.slice(0, 300));
+await f.locator('[data-etat]').selectOption('faible'); await page.waitForTimeout(150); t = await txt(f);
+ok('… état « Faiblement altéré » : pourriture acide proposée', (await f.locator('[data-pourriture]').count()) === 1 && /Pourriture acide \(%\)/i.test(t), t.slice(0, 300));
 ok('… lien « Personnaliser ce formulaire »', (await f.locator('[data-personnaliser-pesee]').count()) === 1);
 // 2. personnalisation : mentions du ticket verrouillées, caisses masquées, TAP obligatoire, valeur proposée, relevé personnalisé
 await f.locator('[data-personnaliser-pesee]').click(); await page.waitForTimeout(300);

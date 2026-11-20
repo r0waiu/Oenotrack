@@ -215,10 +215,12 @@ function peseeSpec(db, f) {
   if (f.heureCueillette && !heureOK(f.heureCueillette)) return fail('Heure de cueillette invalide (hh:mm).');
   if (f.etat && !ETATS_SANITAIRES.some((e) => e.id === f.etat)) return fail('État sanitaire inconnu.');
   const rempli = (x) => x !== undefined && x !== null && String(x).trim() !== '';
+  // état « Sain » : la pourriture acide est sans objet (champ masqué, valeur non gardée), sauf si le formulaire la propose toujours
+  const pa = rempli(f.pourritureAcide) && !(etatSain(f) && champSiAltere(formulaireDe(db, 'pesee'), 'pourritureAcide'));
   if (rempli(f.tap) && !tapOK(f.tap)) return fail('TAP invalide : titre alcoométrique probable entre 0 et 20 % vol.');
-  if (rempli(f.pourritureAcide) && !pourritureOK(f.pourritureAcide)) return fail('Pourriture acide : pourcentage entre 0 et 100.');
+  if (pa && !pourritureOK(f.pourritureAcide)) return fail('Pourriture acide : pourcentage entre 0 et 100.');
   const pesee = { heure: f.heure };
-  if (rempli(f.tap)) pesee.tap = Math.round(num(f.tap) * 100) / 100; if (rempli(f.pourritureAcide)) pesee.pourritureAcide = Math.round(num(f.pourritureAcide) * 10) / 10;
+  if (rempli(f.tap)) pesee.tap = Math.round(num(f.tap) * 100) / 100; if (pa) pesee.pourritureAcide = Math.round(num(f.pourritureAcide) * 10) / 10;
   if (brut !== null) pesee.brutKg = brut; if (tare !== null) pesee.tareKg = tare;
   if (hasNum(f.caisses) && num(f.caisses) > 0) pesee.caisses = Math.round(num(f.caisses));
   if (f.etat) pesee.etat = f.etat; if (String(f.mention || '').trim()) pesee.mention = String(f.mention).trim();
@@ -234,7 +236,11 @@ function peseeSave(db, f, id, ctx) {
   const spec = r.spec;
   // n°, saisie, validation (et ce qu'une version plus récente aurait ajouté) gardés ; ce que le formulaire saisit suit le formulaire
   if (old && old.pesee) { const garde = {}; Object.keys(old.pesee).forEach((k) => { if (!PESEE_SAISIE.includes(k)) garde[k] = old.pesee[k]; }); spec.pesee = { ...garde, ...spec.pesee }; }
-  if (f.champs && typeof f.champs === 'object') { const ch = champsValeurs(formulaireDe(db, 'pesee').perso, f.champs, formuleVarsStd('pesee', { ...f, kg: spec.kg }), old && old.champs); if (ch.length || (old && old.champs)) spec.champs = ch; }
+  // relevés personnalisés ; pesée « Sain » : ceux de pourriture (condition « si altéré ») sont retirés, même déjà enregistrés
+  const cfgP = formulaireDe(db, 'pesee'); const exclus = etatSain(f) ? cfgP.perso.filter(persoSiAltere).map((d) => d.id) : [];
+  const anciens = old && Array.isArray(old.champs) ? old.champs.filter((c) => !(c && exclus.includes(c.id))) : null;
+  if (f.champs && typeof f.champs === 'object') { const ch = champsValeurs(cfgP.perso.filter((d) => !exclus.includes(d.id)), f.champs, formuleVarsStd('pesee', { ...f, kg: spec.kg }), anciens); if (ch.length || anciens) spec.champs = ch; }
+  else if (anciens && anciens.length !== old.champs.length) spec.champs = anciens;
   ['champs', 'jauges', 'sousType'].forEach((k) => { if (old && old[k] !== undefined && spec[k] === undefined) spec[k] = old[k]; });
   const s = opSave(db, spec, id || null, { motif: ctx.motif, par: ctx.par, maintenant: ctx.maintenant || new Date().toISOString() }); if (!s.ok) return s;
   if (ctx.valider !== false && !s.op.pesee.valide) { s.op.pesee.valide = { le: ctx.maintenant || new Date().toISOString(), par: ctx.par || '' }; journalAjouter(db, { quand: s.op.pesee.valide.le, objet: 'pesee', opId: s.op.id, num: s.op.pesee.num, annee: yearOf(s.op.date), action: 'validation', par: ctx.par, apres: resumeRegistre(s.op) }); }
@@ -248,6 +254,16 @@ function peseeValider(db, id, ctx) {
   op.pesee.valide = { le: ctx.maintenant || new Date().toISOString(), par: ctx.par || '' };
   journalAjouter(db, { quand: op.pesee.valide.le, objet: 'pesee', opId: op.id, num: op.pesee.num, annee: yearOf(op.date), action: 'validation', par: ctx.par, apres: resumeRegistre(op) });
   return okr({ op });
+}
+// onglet Pressoir actif (0.25.0-alpha.2) : dans Opérations, la pesée de vendange et le pressurage s'ouvrent dans ses formulaires
+// (registre des pesées, carnet de pressoir : une seule saisie, pesées choisies par leur n°). Variantes du catalogue, opérations
+// planifiées et saisies d'avant le registre gardent le formulaire général. → 'pesee' | 'marc' | ''
+function opViaPressoir(db, o) {
+  if (!o || !moduleActif(db, 'pressoir') || o.prevId || o.fromPrev) return '';
+  const old = o.editId ? (db.ops || []).find((x) => x.id === o.editId) : null;
+  if (old) return old.sousType ? '' : old.type === 'apport' && old.pesee ? 'pesee' : old.type === 'pressurage' && old.marc ? 'marc' : '';
+  if (o.preset && o.preset.sousType) return '';
+  return o.type === 'apport' ? 'pesee' : o.type === 'pressurage' ? 'marc' : '';
 }
 // alertes d'une pesée (non bloquantes) : richesse en sucre sous le minimum du profil (TAP)
 function peseeAlertes(db, o) {
@@ -300,7 +316,8 @@ function marcSpec(db, f, old) {
   if (String(f.sousCharge || '').trim()) marc.sousCharge = String(f.sousCharge).trim();
   const qualifs = charges.map((c) => (db.ops.find((x) => x.id === c.apportId) || {}).qualifId).filter(Boolean);
   const q = quiSaisit(db, f.operateurs, !old); if (q.msg) return fail(q.msg);
-  const vin = { stade: (old && old.stade) || stadeRole(db, 'entree') || (stadeList(db)[0] || {}).id || '', couleur: (old && old.couleur) || couleurDefaut(db) };
+  // couleur des moûts choisie dans le carnet (rosé de saignée ou de macération), sinon celle du marc ou la couleur par défaut
+  const vin = { stade: (old && old.stade) || stadeRole(db, 'entree') || (stadeList(db)[0] || {}).id || '', couleur: (f.couleur && couleurDef(db, f.couleur) ? f.couleur : '') || (old && old.couleur) || couleurDefaut(db) };
   Object.keys(vin).forEach((k) => { if (!vin[k]) delete vin[k]; });
   return okr({ spec: { type: 'pressurage', date: f.date, notes: String(f.notes || ''), ...(q.qui.length ? { operateurs: q.qui } : {}), ...vin, equipementId: f.equipementId, charges,
     parentSpec: { code, designation: String(f.designation || '').trim() || code, millesime: String(f.millesime || '').trim() || String(yearOf(f.date)), qualifId: f.qualifId || (qualifs.length ? minQualif(qualifs) : 'conv') }, fractions, marc } });
@@ -310,6 +327,9 @@ function marcSave(db, f, id, ctx) {
   const r = marcSpec(db, f, old); if (!r.ok) return r; const spec = r.spec;
   if (old && old.marc) spec.marc = { ...old.marc, ...spec.marc, ...(spec.marc.heureFin ? {} : { heureFin: undefined }), ...(hasNum(f.tavp) ? {} : { tavp: undefined }), ...(hasNum(f.bourbesL) ? {} : { bourbesL: undefined }), ...(String(f.sousCharge || '').trim() ? {} : { sousCharge: undefined }) };
   if (spec.marc) Object.keys(spec.marc).forEach((k) => { if (spec.marc[k] === undefined) delete spec.marc[k]; });
+  // champs personnalisés du formulaire « Pressurage » (0.25.0-alpha.2) : saisis dans le carnet de pressoir
+  if (f.champs && typeof f.champs === 'object') { const perso = formulaireDe(db, 'pressurage').perso; const pb = champsPersoErreurs(perso, 'pressurage', f, !old); if (pb) return fail(pb);
+    const ch = champsValeurs(perso, f.champs, formuleVarsStd('pressurage', f), old && old.champs); if (ch.length || (old && old.champs)) spec.champs = ch; }
   ['champs', 'jauges', 'sousType'].forEach((k) => { if (old && old[k] !== undefined && spec[k] === undefined) spec[k] = old[k]; });
   return opSave(db, spec, id || null, { motif: ctx.motif, par: ctx.par, maintenant: ctx.maintenant || new Date().toISOString() });
 }
