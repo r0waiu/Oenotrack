@@ -2,6 +2,12 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.25.0-alpha.1 — 20/11/2026
+
+- Formulaire de pesée personnalisable (Pressoir › Nouvelle pesée › « ⚙ Personnaliser ce formulaire », ou Pressoir › Réglages › Formulaire de pesée) : chaque champ affiché, replié ou masqué, rendu obligatoire, renommé, avec son aide et sa valeur proposée (état sanitaire, balance…), et vos propres relevés (pourriture grise, acidité, température des raisins…), repris sur le ticket, dans le registre exporté et le journal. Les mentions obligatoires du registre et du ticket de pesée (date et heure, poids, cépage, apporteur, revendication particulière) restent toujours affichées.
+- Pourriture acide (%) et TAP (titre alcoométrique probable, % vol.) relevés à la réception : sur le ticket de pesée, dans le registre des pesées, le bilan (TAP moyen pondéré par le poids, pourriture acide moyenne), les relevés par apporteur et le carnet de pressoir (TAP moyen des pesées chargées) ; alerte quand le TAP est sous le minimum de richesse en sucre (143 g/L, soit 8,5 % vol. en Champagne). Corriger ces relevés sur une pesée validée ne demande pas de motif : ils ne font pas partie des mentions du registre.
+- Correction : effacer un champ facultatif (caisses, heure de cueillette…) d’une pesée déjà enregistrée est désormais pris en compte.
+
 ## 0.24.0-alpha.2 — 20/11/2026
 
 - Langues, deuxième étape : onglets Cuverie & Lots et Opérations & Assemblages, fiches du contenant et du lot, menu des contenants, déclassements et tous les formulaires d’opération traduits dans les six langues, avec le catalogue des opérations, les stades, les couleurs, les listes fournies d’origine, les opérateurs et les documents joints ; derniers textes du Pressoir complétés.

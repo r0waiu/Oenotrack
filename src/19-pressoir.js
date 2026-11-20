@@ -11,7 +11,9 @@
    - tableau 1 : 6 marcs au plus par 24 h de fonctionnement et par pressoir ; moyennes 5 (agrément simple), 4 (qualitatif), 6 (24 h/24) ;
      pressoirs de 2 000 à 12 000 kg, chargés en une fois à leur capacité agréée (sous-chargement exceptionnel) ; pas de VCI en Champagne.
    Usages (non réglementaires : alertes seulement) : marc de 4 000 kg, 20,50 hl de cuvée et 5,00 hl de taille pour 4 000 kg.
-   Pesée = opération « apport » portant pesee { num, heure, brutKg, tareKg, caisses, etat, mention, heureCueillette, balanceId, saisiLe, valide } ;
+   Pesée = opération « apport » portant pesee { num, heure, brutKg, tareKg, caisses, etat, mention, heureCueillette, balanceId, saisiLe, valide,
+   tap, pourritureAcide } (0.25.0-alpha.1 : relevés à la réception, hors mentions du registre) ; formulaire de pesée personnalisable (14-formulaires.js,
+   id 'pesee') : champs personnalisés dans op.champs ;
    marc = opération « pressurage » portant marc { num, heureDebut, heureFin, tavp, bourbesL, sousCharge, enCours, saisiLe, valide }.
    Journal (db.journalPressoir, ajout seul) : validations, corrections (motif, avant / après) et annulations (motif, copie) ; chaque ligne
    porte son empreinte SHA-256. Les pesées et marcs validés ne sont jamais modifiés ni supprimés sans motif. */
@@ -194,8 +196,14 @@ function registreAvantSupprimer(db, op, opts) {
 }
 
 /* ---------- pesée : saisie depuis l'onglet Pressoir ---------- */
-// f : { date, heure, apporteurId, cruId, parcelleId, cepageId, qualifId, mention, brutKg, tareKg, kg, caisses, etat, heureCueillette, balanceId, ref, notes }
+// f : { date, heure, apporteurId, cruId, parcelleId, cepageId, qualifId, mention, brutKg, tareKg, kg, caisses, etat, pourritureAcide, tap,
+//       heureCueillette, balanceId, ref, notes, operateurs, champs (champs personnalisés du formulaire de pesée : { id: valeur }) }
 const ETATS_SANITAIRES = [{ id: 'sain', label: 'Sain' }, { id: 'faible', label: 'Faiblement altéré' }, { id: 'altere', label: 'Altéré' }];
+// ce que le formulaire de pesée saisit dans pesee (le reste : n°, saisie, validation, champs d'une version plus récente, est gardé)
+const PESEE_SAISIE = ['heure', 'brutKg', 'tareKg', 'caisses', 'etat', 'mention', 'heureCueillette', 'balanceId', 'tap', 'pourritureAcide'];
+// relevés de réception (hors registre : leur correction ne demande pas de motif)
+const tapOK = (x) => hasNum(x) && num(x) > 0 && num(x) <= 20;
+const pourritureOK = (x) => hasNum(x) && num(x) >= 0 && num(x) <= 100;
 function peseeSpec(db, f) {
   if (!isoOK(f.date)) return fail('Date de la pesée invalide.');
   if (!heureOK(f.heure)) return fail('Indiquez l’heure de la pesée (hh:mm).');
@@ -206,7 +214,11 @@ function peseeSpec(db, f) {
   if (!f.cepageId) return fail('Choisissez le cépage.');
   if (f.heureCueillette && !heureOK(f.heureCueillette)) return fail('Heure de cueillette invalide (hh:mm).');
   if (f.etat && !ETATS_SANITAIRES.some((e) => e.id === f.etat)) return fail('État sanitaire inconnu.');
+  const rempli = (x) => x !== undefined && x !== null && String(x).trim() !== '';
+  if (rempli(f.tap) && !tapOK(f.tap)) return fail('TAP invalide : titre alcoométrique probable entre 0 et 20 % vol.');
+  if (rempli(f.pourritureAcide) && !pourritureOK(f.pourritureAcide)) return fail('Pourriture acide : pourcentage entre 0 et 100.');
   const pesee = { heure: f.heure };
+  if (rempli(f.tap)) pesee.tap = Math.round(num(f.tap) * 100) / 100; if (rempli(f.pourritureAcide)) pesee.pourritureAcide = Math.round(num(f.pourritureAcide) * 10) / 10;
   if (brut !== null) pesee.brutKg = brut; if (tare !== null) pesee.tareKg = tare;
   if (hasNum(f.caisses) && num(f.caisses) > 0) pesee.caisses = Math.round(num(f.caisses));
   if (f.etat) pesee.etat = f.etat; if (String(f.mention || '').trim()) pesee.mention = String(f.mention).trim();
@@ -217,7 +229,12 @@ function peseeSpec(db, f) {
 function peseeSave(db, f, id, ctx) {
   ctx = ctx || {}; const r = peseeSpec(db, f); if (!r.ok) return r;
   const old = id ? db.ops.find((o) => o.id === id) : null; if (id && !old) return fail('Pesée introuvable.');
-  const spec = r.spec; if (old && old.pesee) spec.pesee = { ...old.pesee, ...spec.pesee }; // n°, saisie et validation gardés
+  // formulaire de pesée personnalisé : champs rendus obligatoires (nouvelle pesée), champs personnalisés
+  const pb = champsErreurs(db, 'pesee', 'pesee', { ...f, kg: r.spec.kg }, { nouveau: !old }); if (pb) return fail(pb);
+  const spec = r.spec;
+  // n°, saisie, validation (et ce qu'une version plus récente aurait ajouté) gardés ; ce que le formulaire saisit suit le formulaire
+  if (old && old.pesee) { const garde = {}; Object.keys(old.pesee).forEach((k) => { if (!PESEE_SAISIE.includes(k)) garde[k] = old.pesee[k]; }); spec.pesee = { ...garde, ...spec.pesee }; }
+  if (f.champs && typeof f.champs === 'object') { const ch = champsValeurs(formulaireDe(db, 'pesee').perso, f.champs, formuleVarsStd('pesee', { ...f, kg: spec.kg }), old && old.champs); if (ch.length || (old && old.champs)) spec.champs = ch; }
   ['champs', 'jauges', 'sousType'].forEach((k) => { if (old && old[k] !== undefined && spec[k] === undefined) spec[k] = old[k]; });
   const s = opSave(db, spec, id || null, { motif: ctx.motif, par: ctx.par, maintenant: ctx.maintenant || new Date().toISOString() }); if (!s.ok) return s;
   if (ctx.valider !== false && !s.op.pesee.valide) { s.op.pesee.valide = { le: ctx.maintenant || new Date().toISOString(), par: ctx.par || '' }; journalAjouter(db, { quand: s.op.pesee.valide.le, objet: 'pesee', opId: s.op.id, num: s.op.pesee.num, annee: yearOf(s.op.date), action: 'validation', par: ctx.par, apres: resumeRegistre(s.op) }); }
@@ -231,6 +248,17 @@ function peseeValider(db, id, ctx) {
   op.pesee.valide = { le: ctx.maintenant || new Date().toISOString(), par: ctx.par || '' };
   journalAjouter(db, { quand: op.pesee.valide.le, objet: 'pesee', opId: op.id, num: op.pesee.num, annee: yearOf(op.date), action: 'validation', par: ctx.par, apres: resumeRegistre(op) });
   return okr({ op });
+}
+// alertes d'une pesée (non bloquantes) : richesse en sucre sous le minimum du profil (TAP)
+function peseeAlertes(db, o) {
+  const p = pressoirParams(db); const x = (o && o.pesee) || {}; const L = [];
+  if (p.tavpMin > 0 && hasNum(x.tap) && num(x.tap) < p.tavpMin) L.push(champenois(db) ? `TAP de ${fmt(x.tap, 1)} % vol. sous le minimum de richesse en sucre (143 g/L, soit ${fmt(p.tavpMin, 1)} % vol.).` : `TAP de ${fmt(x.tap, 1)} % vol. sous le minimum réglé (${fmt(p.tavpMin, 1)} % vol.).`);
+  return L;
+}
+// TAP moyen (pondéré par le poids) de pesées, ou des pesées chargées dans un marc : { tap, kg } (kg : poids des pesées qui ont un TAP)
+function tapPesees(db, items) {
+  let k = 0; let t = 0; (items || []).forEach((it) => { const o = it && it.pesee ? it : db.ops.find((x) => x.id === (it && it.apportId)); if (!o || !o.pesee || !hasNum(o.pesee.tap)) return; const kg = it && it.apportId ? num(it.kg) : num(o.kg); if (kg > 0) { k += kg; t += kg * num(o.pesee.tap); } });
+  return k > 0 ? { tap: Math.round((t / k) * 100) / 100, kg: r2(k) } : null;
 }
 // reste à presser d'une pesée (kg) d'après les marcs enregistrés
 function peseeReste(db, id, saufMarc) { const o = db.ops.find((x) => x.id === id); if (!o) return 0; const pris = sum((db.ops || []).filter((m) => m.type === 'pressurage' && m.id !== saufMarc), (m) => sum((m.charges || []).filter((c) => c.apportId === id), (c) => c.kg)); return r2(num(o.kg) - pris); }
@@ -356,7 +384,8 @@ function releveApporteurs(db, annee) {
       t.kg += aps[ap]; t.cuvee += v.cuvee * s; t.taille += v.taille * s; t.rebeche += v.rebeche * s; t.total += v.total * s;
       t.marcs.push({ opId: op.id, num: (op.marc || {}).num || null, date: op.date, kg: aps[ap], part: s, cuvee: v.cuvee * s, taille: v.taille * s, rebeche: v.rebeche * s }); });
   });
-  return Object.values(T).map((t) => ({ ...t, kg: r2(t.kg), cuvee: r2(t.cuvee), taille: r2(t.taille), rebeche: r2(t.rebeche), total: r2(t.total) }));
+  const pes = peseesDe(db, annee); const tapDe = (ap) => { const m = tapPesees(db, pes.filter((o) => (o.apporteurId || '') === (ap || ''))); return m ? m.tap : null; };
+  return Object.values(T).map((t) => ({ ...t, kg: r2(t.kg), cuvee: r2(t.cuvee), taille: r2(t.taille), rebeche: r2(t.rebeche), total: r2(t.total), tap: tapDe(t.apporteurId) }));
 }
 function bilanPressoir(db, annee, today) {
   const p = pressoirParams(db); const marcs = marcsDe(db, annee); const auj = today || todayISO();
@@ -385,7 +414,12 @@ function bilanPressoir(db, annee, today) {
   if (journalAlteres(db).length) alertes.push({ niveau: 'bloquant', msg: `${journalAlteres(db).length} ligne(s) du journal du pressoir ne correspondent plus à leur empreinte : le fichier a été modifié hors d’Œnotrack.` });
   const pesees = peseesDe(db, annee);
   const nonValides = { pesees: p.registre ? pesees.filter((o) => !(o.pesee && o.pesee.valide)).length : 0, marcs: marcs.filter((o) => !(o.marc && o.marc.valide)).length };
-  return { annee, params: p, pressoirs, jours: jours.length, nbMarcs: marcs.length, nbPesees: pesees.length, kgPeses: r2(sum(pesees, (o) => o.kg)), kgPresses: r2(v.kg), volumes: { aoc: r2(v.aoc), rebeche: r2(v.rebeche), total: r2(v.total), bourbes: r2(v.bourbes) }, tauxRebeches: taux, limiteRebeches: lr, limiteBourbes: lb, alertes, nonValides };
+  // relevés de réception : TAP moyen, pesées sous le minimum de richesse en sucre, pourriture acide
+  const tap = tapPesees(db, pesees); const tapBas = p.tavpMin > 0 ? pesees.filter((o) => hasNum((o.pesee || {}).tap) && num(o.pesee.tap) < p.tavpMin) : [];
+  if (tapBas.length) alertes.push({ niveau: 'alerte', msg: `${tapBas.length} pesée(s) sous le minimum de richesse en sucre (TAP inférieur à ${fmt(p.tavpMin, 1)} % vol.) : n° ${tapBas.map((o) => o.pesee.num || '?').join(', ')}.` });
+  const pa = pesees.filter((o) => hasNum((o.pesee || {}).pourritureAcide) && num(o.pesee.pourritureAcide) > 0);
+  const pourriture = pa.length ? { nb: pa.length, kg: r2(sum(pa, (o) => o.kg)), moyenne: Math.round((sum(pa, (o) => num(o.kg) * num(o.pesee.pourritureAcide)) / Math.max(1, sum(pa, (o) => o.kg))) * 10) / 10 } : null;
+  return { annee, params: p, pressoirs, jours: jours.length, nbMarcs: marcs.length, nbPesees: pesees.length, kgPeses: r2(sum(pesees, (o) => o.kg)), kgPresses: r2(v.kg), volumes: { aoc: r2(v.aoc), rebeche: r2(v.rebeche), total: r2(v.total), bourbes: r2(v.bourbes) }, tauxRebeches: taux, limiteRebeches: lr, limiteBourbes: lb, alertes, nonValides, tap, tapBas: tapBas.length, pourriture };
 }
 
 /* ---------- exports CSV (séparateur « ; », décimales à la française) ---------- */
@@ -393,11 +427,12 @@ const csvCellule = (x) => { const s = x === null || x === undefined ? '' : typeo
 const csvLignes = (rows) => rows.map((r) => r.map(csvCellule).join(';')).join('\r\n');
 // lignes des registres (1re ligne : en-têtes) : exports CSV ci-dessous et onglet Registres (CSV / Excel)
 function registrePeseesLignes(db, annee) {
-  const rows = [['N°', 'Date', 'Heure', 'Apporteur', 'Commune de l’apporteur', 'Cru (village)', 'Parcelle', 'Cépage', 'Revendication', 'Mention / lieu-dit', 'Poids brut (kg)', 'Tare (kg)', 'Poids net (kg)', 'Caisses', 'État sanitaire', 'Heure de cueillette', 'Balance', 'Marc(s)', 'Statut']];
+  const perso = formulaireDe(db, 'pesee').perso; const persoVal = (o, d) => { const c = (Array.isArray(o.champs) ? o.champs : []).find((x) => x && x.id === d.id); return c ? (typeof c.valeur === 'number' ? c.valeur : champValeurTexte(c)) : ''; };
+  const rows = [['N°', 'Date', 'Heure', 'Apporteur', 'Commune de l’apporteur', 'Cru (village)', 'Parcelle', 'Cépage', 'Revendication', 'Mention / lieu-dit', 'Poids brut (kg)', 'Tare (kg)', 'Poids net (kg)', 'Caisses', 'État sanitaire', 'Pourriture acide (%)', 'TAP (% vol.)', 'Heure de cueillette', 'Balance', 'Marc(s)', 'Statut', ...perso.map((d) => (d.unite && CP_NUM.includes(d.type) ? `${d.label} (${d.unite})` : d.label))]];
   const marcsDeLaPesee = (id) => marcsDe(db, annee).filter((m) => (m.charges || []).some((c) => c.apportId === id)).map((m) => (m.marc || {}).num || '?').join(' ');
   peseesDe(db, annee).forEach((o) => { const p = o.pesee || {}; const ap = (db.apporteurs || []).find((a) => a.id === o.apporteurId);
-    rows.push([p.num || '', fmtDate(o.date), p.heure || '', o.apporteurId ? apporteurName(db, o.apporteurId) : 'Exploitation', ap ? ap.commune || '' : '', o.cruId ? cruName(db, o.cruId) : '', o.parcelleId ? parcelleName(db, o.parcelleId) : '', lbl(db, 'cepages', o.cepageId), qLabel(o.qualifId), p.mention || '', hasNum(p.brutKg) ? num(p.brutKg) : '', hasNum(p.tareKg) ? num(p.tareKg) : '', num(o.kg), p.caisses || '', p.etat ? (ETATS_SANITAIRES.find((e) => e.id === p.etat) || {}).label : '', p.heureCueillette || '', p.balanceId ? lbl(db, 'equipements', p.balanceId) : '', marcsDeLaPesee(o.id), p.valide ? 'validée' : 'à valider']); });
-  annulesDe(db, 'pesee', annee).forEach((j) => rows.push([j.num, j.avant ? fmtDate(j.avant.date) : '', j.avant ? j.avant.heure || '' : '', '', '', '', '', '', '', '', '', '', j.avant ? j.avant.kg : '', '', '', '', '', '', `annulée le ${fmtDate(String(j.quand).slice(0, 10))} : ${j.motif}`]));
+    rows.push([p.num || '', fmtDate(o.date), p.heure || '', o.apporteurId ? apporteurName(db, o.apporteurId) : 'Exploitation', ap ? ap.commune || '' : '', o.cruId ? cruName(db, o.cruId) : '', o.parcelleId ? parcelleName(db, o.parcelleId) : '', lbl(db, 'cepages', o.cepageId), qLabel(o.qualifId), p.mention || '', hasNum(p.brutKg) ? num(p.brutKg) : '', hasNum(p.tareKg) ? num(p.tareKg) : '', num(o.kg), p.caisses || '', p.etat ? (ETATS_SANITAIRES.find((e) => e.id === p.etat) || {}).label : '', hasNum(p.pourritureAcide) ? num(p.pourritureAcide) : '', hasNum(p.tap) ? num(p.tap) : '', p.heureCueillette || '', p.balanceId ? lbl(db, 'equipements', p.balanceId) : '', marcsDeLaPesee(o.id), p.valide ? 'validée' : 'à valider', ...perso.map((d) => persoVal(o, d))]); });
+  annulesDe(db, 'pesee', annee).forEach((j) => rows.push([j.num, j.avant ? fmtDate(j.avant.date) : '', j.avant ? j.avant.heure || '' : '', '', '', '', '', '', '', '', '', '', j.avant ? j.avant.kg : '', '', '', '', '', '', '', '', `annulée le ${fmtDate(String(j.quand).slice(0, 10))} : ${j.motif}`, ...perso.map(() => '')]));
   return rows;
 }
 const registrePeseesCsv = (db, annee) => csvLignes(registrePeseesLignes(db, annee));

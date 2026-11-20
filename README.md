@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.24.0--alpha.2-8C6E2F">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.25.0--alpha.1-8C6E2F">
   <img alt="Licence" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-1E242B">
   <img alt="Langues" src="https://img.shields.io/badge/langues-FR%20%C2%B7%20EN%20%C2%B7%20ES%20%C2%B7%20IT%20%C2%B7%20DE%20%C2%B7%20PT-5B636D">
 </p>
@@ -60,6 +60,8 @@
 L’onglet **Pressoir** tient les documents du centre de pressurage :
 
 - **Registre des pesées** : numéro continu dans l’année, date et heure, apporteur, cru, parcelle, revendication particulière (mention, lieu-dit), poids brut, tare et net, caisses, état sanitaire, bascule utilisée. Un **ticket de pesée** s’imprime pour l’apporteur.
+- **Pourriture acide** (%) et **TAP** (titre alcoométrique probable, % vol.) relevés à la réception : repris sur le ticket, dans le registre, le bilan (TAP moyen pondéré par le poids), les relevés par apporteur et le carnet (TAP moyen des pesées chargées) ; alerte quand le TAP est sous le minimum de richesse en sucre (143 g/L, soit 8,5 % vol.).
+- **Formulaire de pesée personnalisable** (« ⚙ Personnaliser ce formulaire », ou **Pressoir › Réglages**) : champs affichés, repliés ou masqués, obligatoires, renommés, valeurs proposées et relevés à vous (pourriture grise, acidité…). Les mentions obligatoires du registre et du ticket (date et heure, poids, cépage, apporteur, revendication particulière) restent toujours affichées.
 - **Carnet de pressoir**, rempli au fur et à mesure : le marc est enregistré dès son chargement (heure du début, pesées chargées), puis complété (volumes de cuvée, de tailles et de rebêches et leurs cuves, TAV en puissance, bourbes) et validé. Un marc validé crée ses lots dans les cuves.
 - Les pesées sont **aussitôt proposées dans les pressurages** de l’onglet Opérations, avec leur numéro et le poids restant à presser.
 - **Corrections et annulations avec motif**, gardées dans un **journal** dont chaque ligne porte une empreinte SHA-256 : une modification faite hors d’Œnotrack se voit. Les numéros ne sont jamais réattribués.
@@ -76,6 +78,7 @@ Contrôles du profil **AOC Champagne**, d’après le cahier des charges homolog
 | Bourbes de 1 à 4 % ; rebêches en distillerie avant le 15 décembre, bourbes éliminées avant le 31 janvier de l’année suivante | alertes et rappels |
 | Usages : 20,50 hl de cuvée et 5,00 hl de taille pour un marc de 4 000 kg | alerte seulement |
 | Heure de début, TAV en puissance, vignette de la bascule, saisie tardive | contrôles du carnet |
+| Richesse en sucre des raisins : au moins 143 g/L (TAP de 8,5 % vol.) | alerte à la pesée et au bilan |
 
 > [!IMPORTANT]
 > Œnotrack aide à tenir ces documents ; il ne remplace ni vos registres officiels ni les textes en vigueur. Aucun format d’échange officiel n’étant publié, les exports servent de copie et de contrôle.

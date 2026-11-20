@@ -32,48 +32,74 @@ function MotifSheet({ title, body, ok = 'Confirmer', danger, onClose }) {
   );
 }
 
-/* ---------- pesée : saisie ---------- */
+/* ---------- pesée : saisie (formulaire personnalisable : Pressoir › Réglages ou « ⚙ Personnaliser ce formulaire », 0.25.0-alpha.1) ---------- */
+const nSaisie = (x) => (hasNum(x) ? String(x).replace('.', ',') : '');
 function PeseeForm({ id, onClose, onTicket }) {
-  const { db, act, defaultDate, moi, uid, camp } = useApp(); const o = id ? db.ops.find((x) => x.id === id) : null; const p0 = (o && o.pesee) || {};
+  const { db, act, defaultDate, moi, uid } = useApp(); const o = id ? db.ops.find((x) => x.id === id) : null; const p0 = (o && o.pesee) || {};
   const droits = usePressoirDroits(); const P = pressoirParams(db); const bal = balancesDe(db);
   const valide = !!p0.valide; const lecture = !droits.ecrit || (valide && !droits.corriger) || (o && isLocked(db, o.date));
-  const [f, set, setF] = useDraft(o ? { date: o.date, heure: p0.heure || '', apporteurId: o.apporteurId || '', cruId: o.cruId || '', parcelleId: o.parcelleId || '', cepageId: o.cepageId, qualifId: o.qualifId || 'conv', mention: p0.mention || '', brutKg: hasNum(p0.brutKg) ? String(p0.brutKg) : '', tareKg: hasNum(p0.tareKg) ? String(p0.tareKg) : '', kg: String(o.kg), caisses: p0.caisses ? String(p0.caisses) : '', etat: p0.etat || '', heureCueillette: p0.heureCueillette || '', balanceId: p0.balanceId || '', ref: o.ref || '', notes: o.notes || '', operateurs: o.operateurs || [], valider: true, motif: '' }
-    : { date: defaultDate, heure: heureNow(), apporteurId: '', cruId: '', parcelleId: '', cepageId: (db.lists.cepages[0] || {}).id || '', qualifId: 'conv', mention: '', brutKg: '', tareKg: '', kg: '', caisses: '', etat: 'sain', heureCueillette: '', balanceId: (bal[0] || {}).id || '', ref: '', notes: '', operateurs: moi ? [moi] : [], valider: true, motif: '' });
-  const net = hasNum(f.brutKg) && hasNum(f.tareKg) ? r2(num(f.brutKg) - num(f.tareKg)) : hasNum(f.kg) ? num(f.kg) : 0;
+  const fcfg = formulaireDe(db, 'pesee'); const persoD = fcfg.perso.filter((x) => x.position === 'debut'); const persoF = fcfg.perso.filter((x) => x.position !== 'debut');
+  const [tout, setTout] = useState(false); const [cfgEd, setCfgEd] = useState(false);
+  const [f, set, setF] = useDraft(() => {
+    if (o) return { date: o.date, heure: p0.heure || '', apporteurId: o.apporteurId || '', cruId: o.cruId || '', parcelleId: o.parcelleId || '', cepageId: o.cepageId, qualifId: o.qualifId || 'conv', mention: p0.mention || '', brutKg: hasNum(p0.brutKg) ? String(p0.brutKg) : '', tareKg: hasNum(p0.tareKg) ? String(p0.tareKg) : '', kg: String(o.kg), caisses: p0.caisses ? String(p0.caisses) : '', etat: p0.etat || '', pourritureAcide: nSaisie(p0.pourritureAcide), tap: nSaisie(p0.tap), heureCueillette: p0.heureCueillette || '', balanceId: p0.balanceId || '', ref: o.ref || '', notes: o.notes || '', operateurs: o.operateurs || [], champs: champsEtat(o), valider: true, motif: '' };
+    const s0 = { date: defaultDate, heure: heureNow(), apporteurId: '', cruId: '', parcelleId: '', cepageId: (db.lists.cepages[0] || {}).id || '', qualifId: 'conv', mention: '', brutKg: '', tareKg: '', kg: '', caisses: '', etat: 'sain', pourritureAcide: '', tap: '', heureCueillette: '', balanceId: (bal[0] || {}).id || '', ref: '', notes: '', operateurs: moi ? [moi] : [], champs: {}, valider: true, motif: '' };
+    return formulaireDefauts(db, 'pesee', 'pesee', s0, {}); // valeurs proposées par le formulaire personnalisé
+  });
+  const upd = (patch) => setF((x) => ({ ...x, ...patch }));
+  const cfgv = { cfg: fcfg, type: 'pesee', tout }; const E = (k) => champEffectif(fcfg, 'pesee', k);
+  const fac = (k, l) => (E(k).obligatoire ? l : `${l} (facultatif)`);
+  const nMasques = champsStd('pesee').filter((c) => E(c.k).vis === 'masque').length;
+  // poids brut et tare : affichés s'ils ont une valeur, même masqués (le poids net en dépend)
+  const btValeur = hasNum(f.brutKg) || hasNum(f.tareKg); const bt = btValeur || cfVisible(cfgv, 'brutTare'); const btReplie = !btValeur && !tout && E('brutTare').vis === 'replie';
+  const net = bt && hasNum(f.brutKg) && hasNum(f.tareKg) ? r2(num(f.brutKg) - num(f.tareKg)) : hasNum(f.kg) ? num(f.kg) : 0;
   const pris = o ? r2(num(o.kg) - peseeReste(db, o.id)) : 0;
+  const alertesTap = peseeAlertes(db, { pesee: { tap: hasNum(f.tap) ? num(f.tap) : null } });
   const save = () => {
     const r = act((d) => peseeSave(d, f, id || null, { motif: f.motif, par: uid, maintenant: pMaintenant(), valider: f.valider }), id ? 'Pesée modifiée.' : 'Pesée inscrite au registre.');
     if (r && r.ok) { onClose(); if (!id && onTicket) onTicket(r.op.id); }
   };
   const num0 = p0.num || numeroSuivant(db, 'pesee', yearOf(f.date));
+  const btChamps = <><Field label="Poids brut (kg)"><NI value={f.brutKg} onChange={(v) => set('brutKg', v)} placeholder="ex. 4 300" aria-label="Poids brut" data-brut="" /></Field>
+    <Field label="Tare (kg)"><NI value={f.tareKg} onChange={(v) => set('tareKg', v)} placeholder="caisses, palettes" aria-label="Tare" data-tare="" /></Field></>;
   return (
     <FormSheet readOnly={lecture} title={o ? `Pesée n° ${p0.num || '—'}` : 'Nouvelle pesée'} sub={o ? `${fmtDate(o.date)}${p0.heure ? ` · ${p0.heure}` : ''} — registre des pesées ${yearOf(o.date)}` : `Registre des pesées ${yearOf(f.date)} : n° ${num0}`} onClose={onClose} onSave={save} saveLabel={o ? 'Enregistrer' : f.valider ? 'Peser et valider' : 'Enregistrer'} wide>
       {valide ? <Notice tone="info" title={`Pesée validée le ${fmtDateHeure(p0.valide.le)}`}>Une correction reste possible : elle est gardée au journal du pressoir avec son motif (valeurs d’avant et d’après).{pris > 0 ? ` ${kgTxt(pris)} de cette pesée sont déjà chargés dans un marc.` : ''}</Notice> : null}
       {lecture && droits.ecrit && valide ? <Notice tone="info" title="Consultation">Votre profil ne permet pas de corriger une pesée validée.</Notice> : null}
-      <G n={3}><Field label="Date"><DI value={f.date} onChange={(v) => set('date', v)} /></Field><Field label="Heure de la pesée"><input className="inp num" type="time" value={f.heure} onChange={(e) => set('heure', e.target.value)} aria-label="Heure de la pesée" data-heure="" /></Field>
-        <Field label="Balance / bascule">{bal.length ? <SI value={f.balanceId} onChange={(v) => set('balanceId', v)} placeholder="Choisir…" options={bal.map((b) => ({ value: b.id, label: `${b.nom}${b.valideJusquau ? ` (vignette au ${fmtDate(b.valideJusquau)})` : ''}` }))} /> : <div className="help pt-2">Ajoutez la bascule dans Pressoir › Réglages.</div>}</Field></G>
-      <G><Field label="Apporteur" help="Vide : raisins de l’exploitation. Pressurage à façon : le nom de l’apporteur est obligatoire au registre."><ApporteurSelect value={f.apporteurId} role="apporteur" onChange={(v) => setF((x) => ({ ...x, apporteurId: v, ...(v && !x.cruId && apporteurCruAuto(db, v) ? { cruId: apporteurCruAuto(db, v) } : {}) }))} /></Field>
-        <Field label="Cru (village)"><CruSelect value={f.cruId} onChange={(v) => set('cruId', v)} /><CrusProposes ids={[f.apporteurId]} cruId={f.cruId} onPick={(c) => set('cruId', c)} /></Field></G>
-      <G n={3}><Field label="Parcelle (facultatif)"><ParcelleSelect value={f.parcelleId} preset={{ cruId: f.cruId, cepageId: f.cepageId, apporteurId: f.apporteurId }} onChange={(v) => { const pc = (db.parcelles || []).find((x) => x.id === v); setF((x) => ({ ...x, parcelleId: v, ...(pc ? { cruId: pc.cruId || x.cruId, ...(pc.cepageId ? { cepageId: pc.cepageId } : {}), ...(pc.apporteurId ? { apporteurId: pc.apporteurId } : {}) } : {}) })); }} /></Field>
-        <Field label="Cépage"><SI value={f.cepageId} onChange={(v) => set('cepageId', v)} options={opts(db, 'cepages')} /></Field>
-        <Field label="Revendication"><SI value={f.qualifId} onChange={(v) => set('qualifId', v)} options={qualifOptions(db, f.qualifId)} /></Field></G>
-      <Field label="Revendication particulière : mention, lieu-dit…" help={P.registre ? 'Inscrite au registre et reprise au carnet de pressoir (origine des raisins).' : ''}><TI value={f.mention} onChange={(v) => set('mention', v)} placeholder="ex. lieu-dit « Les Chétillons », mention premier cru…" /></Field>
+      <FormCfgCtx.Provider value={cfgv}>
+      {nMasques || (!lecture && droits.params) ? <div className="cf-barre">
+        {nMasques ? <button type="button" className="linkish" onClick={() => setTout(!tout)} aria-pressed={tout}>{tout ? 'Cacher les champs masqués' : `Afficher tous les champs (${nMasques} masqué${nMasques > 1 ? 's' : ''})`}</button> : null}
+        {!lecture && droits.params ? <button type="button" className="linkish" onClick={() => setCfgEd(true)} data-personnaliser-pesee="" title="Choisir les champs affichés, obligatoires, leurs valeurs par défaut, et ajouter vos propres relevés (les mentions obligatoires du ticket restent affichées)">⚙ Personnaliser ce formulaire</button> : null}
+      </div> : null}
+      <ChampsPerso defs={persoD} tous={fcfg.perso} f={f} upd={upd} type="pesee" />
+      <G n={3}><CF k="date" label="Date"><DI value={f.date} onChange={(v) => set('date', v)} /></CF><CF k="heure" label="Heure de la pesée"><input className="inp num" type="time" value={f.heure} onChange={(e) => set('heure', e.target.value)} aria-label="Heure de la pesée" data-heure="" /></CF>
+        <CF k="balanceId" label="Balance / bascule">{bal.length ? <SI value={f.balanceId} onChange={(v) => set('balanceId', v)} placeholder="Choisir…" options={bal.map((b) => ({ value: b.id, label: `${b.nom}${b.valideJusquau ? ` (vignette au ${fmtDate(b.valideJusquau)})` : ''}` }))} /> : <div className="help pt-2">Ajoutez la bascule dans Pressoir › Réglages.</div>}</CF></G>
+      <G><CF k="apporteurId" label="Apporteur" help="Vide : raisins de l’exploitation. Pressurage à façon : le nom de l’apporteur est obligatoire au registre."><ApporteurSelect value={f.apporteurId} role="apporteur" onChange={(v) => setF((x) => ({ ...x, apporteurId: v, ...(v && !x.cruId && apporteurCruAuto(db, v) ? { cruId: apporteurCruAuto(db, v) } : {}) }))} /></CF>
+        <CF k="cruId" label="Cru (village)"><CruSelect value={f.cruId} onChange={(v) => set('cruId', v)} /><CrusProposes ids={[f.apporteurId]} cruId={f.cruId} onPick={(c) => set('cruId', c)} /></CF></G>
+      <G n={3}><CF k="parcelleId" label={fac('parcelleId', 'Parcelle')}><ParcelleSelect value={f.parcelleId} preset={{ cruId: f.cruId, cepageId: f.cepageId, apporteurId: f.apporteurId }} onChange={(v) => { const pc = (db.parcelles || []).find((x) => x.id === v); setF((x) => ({ ...x, parcelleId: v, ...(pc ? { cruId: pc.cruId || x.cruId, ...(pc.cepageId ? { cepageId: pc.cepageId } : {}), ...(pc.apporteurId ? { apporteurId: pc.apporteurId } : {}) } : {}) })); }} /></CF>
+        <CF k="cepageId" label="Cépage"><SI value={f.cepageId} onChange={(v) => set('cepageId', v)} options={opts(db, 'cepages')} /></CF>
+        <CF k="qualifId" label="Revendication"><SI value={f.qualifId} onChange={(v) => set('qualifId', v)} options={qualifOptions(db, f.qualifId)} /></CF></G>
+      <CF k="mention" label="Revendication particulière : mention, lieu-dit…" help={P.registre ? 'Inscrite au registre et reprise au carnet de pressoir (origine des raisins).' : ''}><TI value={f.mention} onChange={(v) => set('mention', v)} placeholder="ex. lieu-dit « Les Chétillons », mention premier cru…" /></CF>
       <Group label="Poids">
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))' }}>
-          <label className="block"><span className="help">Poids brut (kg)</span><NI value={f.brutKg} onChange={(v) => set('brutKg', v)} placeholder="ex. 4 300" aria-label="Poids brut" data-brut="" /></label>
-          <label className="block"><span className="help">Tare (kg)</span><NI value={f.tareKg} onChange={(v) => set('tareKg', v)} placeholder="caisses, palettes" aria-label="Tare" data-tare="" /></label>
-          {hasNum(f.brutKg) && hasNum(f.tareKg) ? <div><span className="help">Poids net</span><div className="disp text-2xl" data-net="">{kgTxt(net)}</div></div>
-            : <label className="block"><span className="help">ou poids net (kg)</span><NI value={f.kg} onChange={(v) => set('kg', v)} placeholder="ex. 4 000" aria-label="Poids net" data-netkg="" /></label>}
-          <label className="block"><span className="help">Caisses (nombre)</span><NI value={f.caisses} onChange={(v) => set('caisses', v)} aria-label="Nombre de caisses" /></label>
+          {bt ? (btReplie ? <details className="cf-replie" data-champ="brutTare"><summary>{E('brutTare').libelle || 'Poids brut et tare'}{E('brutTare').obligatoire ? ' *' : ''}</summary><div className="mt-2 grid gap-2">{btChamps}</div></details> : btChamps) : null}
+          {bt && hasNum(f.brutKg) && hasNum(f.tareKg) ? <Field label="Poids net"><div className="disp text-2xl" data-net="">{kgTxt(net)}</div></Field>
+            : <CF k="kg" label={bt ? 'ou poids net (kg)' : 'Poids net (kg)'}><NI value={f.kg} onChange={(v) => set('kg', v)} placeholder="ex. 4 000" aria-label="Poids net" data-netkg="" /></CF>}
+          <CF k="caisses" label="Caisses (nombre)"><NI value={f.caisses} onChange={(v) => set('caisses', v)} aria-label="Nombre de caisses" /></CF>
         </div>
       </Group>
-      <G n={3}><Field label="État sanitaire"><SI value={f.etat} onChange={(v) => set('etat', v)} placeholder="—" options={ETATS_SANITAIRES.map((e) => ({ value: e.id, label: e.label }))} /></Field>
-        <Field label="Heure de cueillette (facultatif)"><input className="inp num" type="time" value={f.heureCueillette} onChange={(e) => set('heureCueillette', e.target.value)} aria-label="Heure de cueillette" /></Field>
-        <Field label="N° de bon / ticket (facultatif)"><TI value={f.ref} onChange={(v) => set('ref', v)} /></Field></G>
-      <OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label="Pesée faite par" help={db.settings.operateurObligatoire && !o ? 'Obligatoire (réglage de la société).' : ''} />
-      <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></Field>
+      <G n={3}><CF k="etat" label="État sanitaire"><SI value={f.etat} onChange={(v) => set('etat', v)} placeholder="—" options={ETATS_SANITAIRES.map((e) => ({ value: e.id, label: e.label }))} /></CF>
+        <CF k="pourritureAcide" label="Pourriture acide (%)" help="Part estimée des raisins atteints (baies vinaigrées, moucherons)."><NI value={f.pourritureAcide} onChange={(v) => set('pourritureAcide', v)} placeholder="ex. 2" aria-label="Pourriture acide" data-pourriture="" /></CF>
+        <CF k="tap" label="TAP (% vol.)" help="Titre alcoométrique probable des raisins (réfractomètre ou densimètre sur un échantillon de jus)."><NI value={f.tap} onChange={(v) => set('tap', v)} placeholder="ex. 10,2" aria-label="TAP" data-tap="" /></CF></G>
+      {alertesTap.map((m) => <Notice key={m} tone="warn">{m}</Notice>)}
+      <G><CF k="heureCueillette" label={fac('heureCueillette', 'Heure de cueillette')}><input className="inp num" type="time" value={f.heureCueillette} onChange={(e) => set('heureCueillette', e.target.value)} aria-label="Heure de cueillette" /></CF>
+        <CF k="ref" label={fac('ref', 'N° de bon / ticket')}><TI value={f.ref} onChange={(v) => set('ref', v)} /></CF></G>
+      <ChampsPerso defs={persoF} tous={fcfg.perso} f={f} upd={upd} type="pesee" />
+      <CF k="operateurs" label="Pesée faite par" bare><OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label={<>{E('operateurs').libelle || 'Pesée faite par'}{E('operateurs').obligatoire ? <CfReq /> : null}</>} help={E('operateurs').aide || ((db.settings.operateurObligatoire || E('operateurs').obligatoire) && !o ? 'Obligatoire (réglage de la société).' : '')} /></CF>
+      <CF k="notes" label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></CF>
+      </FormCfgCtx.Provider>
       {!valide && !lecture ? <Check checked={f.valider} onChange={(v) => set('valider', v)} label="Valider la pesée (inscrite au registre ; ensuite, toute correction demande un motif)" /> : null}
       {valide && !lecture ? <Field label="Motif de la correction (obligatoire si vous changez la pesée)"><TI value={f.motif} onChange={(v) => set('motif', v)} placeholder="ex. erreur de lecture de la bascule" data-motif-correction="" /></Field> : null}
+      {cfgEd ? <FormulaireEditor catId="pesee" onClose={() => setCfgEd(false)} /> : null}
     </FormSheet>
   );
 }
@@ -84,10 +110,15 @@ function TicketPesee({ id, onClose }) {
   const out = useReportOutput(ref, `ticket-pesee-${o ? yearOf(o.date) : ''}-${p.num || ''}`);
   if (!o) return null;
   const e = db.entreprise || {}; const b = p.balanceId ? balancesDe(db).find((x) => x.id === p.balanceId) : null; const ap = (db.apporteurs || []).find((a) => a.id === o.apporteurId);
+  // mentions obligatoires toujours imprimées ; les autres lignes suivent le formulaire de pesée (champ masqué et vide : ligne omise)
+  const fcfg = formulaireDe(db, 'pesee'); const E = (k) => champEffectif(fcfg, 'pesee', k); const vu = (k, v) => E(k).vis !== 'masque' || (v !== undefined && v !== null && v !== '');
+  const L = (k, x) => E(k).libelle || x; const perso = (Array.isArray(o.champs) ? o.champs : []).filter((c) => c && c.journal !== false && champValeurTexte(c));
   const site = (db.sites || [])[0] || {}; const lignes = [['Centre de pressurage', [e.nom || db.settings.domaine || site.nom, e.adresse || site.adresse].filter(Boolean).join(' — ') || '—'], ['Apporteur', ap ? [ap.nom, ap.commune].filter(Boolean).join(', ') : 'Raisins de l’exploitation'], ['Date et heure de la pesée', `${fmtDate(o.date)} · ${p.heure || '—'}`],
-    ['Cépage', lbl(db, 'cepages', o.cepageId)], ['Cru (village)', o.cruId ? cruName(db, o.cruId) : '—'], ['Parcelle', o.parcelleId ? parcelleName(db, o.parcelleId) : '—'], ['Revendication', qLabel(o.qualifId)], ['Revendication particulière (mention, lieu-dit)', p.mention || '—'],
-    ['Poids brut', hasNum(p.brutKg) ? kgTxt(p.brutKg) : '—'], ['Tare', hasNum(p.tareKg) ? kgTxt(p.tareKg) : '—'], ['Poids net', kgTxt(o.kg)], ['Caisses', p.caisses || '—'], ['État sanitaire', etatLabel(p.etat) || '—'], ['Heure de cueillette', p.heureCueillette || '—'],
-    ['Balance', b ? `${b.nom}${b.valideJusquau ? ` — vérification valable jusqu’au ${fmtDate(b.valideJusquau)}` : ''}` : '—'], ['N° de bon', o.ref || '—'], ['Pesée faite par', operateursNoms(db, o.operateurs) || '—']];
+    ['Cépage', lbl(db, 'cepages', o.cepageId)], vu('cruId', o.cruId) && [L('cruId', 'Cru (village)'), o.cruId ? cruName(db, o.cruId) : '—'], vu('parcelleId', o.parcelleId) && [L('parcelleId', 'Parcelle'), o.parcelleId ? parcelleName(db, o.parcelleId) : '—'], (E('qualifId').vis !== 'masque' || (o.qualifId && o.qualifId !== 'conv')) && [L('qualifId', 'Revendication'), qLabel(o.qualifId)], ['Revendication particulière (mention, lieu-dit)', p.mention || '—'],
+    vu('brutTare', p.brutKg) && ['Poids brut', hasNum(p.brutKg) ? kgTxt(p.brutKg) : '—'], vu('brutTare', p.tareKg) && ['Tare', hasNum(p.tareKg) ? kgTxt(p.tareKg) : '—'], ['Poids net', kgTxt(o.kg)], vu('caisses', p.caisses) && [L('caisses', 'Caisses'), p.caisses || '—'], vu('etat', p.etat) && [L('etat', 'État sanitaire'), etatLabel(p.etat) || '—'],
+    vu('pourritureAcide', p.pourritureAcide) && [L('pourritureAcide', 'Pourriture acide'), hasNum(p.pourritureAcide) ? `${fmt(p.pourritureAcide, 1)} %` : '—'], vu('tap', p.tap) && [L('tap', 'TAP (titre alcoométrique probable)'), hasNum(p.tap) ? `${fmt(p.tap, 1)} % vol.` : '—'], vu('heureCueillette', p.heureCueillette) && [L('heureCueillette', 'Heure de cueillette'), p.heureCueillette || '—'],
+    vu('balanceId', p.balanceId) && [L('balanceId', 'Balance'), b ? `${b.nom}${b.valideJusquau ? ` — vérification valable jusqu’au ${fmtDate(b.valideJusquau)}` : ''}` : '—'], vu('ref', o.ref) && [L('ref', 'N° de bon'), o.ref || '—'], vu('operateurs', (o.operateurs || []).length ? 1 : '') && [L('operateurs', 'Pesée faite par'), operateursNoms(db, o.operateurs) || '—'],
+    ...perso.map((c) => [c.label, champValeurTexte(c)])].filter(Boolean);
   return (
     <Sheet title={`Ticket de pesée n° ${p.num || '—'}`} sub="À remettre à l’apporteur" onClose={onClose}
       footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
@@ -112,6 +143,9 @@ function PeseesView({ annee }) {
   const valider = (o) => act((d) => peseeValider(d, o.id, { par: uid, maintenant: pMaintenant() }), `Pesée n° ${(o.pesee || {}).num || ''} validée.`);
   const annuler = (motif) => { const o = annul; setAnnul(null); if (motif) act((d) => registreAnnuler(d, o.id, { motif, par: uid, maintenant: pMaintenant() }), 'Pesée annulée : gardée au journal du pressoir.'); };
   const jours = uniq(L.map((o) => o.date));
+  const fcfg = formulaireDe(db, 'pesee'); const colVue = (k) => champEffectif(fcfg, 'pesee', k).vis !== 'masque' || L.some((o) => hasNum((o.pesee || {})[k]));
+  const colsReleves = [colVue('tap') && { h: 'TAP', cls: 'r hm', r: (o) => { const x = (o.pesee || {}).tap; const al = peseeAlertes(db, o); return hasNum(x) ? <span className={cx('num whitespace-nowrap', al.length && 'text-warn')} title={al[0] || ''} data-tap-pesee="">{fmt(x, 1)} %</span> : <span className="text-ink2">—</span>; } },
+    colVue('pourritureAcide') && { h: 'Pourr. acide', cls: 'r hm', r: (o) => { const x = (o.pesee || {}).pourritureAcide; return hasNum(x) ? <span className={cx('num whitespace-nowrap', num(x) > 0 && 'text-warn')}>{fmt(x, 1)} %</span> : <span className="text-ink2">—</span>; } }].filter(Boolean);
   return (
     <div>
       <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
@@ -130,6 +164,7 @@ function PeseesView({ annee }) {
           { h: 'Origine', cls: 'hm', r: (o) => <span className="text-sm">{peseeOrigine(db, o) || '—'}</span> },
           { h: 'Cépage', r: (o) => lbl(db, 'cepages', o.cepageId) }, { h: 'Revendication', cls: 'hm', r: (o) => <QChip id={o.qualifId} /> },
           { h: 'Poids net', cls: 'r', r: (o) => <span className="num whitespace-nowrap" title={hasNum((o.pesee || {}).brutKg) ? `brut ${kgTxt(o.pesee.brutKg)} − tare ${kgTxt(o.pesee.tareKg)}` : ''}>{kgTxt(o.kg)}</span> },
+          ...colsReleves,
           { h: 'Reste', cls: 'r', r: (o) => { const x = reste(o); return <span className={cx('num whitespace-nowrap', x > 0.5 ? 'text-warn' : 'text-ink2')}>{x > 0.5 ? kgTxt(x) : 'pressée'}</span>; } },
           { h: 'Statut', r: (o) => statutChip(o.pesee, 'pesee') },
           { h: '', r: (o) => <div className="flex flex-wrap gap-1"><Btn size="sm" onClick={() => setTicket(o.id)} title="Ticket à remettre à l’apporteur">Ticket</Btn><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? 'Modifier' : 'Voir'}</Btn>
@@ -162,6 +197,7 @@ function MarcForm({ id, onClose }) {
     dispo.filter((x) => x.date === f.date && !f.charges.some((c) => c.apportId === x.id)).reverse().forEach((x) => { if (reste <= 0.5) return; const r = peseeReste(db, x.id, id); const k = Math.min(r, reste); if (k > 0.5) { add.push({ apportId: x.id, kg: String(r2(k)) }); reste -= k; } });
     if (!add.length) toast('Aucune pesée du jour à charger.', 'bad'); else setCh([...f.charges, ...add]); };
   // aperçu des contrôles (sans enregistrer)
+  const tapCharges = tapPesees(db, (f.charges || []).filter((c) => c.apportId && num(c.kg) > 0));
   const apercu = useMemo(() => { const r = marcSpec(db, f, o); if (!r.ok) return { err: r.msg, ctl: [] }; const op = { ...r.spec, id: id || '_nouveau', marc: { ...(o && o.marc), ...r.spec.marc, saisiLe: m0.saisiLe || pMaintenant() } };
     const d = { ...db, ops: id ? db.ops.map((x) => (x.id === id ? op : x)) : [...db.ops, op] }; return { err: '', ctl: marcControles(d, op), vol: marcVolumes(d, op) }; }, [f, db]);
   const save = (val) => {
@@ -204,7 +240,7 @@ function MarcForm({ id, onClose }) {
           </div>))}</div>
       </Group>
       {apercu.vol && apercu.vol.total > 0 ? <div className="flex flex-wrap gap-2 text-sm" data-volumes=""><Chip>cuvée {fmtL(apercu.vol.cuvee)}</Chip><Chip>tailles {fmtL(apercu.vol.taille)}</Chip><Chip>rebêches {fmtL(apercu.vol.rebeche)}</Chip><Chip tone={plafond && apercu.vol.aoc > plafond + 0.5 ? 'bad' : 'ok'}>revendicable {fmtL(apercu.vol.aoc)}{plafond ? ` / ${fmtL(plafond)}` : ''}</Chip>{totKg > 0 ? <Chip>{fmt((apercu.vol.total / totKg) * (P.ratioKg || 100), 1)} L / {P.ratioKg || 100} kg</Chip> : null}</div> : null}
-      <G n={3}><Field label="TAV en puissance (% vol.)" help={P.registre ? 'Obligatoire au carnet.' : ''}><NI value={f.tavp} onChange={(v) => set('tavp', v)} placeholder="ex. 10,2" aria-label="TAV en puissance" data-tavp="" /></Field>
+      <G n={3}><Field label="TAV en puissance (% vol.)" help={[P.registre ? 'Obligatoire au carnet.' : '', tapCharges ? `TAP moyen des pesées chargées : ${fmt(tapCharges.tap, 1)} % vol.` : ''].filter(Boolean).join(' ')}><NI value={f.tavp} onChange={(v) => set('tavp', v)} placeholder="ex. 10,2" aria-label="TAV en puissance" data-tavp="" /></Field>
         <Field label="Bourbes (hL, en fin de débourbage)" help={P.bourbesMax ? `Attendu : ${fmt(P.bourbesMin)} à ${fmt(P.bourbesMax)} % des moûts.` : ''}><VI value={f.bourbesL} onChange={(v) => set('bourbesL', v)} placeholder="hL" aria-label="Bourbes" /></Field>
         <Field label="Désignation"><TI value={f.designation} onChange={(v) => set('designation', v)} /></Field></G>
       <OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label="Pressurage fait par" />
@@ -278,7 +314,7 @@ function RelevesView({ annee }) {
         <Tbl rows={L.map((r) => ({ ...r, id: r.apporteurId || '_expl' }))} empty="Aucun marc cette année." cols={[
           { h: 'Apporteur', r: (r) => <b>{releveNom(db, r.apporteurId)}</b> }, { h: 'Raisins pressés', cls: 'r', r: (r) => <span className="num">{kgTxt(r.kg)}</span> },
           { h: 'Cuvée', cls: 'r', r: (r) => <span className="num">{fmtL(r.cuvee)}</span> }, { h: 'Tailles', cls: 'r', r: (r) => <span className="num">{fmtL(r.taille)}</span> }, { h: 'Rebêches', cls: 'r', r: (r) => <span className="num">{fmtL(r.rebeche)}</span> },
-          { h: 'Total moûts', cls: 'r', r: (r) => <b className="num">{fmtL(r.total)}</b> }, { h: 'Marcs', r: (r) => <span className="text-xs">{r.marcs.map((m) => `n° ${m.num || '?'}`).join(', ')}</span> }]} />
+          { h: 'Total moûts', cls: 'r', r: (r) => <b className="num">{fmtL(r.total)}</b> }, { h: 'TAP moyen', cls: 'r hm', r: (r) => (r.tap != null ? <span className="num">{fmt(r.tap, 1)} % vol.</span> : <span className="text-ink2">—</span>) }, { h: 'Marcs', r: (r) => <span className="text-xs">{r.marcs.map((m) => `n° ${m.num || '?'}`).join(', ')}</span> }]} />
       </Sec>
       {imp ? <RelevesImpression annee={annee} L={L} onClose={() => setImp(false)} /> : null}
     </div>
@@ -292,7 +328,7 @@ function RelevesImpression({ annee, L, onClose }) {
       <div ref={ref} className="report">
         {L.map((r, i) => <div key={i} className="rpt-item"><ReportHead title={`Relevé de pressurage — ${releveNom(db, r.apporteurId)}`} sub={`Vendanges ${annee} · répartition au prorata du poids`} />
           <RTable head={['Marc', 'Date', 'Poids apporté (kg)', 'Part du marc', 'Cuvée (hL)', 'Tailles (hL)', 'Rebêches (hL)']} rows={r.marcs.map((m) => [`n° ${m.num || '?'}`, fmtDate(m.date), fmt(m.kg), pct(m.part), fmtHL(m.cuvee), fmtHL(m.taille), fmtHL(m.rebeche)])} />
-          <p><b>Total : {kgTxt(r.kg)} · cuvée {fmtL(r.cuvee)} · tailles {fmtL(r.taille)} · rebêches {fmtL(r.rebeche)}</b></p></div>)}
+          <p><b>Total : {kgTxt(r.kg)} · cuvée {fmtL(r.cuvee)} · tailles {fmtL(r.taille)} · rebêches {fmtL(r.rebeche)}{r.tap != null ? ` · TAP moyen ${fmt(r.tap, 1)} % vol.` : ''}</b></p></div>)}
       </div>
     </Sheet>
   );
@@ -309,6 +345,8 @@ function BilanPressoirView({ annee }) {
         <Kpi label="Raisins pesés" value={kgTxt(b.kgPeses)} sub={`${b.nbPesees} pesée(s)`} /><Kpi label="Raisins pressés" value={kgTxt(b.kgPresses)} sub={`${b.nbMarcs} marc(s) en ${b.jours} jour(s)`} />
         <Kpi label="Moûts revendicables" value={fmtL(b.volumes.aoc)} sub={b.kgPresses ? `${fmt((b.volumes.aoc / b.kgPresses) * 160, 1)} L / 160 kg` : ''} /><Kpi label="Rebêches" value={fmtL(b.volumes.rebeche)} sub={b.tauxRebeches ? `minimum ${fmt(b.tauxRebeches, 1)} %` : 'pas de minimum cette année'} />
         <Kpi label="Bourbes" value={fmtL(b.volumes.bourbes)} sub={b.volumes.total ? `${fmt((b.volumes.bourbes / b.volumes.total) * 100, 1)} % des moûts` : ''} />
+        <Kpi label="TAP moyen" value={b.tap ? `${fmt(b.tap.tap, 1)} % vol.` : '—'} sub={b.tap ? `${kgTxt(b.tap.kg)} de raisins mesurés${b.tapBas ? ` · ${b.tapBas} sous le minimum` : ''}` : 'aucun TAP relevé'} tone={b.tapBas ? 'warn' : undefined} />
+        <Kpi label="Pourriture acide" value={b.pourriture ? kgTxt(b.pourriture.kg) : 'aucune'} sub={b.pourriture ? `${b.pourriture.nb} pesée(s) · ${fmt(b.pourriture.moyenne, 1)} % en moyenne` : 'aucune pourriture acide relevée'} tone={b.pourriture ? 'warn' : undefined} />
       </div>
       <Sec title="À surveiller">
         {b.alertes.length ? <div className="space-y-2" data-alertes-pressoir="">{b.alertes.map((a, i) => <Notice key={i} tone={a.niveau === 'bloquant' ? 'bad' : 'warn'}>{a.msg}</Notice>)}</div> : <Notice tone="ok">Rien à signaler pour les vendanges {annee}.</Notice>}
@@ -373,8 +411,10 @@ function RegionChoix() {
 }
 function ReglagesPressoirView({ annee }) {
   const { db, act } = useApp(); const droits = usePressoirDroits(); const P = pressoirParams(db); const reg = regionDe(db);
-  const [nv, setNv] = useState({}); const [nouv, setNouv] = useState(''); const [sorte, setSorte] = useState('pressoir');
+  const [nv, setNv] = useState({}); const [nouv, setNouv] = useState(''); const [sorte, setSorte] = useState('pressoir'); const [formEd, setFormEd] = useState(false);
   useEffect(() => { setNv({}); }, [P.id]);
+  // formulaire de pesée : résumé de la personnalisation
+  const fp = formulaireDe(db, 'pesee'); const chp = champsStd('pesee'); const fpMasq = chp.filter((c) => champEffectif(fp, 'pesee', c.k).vis === 'masque').length; const fpObl = chp.filter((c) => champEffectif(fp, 'pesee', c.k).obligatoire).length;
   const champ = (k, label, unite, aide) => { const brut = ((db.settings.pressoir || {}).valeurs || {})[k]; const v = nv[k] !== undefined ? nv[k] : hasNum(brut) ? String(brut) : '';
     return <label key={k} className="block"><span className="lbl">{label}</span><div className="flex items-center gap-1"><input className="inp num" inputMode="decimal" value={v} placeholder={String(PRESSOIR_PROFILS[P.id][k] || 0).replace('.', ',')} disabled={!droits.params} onChange={(e) => setNv((x) => ({ ...x, [k]: e.target.value }))} onBlur={() => { if (nv[k] === undefined) return; act((d) => pressoirParamsSet(d, { valeurs: { [k]: nv[k] } }), 'Réglage du pressoir enregistré.'); setNv((x) => { const y = { ...x }; delete y[k]; return y; }); }} aria-label={label} data-reglage={k} />{unite ? <span className="text-sm text-ink2">{unite}</span> : null}</div>{aide ? <span className="help block">{aide}</span> : null}</label>; };
   const taux = ((db.settings.pressoir || {}).rebechesPct || {})[annee];
@@ -388,12 +428,17 @@ function ReglagesPressoirView({ annee }) {
           {champ('ratioL', `Moûts au plus (${P.volume})`, 'L', 'pour le poids ci-contre ; un arrêté peut réduire ce volume')}{champ('ratioKg', 'Pour un poids de', 'kg')}
           {champ('marcKg', 'Marc d’usage', 'kg')}{champ('cuveeL', 'Cuvée d’usage', 'L', 'alerte seulement')}{champ('tailleL', 'Taille d’usage', 'L', 'alerte seulement')}
           {champ('bourbesMin', 'Bourbes au moins', '%')}{champ('bourbesMax', 'Bourbes au plus', '%')}{champ('cadenceMax', 'Marcs au plus par 24 h', 'par pressoir')}
-          {champ('capaciteMin', 'Capacité des pressoirs au moins', 'kg')}{champ('capaciteMax', 'au plus', 'kg')}{champ('tavpMin', 'TAV en puissance au moins', '% vol.')}{champ('saisieDiffereeMin', 'Saisie différée signalée après', 'min')}
+          {champ('capaciteMin', 'Capacité des pressoirs au moins', 'kg')}{champ('capaciteMax', 'au plus', 'kg')}{champ('tavpMin', 'TAV en puissance au moins', '% vol.', 'contrôlé aussi sur le TAP des pesées (alerte)')}{champ('saisieDiffereeMin', 'Saisie différée signalée après', 'min')}
           <label className="block"><span className="lbl">Rebêches : taux minimum {annee}</span><div className="flex items-center gap-1"><input className="inp num" inputMode="decimal" disabled={!droits.params} defaultValue={hasNum(taux) ? String(taux) : ''} key={`${annee}-${taux}`} placeholder={String(rebechesTaux(P, annee))} onBlur={(e) => { const v = e.target.value; if (v === (hasNum(taux) ? String(taux) : '')) return; act((d) => pressoirParamsSet(d, { rebechesPct: { [annee]: v } }), 'Taux de rebêches enregistré.'); }} aria-label={`Taux minimum de rebêches ${annee}`} data-rebeches-pct="" /><span className="text-sm text-ink2">%</span></div><span className="help block">fixé chaque année entre 0 et 10 % (0 % en 2024 et 2025)</span></label>
         </div>
         <div className="mt-3 flex flex-wrap gap-4"><Check checked={P.registre} disabled={!droits.params} onChange={(v) => act((d) => pressoirParamsSet(d, { registre: v }))} label="Registre des pesées et carnet de pressoir obligatoires (toute pesée, tout marc numéroté ; TAV en puissance exigé)" /><Check checked={P.chargementPlein} disabled={!droits.params} onChange={(v) => act((d) => pressoirParamsSet(d, { chargementPlein: v }))} label="Pressoirs chargés à leur capacité agréée (sous-chargement signalé)" /></div>
         <p className="help mt-2">Valeurs vides : celles du profil. {P.id === 'champagne' ? 'AOC Champagne : cahier des charges homologué par l’arrêté du 31 juillet 2025 (rendement au pressurage, rebêches, bourbes, cadence) ; usages de la profession pour la cuvée et la taille.' : P.id === 'cremant' ? 'Crémants : 100 litres pour 150 kg de raisins (cahiers des charges des AOC crémant) ; vérifiez celui de votre appellation.' : 'Aucun plafond : les volumes sont libres.'}</p>
       </Sec>
+      <Sec title="Formulaire de pesée" right={droits.params ? <Btn kind="primary" onClick={() => setFormEd(true)} data-reglage-formulaire-pesee="">⚙ Personnaliser le formulaire</Btn> : null}>
+        <p className="text-sm" data-resume-formulaire-pesee="">{formulairePerso(db, 'pesee') ? `Formulaire personnalisé : ${fpMasq} champ(s) masqué(s), ${fpObl} obligatoire(s), ${fp.perso.length} champ(s) personnalisé(s).` : 'Formulaire d’origine : tous les champs affichés, aucun champ personnalisé.'}</p>
+        <p className="help mt-2">Champs affichés, repliés ou masqués, obligatoires, valeurs proposées et relevés personnalisés (pourriture grise, acidité…). La date et l’heure, le poids, le cépage, l’apporteur et la revendication particulière, mentions du registre et du ticket de pesée, restent toujours affichés.</p>
+      </Sec>
+      {formEd ? <FormulaireEditor catId="pesee" onClose={() => setFormEd(false)} /> : null}
       <Sec title="Pressoirs et balances" right={droits.params ? <><SI value={sorte} onChange={setSorte} style={{ width: 'auto' }} options={[{ value: 'pressoir', label: 'Pressoir' }, { value: 'balance', label: 'Balance / bascule' }]} aria-label="Type d’équipement" /><input className="inp" style={{ width: 220 }} value={nouv} onChange={(e) => setNouv(e.target.value)} placeholder={sorte === 'balance' ? 'ex. Bascule 3 t' : 'ex. Pressoir Coquard 8 000 kg'} aria-label="Nom du nouvel équipement" /><Btn onClick={() => { const r = act((d) => equipementAjouter(d, nouv, sorte), 'Équipement ajouté.'); if (r.ok) setNouv(''); }} disabled={!nouv.trim()}>+ Ajouter</Btn></> : null}>
         <Tbl rows={PR} empty="Aucun pressoir : ajoutez-en un (capacité agréée)." cols={[{ h: 'Pressoir', r: (x) => <b>{x.nom}</b> },
           { h: 'Capacité agréée (kg)', r: (x) => <input className="inp num" style={{ width: 110 }} inputMode="decimal" defaultValue={x.capaciteKg || ''} key={`${x.id}-${x.capaciteKg}`} disabled={!droits.params} onBlur={(e) => { if (num(e.target.value) !== x.capaciteKg) act((d) => equipementPressoirSet(d, x.id, { pressoir: { capaciteKg: e.target.value } }), 'Capacité enregistrée.'); }} aria-label={`Capacité de ${x.nom}`} /> },
