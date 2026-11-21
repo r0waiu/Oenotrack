@@ -31,7 +31,7 @@ function emptyDb(campNom) {
   return {
     app: APP_ID, schema: SCHEMA,
     meta: { seq: 0, opSeq: 0, creeLe: todayISO(), derniereExport: null, exemple: false, creeAvec: APP_VERSION, appVersion: APP_VERSION, versions: [APP_VERSION] },
-    settings: { campagneActive: nom, coefSucre: 2.6, volBouteilleL: 0.75, objectifTirageGL: 24, siteActif: 'all', domaine: '', couleurDefaut: 'blanc', echelleNom: 'Échelle des crus', echellePreset: 'champagne' },
+    settings: { campagneActive: nom, coefSucre: 2.6, volBouteilleL: 0.75, objectifTirageGL: 24, siteActif: 'all', domaine: '', couleurDefaut: 'blanc', echelleNom: 'Échelle des crus', echellePreset: 'champagne', planHygieneDepuis: todayISO() },
     lists: DEFAULT_LISTS(),
     sites: [{ id: 'site1', nom: 'Cuverie principale', adresse: '', zones: [] }],
     crus: DEFAULT_CRUS(), parcelles: [], apporteurs: [], apparence: DEFAULT_APPARENCE(),
@@ -48,13 +48,15 @@ function emptyDb(campNom) {
     produitsHygiene: [], // produits de nettoyage et de désinfection : FDS, fiches techniques, emploi (0.18.0-alpha.1)
     formulaires: [], // formulaires d'opération personnalisés : champs affichés / masqués / obligatoires, champs personnalisés (0.16.0-alpha.1)
     journalPressoir: [], // journal du pressoir : validations, corrections et annulations des pesées et des marcs (0.24.0-alpha.1, ajout seul)
+    // plans d'hygiène (0.26.0-alpha.1) : plan de nettoyage et de désinfection, plan de maintenance, interventions, non-conformités justifiées
+    planNettoyage: PLAN_NETTOYAGE_MODELE(), planMaintenance: PLAN_MAINTENANCE_MODELE(), maintenance: [], hygieneAcquits: [],
   };
 }
 
 function normalizeDb(d) {
   const e = emptyDb(); const old = (d.schema || 1) < 2; // sauvegardes de la v1 « Cuverie champenoise » : migration automatique
   const out = { ...e, ...d, meta: { ...e.meta, ...(d.meta || {}) }, settings: { ...e.settings, ...(d.settings || {}) }, lists: { ...e.lists, ...(d.lists || {}) } };
-  ['campagnes', 'contenants', 'lots', 'lotsFinis', 'ops', 'alertes', 'fournisseurs', 'produits', 'arrivages', 'regles', 'analyses', 'analysesParams', 'analysesModeles', 'hygiene', 'sites', 'apporteurs', 'parcelles', 'docs', 'previsions', 'fiches', 'modelesFiches', 'operateurs', 'utilisateurs', 'profils', 'audit', 'formulaires', 'baremes', 'produitsHygiene', 'journalPressoir'].forEach((k) => { if (!Array.isArray(out[k])) out[k] = e[k]; });
+  ['campagnes', 'contenants', 'lots', 'lotsFinis', 'ops', 'alertes', 'fournisseurs', 'produits', 'arrivages', 'regles', 'analyses', 'analysesParams', 'analysesModeles', 'hygiene', 'sites', 'apporteurs', 'parcelles', 'docs', 'previsions', 'fiches', 'modelesFiches', 'operateurs', 'utilisateurs', 'profils', 'audit', 'formulaires', 'baremes', 'produitsHygiene', 'journalPressoir', 'planNettoyage', 'planMaintenance', 'maintenance', 'hygieneAcquits'].forEach((k) => { if (!Array.isArray(out[k])) out[k] = e[k]; });
   if (out.settings.charte === 'craie') out.settings.charte = 'oenotrack'; // « Craie & Champagne » est devenue la charte Œnotrack par défaut
   if (out.settings.charte && typeof CHARTES !== 'undefined' && !CHARTES.some((c) => c.id === out.settings.charte)) out.settings.charte = 'oenotrack';
   out.entreprise = { ...e.entreprise, ...(d.entreprise && typeof d.entreprise === 'object' ? d.entreprise : {}) };
@@ -166,7 +168,8 @@ function listUsage(db, key, id) {
     case 'typesPerte': return db.ops.filter((o) => (o.pertes || []).some((p) => p.typeId === id) || o.typeId === id).length;
     case 'methodesFiltration': return db.ops.filter((o) => o.methodeId === id).length;
     case 'equipements': return db.ops.filter((o) => (o.equipementIds || []).includes(id) || o.equipementId === id).length + db.hygiene.filter((h) => h.cibleType === 'equipement' && h.cibleId === id).length;
-    case 'actionsHygiene': return db.hygiene.filter((h) => h.actionId === id).length;
+    case 'actionsHygiene': return db.hygiene.filter((h) => h.actionId === id).length + (db.planNettoyage || []).filter((x) => x && x.actionId === id).length;
+    case 'locaux': return db.hygiene.filter((h) => h.cibleType === 'local' && h.cibleId === id).length + (db.planNettoyage || []).filter((x) => x && x.cible && x.cible.type === 'locaux' && (x.cible.ids || []).includes(id)).length;
     case 'fractions': return db.ops.filter((o) => o.fractionId === id || (o.fractions || []).some((f) => f.fractionId === id) || (o.type === 'entree_mout' && (o.entrees || []).some((e) => e.fractionId === id))).length + db.lots.filter((l) => l.fractionId === id && !db.ops.some((o) => o.id === l.opId)).length;
     case 'stades': return db.lots.filter((l) => l.stade === id).length + db.ops.filter((o) => o.stade === id || o.newStade === id).length + opList(db).filter((x) => x.stadeAuto && x.stadeAuto.actif && x.stadeAuto.stade === id).length;
     case 'couleursVin': return db.lots.filter((l) => l.couleur === id).length + db.ops.filter((o) => o.couleur === id || (o.entrees || []).some((e) => e.couleur === id)).length + (db.lotsFinis || []).filter((l) => l.couleur === id).length;
@@ -348,9 +351,9 @@ function previewOp(db, spec, editingId) {
   const d = clone(db);
   const r = opSave(d, spec, editingId, { apercu: true });
   if (!r.ok) return { ok: false, msg: r.msg, warnings: [], alerts: [], lot: null };
-  const R = replay(d);
+  const R = replay(d, null, typeof hygEvenementsUtiles === 'function' && hygEvenementsUtiles(d) ? { evenements: true } : undefined); // événements : contrôles des plans d'hygiène à la saisie (0.26.0-alpha.1)
   const before = new Set(db.alertes.map((a) => a.id));
-  return { ok: true, op: r.op, warnings: R.warn[r.op.id] || [], alerts: d.alertes.filter((a) => a.opId === r.op.id && a.statut === 'attente' && !before.has(a.id)), lot: r.op.lotId ? (R.lots[r.op.lotId] || null) : null };
+  return { ok: true, op: r.op, warnings: R.warn[r.op.id] || [], alerts: d.alertes.filter((a) => a.opId === r.op.id && a.statut === 'attente' && !before.has(a.id)), lot: r.op.lotId ? (R.lots[r.op.lotId] || null) : null, R };
 }
 
 /* ---------- campagnes ---------- */

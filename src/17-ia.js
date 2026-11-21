@@ -3,7 +3,9 @@
    la base, la synchronisation, les sauvegardes ni le Drive. Les demandes partent directement de ce navigateur vers le service choisi.
    Ce qui est envoyé : pour identifier un document, le début de son texte et la liste des noms de produits ; pour la veille,
    le nom du produit, son fournisseur, sa référence et les dates des fiches jointes. Jamais les volumes, lots, analyses ni la traçabilité.
-   Usages : (a) identifier un document fournisseur non reconnu ; (b) veille : trouver en ligne les dernières FT et FDS (recherche web du service). */
+   Usages : (a) identifier un document fournisseur non reconnu ; (b) veille : trouver en ligne les dernières FT et FDS (recherche web du service) ;
+   (c) 0.26.0-alpha.1 : compléter la fiche d'un produit à la lecture de ses documents (FT, FDS, certificats) : envoyé, le texte du document
+   lu (ou reconnu sur un scan, une photo) et le nom du produit ; réglage « completer » (activé par défaut). */
 const IA_KEY = 'oenotrack-ia'; const IA_AUTO_KEY = 'oenotrack-ia-veille';
 const IA_FOURNISSEURS = [
   { id: 'anthropic', nom: 'Claude (Anthropic)', court: 'Claude', modele: 'claude-sonnet-5-5', web: true, console: 'https://platform.claude.com/settings/keys', aide: 'Clé « sk-ant-… » créée dans la console Claude (platform.claude.com › API keys). Recherche et lecture de pages web incluses.' },
@@ -21,7 +23,7 @@ function iaActive(c0) {
   const c = c0 || iaConfigLire(); const f = iaFournisseur(c.fournisseur);
   const cle = String((c.cles || {})[f.id] || '').trim(); const modele = String((c.modeles || {})[f.id] || f.modele || '').trim();
   const url = f.id === 'perso' ? String(c.url || '').trim().replace(/\/+$/, '').replace(/\/chat\/completions$/, '') : '';
-  return { fournisseur: f.id, nom: f.court, cle, modele, url, web: f.web, pret: !!modele && (f.id === 'perso' ? /^https?:\/\/\S+$/.test(url) : !!cle), auto: !!c.auto, autoJours: Math.max(7, Math.min(365, Number(c.autoJours) || 30)) };
+  return { fournisseur: f.id, nom: f.court, cle, modele, url, web: f.web, pret: !!modele && (f.id === 'perso' ? /^https?:\/\/\S+$/.test(url) : !!cle), auto: !!c.auto, completer: c.completer !== false, autoJours: Math.max(7, Math.min(365, Number(c.autoJours) || 30)) };
 }
 const iaMasque = (k) => { const s = String(k || ''); return s.length <= 10 ? '•'.repeat(s.length) : `${s.slice(0, 6)}…${s.slice(-4)}`; };
 

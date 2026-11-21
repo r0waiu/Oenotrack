@@ -15,7 +15,15 @@ function HygieneForm({ id, preset, onClose }) {
   const aDesProduits = hygListe(db).some((x) => !x.archive);
   const [f, set, setF] = useDraft({ date: h ? h.date : defaultDate, cibleType: h ? h.cibleType : (p0.cibleType || 'contenant'), cibleId: h ? h.cibleId : (p0.cibleId || ''), actionId: h ? h.actionId : (db.lists.actionsHygiene[0] || {}).id,
     produits: v19 ? h.produits.map((l) => ({ ...l, conc: hygTxtNb(l.conc), quantite: hygTxtNb(l.quantite) })) : (aDesProduits ? [{ produitId: '', conc: '', quantite: '' }] : []),
-    methode: h ? (v19 && !(modifie && !h.produits.length) ? h.methode || '' : h.produit || '') : '', operateur: ancien, operateurs: h ? (h.operateurs || []) : (moi ? [moi] : []), notes: h ? h.notes : '' });
+    methode: h ? (v19 && !(modifie && !h.produits.length) ? h.methode || '' : h.produit || '') : '', operateur: ancien, operateurs: h ? (h.operateurs || []) : (moi ? [moi] : []), notes: h ? h.notes : '',
+    // plan d'hygiène (0.26.0-alpha.1) : ligne du plan suivie, contrôle après rinçage, changement de revendication
+    planId: h ? h.planId || '' : p0.planId || '', controle: h && h.controle ? { resultat: '', valeur: '', ...h.controle } : p0.controle ? { resultat: '', valeur: '', ...p0.controle } : { type: '', resultat: '', valeur: '' },
+    changementRevendication: h ? h.changementRevendication || null : p0.changementRevendication || null,
+    ...(!h && p0.actionId ? { actionId: p0.actionId } : {}), ...(!h && Array.isArray(p0.produits) && p0.produits.length ? { produits: p0.produits } : {}) });
+  const planL = planNettoyage(db).filter((e) => e && e.actif !== false && hygCibles(db, e.cible).some((c) => c.type === f.cibleType && c.id === f.cibleId));
+  const planE = planNettoyage(db).find((e) => e.id === f.planId) || null; const ctlT = f.controle.type || (planE && planE.controle !== 'aucun' ? planE.controle : '');
+  const setCtl = (patch) => setF((x) => ({ ...x, controle: { ...x.controle, type: x.controle.type || ctlT, ...patch } }));
+  const choisirPlan = (pid) => { const e = planNettoyage(db).find((x) => x.id === pid); setF((x) => ({ ...x, planId: pid, ...(e && !id ? { actionId: e.actionId, controle: { type: e.controle && e.controle !== 'aucun' ? e.controle : '', resultat: '', valeur: '' } } : {}) })); };
   const [cree, setCree] = useState(false); const [voir, setVoir] = useState(null);
   const setL = (i, patch) => setF((x) => ({ ...x, produits: x.produits.map((l, k) => (k === i ? { ...l, ...patch } : l)) }));
   const choisir = (i, pid) => setL(i, { produitId: pid, conc: pid ? hygTxtNb(hygDerniereConc(db, pid, id)) : '', concUnite: undefined, unite: undefined });
@@ -26,8 +34,9 @@ function HygieneForm({ id, preset, onClose }) {
   return (
     <FormSheet title={id ? 'Modifier l’entrée d’hygiène' : 'Nouvelle entrée d’hygiène'} onClose={onClose} onSave={save}>
       <G><Field label="Date"><DI value={f.date} onChange={(v) => set('date', v)} /></Field><Field label="Action"><SI value={f.actionId} onChange={(v) => set('actionId', v)} options={opts(db, 'actionsHygiene')} /></Field></G>
-      <G><Field label="Cible"><SI value={f.cibleType} onChange={(v) => setF((x) => ({ ...x, cibleType: v, cibleId: '' }))} options={[{ value: 'contenant', label: 'Contenant (cuve, fût…)' }, { value: 'equipement', label: 'Équipement (pressoir, filtre…)' }]} /></Field>
-        <Field label={f.cibleType === 'contenant' ? 'Contenant' : 'Équipement'}><SI value={f.cibleId} onChange={(v) => set('cibleId', v)} placeholder="Choisir…" options={f.cibleType === 'contenant' ? contOptions(db, true) : opts(db, 'equipements')} /></Field></G>
+      <G><Field label="Cible"><SI value={f.cibleType} onChange={(v) => setF((x) => ({ ...x, cibleType: v, cibleId: '', planId: '' }))} options={[{ value: 'contenant', label: 'Contenant (cuve, fût…)' }, { value: 'equipement', label: 'Équipement (pressoir, filtre…)' }, { value: 'local', label: 'Local ou matériel (sol, caisses, tuyaux…)' }]} /></Field>
+        <Field label={f.cibleType === 'contenant' ? 'Contenant' : f.cibleType === 'local' ? 'Local ou matériel' : 'Équipement'}><SI value={f.cibleId} onChange={(v) => setF((x) => ({ ...x, cibleId: v, planId: x.planId && planNettoyage(db).some((e) => e.id === x.planId && hygCibles(db, e.cible).some((c) => c.type === x.cibleType && c.id === v)) ? x.planId : '' }))} placeholder="Choisir…" options={f.cibleType === 'contenant' ? contOptions(db, true) : f.cibleType === 'local' ? opts(db, 'locaux') : opts(db, 'equipements')} /></Field></G>
+      {planL.length ? <Field label="Selon le plan de nettoyage" help={planE ? <>{planE.mode ? <span>{planE.mode}</span> : null}{planE.contact ? <span>{` Temps de contact : ${planE.contact}.`}</span> : null}{planE.attendu ? <span>{` Contrôle attendu : ${planE.attendu}.`}</span> : null}</> : 'Ligne du plan que cette entrée applique (consignes, contrôle attendu).'}><SI plain value={f.planId} onChange={choisirPlan} options={[{ value: '', label: '— aucune —' }, ...planL.map((e) => ({ value: e.id, label: `${e.libelle} — ${lbl(db, 'actionsHygiene', e.actionId)}` }))]} aria-label="Ligne du plan de nettoyage" data-hyg-plan="" /></Field> : null}
       {modifie ? <Notice tone="warn" title="Entrée modifiée avec une version antérieure d’Œnotrack">Texte enregistré : « {h.produit} ». Vérifiez les produits et la méthode ci-dessous avant d’enregistrer.</Notice> : null}
       <Group label="Produits utilisés">
         <div className="space-y-2" data-hyg-produits="">
@@ -50,6 +59,17 @@ function HygieneForm({ id, preset, onClose }) {
       </Group>
       {ctrl.map((c, i) => <Notice key={i} tone={c.tone}>{c.msg}</Notice>)}
       <Field label="Méthode / précisions" help="Eau chaude, vapeur, température, durée, rinçage…"><TI value={f.methode} onChange={(v) => set('methode', v)} placeholder="ex. eau chaude 60 °C, 20 min, puis rinçage" /></Field>
+      <Group label="Contrôle après rinçage" help={ctlT === 'ph' ? 'Papier pH sur l’eau de rinçage : pH 7 attendu (plus de produit alcalin ni acide).' : ctlT === 'peroxyde' ? 'Papier peroxyde : 0 attendu (plus de désinfectant oxydant).' : ctlT === 'visuel' ? 'Propreté vérifiée à l’œil : aucun résidu, eau claire.' : 'Vérification de l’efficacité du nettoyage et du rinçage (méthode HACCP).'}>
+        <div className="flex flex-wrap items-center gap-2" data-hyg-controle="">
+          <SI plain value={ctlT} onChange={(v) => setF((x) => ({ ...x, controle: { ...x.controle, type: v } }))} options={[{ value: '', label: '— aucun —' }, ...HYG_CONTROLES.filter((c) => c[0] !== 'aucun').map(([v, l]) => ({ value: v, label: l }))]} aria-label="Type de contrôle" style={{ width: 'auto' }} />
+          {ctlT ? <>{[['conforme', '✓ Conforme'], ['non_conforme', '✕ Non conforme']].map(([v, l]) => <button key={v} type="button" className={cx('opr-tog', f.controle.resultat === v && 'on')} aria-pressed={f.controle.resultat === v} onClick={() => setCtl({ resultat: f.controle.resultat === v ? '' : v })}>{l}</button>)}
+            {ctlT !== 'visuel' ? <input className="inp num" style={{ width: 90 }} value={f.controle.valeur || ''} onChange={(e) => setCtl({ valeur: e.target.value })} placeholder={ctlT === 'ph' ? 'pH lu' : 'valeur lue'} aria-label="Valeur lue" /> : null}</> : null}
+        </div>
+        {ctlT && f.controle.resultat === 'non_conforme' ? <div className="mt-1 text-xs text-bad">Non conforme : rincez de nouveau jusqu’au résultat attendu, puis enregistrez une nouvelle entrée.</div> : null}
+        {planE && ctlT && !f.controle.resultat && !String(f.controle.valeur || '').trim() ? <div className="mt-1 text-xs text-warn">Le plan prévoit ce contrôle : indiquez son résultat.</div> : null}
+      </Group>
+      <div className="flex flex-wrap items-center gap-2" data-hyg-revendication=""><Check checked={!!f.changementRevendication} onChange={(v) => set('changementRevendication', v ? (f.changementRevendication || { de: 'conv', vers: 'bio' }) : null)} label="Pour un changement de revendication" />
+        {f.changementRevendication ? <><SI plain value={f.changementRevendication.de || ''} onChange={(v) => set('changementRevendication', { ...f.changementRevendication, de: v })} options={qualifOptions(db, f.changementRevendication.de)} aria-label="Revendication précédente" style={{ width: 'auto' }} /><span>→</span><SI plain value={f.changementRevendication.vers || ''} onChange={(v) => set('changementRevendication', { ...f.changementRevendication, vers: v })} options={qualifOptions(db, f.changementRevendication.vers)} aria-label="Revendication suivante" style={{ width: 'auto' }} /></> : null}</div>
       <OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label="Opérateur(s)" help={ancien ? `Saisi auparavant : « ${ancien} » (gardé tant que personne n’est choisi).` : (db.settings.operateurObligatoire ? 'Obligatoire (réglage de la société).' : '')} />
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
       {cree ? <HygProduitForm onClose={() => setCree(false)} onSaved={(pid) => ajouter(pid)} /> : null}
@@ -65,34 +85,38 @@ function HygProduitsCell({ h, onVoir }) {
   return (<span className="flex flex-wrap items-center gap-1">{h.produits.map((l, i) => { const p = hygDef(db, l.produitId); return <button key={i} type="button" className={cx('chip', p && p.mention === 'danger' && 'chip-warn')} onClick={(e) => { e.stopPropagation(); if (p) onVoir(p.id); }} title={p ? 'Fiche du produit' : 'Produit supprimé'}>{(p && p.nom) || l.nom || '?'}{hygConcTxt(l.conc, l.concUnite) ? ` ${hygConcTxt(l.conc, l.concUnite)}` : ''}</button>; })}{h.methode ? <span className="text-xs text-ink2">{h.methode}</span> : null}</span>);
 }
 
-function HygJournal() {
-  const { db, R, act, confirm, camp } = useApp();
+function HygJournal({ onAFaire }) {
+  const { db, R, act, confirm, camp } = useApp(); const T = usePlanTaches();
+  const nT = (k) => T.filter((x) => x.etat === k).length; const RANG_T = { nonconforme: 0, retard: 1, afaire: 2 }; const tCible = {};
+  T.forEach((x) => { if (!x.cible) return; const k = `${x.cible.type}:${x.cible.id}`; if (!tCible[k] || RANG_T[x.etat] < RANG_T[tCible[k].etat]) tCible[k] = x; });
   const [form, setForm] = useState(null); const [cibleF, setCibleF] = useState(''); const [actF, setActF] = useState(''); const [prodF, setProdF] = useState(''); const [scope, setScope] = useState('camp'); const [voir, setVoir] = useState(null);
-  const targetName = (h) => (h.cibleType === 'contenant' ? contName(db, h.cibleId) : lbl(db, 'equipements', h.cibleId));
+  const targetName = (h) => hygCibleNom(db, h.cibleType, h.cibleId);
   const rows = db.hygiene.filter((h) => (scope === 'all' || (h.date >= camp.debut && h.date <= camp.fin)) && (!cibleF || `${h.cibleType}:${h.cibleId}` === cibleF) && (!actF || h.actionId === actF) && (!prodF || (Array.isArray(h.produits) && h.produits.some((l) => l && l.produitId === prodF)))).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   const lastOf = (type, id) => db.hygiene.filter((h) => h.cibleType === type && h.cibleId === id).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
   const today = todayISO();
   const cards = [...db.contenants.filter((c) => c.statut !== 'archive').map((c) => ({ key: `contenant:${c.id}`, type: 'contenant', id: c.id, nom: c.nom, full: (R.contVol[c.id] || 0) > 0 })), ...db.lists.equipements.map((e) => ({ key: `equipement:${e.id}`, type: 'equipement', id: e.id, nom: e.label, full: false }))]
+    .concat(locauxDe(db).map((l) => ({ key: `local:${l.id}`, type: 'local', id: l.id, nom: l.label, full: false })))
     .map((x) => ({ ...x, last: lastOf(x.type, x.id) }));
   const del = async (h) => { const ok = await confirm({ title: 'Supprimer cette entrée ?', body: `${lbl(db, 'actionsHygiene', h.actionId)} — ${targetName(h)} du ${fmtDate(h.date)}.`, ok: 'Supprimer', danger: true }); if (ok) act((d) => hygieneDelete(d, h.id), 'Entrée supprimée.'); };
-  const tgtOptions = [...db.contenants.map((c) => ({ value: `contenant:${c.id}`, label: c.nom })), ...db.lists.equipements.map((e) => ({ value: `equipement:${e.id}`, label: `${e.label} (équipement)` }))];
+  const tgtOptions = [...db.contenants.map((c) => ({ value: `contenant:${c.id}`, label: c.nom })), ...db.lists.equipements.map((e) => ({ value: `equipement:${e.id}`, label: `${e.label} (équipement)` })), ...locauxDe(db).map((l) => ({ value: `local:${l.id}`, label: `${l.label} (local)` }))];
   const prodOptions = hygListe(db).filter((p) => !p.archive || hygUsages(db, p.id).length).map((p) => ({ value: p.id, label: p.nom }));
   return (
     <div>
-      <Sec title="Dernière action par cuve et équipement" right={<Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})}>+ Nouvelle entrée</Btn>}>
+      {T.length ? <Notice tone={nT('nonconforme') ? 'bad' : nT('retard') ? 'warn' : 'info'} title="Plans de nettoyage et de maintenance : tâches en attente"><span className="inline-flex flex-wrap items-center gap-2" data-hyg-resume="">{nT('nonconforme') ? <Chip tone="bad"><b>{nT('nonconforme')}</b> non-conformité(s)</Chip> : null}{nT('retard') ? <Chip tone="warn"><b>{nT('retard')}</b> en retard</Chip> : null}{nT('afaire') ? <Chip tone="info"><b>{nT('afaire')}</b> à faire</Chip> : null}{onAFaire ? <button type="button" className="linkish" onClick={onAFaire}>Voir « À faire »</button> : null}</span></Notice> : null}
+      <Sec title="Dernière action par cuve, équipement et local" right={<Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})}>+ Nouvelle entrée</Btn>}>
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))' }}>{cards.map((x) => { const d = x.last ? daysBetween(x.last.date, today) : null;
           return (<button key={x.key} type="button" className="card p-2 text-left hover:border-ink2" disabled={camp.figee} onClick={() => setForm({ preset: { cibleType: x.type, cibleId: x.id } })} title="Ajouter une entrée pour cette cible">
-            <div className="flex items-center justify-between gap-1"><b className="truncate">{x.nom}</b>{x.type === 'equipement' ? <Chip>équipement</Chip> : x.full ? <Chip tone="info">plein</Chip> : null}</div>
+            <div className="flex items-center justify-between gap-1"><b className="truncate">{x.nom}</b>{x.type === 'equipement' ? <Chip>équipement</Chip> : x.type === 'local' ? <Chip>local</Chip> : x.full ? <Chip tone="info">plein</Chip> : null}</div>
             <div className="text-xs text-ink2">{x.last ? `${lbl(db, 'actionsHygiene', x.last.actionId)} · ${fmtDate(x.last.date)}` : 'Aucune entrée'}</div>
-            {x.last ? <div className="mt-1"><Chip tone={d > 180 ? 'warn' : ''}>il y a {d} j</Chip></div> : null}</button>); })}</div>
-        <p className="help mt-2">Cliquez sur une cuve ou un équipement pour ajouter une entrée. Les cuves actuellement pleines sont signalées.</p>
+            {x.last || tCible[x.key] ? <div className="mt-1 flex flex-wrap gap-1">{x.last ? <Chip tone={d > 180 ? 'warn' : ''}>il y a {d} j</Chip> : null}{tCible[x.key] ? <span data-carte-tache={tCible[x.key].etat}><Chip tone={(ETAT_TACHE[tCible[x.key].etat] || [])[0]} title={tCible[x.key].msg}>{(ETAT_TACHE[tCible[x.key].etat] || [])[1]} : {actionNom(db, tCible[x.key].actionId)}</Chip></span> : null}</div> : null}</button>); })}</div>
+        <p className="help mt-2">Cliquez sur une cuve, un équipement ou un local pour ajouter une entrée. Les cuves actuellement pleines sont signalées, ainsi que les tâches du plan de nettoyage.</p>
       </Sec>
       <Sec title={`Journal d’hygiène (${rows.length})`} right={<><SI value={scope} onChange={setScope} style={{ width: 'auto' }} options={[{ value: 'camp', label: `Campagne ${camp.nom}` }, { value: 'all', label: 'Toutes les campagnes' }]} aria-label="Période" />
         <SI value={cibleF} onChange={setCibleF} placeholder="Toutes les cibles" style={{ width: 'auto' }} options={tgtOptions} aria-label="Cible" /><SI value={actF} onChange={setActF} placeholder="Toutes les actions" style={{ width: 'auto' }} options={opts(db, 'actionsHygiene')} aria-label="Action" />
         {prodOptions.length ? <SI value={prodF} onChange={setProdF} placeholder="Tous les produits" style={{ width: 'auto' }} options={prodOptions} aria-label="Produit d’hygiène" /> : null}</>}>
         <Tbl rows={rows} empty="Aucune entrée d’hygiène pour ces critères." cols={[
-          { h: 'Date', r: (h) => <span className="num">{fmtDate(h.date)}</span> }, { h: 'Cible', r: (h) => <span><b>{targetName(h)}</b> <span className="text-xs text-ink2">{h.cibleType === 'equipement' ? 'équipement' : 'contenant'}</span></span> },
-          { h: 'Action', r: (h) => <Chip tone="info">{lbl(db, 'actionsHygiene', h.actionId)}</Chip> }, { h: 'Produits / méthode', r: (h) => <HygProduitsCell h={h} onVoir={setVoir} /> }, { h: 'Opérateur(s)', r: (h) => (Array.isArray(h.operateurs) && h.operateurs.length ? <OperateursChips ids={h.operateurs} /> : h.operateur || '—') }, { h: 'Notes', r: (h) => <span className="text-xs">{h.notes}</span> },
+          { h: 'Date', r: (h) => <span className="num">{fmtDate(h.date)}</span> }, { h: 'Cible', r: (h) => <span><b>{targetName(h)}</b> <span className="text-xs text-ink2">{h.cibleType === 'equipement' ? 'équipement' : h.cibleType === 'local' ? 'local' : 'contenant'}</span></span> },
+          { h: 'Action', r: (h) => <span className="flex flex-wrap items-center gap-1"><Chip tone="info">{lbl(db, 'actionsHygiene', h.actionId)}</Chip>{h.controle && h.controle.type ? <Chip tone={h.controle.resultat === 'non_conforme' ? 'bad' : 'ok'} title="Contrôle après rinçage">{hygLib(HYG_CONTROLES, h.controle.type)}{h.controle.valeur ? ` ${h.controle.valeur}` : ''} {h.controle.resultat === 'non_conforme' ? '✕' : '✓'}</Chip> : null}{h.changementRevendication ? <Chip title="Changement de revendication">{[h.changementRevendication.de, h.changementRevendication.vers].filter(Boolean).map((q) => qDef(q).court || qLabel(q)).join(' → ')}</Chip> : null}</span> }, { h: 'Produits / méthode', r: (h) => <HygProduitsCell h={h} onVoir={setVoir} /> }, { h: 'Opérateur(s)', r: (h) => (Array.isArray(h.operateurs) && h.operateurs.length ? <OperateursChips ids={h.operateurs} /> : h.operateur || '—') }, { h: 'Notes', r: (h) => <span className="text-xs">{h.notes}</span> },
           { h: '', r: (h) => (isLocked(db, h.date) ? <Chip>🔒 figée</Chip> : <div className="flex gap-1"><Btn size="sm" onClick={() => setForm({ id: h.id })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => del(h)}>Supprimer</Btn></div>) }]} />
       </Sec>
       {form ? <HygieneForm id={form.id} preset={form.preset} onClose={() => setForm(null)} /> : null}
@@ -102,9 +126,10 @@ function HygJournal() {
 }
 
 function TabHygiene() {
-  const { db } = useApp(); const nMq = hygListe(db).filter((p) => !p.archive && hygFdsEtat(db, p).k === 'manquante').length;
-  const items = [{ id: 'journal', label: 'Journal d’hygiène' }, { id: 'produits', label: 'Produits d’hygiène', badge: nMq || null }];
+  const { db } = useApp(); const nMq = hygListe(db).filter((p) => !p.archive && hygFdsEtat(db, p).k === 'manquante').length; const T = usePlanTaches();
+  const items = [{ id: 'journal', label: 'Journal d’hygiène' }, { id: 'afaire', label: 'À faire', badge: T.length || null }, { id: 'plan', label: 'Plan de nettoyage' }, { id: 'maintenance', label: 'Maintenance' }, { id: 'produits', label: 'Produits d’hygiène', badge: nMq || null }];
   const [sub, setSub] = useSousOnglet(items, 'journal');
-  return (<div><SubNav value={sub} onChange={setSub} items={items} />{sub === 'produits' ? <HygProduitsView /> : <HygJournal />}</div>);
+  const V = { produits: HygProduitsView, afaire: HygAFaire, plan: PlanNettoyageView, maintenance: PlanMaintenanceView }[sub];
+  return (<div><SubNav value={sub} onChange={setSub} items={items} />{V ? <V /> : <HygJournal onAFaire={() => setSub('afaire')} />}</div>);
 }
 TABS_REG.hygiene = TabHygiene;

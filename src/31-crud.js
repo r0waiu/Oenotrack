@@ -281,6 +281,8 @@ function produitSave(db, s, id) {
   if (s.reference !== undefined) item.reference = String(s.reference || '').trim().slice(0, 60);
   if (s.lien !== undefined) { const l = String(s.lien || '').trim(); if (l && !lienNorm(l)) return fail('Lien du produit : adresse web invalide (ex. https://www.fournisseur.fr/produit).'); item.lien = lienNorm(l); }
   if (s.fdsNonRequise !== undefined) item.fdsNonRequise = !!s.fdsNonRequise;
+  // 0.26.0-alpha.1 : informations du produit (FT, FDS), reprises seulement si elles sont fournies
+  PRODUIT_INFOS.forEach(([k, , max]) => { if (s[k] !== undefined) item[k] = String(s[k] == null ? '' : s[k]).trim().slice(0, max); });
   if (id) { const p = db.produits.find((x) => x.id === id); if (!p) return fail('Produit introuvable.'); Object.assign(p, item); return okr({ id }); }
   const pid = nid(db, 'pr'); db.produits.push({ id: pid, ...item });
   QUALIFS.forEach((q) => db.regles.push({ produitId: pid, qualifId: q.id, autorise: q.id === 'conv', doseMax: null }));
@@ -541,7 +543,7 @@ function modeleDelete(db, id) { db.analysesModeles = db.analysesModeles.filter((
 /* ---------- hygiène ---------- */
 function hygieneSave(db, s, id) {
   if (!isoOK(s.date)) return fail('Date invalide.');
-  if (!s.cibleId) return fail('Choisissez un contenant ou un équipement.');
+  if (!s.cibleId) return fail('Choisissez un contenant, un équipement ou un local.');
   if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.');
   // opérateurs choisis dans la liste (ids) ; le nom en clair reste dans « operateur » (lu par les versions antérieures)
   const ids = Array.isArray(s.operateurs) ? operateursValides(db, s.operateurs) : null;
@@ -552,7 +554,11 @@ function hygieneSave(db, s, id) {
   const methode = v19 ? String(s.methode == null ? '' : s.methode).trim().slice(0, 500) : '';
   const texte = v19 ? hygResume(db, { produits: lignes, methode }, true) : (s.produit || '');
   const item = { date: s.date, cibleType: s.cibleType, cibleId: s.cibleId, actionId: s.actionId, produit: texte, operateur: ids && ids.length ? operateursNoms(db, ids) : (s.operateur || ''), notes: s.notes || '', ...(ids && ids.length ? { operateurs: ids } : {}), ...(v19 ? { produits: lignes, methode } : {}) };
-  if (id) { const h = db.hygiene.find((x) => x.id === id); if (isLocked(db, h.date)) return fail('Entrée verrouillée (campagne figée).'); Object.assign(h, item); if (ids && !ids.length) delete h.operateurs; } else db.hygiene.push({ id: nid(db, 'hy'), ...item });
+  // plan d'hygiène (0.26.0-alpha.1) : contrôle après rinçage (pH, peroxyde, visuel), changement de revendication, ligne du plan suivie
+  const ctl = s.controle && HYG_CONTROLES.some((c) => c[0] === s.controle.type) && s.controle.type !== 'aucun' ? { type: s.controle.type, ...(['conforme', 'non_conforme'].includes(s.controle.resultat) ? { resultat: s.controle.resultat } : {}), ...(String(s.controle.valeur || '').trim() ? { valeur: String(s.controle.valeur).trim().slice(0, 30) } : {}) } : null;
+  const chg = s.changementRevendication && (s.changementRevendication === true || s.changementRevendication.vers) ? { ...(s.changementRevendication.de ? { de: s.changementRevendication.de } : {}), ...(s.changementRevendication.vers ? { vers: s.changementRevendication.vers } : {}) } : null;
+  if (ctl && (ctl.resultat || ctl.valeur)) item.controle = ctl; if (chg) item.changementRevendication = chg; if (s.planId) item.planId = s.planId;
+  if (id) { const h = db.hygiene.find((x) => x.id === id); if (isLocked(db, h.date)) return fail('Entrée verrouillée (campagne figée).'); Object.assign(h, item); if (ids && !ids.length) delete h.operateurs; ['controle', 'changementRevendication', 'planId'].forEach((k) => { if (s[k] !== undefined && !item[k]) delete h[k]; }); } else db.hygiene.push({ id: nid(db, 'hy'), ...item });
   return okr();
 }
 function hygieneDelete(db, id) { const h = db.hygiene.find((x) => x.id === id); if (!h) return fail('Introuvable.'); if (isLocked(db, h.date)) return fail('Entrée verrouillée (campagne figée).'); db.hygiene = db.hygiene.filter((x) => x.id !== id); return okr(); }

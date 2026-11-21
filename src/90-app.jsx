@@ -188,11 +188,13 @@ function App() {
     }
   };
 
+  const hygTachesBadge = useMemo(() => { if (!moduleActif(db, 'hygiene')) return { n: 0, nc: 0 }; try { const T = planTaches(db, todayISO()); return { n: T.length, nc: T.filter((x) => x.etat === 'nonconforme').length }; } catch (e) { console.error(e); return { n: 0, nc: 0 }; } }, [db]);
   const pendingAlerts = db.alertes.filter((a) => a.statut === 'attente').length;
   const toCheck = Object.keys(R.warn).filter((id) => { const o = db.ops.find((x) => x.id === id); return o && !o.verifie && o.date >= camp.debut && o.date <= camp.fin; }).length;
   const dluoIssues = db.arrivages.filter((a) => { const rest = arrivalRest(R, a); const k = dluoState(a.dluo).k; return rest > 0.0001 && (k === 'expire' || k === 'bientot'); }).length;
   const prevLate = (db.previsions || []).filter((p) => p.statut === 'prevue' && p.date <= todayISO()).length;
-  const badge = { previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, declass: pendingAlerts ? { n: pendingAlerts, tone: 'bad' } : null, ops: toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null };
+  const hygT = hygTachesBadge; // plans de nettoyage et de maintenance (0.26.0-alpha.1)
+  const badge = { hygiene: hygT.n ? { n: hygT.n, tone: hygT.nc ? 'bad' : 'warn' } : null, previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, declass: pendingAlerts ? { n: pendingAlerts, tone: 'bad' } : null, ops: toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null };
   const Cmp = TABS_REG[nav.tab];
   const sheetLabel = (sh) => (sh.k === 'cont' ? contName(db, sh.id) : sh.k === 'lot' ? lotCode(db, R, sh.id) : sh.k === 'opr' ? operateurNom(db, sh.id) || 'opérateur' : ((db.lotsFinis || []).find((f) => f.id === sh.id) || {}).code || 'lot fini');
 
@@ -276,6 +278,7 @@ function App() {
       {docsDlg ? <DocsSheet key={docsDlg.k} cible={docsDlg.cible} kind={docsDlg.kind} title={docsDlg.title} onClose={() => setDocsDlg(null)} /> : null}
       {ficheDlg ? <FicheDialog key={ficheDlg.k} sources={ficheDlg.sources} onClose={() => setFicheDlg(null)} /> : null}
       <VeilleAuto />
+      {moduleActif(db, 'hygiene') && moduleAutorise(db, uid, 'hygiene') ? <SuiteHygiene /> : null}
       {menu ? <CtxMenu key={menu.k} m={menu} onClose={() => setMenu(null)} /> : null}
       <SyncSheet />
       <DossierChoix />

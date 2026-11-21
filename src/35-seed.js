@@ -233,6 +233,16 @@ function sampleDb0() {
   const hyP = (date, ct, actionId, produits, methode) => must(hygieneSave(db, { date, cibleType: 'contenant', cibleId: K.ct[ct], actionId, produits, methode, operateurs: [OPR.tg] }));
   hyP('2026-11-16', 'bacd1', 'nettoyage', [{ produitId: phS, conc: 2, quantite: 4 }], 'eau chaude 50 °C, puis rinçage à l’eau claire');
   hyP('2026-11-16', 'bacd1', 'desinfection', [{ produitId: phP, conc: 0.5, quantite: 1 }], 'rinçage à l’eau claire');
+  // plans d'hygiène (0.26.0-alpha.1) : plan de nettoyage et de maintenance mis en place le 1er novembre (modèles d'origine) ;
+  // quelques entrées suivant le plan (avec leur contrôle), une révision, une pompe déjà entretenue l'an dernier et une panne signalée
+  db.settings.planHygieneDepuis = '2026-11-01';
+  const hyL = (date, cibleType, cibleId, actionId, produits, methode, controle) => must(hygieneSave(db, { date, cibleType, cibleId, actionId, produits, methode, operateurs: [OPR.tg], ...(controle ? { controle } : {}) }));
+  hyL('2026-11-08', 'contenant', K.ct.oeuf1, 'rincage', [], 'eau claire', { type: 'visuel', resultat: 'conforme' });
+  hyL('2026-11-09', 'local', 'materiel_transfert', 'desinfection', [{ produitId: phP, conc: 0.5 }], 'boucle de circulation 15 min, balle de nettoyage', { type: 'peroxyde', resultat: 'conforme', valeur: '0' });
+  hyL('2026-11-16', 'local', 'sol_cuverie', 'nettoyage', [{ produitId: phS, conc: 2 }], 'balai-brosse, joints et caniveaux, rinçage', { type: 'ph', resultat: 'conforme', valeur: '7' });
+  must(maintInterventionSave(db, { date: '2026-08-20', entreeId: 'pm_pressoirs', equipementId: 'pressoir', type: 'preventive', interventions: 'Révision avant vendanges : membrane et joints contrôlés, programmes essayés.', intervenant: 'Constructeur', resultat: 'conforme', operateurs: [OPR.tg] }));
+  (db.planMaintenance.find((x) => x.id === 'pm_pompes') || {}).derniere = '2025-11-12';
+  must(maintInterventionSave(db, { date: '2026-11-18', entreeId: 'pm_pompes', equipementId: 'pompe', type: 'curative', statut: 'ouverte', probleme: 'Fuite au presse-étoupe de la pompe à pistons.', operateurs: [OPR.tg] }));
   must(operateurActif(db, OPR.mr, false)); // saisonnier 2025 : n'est plus proposé, son historique reste
   db.sites.forEach((st) => planAuto(db, st.id, false));
   return db;
