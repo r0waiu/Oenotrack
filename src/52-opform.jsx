@@ -65,7 +65,14 @@ function SourcesEditor({ db, Rd, sources, onChange, label = 'Portions sources' }
 
 /* Toute opération peut être soit validée (réalisée : stocks mis à jour), soit planifiée « à réaliser » (aucun effet sur les stocks),
    puis validée plus tard avec les valeurs réelles. prevId = opération à réaliser ouverte depuis la liste (fromPrev : ancien nom). */
-function OpForm({ type: t0, editId, preset, onClose, prevId: prevId0, fromPrev }) {
+// onglet Pressoir actif (0.25.0-alpha.2) : la pesée de vendange et le pressurage s'ouvrent dans ses formulaires (voir opViaPressoir)
+function OpForm(props) {
+  const { db } = useApp(); const via = opViaPressoir(db, props);
+  if (via === 'pesee') return <PeseeOpForm id={props.editId || null} onClose={props.onClose} />;
+  if (via === 'marc') return <MarcForm id={props.editId || null} preset={props.preset} onClose={props.onClose} />;
+  return <OpFormSaisie {...props} />;
+}
+function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, fromPrev }) {
   const { db, act, toast, defaultDate, openFiche, moi, uid, secu } = useApp();
   const prevId = prevId0 || fromPrev || null; const plan0 = prevId ? (db.previsions || []).find((p) => p.id === prevId) : null;
   const old = editId ? db.ops.find((o) => o.id === editId) : null;
@@ -224,14 +231,14 @@ function OpForm({ type: t0, editId, preset, onClose, prevId: prevId0, fromPrev }
       case 'pressurage': return (<>
         {old && old.marc && old.marc.num ? <Notice tone="info" title={`Carnet de pressoir : marc n° ${old.marc.num}${old.marc.valide ? ', validé' : old.marc.enCours ? ', en cours' : ''}`}>TAV en puissance, bourbes, contrôles et validation : onglet Pressoir › Carnet de pressoir.</Notice> : pressoirParams(db).registre ? <Notice tone="info">Ce pressurage entre au carnet de pressoir : complétez-le et validez-le dans l’onglet Pressoir (TAV en puissance, bourbes, contrôles).</Notice> : null}
         <G n={3}><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><Field label="Heure du début (carnet)"><input className="inp num" type="time" value={f.heureDebut || ''} onChange={(e) => upd({ heureDebut: e.target.value })} aria-label="Heure du début du pressurage" /></Field><CF k="equipementId" label="Pressoir"><SI value={f.equipementId} onChange={(v) => upd({ equipementId: v })} options={opts(db, 'equipements')} /></CF></G>
-        <CF k="charges" group label="Apports de vendange pressés">
+        <CF k="charges" group label="Pesées pressées">
           <div className="space-y-2">{f.charges.map((c, i) => (
             <div key={i} className="grid items-end gap-2" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr) auto' }}>
-              <SI value={c.apportId} onChange={(v) => { const r = Rd.raisins[v]; setCharges(f.charges.map((x, k) => (k === i ? { apportId: v, kg: r ? String(r2(r.kg - r.used)) : '' } : x))); }} placeholder="Choisir un apport…" options={apOpts(c.apportId)} />
+              <SI value={c.apportId} onChange={(v) => { const r = Rd.raisins[v]; setCharges(f.charges.map((x, k) => (k === i ? { apportId: v, kg: r ? String(r2(r.kg - r.used)) : '' } : x))); }} placeholder="Choisir une pesée…" options={apOpts(c.apportId)} />
               <NI value={c.kg} onChange={(v) => setCharges(f.charges.map((x, k) => (k === i ? { ...x, kg: v } : x)))} placeholder="kg pressés" />
               <Btn kind="danger" size="sm" aria-label="Retirer" onClick={() => setCharges(f.charges.filter((_, k) => k !== i))}>✕</Btn>
             </div>))}
-            <Btn size="sm" onClick={() => setCharges([...f.charges, { apportId: '', kg: '' }])}>+ Ajouter un apport</Btn>{!Object.keys(Rd.raisins).length ? <div className="help">Aucun apport à cette date : enregistrez d’abord un « Apport vendange ».</div> : null}
+            <Btn size="sm" onClick={() => setCharges([...f.charges, { apportId: '', kg: '' }])}>+ Ajouter une pesée</Btn>{!Object.keys(Rd.raisins).length ? <div className="help">Aucune pesée à cette date : enregistrez d’abord une « Pesée de vendange ».</div> : null}
           </div>
         </CF>
         <G n={3}><CF k="code" label="Code du lot parent"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation" className="sm:col-span-1"><TI value={f.designation} onChange={(v) => upd({ designation: v })} /></CF><CF k="millesime" label="Millésime"><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder={String(yearOf(f.date))} /></CF></G>

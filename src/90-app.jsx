@@ -238,7 +238,7 @@ function App() {
             <CloudChip />
             <DriveChip />
             {secu && !peut(db, uid, 'sauvegarde') ? null : (() => { const der = derniereSauvegarde(db); const late = joursDepuis(der) > (num(db.settings.rappelSauvegardeJours) || 7); return <button type="button" className={cx('chip', late ? 'chip-warn' : 'chip-ok')} style={{ cursor: 'pointer' }} onClick={() => setTab('params', 'sauvegarde')} title="Sauvegarde complète, Drive, sauvegarde en ligne">💾 {der ? `Sauvegardé ${ilYa(der)}` : 'Aucune sauvegarde'}{late ? ' · à faire' : ''}</button>; })()}
-            {storeOK ? <Chip tone="ok" title="Chaque modification est enregistrée automatiquement dans le localStorage de ce navigateur.">✓ Enregistrement auto · 100 % local</Chip> : <Chip tone="bad" title="Le navigateur refuse le stockage local.">⚠ Stockage local indisponible</Chip>}
+            {storeOK ? <StockageLocalChip /> : <Chip tone="bad" title="Le navigateur refuse le stockage local.">⚠ Stockage local indisponible</Chip>}
             <button type="button" className="btn btn-sm" onClick={() => setApparence(true)} title="Choisir la charte graphique et le mode clair / sombre">🎨 Thème : {charte.nom} · {theme === 'auto' ? 'auto' : theme === 'light' ? 'clair' : 'sombre'}</button>
           </span>
         </div>

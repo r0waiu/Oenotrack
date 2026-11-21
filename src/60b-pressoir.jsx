@@ -42,12 +42,15 @@ function PeseeForm({ id, onClose, onTicket }) {
   const [tout, setTout] = useState(false); const [cfgEd, setCfgEd] = useState(false);
   const [f, set, setF] = useDraft(() => {
     if (o) return { date: o.date, heure: p0.heure || '', apporteurId: o.apporteurId || '', cruId: o.cruId || '', parcelleId: o.parcelleId || '', cepageId: o.cepageId, qualifId: o.qualifId || 'conv', mention: p0.mention || '', brutKg: hasNum(p0.brutKg) ? String(p0.brutKg) : '', tareKg: hasNum(p0.tareKg) ? String(p0.tareKg) : '', kg: String(o.kg), caisses: p0.caisses ? String(p0.caisses) : '', etat: p0.etat || '', pourritureAcide: nSaisie(p0.pourritureAcide), tap: nSaisie(p0.tap), heureCueillette: p0.heureCueillette || '', balanceId: p0.balanceId || '', ref: o.ref || '', notes: o.notes || '', operateurs: o.operateurs || [], champs: champsEtat(o), valider: true, motif: '' };
-    const s0 = { date: defaultDate, heure: heureNow(), apporteurId: '', cruId: '', parcelleId: '', cepageId: (db.lists.cepages[0] || {}).id || '', qualifId: 'conv', mention: '', brutKg: '', tareKg: '', kg: '', caisses: '', etat: 'sain', pourritureAcide: '', tap: '', heureCueillette: '', balanceId: (bal[0] || {}).id || '', ref: '', notes: '', operateurs: moi ? [moi] : [], champs: {}, valider: true, motif: '' };
+    const s0 = { date: defaultDate, heure: heureNow(), apporteurId: '', cruId: '', parcelleId: '', cepageId: (db.lists.cepages[0] || {}).id || '', qualifId: 'conv', mention: '', brutKg: '', tareKg: '', kg: '', caisses: '', etat: champEffectif(fcfg, 'pesee', 'etat').vis === 'masque' ? '' : 'sain', pourritureAcide: '', tap: '', heureCueillette: '', balanceId: (bal[0] || {}).id || '', ref: '', notes: '', operateurs: moi ? [moi] : [], champs: {}, valider: true, motif: '' };
     return formulaireDefauts(db, 'pesee', 'pesee', s0, {}); // valeurs proposées par le formulaire personnalisé
   });
   const upd = (patch) => setF((x) => ({ ...x, ...patch }));
   const cfgv = { cfg: fcfg, type: 'pesee', tout }; const E = (k) => champEffectif(fcfg, 'pesee', k);
   const fac = (k, l) => (E(k).obligatoire ? l : `${l} (facultatif)`);
+  // état « Sain » : les relevés de pourriture (condition « si altéré ») disparaissent ; leurs valeurs reviennent si l'on change d'état
+  const sain = etatSain(f); const vuPerso = (d) => !(sain && persoSiAltere(d)); const paVu = !(sain && E('pourritureAcide').siAltere);
+  const condPourriture = E('pourritureAcide').siAltere || fcfg.perso.some(persoSiAltere);
   const nMasques = champsStd('pesee').filter((c) => E(c.k).vis === 'masque').length;
   // poids brut et tare : affichés s'ils ont une valeur, même masqués (le poids net en dépend)
   const btValeur = hasNum(f.brutKg) || hasNum(f.tareKg); const bt = btValeur || cfVisible(cfgv, 'brutTare'); const btReplie = !btValeur && !tout && E('brutTare').vis === 'replie';
@@ -70,7 +73,7 @@ function PeseeForm({ id, onClose, onTicket }) {
         {nMasques ? <button type="button" className="linkish" onClick={() => setTout(!tout)} aria-pressed={tout}>{tout ? 'Cacher les champs masqués' : `Afficher tous les champs (${nMasques} masqué${nMasques > 1 ? 's' : ''})`}</button> : null}
         {!lecture && droits.params ? <button type="button" className="linkish" onClick={() => setCfgEd(true)} data-personnaliser-pesee="" title="Choisir les champs affichés, obligatoires, leurs valeurs par défaut, et ajouter vos propres relevés (les mentions obligatoires du ticket restent affichées)">⚙ Personnaliser ce formulaire</button> : null}
       </div> : null}
-      <ChampsPerso defs={persoD} tous={fcfg.perso} f={f} upd={upd} type="pesee" />
+      <ChampsPerso defs={persoD.filter(vuPerso)} tous={fcfg.perso} f={f} upd={upd} type="pesee" />
       <G n={3}><CF k="date" label="Date"><DI value={f.date} onChange={(v) => set('date', v)} /></CF><CF k="heure" label="Heure de la pesée"><input className="inp num" type="time" value={f.heure} onChange={(e) => set('heure', e.target.value)} aria-label="Heure de la pesée" data-heure="" /></CF>
         <CF k="balanceId" label="Balance / bascule">{bal.length ? <SI value={f.balanceId} onChange={(v) => set('balanceId', v)} placeholder="Choisir…" options={bal.map((b) => ({ value: b.id, label: `${b.nom}${b.valideJusquau ? ` (vignette au ${fmtDate(b.valideJusquau)})` : ''}` }))} /> : <div className="help pt-2">Ajoutez la bascule dans Pressoir › Réglages.</div>}</CF></G>
       <G><CF k="apporteurId" label="Apporteur" help="Vide : raisins de l’exploitation. Pressurage à façon : le nom de l’apporteur est obligatoire au registre."><ApporteurSelect value={f.apporteurId} role="apporteur" onChange={(v) => setF((x) => ({ ...x, apporteurId: v, ...(v && !x.cruId && apporteurCruAuto(db, v) ? { cruId: apporteurCruAuto(db, v) } : {}) }))} /></CF>
@@ -87,21 +90,31 @@ function PeseeForm({ id, onClose, onTicket }) {
           <CF k="caisses" label="Caisses (nombre)"><NI value={f.caisses} onChange={(v) => set('caisses', v)} aria-label="Nombre de caisses" /></CF>
         </div>
       </Group>
-      <G n={3}><CF k="etat" label="État sanitaire"><SI value={f.etat} onChange={(v) => set('etat', v)} placeholder="—" options={ETATS_SANITAIRES.map((e) => ({ value: e.id, label: e.label }))} /></CF>
-        <CF k="pourritureAcide" label="Pourriture acide (%)" help="Part estimée des raisins atteints (baies vinaigrées, moucherons)."><NI value={f.pourritureAcide} onChange={(v) => set('pourritureAcide', v)} placeholder="ex. 2" aria-label="Pourriture acide" data-pourriture="" /></CF>
+      <G n={3}><CF k="etat" label="État sanitaire" help={sain && condPourriture ? 'Les relevés de pourriture apparaissent si l’état n’est pas « Sain ».' : undefined}><SI value={f.etat} onChange={(v) => set('etat', v)} placeholder="—" options={ETATS_SANITAIRES.map((e) => ({ value: e.id, label: e.label }))} aria-label="État sanitaire" data-etat="" /></CF>
+        {paVu ? <CF k="pourritureAcide" label="Pourriture acide (%)" help="Part estimée des raisins atteints (baies vinaigrées, moucherons)."><NI value={f.pourritureAcide} onChange={(v) => set('pourritureAcide', v)} placeholder="ex. 2" aria-label="Pourriture acide" data-pourriture="" /></CF> : null}
         <CF k="tap" label="TAP (% vol.)" help="Titre alcoométrique probable des raisins (réfractomètre ou densimètre sur un échantillon de jus)."><NI value={f.tap} onChange={(v) => set('tap', v)} placeholder="ex. 10,2" aria-label="TAP" data-tap="" /></CF></G>
       {alertesTap.map((m) => <Notice key={m} tone="warn">{m}</Notice>)}
       <G><CF k="heureCueillette" label={fac('heureCueillette', 'Heure de cueillette')}><input className="inp num" type="time" value={f.heureCueillette} onChange={(e) => set('heureCueillette', e.target.value)} aria-label="Heure de cueillette" /></CF>
         <CF k="ref" label={fac('ref', 'N° de bon / ticket')}><TI value={f.ref} onChange={(v) => set('ref', v)} /></CF></G>
-      <ChampsPerso defs={persoF} tous={fcfg.perso} f={f} upd={upd} type="pesee" />
+      <ChampsPerso defs={persoF.filter(vuPerso)} tous={fcfg.perso} f={f} upd={upd} type="pesee" />
       <CF k="operateurs" label="Pesée faite par" bare><OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label={<>{E('operateurs').libelle || 'Pesée faite par'}{E('operateurs').obligatoire ? <CfReq /> : null}</>} help={E('operateurs').aide || ((db.settings.operateurObligatoire || E('operateurs').obligatoire) && !o ? 'Obligatoire (réglage de la société).' : '')} /></CF>
       <CF k="notes" label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></CF>
       </FormCfgCtx.Provider>
+      {o ? <DocsPanel cible={{ type: 'op', id: o.id }} kind="op" locked={isLocked(db, o.date)} /> : null}
       {!valide && !lecture ? <Check checked={f.valider} onChange={(v) => set('valider', v)} label="Valider la pesée (inscrite au registre ; ensuite, toute correction demande un motif)" /> : null}
       {valide && !lecture ? <Field label="Motif de la correction (obligatoire si vous changez la pesée)"><TI value={f.motif} onChange={(v) => set('motif', v)} placeholder="ex. erreur de lecture de la bascule" data-motif-correction="" /></Field> : null}
       {cfgEd ? <FormulaireEditor catId="pesee" onClose={() => setCfgEd(false)} /> : null}
     </FormSheet>
   );
+}
+
+// pesée ouverte depuis Opérations (« Pesée de vendange ») : même formulaire, puis le ticket comme dans l'onglet Pressoir
+function PeseeOpForm({ id, onClose }) {
+  const [e, setE] = useState({ ferme: false, ticket: null });
+  useEffect(() => { if (e.ferme && !e.ticket) onClose(); }, [e]);
+  if (e.ticket) return <TicketPesee id={e.ticket} onClose={onClose} />;
+  if (e.ferme) return null;
+  return <PeseeForm id={id} onClose={() => setE((x) => ({ ...x, ferme: true }))} onTicket={(t) => setE({ ferme: true, ticket: t })} />;
 }
 
 /* ---------- ticket de pesée (remis à l'apporteur) ---------- */
@@ -116,7 +129,7 @@ function TicketPesee({ id, onClose }) {
   const site = (db.sites || [])[0] || {}; const lignes = [['Centre de pressurage', [e.nom || db.settings.domaine || site.nom, e.adresse || site.adresse].filter(Boolean).join(' — ') || '—'], ['Apporteur', ap ? [ap.nom, ap.commune].filter(Boolean).join(', ') : 'Raisins de l’exploitation'], ['Date et heure de la pesée', `${fmtDate(o.date)} · ${p.heure || '—'}`],
     ['Cépage', lbl(db, 'cepages', o.cepageId)], vu('cruId', o.cruId) && [L('cruId', 'Cru (village)'), o.cruId ? cruName(db, o.cruId) : '—'], vu('parcelleId', o.parcelleId) && [L('parcelleId', 'Parcelle'), o.parcelleId ? parcelleName(db, o.parcelleId) : '—'], (E('qualifId').vis !== 'masque' || (o.qualifId && o.qualifId !== 'conv')) && [L('qualifId', 'Revendication'), qLabel(o.qualifId)], ['Revendication particulière (mention, lieu-dit)', p.mention || '—'],
     vu('brutTare', p.brutKg) && ['Poids brut', hasNum(p.brutKg) ? kgTxt(p.brutKg) : '—'], vu('brutTare', p.tareKg) && ['Tare', hasNum(p.tareKg) ? kgTxt(p.tareKg) : '—'], ['Poids net', kgTxt(o.kg)], vu('caisses', p.caisses) && [L('caisses', 'Caisses'), p.caisses || '—'], vu('etat', p.etat) && [L('etat', 'État sanitaire'), etatLabel(p.etat) || '—'],
-    vu('pourritureAcide', p.pourritureAcide) && [L('pourritureAcide', 'Pourriture acide'), hasNum(p.pourritureAcide) ? `${fmt(p.pourritureAcide, 1)} %` : '—'], vu('tap', p.tap) && [L('tap', 'TAP (titre alcoométrique probable)'), hasNum(p.tap) ? `${fmt(p.tap, 1)} % vol.` : '—'], vu('heureCueillette', p.heureCueillette) && [L('heureCueillette', 'Heure de cueillette'), p.heureCueillette || '—'],
+    (hasNum(p.pourritureAcide) || (vu('pourritureAcide') && !(etatSain(p) && E('pourritureAcide').siAltere))) && [L('pourritureAcide', 'Pourriture acide'), hasNum(p.pourritureAcide) ? `${fmt(p.pourritureAcide, 1)} %` : '—'], vu('tap', p.tap) && [L('tap', 'TAP (titre alcoométrique probable)'), hasNum(p.tap) ? `${fmt(p.tap, 1)} % vol.` : '—'], vu('heureCueillette', p.heureCueillette) && [L('heureCueillette', 'Heure de cueillette'), p.heureCueillette || '—'],
     vu('balanceId', p.balanceId) && [L('balanceId', 'Balance'), b ? `${b.nom}${b.valideJusquau ? ` — vérification valable jusqu’au ${fmtDate(b.valideJusquau)}` : ''}` : '—'], vu('ref', o.ref) && [L('ref', 'N° de bon'), o.ref || '—'], vu('operateurs', (o.operateurs || []).length ? 1 : '') && [L('operateurs', 'Pesée faite par'), operateursNoms(db, o.operateurs) || '—'],
     ...perso.map((c) => [c.label, champValeurTexte(c)])].filter(Boolean);
   return (
@@ -180,14 +193,17 @@ function PeseesView({ annee }) {
 }
 
 /* ---------- marc : chargement, volumes, validation ---------- */
-function MarcForm({ id, onClose }) {
+function MarcForm({ id, onClose, preset }) {
   const { db, act, defaultDate, moi, uid, toast } = useApp(); const o = id ? db.ops.find((x) => x.id === id) : null; const m0 = (o && o.marc) || {};
   const droits = usePressoirDroits(); const P = pressoirParams(db); const PR = pressoirsDe(db);
   const valide = !!m0.valide; const lecture = !droits.ecrit || (valide && !droits.corriger) || (o && isLocked(db, o.date));
   const fracs = fracPress(db, ((o && o.fractions) || []).map((x) => x.fractionId));
   const frac0 = {}; fracs.forEach((fr) => { const x = ((o && o.fractions) || []).find((y) => y.fractionId === fr.id); frac0[fr.id] = { volL: x ? String(x.volL) : '', contenantId: x ? x.contenantId : '', code: x ? x.code : '' }; });
-  const [f, set, setF] = useDraft(o ? { date: o.date, heureDebut: m0.heureDebut || '', heureFin: m0.heureFin || '', equipementId: o.equipementId || '', charges: (o.charges || []).map((c) => ({ apportId: c.apportId, kg: String(c.kg) })), code: (o.parentSpec || {}).code || '', designation: (o.parentSpec || {}).designation || '', millesime: (o.parentSpec || {}).millesime || '', qualifId: (o.parentSpec || {}).qualifId || '', frac: frac0, tavp: hasNum(m0.tavp) ? String(m0.tavp) : '', bourbesL: hasNum(m0.bourbesL) ? String(m0.bourbesL) : '', sousCharge: m0.sousCharge || '', notes: o.notes || '', operateurs: o.operateurs || [], motif: '', valider: false }
-    : { date: defaultDate, heureDebut: heureNow(), heureFin: '', equipementId: (PR[0] || {}).id || '', charges: [], code: codeMarcSuivant(db, defaultDate), designation: '', millesime: '', qualifId: '', frac: frac0, tavp: '', bourbesL: '', sousCharge: '', notes: '', operateurs: moi ? [moi] : [], motif: '', valider: false });
+  const persoM = formulaireDe(db, 'pressurage').perso; // champs personnalisés du formulaire « Pressurage » (Paramètres › Opérations)
+  const [f, set, setF] = useDraft(o ? { date: o.date, heureDebut: m0.heureDebut || '', heureFin: m0.heureFin || '', equipementId: o.equipementId || '', charges: (o.charges || []).map((c) => ({ apportId: c.apportId, kg: String(c.kg) })), code: (o.parentSpec || {}).code || '', designation: (o.parentSpec || {}).designation || '', millesime: (o.parentSpec || {}).millesime || '', qualifId: (o.parentSpec || {}).qualifId || '', frac: frac0, tavp: hasNum(m0.tavp) ? String(m0.tavp) : '', bourbesL: hasNum(m0.bourbesL) ? String(m0.bourbesL) : '', sousCharge: m0.sousCharge || '', notes: o.notes || '', operateurs: o.operateurs || [], couleur: o.couleur || '', champs: champsEtat(o), motif: '', valider: false }
+    : (() => { const P0 = preset || {}; const d0 = isoOK(P0.date) ? P0.date : defaultDate; const fr0 = { ...frac0 }; Object.keys(P0.frac || {}).forEach((k) => { if (fr0[k] && P0.frac[k] && P0.frac[k].contenantId) fr0[k] = { ...fr0[k], contenantId: P0.frac[k].contenantId }; });
+      const s0 = { date: d0, heureDebut: heureNow(), heureFin: '', equipementId: (PR.find((x) => x.id === P0.equipementId) || PR[0] || {}).id || '', charges: [], code: codeMarcSuivant(db, d0), designation: '', millesime: '', qualifId: '', frac: fr0, tavp: '', bourbesL: '', sousCharge: '', notes: '', operateurs: moi ? [moi] : [], couleur: couleurDefaut(db), champs: {}, motif: '', valider: false };
+      persoM.forEach((d) => { if (d.defaut != null && d.defaut !== '' && d.type !== 'calcul') s0.champs[d.id] = d.defaut; }); return s0; })());
   const pr = PR.find((x) => x.id === f.equipementId);
   const dispo = db.ops.filter((x) => x.type === 'apport' && x.date <= f.date && yearOf(x.date) === yearOf(f.date) && (peseeReste(db, x.id, id) > 0.5 || f.charges.some((c) => c.apportId === x.id))).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : num((b.pesee || {}).num) - num((a.pesee || {}).num)));
   const setCh = (charges) => setF((x) => { const first = db.ops.find((y) => y.id === (charges[0] || {}).apportId); return { ...x, charges, designation: x.designation || (first ? `${lbl(db, 'cepages', first.cepageId)} ${yearOf(x.date)} – marc` : '') }; });
@@ -243,8 +259,11 @@ function MarcForm({ id, onClose }) {
       <G n={3}><Field label="TAV en puissance (% vol.)" help={[P.registre ? 'Obligatoire au carnet.' : '', tapCharges ? `TAP moyen des pesées chargées : ${fmt(tapCharges.tap, 1)} % vol.` : ''].filter(Boolean).join(' ')}><NI value={f.tavp} onChange={(v) => set('tavp', v)} placeholder="ex. 10,2" aria-label="TAV en puissance" data-tavp="" /></Field>
         <Field label="Bourbes (hL, en fin de débourbage)" help={P.bourbesMax ? `Attendu : ${fmt(P.bourbesMin)} à ${fmt(P.bourbesMax)} % des moûts.` : ''}><VI value={f.bourbesL} onChange={(v) => set('bourbesL', v)} placeholder="hL" aria-label="Bourbes" /></Field>
         <Field label="Désignation"><TI value={f.designation} onChange={(v) => set('designation', v)} /></Field></G>
+      <G><Field label="Couleur des moûts" help="Blanc, y compris pour les raisins noirs pressés directement (blanc de noirs) ; rosé pour une saignée ou une macération."><SI plain value={f.couleur || couleurDefaut(db)} onChange={(v) => set('couleur', v)} options={couleurOptions(db, f.couleur)} aria-label="Couleur des moûts" data-couleur-marc="" /></Field><div /></G>
+      <ChampsPerso defs={persoM} tous={persoM} f={f} upd={(patch) => setF((x) => ({ ...x, ...patch }))} type="pressurage" />
       <OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label="Pressurage fait par" />
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></Field>
+      {o ? <DocsPanel cible={{ type: 'op', id: o.id }} kind="op" locked={isLocked(db, o.date)} /> : null}
       {apercu.err && f.charges.length ? <Notice tone="warn">{apercu.err}</Notice> : null}
       {bloquants.map((c, i) => <Notice key={`b${i}`} tone="bad">{c.msg}</Notice>)}
       {alertes.map((c, i) => <Notice key={`a${i}`} tone="warn">{c.msg}</Notice>)}

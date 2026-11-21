@@ -34,10 +34,11 @@ ok('pesée enregistrée : opération « apport » avec n°, heure, brut, tare, v
 // 3. la pesée est proposée dans le pressurage de l'onglet Opérations (n° de pesée, reste à presser)
 await page.click('#tab-ops'); await page.waitForTimeout(300);
 await page.locator('main button', { hasText: 'Pressurage' }).first().click(); await page.waitForTimeout(400);
-const optsP = await ov().locator('select, [role=combobox], input').first().evaluate(() => 1).catch(() => 0);
+const optsP = (await ov().innerText()).replace(/\s+/g, ' ');
+await ov().locator('button', { hasText: '+ Ajouter une pesée' }).click(); await page.waitForTimeout(200);
 const labels = await page.evaluate(() => { const s = [...document.querySelectorAll('.overlay select')].find((x) => [...x.options].some((o) => /reste/.test(o.text))); return s ? [...s.options].map((o) => o.text) : []; });
-const lbl5 = labels.find((x) => /Pesée n° 5/.test(x));
-ok('Opérations › Pressurage : la pesée du Pressoir est proposée avec son n° et son poids restant', optsP !== undefined && !!lbl5 && /reste 4\s000\skg/.test(lbl5), labels.slice(0, 4));
+const lbl5 = labels.find((x) => /n° 5/.test(x));
+ok('Opérations › Pressurage : carnet de pressoir ouvert, la pesée du Pressoir proposée avec son n° et son poids restant', /Charger un marc/.test(optsP) && (await ov().locator('[data-remplir]').count()) === 1 && !!lbl5 && /reste 4\s000\skg/.test(lbl5), [optsP.slice(0, 80), ...labels.slice(0, 4)]);
 await page.keyboard.press('Escape'); await page.waitForTimeout(250);
 // 4. marc : chargement (en cours), puis volumes, contrôles, validation
 await page.click('#tab-pressoir'); await page.waitForTimeout(300); await sub('Carnet de pressoir');

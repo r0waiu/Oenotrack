@@ -25,7 +25,7 @@ const CHAMPS_STD = {
     ['e.numLot', 'N° de lot (par compartiment)', { ligne: true }], ['e.compartiment', 'Compartiment', { ligne: true }], ['e.creux', 'Creux mesuré (barème de la citerne)', { ligne: true, noObl: true }], ['e.cepageId', 'Cépage', { ligne: true, ess: true, def: 'cepage' }], ['e.fractionId', 'Fraction', { ligne: true, ess: true, def: 'fraction' }],
     ['e.qualifId', 'Revendication', { ligne: true, def: 'qualif' }], ['e.millesime', 'Millésime du moût', { ligne: true }], ['e.couleur', 'Couleur', { ligne: true, def: 'couleur' }], ['e.parcelleId', 'Parcelle', { ligne: true }],
     ['e.apporteurs', 'Partenaire(s) du compartiment', { ligne: true }], ['e.cruId', 'Cru (village)', { ligne: true }], ['e.analyses', 'Analyses du lot', { ligne: true }], ['code', 'Préfixe des codes de lots', { noObl: true }]],
-  pressurage: [CH_DATE, ['equipementId', 'Pressoir', { def: 'equip' }], ['charges', 'Apports de vendange pressés', { ess: true, bare: true }], ['code', 'Code du lot parent', { ess: true }], ['designation', 'Désignation', { def: 'texte' }], ['millesime', 'Millésime', { def: 'texte' }], ['qualifId', 'Revendication du lot', { def: 'qualif' }], ['frac', 'Fractions obtenues', { ess: true, bare: true }]],
+  pressurage: [CH_DATE, ['equipementId', 'Pressoir', { def: 'equip' }], ['charges', 'Pesées pressées', { ess: true, bare: true }], ['code', 'Code du lot parent', { ess: true }], ['designation', 'Désignation', { def: 'texte' }], ['millesime', 'Millésime', { def: 'texte' }], ['qualifId', 'Revendication du lot', { def: 'qualif' }], ['frac', 'Fractions obtenues', { ess: true, bare: true }]],
   transfert: [CH_DATE, ['portionId', 'Portion source', { ess: true }], ['volL', 'Volume repris (hL)', { ess: true }], ['destId', 'Contenant de destination', { ess: true }], CH_PERTES, CH_LIGNES, CH_EQUIPS],
   intrant: [CH_DATE, ['portionId', 'Portion concernée', { ess: true }], ['motif', 'Objet de l’ajout', { def: 'texte' }], ['lignes', 'Intrants', { bare: true }], ['prepUses', 'Préparations ajoutées (pied de cuve, levain…)', { bare: true }]],
   suivi: [CH_DATE, ['portionId', 'Portion (cuve)', { ess: true }], ['motif', 'Objet', { def: 'texte' }], ['densite', 'Densité', { def: 'nombre' }], ['tempC', 'Température (°C)', { def: 'nombre' }], CH_LIGNES],
@@ -48,7 +48,7 @@ CHAMPS_STD.pesee = [CH_DATE, ['heure', 'Heure de la pesée', { ess: true }], ['b
   ['apporteurId', 'Apporteur', { fixe: true }], ['cruId', 'Cru (village)'], ['parcelleId', 'Parcelle'], ['cepageId', 'Cépage', { ess: true, def: 'cepage' }],
   ['qualifId', 'Revendication', { def: 'qualif' }], ['mention', 'Revendication particulière : mention, lieu-dit…', { fixe: true }],
   ['brutTare', 'Poids brut et tare', { bare: true }], ['kg', 'Poids net (kg)', { ess: true }], ['caisses', 'Caisses (nombre)', { def: 'nombre' }],
-  ['etat', 'État sanitaire', { def: 'etat' }], ['pourritureAcide', 'Pourriture acide (%)'], ['tap', 'TAP (% vol.)'], ['heureCueillette', 'Heure de cueillette'],
+  ['etat', 'État sanitaire', { def: 'etat' }], ['pourritureAcide', 'Pourriture acide (%)', { siAltere: true }], ['tap', 'TAP (% vol.)'], ['heureCueillette', 'Heure de cueillette'],
   ['ref', 'N° de bon / ticket', { def: 'texte' }], ['operateurs', 'Pesée faite par', { bare: true }], ['notes', 'Notes', { def: 'texte' }]];
 // formulaires qui ne sont pas des opérations du catalogue
 const FORMULAIRES_HORS_CATALOGUE = { pesee: { id: 'pesee', base: 'pesee', label: 'Pesée (onglet Pressoir)' } };
@@ -71,13 +71,20 @@ function formulaireDe(db, catId) {
   return { id: catId, champs: x.champs && typeof x.champs === 'object' ? x.champs : {}, perso: Array.isArray(x.perso) ? x.perso.filter((p) => p && p.id) : [], perso_: !!formulaireBrut(db, catId) };
 }
 const champCfg = (cfg, k) => (cfg && cfg.champs && cfg.champs[k]) || {};
+// pesée (0.25.0-alpha.2) : relevés qui n'ont de sens que si l'état sanitaire n'est pas « Sain » (pourriture acide, pourriture grise…).
+// Champ standard marqué siAltere (condition active sauf si on la retire) ; champ personnalisé : sa case, sinon d'après son nom.
+const SI_ALTERE_RE = /pourri|botryt|o[iï]dium|mildiou|alt[eé]r[eé]/i;
+const etatSain = (f) => !!f && f.etat === 'sain';
+const champSiAltere = (cfg, k) => { const s = champStd('pesee', k); if (!s || !s.siAltere) return false; const c = champCfg(cfg, k); return c.siAltere === undefined ? true : !!c.siAltere; };
+const persoSiAltere = (d) => !!d && (typeof d.siAltere === 'boolean' ? d.siAltere : SI_ALTERE_RE.test(String(d.label || '')));
 // réglage effectif d'un champ standard (un champ indispensable reste toujours visible et n'est jamais « obligatoire » en plus ; un champ fixe
 // reste toujours visible et peut être rendu obligatoire)
 function champEffectif(cfg, type, k) {
   const s = champStd(type, k) || {}; const c = champCfg(cfg, k);
-  return { ...s, vis: s.ess || s.fixe ? 'visible' : (['visible', 'replie', 'masque'].includes(c.vis) ? c.vis : 'visible'), obligatoire: !s.ess && !s.noObl && !!c.obligatoire && (!!s.fixe || c.vis !== 'masque'), libelle: String(c.libelle || '').trim(), aide: String(c.aide || '').trim(), defaut: c.defaut };
+  return { ...s, vis: s.ess || s.fixe ? 'visible' : (['visible', 'replie', 'masque'].includes(c.vis) ? c.vis : 'visible'), obligatoire: !s.ess && !s.noObl && !!c.obligatoire && (!!s.fixe || c.vis !== 'masque'), libelle: String(c.libelle || '').trim(), aide: String(c.aide || '').trim(), defaut: c.defaut,
+    siAltere: !!s.siAltere && (c.siAltere === undefined ? true : !!c.siAltere) };
 }
-const formulairePerso = (db, catId) => !!formulaireBrut(db, catId) && (() => { const f = formulaireDe(db, catId); return f.perso.length > 0 || Object.keys(f.champs).some((k) => { const c = f.champs[k] || {}; return (c.vis && c.vis !== 'visible') || c.obligatoire || c.libelle || c.aide || (c.defaut != null && c.defaut !== ''); }); })();
+const formulairePerso = (db, catId) => !!formulaireBrut(db, catId) && (() => { const f = formulaireDe(db, catId); return f.perso.length > 0 || Object.keys(f.champs).some((k) => { const c = f.champs[k] || {}; return (c.vis && c.vis !== 'visible') || c.obligatoire || c.libelle || c.aide || (c.defaut != null && c.defaut !== '') || c.siAltere === false; }); })();
 const codeDe = (label) => norm(label).replace(/[^a-z0-9]+/g, '').replace(/^[0-9]+/, '').slice(0, 20) || 'champ';
 const nouvelIdChamp = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.replace(/[^a-z0-9]/g, '');
 // variables des formules : champs numériques personnalisés (par leur code) + quelques valeurs de l'opération
@@ -172,14 +179,20 @@ function champStdVide(db, type, k, f) {
 // opts.nouveau === false (correction d'une opération déjà enregistrée) : les champs devenus obligatoires depuis ne bloquent pas la correction
 function champsErreurs(db, catId, type, f, opts) {
   const cfg = formulaireDe(db, catId); const nom = (c) => c.libelle || c.label; const oblig = !(opts && opts.nouveau === false);
+  const sain = type === 'pesee' && etatSain(f); // pesée « Sain » : les relevés de pourriture sont sans objet (ni exigés ni contrôlés)
   for (const s of oblig ? champsStd(type) : []) {
-    if (['docs', 'vin'].includes(s.k)) continue; const c = champEffectif(cfg, type, s.k); if (!c.obligatoire) continue;
+    if (['docs', 'vin'].includes(s.k)) continue; const c = champEffectif(cfg, type, s.k); if (!c.obligatoire || (sain && c.siAltere)) continue;
     if (s.ligne) { const k = s.k.slice(2); const L = (f.entrees || []).map((e, i) => ({ e, i })).filter(({ e }) => sum(e.dests || [], (d) => d.volL) > 0); const manque = L.find(({ e }) => (k === 'analyses' ? !Object.keys(e.analyses || {}).some((x) => hasNum(e.analyses[x])) : k === 'apporteurs' ? !(e.apporteurs || []).some((a) => a.id) : vide(e[k])));
       if (manque) return `Moût ${manque.i + 1} : « ${nom(c)} » est obligatoire.`; continue; }
     if (champStdVide(db, type, s.k, f)) return `« ${nom(c)} » est obligatoire.`;
   }
-  const fv = f.champs || {}; const calc = champsNumeriques(cfg.perso, fv, formuleVarsStd(type, f));
-  for (const d of cfg.perso) {
+  return champsPersoErreurs(cfg.perso, type, f, oblig, sain ? persoSiAltere : null);
+}
+// champs personnalisés seuls (aussi pour le carnet de pressoir : champs personnalisés du pressurage) ; sauf(d) : champ sans objet
+function champsPersoErreurs(perso, type, f, oblig, sauf) {
+  const fv = f.champs || {}; const calc = champsNumeriques(perso, fv, formuleVarsStd(type, f));
+  for (const d of perso) {
+    if (sauf && sauf(d)) continue;
     const v = d.type === 'calcul' ? calc[d.id] : fv[d.id];
     if (oblig && d.obligatoire && cpVide(d, v)) return d.type === 'ouinon' ? `« ${d.label} » doit être coché.` : `« ${d.label} » est obligatoire.`;
     if (d.type === 'nombre' && v != null && String(v).trim() !== '') { if (!hasNum(v)) return `« ${d.label} » : nombre attendu.`; if (hasNum(d.min) && num(v) < num(d.min)) return `« ${d.label} » : au moins ${fmt(d.min)}${d.unite ? ` ${d.unite}` : ''}.`; if (hasNum(d.max) && num(v) > num(d.max)) return `« ${d.label} » : au plus ${fmt(d.max)}${d.unite ? ` ${d.unite}` : ''}.`; }
@@ -222,6 +235,7 @@ function formulaireSave(db, catId, s) {
     const c = s.champs[k] || {}; const st = champStd(type, k); const x = {};
     if (st && st.ess) { if (c.libelle) x.libelle = String(c.libelle).trim().slice(0, 60); if (c.aide) x.aide = String(c.aide).trim().slice(0, 300); if (Object.keys(x).length) champs[k] = x; return; }
     const fixe = !!(st && st.fixe); // toujours affiché (mention du ticket de pesée)
+    if (st && st.siAltere && c.siAltere === false) x.siAltere = false; // pesée : relevé proposé même si l'état sanitaire est « Sain »
     if (['replie', 'masque'].includes(c.vis) && !fixe) x.vis = c.vis;
     if (c.obligatoire && (fixe || c.vis !== 'masque') && !(st && st.noObl)) x.obligatoire = true;
     if (c.libelle && String(c.libelle).trim() && !(st && st.bare)) x.libelle = String(c.libelle).trim().slice(0, 60);
@@ -240,7 +254,7 @@ function formulaireSave(db, catId, s) {
     const opts = uniq((p.options || []).map((o) => String(o || '').trim()).filter(Boolean)).slice(0, 60);
     if (['liste', 'multi'].includes(p.type) && !opts.length) return fail(`« ${label} » : ajoutez au moins un choix.`);
     if (hasNum(p.min) && hasNum(p.max) && num(p.min) > num(p.max)) return fail(`« ${label} » : le minimum dépasse le maximum.`);
-    const it = { id, code, label, type: p.type, position: p.position === 'debut' ? 'debut' : 'fin', ...(p.obligatoire && p.type !== 'calcul' ? { obligatoire: true } : {}), ...(p.journal === false ? { journal: false } : {}),
+    const it = { id, code, label, type: p.type, position: p.position === 'debut' ? 'debut' : 'fin', ...(p.obligatoire && p.type !== 'calcul' ? { obligatoire: true } : {}), ...(p.journal === false ? { journal: false } : {}), ...(type === 'pesee' && typeof p.siAltere === 'boolean' ? { siAltere: p.siAltere } : {}),
       ...(String(p.aide || '').trim() ? { aide: String(p.aide).trim().slice(0, 300) } : {}), ...(String(p.unite || '').trim() && CP_NUM.concat(['texte']).includes(p.type) ? { unite: String(p.unite).trim().slice(0, 16) } : {}),
       ...(CP_NUM.includes(p.type) && hasNum(p.dec) ? { dec: Math.max(0, Math.min(4, Math.round(num(p.dec)))) } : {}), ...(p.type === 'nombre' && hasNum(p.min) ? { min: num(p.min) } : {}), ...(p.type === 'nombre' && hasNum(p.max) ? { max: num(p.max) } : {}),
       ...(['liste', 'multi'].includes(p.type) ? { options: opts } : {}) };

@@ -2,6 +2,12 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.25.0-alpha.2 — 20/11/2026
+
+- Pesée : la pourriture acide et vos relevés de pourriture (pourriture grise…) n’apparaissent que si l’état sanitaire n’est pas « Sain » ; réglable champ par champ dans le formulaire de pesée (« Seulement si l’état sanitaire n’est pas « Sain » »). Une pesée « Sain » ne garde pas ces relevés.
+- Opérations reliées au Pressoir : « Pesée de vendange » (anciennement « Apport vendange ») et « Pressurage » ouvrent directement la pesée du registre et le marc du carnet de pressoir (pesées choisies par leur n°) ; le journal affiche les n° de pesée et de marc. Le carnet de pressoir propose aussi la couleur des moûts et les champs personnalisés du pressurage.
+- En haut de l’écran, « 💻 Sur cet appareil seulement » remplace « ✓ Enregistrement auto · 100 % local » : sans synchronisation, vos données ne sont que dans ce navigateur ; avec le Drive ou la sauvegarde en ligne, leur pastille indique où elles vont.
+
 ## 0.25.0-alpha.1 — 20/11/2026
 
 - Formulaire de pesée personnalisable (Pressoir › Nouvelle pesée › « ⚙ Personnaliser ce formulaire », ou Pressoir › Réglages › Formulaire de pesée) : chaque champ affiché, replié ou masqué, rendu obligatoire, renommé, avec son aide et sa valeur proposée (état sanitaire, balance…), et vos propres relevés (pourriture grise, acidité, température des raisins…), repris sur le ticket, dans le registre exporté et le journal. Les mentions obligatoires du registre et du ticket de pesée (date et heure, poids, cépage, apporteur, revendication particulière) restent toujours affichées.

@@ -42,9 +42,9 @@ ok('revendication utilisée : suppression impossible (bouton grisé)', await ed.
 await page.screenshot({ path: SC + '/shots/t39-revendications.png' });
 // formulaire d'apport : la nouvelle revendication est proposée ; masquée, elle ne l'est plus
 await page.click('#tab-ops'); await page.waitForTimeout(300);
-const ouvrirApport = async () => { await page.locator('main button', { hasText: 'Apport vendange' }).first().click(); await page.waitForTimeout(400); };
+const ouvrirApport = async () => { await page.locator('main button', { hasText: 'Pesée de vendange' }).first().click(); await page.waitForTimeout(400); };
 await ouvrirApport();
-const optsQ = async () => top().locator('label:has-text("Revendication du raisin") select option').allInnerTexts();
+const optsQ = async () => top().locator('label:has-text("Revendication") select option').allInnerTexts();
 let oq = await optsQ(); ok('apport : HVE (rang 2) et « Agriculture biologique » proposés', oq.some((x) => x.startsWith('HVE (rang 2)')) && oq.some((x) => x.startsWith('Agriculture biologique (rang 3)')), oq.join(' | '));
 await echap(1);
 await page.click('#tab-params'); await page.waitForTimeout(200); await page.locator('main button', { hasText: 'Revendications, stades & listes' }).click(); await page.waitForTimeout(300);

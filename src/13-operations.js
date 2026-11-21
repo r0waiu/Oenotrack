@@ -19,7 +19,7 @@ const OP_BASES_ICONES = { apport: '🍇', pressurage: '🍇', entree_mout: '🫗
 // masque : proposé mais masqué par défaut (pratiques d'autres régions ou des vins rouges : à afficher dans Paramètres › Opérations)
 const DEFAULT_OPERATIONS = () => ([
   // Vendange & moûts
-  { id: 'apport', base: 'apport', label: 'Apport vendange', groupe: 'Vendange & moûts' },
+  { id: 'apport', base: 'apport', label: 'Pesée de vendange', groupe: 'Vendange & moûts' },
   { id: 'pressurage', base: 'pressurage', label: 'Pressurage', groupe: 'Vendange & moûts' },
   { id: 'entree_mout', base: 'entree_mout', label: 'Entrée de moûts', groupe: 'Vendange & moûts' },
   { id: 'entree_vin', base: 'reprise', label: 'Entrée de vin', groupe: 'Vendange & moûts', icone: '⇲', aide: 'Vin acheté ou reçu d’un partenaire (vendeur de vins) : en contenant ou en bouteilles sur lattes.' },

@@ -4,7 +4,7 @@ const { browser, page, errors } = await open();
 const log = (...a) => console.log(...a);
 // apport de vendange : cru par autocomplétion « Lou » → Louvois
 await page.click('#tab-ops'); await page.waitForTimeout(300);
-await page.locator('main button', { hasText: 'Apport vendange' }).first().click(); await page.waitForTimeout(400);
+await page.locator('main button', { hasText: 'Pesée de vendange' }).first().click(); await page.waitForTimeout(400);
 const sh = page.locator('.overlay').last();
 const cru = sh.locator('input[aria-label="Cru (village)"]');
 await cru.click(); await cru.fill('Lou'); await page.waitForTimeout(200);
@@ -22,7 +22,7 @@ await page.click('main button:has-text("Autres")'); await page.waitForTimeout(20
 await page.locator('main button', { hasText: /Masquer les \d+ crus affichés/ }).click(); await page.waitForTimeout(300);
 log('après masquage :', (await page.locator('main .card').first().innerText()).replace(/\n/g, ' '), '|', await page.locator('.toast').innerText().catch(() => ''));
 await page.click('#tab-ops'); await page.waitForTimeout(300);
-await page.locator('main button', { hasText: 'Apport vendange' }).first().click(); await page.waitForTimeout(400);
+await page.locator('main button', { hasText: 'Pesée de vendange' }).first().click(); await page.waitForTimeout(400);
 const cru2 = page.locator('.overlay').last().locator('input[aria-label="Cru (village)"]'); await cru2.click(); await cru2.fill('Epern'); await page.waitForTimeout(150);
 log('« Epern » (Épernay masqué) :', (await page.locator('.overlay').last().locator('.combo-list').innerText()).replace(/\n/g, ' '));
 await cru2.fill('Cram'); await page.waitForTimeout(150);
