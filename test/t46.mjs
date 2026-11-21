@@ -26,7 +26,7 @@ const onglets = (pg) => pg.locator('[role=tab][id^="tab-"]').allInnerTexts();
   await page.locator('[aria-label="Année des vendanges"], [aria-label="Annee des vendanges"]').first().selectOption('2026').catch(() => {});
   await page.locator('select').filter({ has: page.locator('option[value="2026"]') }).first().selectOption('2026').catch(() => {}); await page.waitForTimeout(300);
   t = await txt(page, 'main');
-  ok('onglet Prensa : sous-onglets, titres et boutons en espagnol', /Pesadas/.test(t) && /Cuaderno de prensa/.test(t) && /Registro de pesadas 2026/.test(t) && /\+ Nueva pesada/.test(t), t.slice(0, 300));
+  ok('onglet Prensa : sous-onglets, titres et boutons en espagnol', /Pesadas/.test(t) && /Prensados/.test(t) && /Registro de pesadas 2026/.test(t) && /\+ Nueva pesada/.test(t), t.slice(0, 300));
   ok('données jamais traduites (apporteurs, cépages restent tels quels)', /Lefèvre Père & Fils/.test(t) && /Chardonnay/.test(t));
   await page.locator('[data-nouvelle-pesee]').click(); await page.waitForTimeout(300);
   const f = await txt(page, '.overlay');

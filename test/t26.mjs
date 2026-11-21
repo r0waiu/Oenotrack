@@ -15,8 +15,8 @@ await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(
 log('toast :', await page.locator('.toast').innerText().catch(() => '-'));
 await page.screenshot({ path: SH + '/t26-parcelles.png' });
 // 2. apport : la parcelle renseigne le cru, le cépage et l'apporteur
-await page.click('#tab-ops'); await page.waitForTimeout(300);
-await page.click('main button:text-is("Pesée de vendange")'); await page.waitForTimeout(400);
+await page.click('#tab-pressoir'); await page.waitForTimeout(300);
+await page.locator('[data-nouvelle-pesee]').click(); await page.waitForTimeout(400);
 await pick(page, top().locator('input[aria-label="Parcelle"]'), 'Chéti', 'Les Chétillons');
 log('apport → cru :', await top().locator('input[aria-label="Cru (village)"]').inputValue(), '| apporteur :', await top().locator('input[aria-label="Partenaire"]').inputValue());
 await top().locator('[data-netkg]').fill('32');

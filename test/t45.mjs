@@ -31,17 +31,19 @@ await page.screenshot({ path: SC + '/shots/t45-ticket.png' });
 await ov().locator('.sheet-f .btn', { hasText: 'Fermer' }).click(); await page.waitForTimeout(250);
 let d = await db(); const p5 = d.ops.find((o) => o.type === 'apport' && o.pesee && o.pesee.num === 5 && o.date.startsWith('2026'));
 ok('pesée enregistrée : opération « apport » avec n°, heure, brut, tare, validation et journal', !!p5 && p5.kg === 4000 && p5.pesee.brutKg === 4300 && p5.pesee.heure === '08:05' && !!p5.pesee.valide && d.journalPressoir.some((j) => j.opId === p5.id && j.action === 'validation'));
-// 3. la pesée est proposée dans le pressurage de l'onglet Opérations (n° de pesée, reste à presser)
+// 3. la pesée est proposée dans le pressurage de l'onglet Pressoir (n° de pesée, reste à presser) ; Opérations ne propose plus le pressurage (0.26.0-alpha.2)
 await page.click('#tab-ops'); await page.waitForTimeout(300);
-await page.locator('main button', { hasText: 'Pressurage' }).first().click(); await page.waitForTimeout(400);
+ok('Opérations : ni « Pesée de vendange » ni « Pressurage », renvoi vers l’onglet Pressoir', !(await page.locator('main [data-groupe] button', { hasText: /^\S*\s*(Pesée de vendange|Pressurage)$/ }).count()) && (await page.locator('[data-vers-pressoir]').count()) === 1);
+await page.click('#tab-pressoir'); await page.waitForTimeout(300); await sub('Pressurages');
+await page.locator('[data-nouveau-marc]').click(); await page.waitForTimeout(400);
 const optsP = (await ov().innerText()).replace(/\s+/g, ' ');
 await ov().locator('button', { hasText: '+ Ajouter une pesée' }).click(); await page.waitForTimeout(200);
 const labels = await page.evaluate(() => { const s = [...document.querySelectorAll('.overlay select')].find((x) => [...x.options].some((o) => /reste/.test(o.text))); return s ? [...s.options].map((o) => o.text) : []; });
 const lbl5 = labels.find((x) => /n° 5/.test(x));
-ok('Opérations › Pressurage : carnet de pressoir ouvert, la pesée du Pressoir proposée avec son n° et son poids restant', /Charger un marc/.test(optsP) && (await ov().locator('[data-remplir]').count()) === 1 && !!lbl5 && /reste 4\s000\skg/.test(lbl5), [optsP.slice(0, 80), ...labels.slice(0, 4)]);
+ok('Pressoir › Pressurages › « + Nouveau pressurage » : la pesée proposée avec son n° et son poids restant', /Charger un marc/.test(optsP) && (await ov().locator('[data-remplir]').count()) === 1 && !!lbl5 && /reste 4\s000\skg/.test(lbl5), [optsP.slice(0, 80), ...labels.slice(0, 4)]);
 await page.keyboard.press('Escape'); await page.waitForTimeout(250);
 // 4. marc : chargement (en cours), puis volumes, contrôles, validation
-await page.click('#tab-pressoir'); await page.waitForTimeout(300); await sub('Carnet de pressoir');
+await sub('Pressurages');
 await page.locator('[data-nouveau-marc]').click(); await page.waitForTimeout(300); f = ov();
 await f.locator('[data-heure-debut]').fill('09:00'); await f.locator('[data-remplir]').click(); await page.waitForTimeout(200);
 const ch = await f.locator('[data-charges] input[aria-label^="Poids chargé"]').evaluateAll((e) => e.map((x) => x.value));

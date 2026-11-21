@@ -229,7 +229,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         </>);
       }
       case 'pressurage': return (<>
-        {old && old.marc && old.marc.num ? <Notice tone="info" title={`Carnet de pressoir : marc n° ${old.marc.num}${old.marc.valide ? ', validé' : old.marc.enCours ? ', en cours' : ''}`}>TAV en puissance, bourbes, contrôles et validation : onglet Pressoir › Carnet de pressoir.</Notice> : pressoirParams(db).registre ? <Notice tone="info">Ce pressurage entre au carnet de pressoir : complétez-le et validez-le dans l’onglet Pressoir (TAV en puissance, bourbes, contrôles).</Notice> : null}
+        {old && old.marc && old.marc.num ? <Notice tone="info" title={`Carnet de pressoir : marc n° ${old.marc.num}${old.marc.valide ? ', validé' : old.marc.enCours ? ', en cours' : ''}`}>TAV en puissance, bourbes, contrôles et validation : onglet Pressoir › Pressurages.</Notice> : pressoirParams(db).registre ? <Notice tone="info">Ce pressurage entre au carnet de pressoir : complétez-le et validez-le dans l’onglet Pressoir (TAV en puissance, bourbes, contrôles).</Notice> : null}
         <G n={3}><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><Field label="Heure du début (carnet)"><input className="inp num" type="time" value={f.heureDebut || ''} onChange={(e) => upd({ heureDebut: e.target.value })} aria-label="Heure du début du pressurage" /></Field><CF k="equipementId" label="Pressoir"><SI value={f.equipementId} onChange={(v) => upd({ equipementId: v })} options={opts(db, 'equipements')} /></CF></G>
         <CF k="charges" group label="Pesées pressées">
           <div className="space-y-2">{f.charges.map((c, i) => (
@@ -389,6 +389,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       {cfgEd ? <FormulaireEditor catId={cat.id} onClose={() => setCfgEd(false)} /> : null}
       {old ? null : <div className="help">« ✓ Valider » enregistre l’opération réalisée (stocks mis à jour){moduleActif(db, 'previsions') ? ' ; « 📋 Planifier » la met dans la liste « À réaliser » sans toucher aux stocks' : ''}.</div>}
       {built.error ? <div className="text-sm text-ink2">{old ? 'Pour enregistrer : ' : 'Pour valider : '}{built.error}{old || !moduleActif(db, 'previsions') ? '' : ' — vous pouvez déjà la planifier.'}</div> : <PreviewBox pv={pv} />}
+      {!built.error && built.spec && !lecture && moduleActif(db, 'hygiene') ? <HygControlesNotices spec={built.spec} editId={editId} pv={pv} /> : null}
     </FormSheet>
   );
 }

@@ -50,15 +50,9 @@ let d = await db(); const o5 = d.ops.find((x) => x.type === 'apport' && x.pesee 
 ok('base : pesée « Sain » sans pourriture acide ni pourriture grise', o5 && o5.pesee.etat === 'sain' && o5.pesee.pourritureAcide === undefined && !(o5.champs || []).some((c) => /Pourriture/.test(c.label)), o5 && { pesee: o5.pesee, champs: o5.champs });
 await page.screenshot({ path: SC + '/shots/t48-pressoir.png' });
 
-// 3. Opérations : « Pesée de vendange » et « Pressurage » ouvrent les formulaires du Pressoir
+// 3. Opérations : « Pesée de vendange » et « Pressurage » retirés (saisis dans l'onglet Pressoir, 0.26.0-alpha.2) ; journal relié au Pressoir
 await page.click('#tab-ops'); await page.waitForTimeout(400);
-ok('Opérations : « Pesée de vendange » proposée, plus « Apport vendange »', (await page.locator('main button', { hasText: 'Pesée de vendange' }).count()) >= 1 && (await page.locator('main button', { hasText: 'Apport vendange' }).count()) === 0);
-await page.locator('main button', { hasText: 'Pesée de vendange' }).first().click(); await page.waitForTimeout(400); f = ov(); t = await txt(f);
-ok('… ouvre la pesée du registre (n° suivant, TAP)', /Nouvelle pesée/.test(t) && /Registre des pesées 2026 : n° 6/.test(t) && (await f.locator('[data-tap]').count()) === 1, t.slice(0, 200));
-await fermer();
-await page.locator('main button', { hasText: 'Pressurage' }).first().click(); await page.waitForTimeout(400); f = ov(); t = await txt(f);
-ok('« Pressurage » : ouvre le carnet de pressoir (charger les pesées, couleur des moûts)', /Charger un marc/.test(t) && (await f.locator('[data-remplir]').count()) === 1 && (await f.locator('[data-couleur-marc]').count()) === 1, t.slice(0, 200));
-await fermer();
+ok('Opérations : ni « Pesée de vendange » ni « Pressurage » ni « Apport vendange » ; renvoi « onglet Pressoir »', !(await page.locator('main [data-groupe] button', { hasText: /^\S*\s*(Pesée de vendange|Pressurage|Apport vendange)$/ }).count()) && (await page.locator('[data-vers-pressoir]').count()) === 1 && (await page.locator('main [data-groupe] button', { hasText: 'Entrée de moûts' }).count()) === 1);
 t = await txt(page.locator('main'));
 ok('journal : n° de pesée et de marc affichés', /Pesée n° 5/.test(t) && /Marc n° \d+/.test(t), t.slice(0, 300));
 await page.locator('main tbody tr', { hasText: 'Pesée n° 5' }).first().locator('button', { hasText: 'Modifier' }).click(); await page.waitForTimeout(400); f = ov(); t = await txt(f);
@@ -66,6 +60,14 @@ ok('« Modifier » une pesée du journal : formulaire de pesée du registre', /P
 await fermer();
 await page.locator('main tbody tr', { hasText: /Marc n° \d+/ }).first().locator('button', { hasText: 'Modifier' }).click(); await page.waitForTimeout(400); f = ov(); t = await txt(f);
 ok('« Modifier » un pressurage du journal : marc du carnet de pressoir', /Marc n° \d+/.test(t) && (await f.locator('[data-tavp]').count()) === 1, t.slice(0, 160));
+await fermer();
+await page.locator('[data-vers-pressoir] button').click(); await page.waitForTimeout(400);
+ok('« onglet Pressoir » : ouvre le Pressoir (pesées)', (await page.locator('#tab-pressoir').getAttribute('aria-selected')) === 'true' && (await page.locator('[data-nouvelle-pesee]').count()) === 1);
+ok('Pressoir : sous-onglet « Pressurages », « + Nouveau pressurage »', /Pressurages/.test(await txt(page.locator('[data-pressoir] [role=tablist]'))) && (await (async () => { await page.locator('[data-pressoir] [role=tab]', { hasText: 'Pressurages' }).click(); await page.waitForTimeout(300); return /\+ Nouveau pressurage/.test(await txt(page.locator('[data-nouveau-marc]'))); })()));
+await page.locator('[data-pressoir] [role=tab]', { hasText: 'Pesées' }).first().click(); await page.waitForTimeout(300);
+await page.locator('[data-presser="5"]').click(); await page.waitForTimeout(400); f = ov(); t = await txt(f);
+const ch5 = await f.evaluate((el) => [...el.querySelectorAll('select')].map((x) => (x.options[x.selectedIndex] || {}).text || '').concat([...el.querySelectorAll('input[role=combobox]')].map((x) => x.value)).filter((x) => /n° 5\b/.test(x)));
+ok('pesée « Presser » : marc chargé avec la pesée n° 5 et son reste (3 000 kg), désignation proposée', /Charger un marc/.test(t) && ch5.length === 1 && /^3\s?000$/.test(await f.locator('input[aria-label="Poids chargé 1"]').inputValue()) && (await f.locator('[data-couleur-marc]').count()) === 1, [ch5, t.slice(0, 200)]);
 await fermer();
 
 // 4. menu d'une cuve : « Pressurage → cuvée ici » préremplit la cuve de la cuvée dans le carnet

@@ -12,6 +12,20 @@ function moutLots(op) {
     return { ...l, parts, vol: sum(parts, (p) => p.vol), qualifs: uniq(parts.map((p) => p.e.qualifId || 'conv')) };
   });
 }
+// événements des contenants pour les plans d'hygiène (0.26.0-alpha.1) : vidange (le contenant devient vide), remplissage (vide → plein),
+// avec les revendications du contenu sorti, du contenu entré et du contenu précédent (avant la dernière vidange)
+const volsParContenant = (P) => { const m = {}; for (const k in P) { const p = P[k]; if (p.vol) m[p.contenantId] = (m[p.contenantId] || 0) + p.vol; } return m; };
+const qualifsDe = (R, cid) => uniq(Object.values(R.portions).filter((p) => p.contenantId === cid && p.vol > 0.005).map((p) => (R.lots[p.lotId] || {}).qualif).filter(Boolean));
+function evenementsOp(R, op, avant) {
+  const apres = volsParContenant(R.portions); R._vols = apres; R.evts = R.evts || []; R._contenu = R._contenu || {}; R._vidange = R._vidange || {};
+  const tous = op.type === 'declassement'; // revendication changée sans mouvement : contenu de chaque cuve relu
+  [...new Set([...Object.keys(avant), ...Object.keys(apres)])].forEach((cid) => {
+    const a = avant[cid] || 0; const b = apres[cid] || 0; if (!tous && Math.abs(a - b) < 1e-9) return; // seulement les cuves dont le volume a changé
+    if (a > 0.5 && b <= 0.5) { R.evts.push({ type: 'vidange', date: op.date, opId: op.id, opType: op.type, contenantId: cid, qualifs: R._contenu[cid] || [] }); R._vidange[cid] = op.date; }
+    else if (a <= 0.5 && b > 0.5) R.evts.push({ type: 'remplissage', date: op.date, opId: op.id, opType: op.type, contenantId: cid, qualifs: qualifsDe(R, cid), avant: R._contenu[cid] || [], depuisVidange: R._vidange[cid] || '' });
+    if (b > 0.5) R._contenu[cid] = qualifsDe(R, cid);
+  });
+}
 function replay(db, upTo, opts) {
   syncConfig(db);
   const R = { upTo: upTo || null, lots: {}, portions: {}, pinfo: {}, contVol: {}, preps: {}, tir: {}, raisins: {}, arrUsed: {}, apps: [], warn: {}, flows: [], prepUse: [], opsByLot: {}, capOver: {}, stadeHist: {} };
@@ -96,6 +110,7 @@ function replay(db, upTo, opts) {
     // opts.repriseOn : jour d'ouverture d'une campagne dont les « reprises de stock » font partie du stock d'ouverture
     if (upTo && op.date > (opts && opts.repriseOn ? opts.repriseOn : upTo)) break;
     if (upTo && op.date > upTo && !(opts && op.type === 'reprise' && op.date === opts.repriseOn)) continue;
+    const evAvant = opts && opts.evenements ? (R._vols || volsParContenant(R.portions)) : null; // plans d'hygiène (0.26.0-alpha.1) : vidanges et remplissages
     switch (op.type) {
       case 'apport':
         R.raisins[op.id] = { id: op.id, date: op.date, cepageId: op.cepageId, kg: num(op.kg), qualifId: op.qualifId, apporteurId: op.apporteurId || '', cruId: op.cruId || '', parcelleId: op.parcelleId || '', ref: op.ref || '', used: 0 };
@@ -202,6 +217,7 @@ function replay(db, upTo, opts) {
       }
       default: break;
     }
+    if (evAvant) evenementsOp(R, op, evAvant);
   }
   const pa = Object.values(R.portions);
   R.lotVol = {}; pa.forEach((p) => { R.lotVol[p.lotId] = (R.lotVol[p.lotId] || 0) + p.vol; });
@@ -213,7 +229,7 @@ function replay(db, upTo, opts) {
 const _rc = new WeakMap();
 function getR(db, upTo) {
   let m = _rc.get(db); if (!m) { m = new Map(); _rc.set(db, m); }
-  const k = upTo || '*'; if (!m.has(k)) m.set(k, replay(db, upTo)); return m.get(k);
+  const k = upTo || '*'; if (!m.has(k)) m.set(k, replay(db, upTo, upTo || !hygEvenementsUtiles(db) ? undefined : { evenements: true })); return m.get(k); // état complet : avec les événements des contenants si les plans d'hygiène sont suivis (0.26.0-alpha.1)
 }
 
 /* ---------- arrivages / DLUO ---------- */

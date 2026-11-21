@@ -54,23 +54,36 @@ async function lireFds(file, { onEtape } = {}) {
       for (let i = 0; i < max; i += 1) { et(`Page ${i + 1} / ${max} : reconnaissance du texte du scan (la première fois, le module de lecture se télécharge)…`); const r = await renduPage(pages[i].pg, 220); nettoyerScan(r.canvas); pages[i] = { ...(await ocrCanvas(r.canvas, i + 1, r.echelle)), n: i + 1 }; r.canvas.width = 0; }
       pages.splice(max);
     }
-    return { res: fdsAnalyser(fdsTexteDePages(pages)), fichier: nom, ocr, nbPages: doc.numPages };
+    const texte = fdsTexteDePages(pages); return { res: fdsAnalyser(texte), texte: texte.slice(0, 20000), fichier: nom, ocr, nbPages: doc.numPages };
   }
-  if (estImage(file)) { et('Reconnaissance du texte de la photo (la première fois, le module de lecture se télécharge)…'); const c = nettoyerScan(await imageCanvas(file)); const p = await ocrCanvas(c, 1, 1); return { res: fdsAnalyser(fdsTexteDePages([p])), fichier: nom, ocr: true, nbPages: 1 }; }
-  return { res: fdsAnalyser(await lectureFichier(file)), fichier: nom, ocr: false, nbPages: 1 };
+  if (estImage(file)) { et('Reconnaissance du texte de la photo (la première fois, le module de lecture se télécharge)…'); const c = nettoyerScan(await imageCanvas(file)); const p = await ocrCanvas(c, 1, 1); const texte = fdsTexteDePages([p]); return { res: fdsAnalyser(texte), texte: texte.slice(0, 20000), fichier: nom, ocr: true, nbPages: 1 }; }
+  const texte = await lectureFichier(file); return { res: fdsAnalyser(texte), texte: String(texte || '').slice(0, 20000), fichier: nom, ocr: false, nbPages: 1 };
+}
+// lecture complétée par l'assistant IA s'il est configuré (Paramètres › 🤖 Assistant IA, « Compléter les fiches produits ») — 0.26.0-alpha.1
+async function lireFdsComplete(file, o = {}) { return fdsCompleterIa(await lireFds(file, o), o); }
+async function fdsCompleterIa(r, { onEtape, nom } = {}) {
+  const A = iaActive();
+  if (!A.pret || !A.completer || String(r.texte || '').replace(/\s+/g, '').length < 80) return { ...r, res: fdsFusionIa(r.res, null) };
+  if (onEtape) onEtape(`🤖 ${A.nom} complète la lecture…`);
+  try { const P = iaPromptFds(r, nom); const R = await iaDemander(A, { system: P.system, texte: P.texte, max: P.max }); const ia = iaLireFds(iaJson(R.texte)); if (!ia) throw new Error('réponse illisible'); return { ...r, res: fdsFusionIa(r.res, ia), ia: A.nom }; }
+  catch (e) { return { ...r, res: fdsFusionIa(r.res, null), iaErr: (e && e.message) || String(e) }; }
 }
 // fichier choisi avant que le produit existe : rangé tout de suite dans ce navigateur, rattaché à l'enregistrement (docsJoindre)
 async function pieceEnAttente(file, cat) { const id = newDocId(); await docPut(id, file); return { id, nom: file.name || 'document', mime: file.type || '', taille: file.size || 0, cat, date: todayISO() }; }
 // valeurs lues → champs du formulaire (libellés pour la revue)
+// informations que l'assistant IA peut ajouter (0.26.0-alpha.1) : emploi et premiers secours, en plus des rubriques lues par le script
+const FDS_CHAMPS_IA = [['secours', 'Premiers secours'], ['concMin', 'Concentration d’emploi minimale'], ['concMax', 'Concentration d’emploi maximale'], ['concUnite', 'Unité de concentration'], ['temperature', 'Température d’emploi'], ['contact', 'Temps de contact'], ['modeEmploi', 'Mode d’emploi']];
 const FDS_CHAMPS = [['nom', 'Nom du produit'], ['fabricant', 'Fabricant / fournisseur de la FDS'], ['type', 'Nature'], ['forme', 'Forme'], ['composition', 'Composition'], ['fdsDate', 'Date de révision de la FDS'], ['fdsVersion', 'Version de la FDS'],
   ['mention', 'Mention d’avertissement'], ['pictos', 'Pictogrammes de danger'], ['phrasesH', 'Mentions de danger'], ['epi', 'Protections individuelles'], ['incompatibilites', 'Matières incompatibles'], ['stockage', 'Stockage'], ['urgence', 'Numéro d’appel d’urgence']];
 const fdsVide = (v) => v == null || v === '' || (Array.isArray(v) && !v.length);
 const fdsTexte = (k, v) => (k === 'type' ? hygLib(HYG_TYPES, v) : k === 'forme' ? hygLib(HYG_FORMES, v) : k === 'mention' ? hygLib(HYG_MENTIONS, v) : k === 'fdsDate' ? fmtDate(v) : k === 'pictos' ? v.map((c) => `${c} ${hygLib(HYG_PICTOS, c)}`).join(', ') : k === 'epi' ? v.map((x) => hygLib(HYG_EPI, x)).join(', ') : String(v));
-function fdsAppliquer(f, res, cles) { const o = { ...f }; (cles || FDS_CHAMPS.map((c) => c[0])).forEach((k) => { if (!fdsVide(res[k])) o[k] = Array.isArray(res[k]) ? [...res[k]] : res[k]; }); return o; }
+// lecture du script complétée par l'assistant IA : le script d'abord, l'IA pour ce qu'il n'a pas trouvé (res.ia : clés venues de l'IA)
+function fdsFusionIa(res, ia) { const o = { ...res, ia: [] }; if (!ia) return o; [...FDS_CHAMPS, ...FDS_CHAMPS_IA].forEach(([k]) => { if (fdsVide(o[k]) && !fdsVide(ia[k])) { o[k] = ia[k]; o.ia.push(k); } }); o.trouves = [...FDS_CHAMPS, ...FDS_CHAMPS_IA].filter(([k]) => !fdsVide(o[k])).length; return o; }
+function fdsAppliquer(f, res, cles) { const o = { ...f }; (cles || [...FDS_CHAMPS, ...FDS_CHAMPS_IA].map((c) => c[0])).forEach((k) => { if (!fdsVide(res[k])) o[k] = Array.isArray(res[k]) ? [...res[k]] : res[k]; }); return o; }
 
 // revue d'une FDS relue sur une fiche existante : chaque information trouvée, cochée si elle complète ou change la fiche
 function FdsRevue({ lu, f, onAppliquer, onFermer }) {
-  const r = lu.res; const lignes = FDS_CHAMPS.filter(([k]) => !fdsVide(r[k]));
+  const r = lu.res; const lignes = [...FDS_CHAMPS, ...FDS_CHAMPS_IA].filter(([k]) => !fdsVide(r[k])); const deIa = (k) => (r.ia || []).includes(k);
   const egal = (k) => JSON.stringify(Array.isArray(f[k]) ? [...f[k]].sort() : f[k] == null ? '' : String(f[k])) === JSON.stringify(Array.isArray(r[k]) ? [...r[k]].sort() : String(r[k]));
   const [pris, setPris] = useState(() => lignes.filter(([k]) => !egal(k)).map(([k]) => k));
   return (
@@ -79,7 +92,7 @@ function FdsRevue({ lu, f, onAppliquer, onFermer }) {
       {!lignes.length ? <Notice tone="warn">Aucune information reconnue dans ce fichier : est-ce bien une fiche de données de sécurité ?{lu.ocr ? ' Le scan est peut-être trop flou.' : ''}</Notice> : (
         <ul className="space-y-1">{lignes.map(([k, lab]) => { const same = egal(k); return (
           <li key={k} className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" style={{ accentColor: 'var(--accent)' }} checked={pris.includes(k)} onChange={(e) => setPris(e.target.checked ? [...pris, k] : pris.filter((x) => x !== k))} aria-label={`Reprendre : ${lab}`} />
-            <span className="min-w-0"><span className="text-xs text-ink2">{lab}{same ? ' (identique)' : !fdsVide(f[k]) ? ' (remplace la valeur actuelle)' : ''}{k === 'pictos' && r.pictosDeduits ? ' — déduits des mentions de danger' : ''}</span><span className="block whitespace-pre-line break-words">{fdsTexte(k, r[k])}</span></span></li>); })}</ul>)}
+            <span className="min-w-0"><span className="text-xs text-ink2">{deIa(k) ? <span title="Lu par l’assistant IA : à vérifier">🤖 </span> : null}{lab}{same ? ' (identique)' : !fdsVide(f[k]) ? ' (remplace la valeur actuelle)' : ''}{k === 'pictos' && r.pictosDeduits ? ' — déduits des mentions de danger' : ''}</span><span className="block whitespace-pre-line break-words">{fdsTexte(k, r[k])}</span></span></li>); })}</ul>)}
       <div className="mt-2 flex flex-wrap gap-2">{lignes.length ? <Btn kind="primary" size="sm" disabled={!pris.length} onClick={() => onAppliquer(pris)}>Reprendre la sélection ({pris.length})</Btn> : null}<Btn size="sm" onClick={onFermer}>Ignorer</Btn></div>
     </div>
   );
@@ -91,7 +104,7 @@ const HYG_VIDE = () => ({ nom: '', type: 'alcalin', fabricant: '', fournisseur: 
 function HygProduitForm({ id, onClose, onSaved, depart }) {
   const { db, act, toast } = useApp(); const p = id ? hygDef(db, id) : null;
   const [f, setF] = useState(() => { const b = { ...HYG_VIDE(), ...(p ? clone(p) : {}) }; ['concMin', 'concMax'].forEach((k) => { b[k] = b[k] == null ? '' : String(b[k]).replace('.', ','); }); return depart && depart.lu ? fdsAppliquer(b, depart.lu.res) : b; });
-  const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  const set = (k, v) => setF((x) => ({ ...x, [k]: v })); const [depot, setDepot] = useState(null); useSuiviFiche(p, setF, ['fabricant', 'composition', 'modeEmploi', 'stockage', 'fdsDate', 'fdsVersion']);
   const tog = (k, v) => setF((x) => ({ ...x, [k]: (x[k] || []).includes(v) ? x[k].filter((y) => y !== v) : [...(x[k] || []), v] }));
   // documents choisis avant l'enregistrement d'un nouveau produit (la FDS déposée en tête)
   const [pieces, setPieces] = useState(() => (depart && depart.piece ? [depart.piece] : [])); const piecesRef = useRef(pieces); piecesRef.current = pieces; const engage = useRef(false);
@@ -100,17 +113,19 @@ function HygProduitForm({ id, onClose, onSaved, depart }) {
   const lire = async (fs) => {
     const file = fs[0]; if (!file) return; setBusy('Lecture de la FDS…');
     try {
-      const r = await lireFds(file, { onEtape: setBusy });
+      const r = await lireFdsComplete(file, { onEtape: setBusy, nom: f.nom || (p && p.nom) });
       if (p) { setLu({ ...r, file }); } // fiche existante : revue avant de reprendre
       else { setF((x) => fdsAppliquer(x, r.res)); setLu({ ...r, file, applique: true }); const pc = await pieceEnAttente(file, 'fds'); setPieces((L) => [...L, pc]); toast(`FDS lue : ${r.res.trouves} information${r.res.trouves > 1 ? 's' : ''} reprise${r.res.trouves > 1 ? 's' : ''}, à vérifier. Le fichier est joint comme FDS.`); }
+      if (r.iaErr) toast(`Assistant IA : ${r.iaErr}`, 'bad');
     } catch (e) { toast(`Lecture impossible : ${e.message || e}`, 'bad'); }
     setBusy('');
   };
   const dep = useDepot(lire, { disabled: !!busy, multiple: false, accept: FDS_ACCEPT });
   const appliquer = async (cles) => { setF((x) => fdsAppliquer(x, lu.res, cles)); if (lu.file && p && !hygDocs(db, p.id, 'fds').some((d) => d.nom === lu.fichier && d.taille === lu.file.size)) await add([lu.file], { type: 'produitHygiene', id: p.id }, 'fds'); setLu(null); toast('Informations reprises : vérifiez-les puis enregistrez.'); };
   const save = () => {
-    const r = act((d) => { const r1 = hygProduitSave(d, f, id); if (r1.ok && !id) docsJoindre(d, piecesRef.current, { type: 'produitHygiene', id: r1.id }); return r1; });
-    if (r && r.ok) { engage.current = true; toast(id ? 'Produit d’hygiène modifié.' : `Produit d’hygiène « ${f.nom.trim()} » créé${piecesRef.current.length ? ` (${piecesRef.current.length > 1 ? `${piecesRef.current.length} documents joints` : '1 document joint'})` : ''}.`); onClose(); if (onSaved) onSaved(r.id); }
+    const nom = id ? f.nom : nomProduitCasse(f.nom.trim()); // nouveau produit : casse du nom harmonisée (0.26.0-alpha.1)
+    const r = act((d) => { const r1 = hygProduitSave(d, { ...f, nom }, id); if (r1.ok && !id) docsJoindre(d, piecesRef.current, { type: 'produitHygiene', id: r1.id }); return r1; });
+    if (r && r.ok) { engage.current = true; toast(id ? 'Produit d’hygiène modifié.' : `Produit d’hygiène « ${nom.trim()} » créé${piecesRef.current.length ? ` (${piecesRef.current.length > 1 ? `${piecesRef.current.length} documents joints` : '1 document joint'})` : ''}.`); onClose(); if (onSaved) onSaved(r.id); }
   };
   const fds = p ? hygFdsEtat(db, p) : null; const uC = f.concUnite === 'pur';
   return (
@@ -120,11 +135,11 @@ function HygProduitForm({ id, onClose, onSaved, depart }) {
           <ZoneDepot onFiles={lire} depot={dep} busy={!!busy} multiple={false} accept={FDS_ACCEPT} icon="📄" kind="primary" label={p ? 'Relire une FDS (nouvelle version)' : 'Lire la FDS pour remplir la fiche'} inputLabel="Fiche de données de sécurité à lire" />
           <span className="help min-w-0 flex-1">{busy || 'Déposez la fiche de données de sécurité (PDF, scan ou photo) : nom, fabricant, date de révision, pictogrammes, mentions de danger, protections, incompatibilités… sont repris. Vérifiez-les toujours.'}</span>
         </div>
-        {lu && lu.applique ? <div className="mt-2"><Notice tone="info" title={`Lu dans « ${lu.fichier} »${lu.ocr ? ' (scan : à vérifier attentivement)' : ''}`}>{lu.res.trouves ? `${lu.res.trouves} information${lu.res.trouves > 1 ? 's' : ''} reprise${lu.res.trouves > 1 ? 's' : ''} ci-dessous.` : 'Aucune information reconnue : est-ce bien une FDS ?'}{lu.res.pictosDeduits ? ' Pictogrammes déduits des mentions de danger (la FDS ne les nomme pas).' : ''} Le fichier sera joint comme FDS.</Notice></div> : null}
+        {lu && lu.applique ? <div className="mt-2"><Notice tone="info" title={`Lu dans « ${lu.fichier} »${lu.ocr ? ' (scan : à vérifier attentivement)' : ''}`}>{lu.res.trouves ? `${lu.res.trouves} information${lu.res.trouves > 1 ? 's' : ''} reprise${lu.res.trouves > 1 ? 's' : ''} ci-dessous.` : 'Aucune information reconnue : est-ce bien une FDS ?'}{lu.res.pictosDeduits ? ' Pictogrammes déduits des mentions de danger (la FDS ne les nomme pas).' : ''} Le fichier sera joint comme FDS.{lu.ia && (lu.res.ia || []).length ? <span>{` 🤖 ${lu.ia} en a complété ${lu.res.ia.length}.`}</span> : null}</Notice></div> : null}
         {lu && !lu.applique ? <div className="mt-2"><FdsRevue lu={lu} f={f} onAppliquer={appliquer} onFermer={() => setLu(null)} /></div> : null}
       </div>
       <h4 className="mt-1 font-semibold">Identification</h4>
-      <G><Field label="Nom du produit" help={f.nom.trim() && nameTaken(hygListe(db), f.nom, id) ? '⚠ Ce produit existe déjà.' : ''}><TI value={f.nom} onChange={(v) => set('nom', v)} autoFocus={!depart} placeholder="ex. Soude caustique 30 %" /></Field>
+      <G><Field label="Nom du produit" help={f.nom.trim() && nameTaken(hygListe(db), id ? f.nom : nomProduitCasse(f.nom), id) ? '⚠ Ce produit existe déjà.' : !id && f.nom.trim() && nomProduitCasse(f.nom.trim()) !== f.nom.trim() ? `Enregistré sous « ${nomProduitCasse(f.nom.trim())} »` : ''}><TI value={f.nom} onChange={(v) => set('nom', v)} autoFocus={!depart} placeholder="ex. Soude caustique 30 %" /></Field>
         <Field label="Nature"><SI plain value={f.type} onChange={(v) => set('type', v)} options={HYG_TYPES.map(([v, l]) => ({ value: v, label: l }))} /></Field></G>
       <G n={3}><Field label="Fabricant / marque"><TI value={f.fabricant} onChange={(v) => set('fabricant', v)} list="hyg-fab" /></Field><Field label="Fournisseur"><TI value={f.fournisseur} onChange={(v) => set('fournisseur', v)} list="hyg-fou" /></Field><Field label="Référence"><TI value={f.reference} onChange={(v) => set('reference', v)} placeholder="code article" /></Field></G>
       <datalist id="hyg-fab">{uniq(hygListe(db).map((x) => x.fabricant).filter(Boolean)).map((x) => <option key={x} value={x} />)}</datalist>
@@ -146,14 +161,15 @@ function HygProduitForm({ id, onClose, onSaved, depart }) {
       <G><Field label="Matières incompatibles (ne jamais mélanger avec)"><TA value={f.incompatibilites} onChange={(v) => set('incompatibilites', v)} rows={2} placeholder="ex. Acides : dégagement de chlore" /></Field><Field label="Stockage"><TA value={f.stockage} onChange={(v) => set('stockage', v)} rows={2} placeholder="Lieu, rétention, à l’écart de…" /></Field></G>
       <G><Field label="Premiers secours"><TA value={f.secours} onChange={(v) => set('secours', v)} rows={2} placeholder="Yeux, peau, ingestion, inhalation…" /></Field><Field label="Numéro d’appel d’urgence" help="En cas d’urgence : 15 (SAMU) ou 112."><TI value={f.urgence} onChange={(v) => set('urgence', v)} placeholder="centre antipoison, fabricant…" /></Field></G>
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></Field>
-      <Group label={`Documents : FDS, fiche technique, attestations${fds ? ` — ${fds.label}` : ''}`}>{p ? <DocsPanel cible={{ type: 'produitHygiene', id: p.id }} kind="produitHygiene" /> : <DocsAttente items={pieces} onChange={setPieces} kind="produitHygiene" />}</Group>
+      <Group label={`Documents : FDS, fiche technique, attestations${fds ? ` — ${fds.label}` : ''}`}>{p ? <DocsPanel cible={{ type: 'produitHygiene', id: p.id }} kind="produitHygiene" deposer={setDepot} aide="Chaque fichier déposé est lu (type, date de révision, informations pour la fiche) ; une version plus récente remplace la précédente, qui reste dans les versions archivées." /> : <DocsAttente items={pieces} onChange={setPieces} kind="produitHygiene" />}</Group>
+      {depot && p ? <FichesDepot fichiers={depot} cible={{ type: 'produitHygiene', id: p.id }} onClose={() => setDepot(null)} /> : null}
     </FormSheet>
   );
 }
 
 /* ---------- fiche de consultation ---------- */
 function HygProduitSheet({ id, onClose }) {
-  const { db, act, confirm, camp } = useApp(); const p = hygDef(db, id); const [edit, setEdit] = useState(false); const [imp, setImp] = useState(false);
+  const { db, act, confirm, camp } = useApp(); const p = hygDef(db, id); const [edit, setEdit] = useState(false); const [imp, setImp] = useState(false); const [depot, setDepot] = useState(null);
   if (!p) return null;
   const C = hygConso(db, p.id, camp.debut, camp.fin); const T = hygConso(db, p.id); const E = hygUsages(db, p.id).slice().sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 12);
   const unite = hygLib(HYG_UNITES, p.unite); const cible = (h) => (h.cibleType === 'contenant' ? contName(db, h.cibleId) : lbl(db, 'equipements', h.cibleId));
@@ -184,7 +200,8 @@ function HygProduitSheet({ id, onClose }) {
           </div>
         </div>
       </div>
-      <Sec title="Documents" className="mt-4"><DocsPanel cible={{ type: 'produitHygiene', id: p.id }} kind="produitHygiene" /></Sec>
+      <Sec title="Documents" className="mt-4"><DocsPanel cible={{ type: 'produitHygiene', id: p.id }} kind="produitHygiene" deposer={setDepot} aide="Chaque fichier déposé est lu (type, date de révision, informations pour la fiche) ; une version plus récente remplace la précédente, qui reste dans les versions archivées." /></Sec>
+      {depot ? <FichesDepot fichiers={depot} cible={{ type: 'produitHygiene', id: p.id }} onClose={() => setDepot(null)} /> : null}
       {edit ? <HygProduitForm id={p.id} onClose={() => setEdit(false)} /> : null}
       {imp ? <HygFichesImpression ids={[p.id]} onClose={() => setImp(false)} /> : null}
     </Sheet>
@@ -237,9 +254,9 @@ function HygProduitsView() {
   const deposer = async (fs) => {
     const file = fs[0]; if (!file) return; setBusy('Lecture de la FDS…');
     try {
-      const lu = await lireFds(file, { onEtape: setBusy }); const ex = lu.res.nom && tous.find((p) => norm(p.nom).trim() === norm(lu.res.nom).trim());
+      const lu0 = await lireFds(file, { onEtape: setBusy }); const ex = lu0.res.nom && tous.find((p) => norm(p.nom).trim() === norm(lu0.res.nom).trim());
       if (ex) { toast(`« ${ex.nom} » existe déjà : ouvrez sa fiche puis « Relire une FDS ».`); setVoir(ex.id); }
-      else { const piece = await pieceEnAttente(file, 'fds'); setForm({ depart: { lu, piece } }); }
+      else { const lu = await fdsCompleterIa(lu0, { onEtape: setBusy }); if (lu.iaErr) toast(`Assistant IA : ${lu.iaErr}`, 'bad'); const piece = await pieceEnAttente(file, 'fds'); setForm({ depart: { lu, piece } }); }
     } catch (e) { toast(`Lecture impossible : ${e.message || e}`, 'bad'); }
     setBusy('');
   };

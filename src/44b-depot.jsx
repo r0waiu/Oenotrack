@@ -42,19 +42,43 @@ function useDepot(onFiles, { disabled, multiple = true, accept, refus, dossiers 
   };
   return { sur, props };
 }
+// Appareil photo (0.26.0-alpha.1) : sur téléphone et tablette, « 📷 Photo » à côté de la zone ouvre directement l'appareil photo (le choix
+// de fichiers reste là) ; la photo est réduite (2 400 px de côté au plus, JPEG) et nommée « photo-AAAAMMJJ-HHMMSS.jpg ».
+const PHOTO_COTE = 2400;
+const photoPossible = () => { try { return !!window.matchMedia && (window.matchMedia('(pointer: coarse)').matches || (window.matchMedia('(any-pointer: coarse)').matches && window.matchMedia('(hover: none)').matches)); } catch (e) { return false; } };
+const accepteImages = (accept) => !accept || String(accept).split(',').some((a) => /^image\//i.test(a.trim()) || /^\.(?:jpe?g|png|webp|heic)$/i.test(a.trim()));
+const photoNom = (d = new Date()) => { const p2 = (n) => String(n).padStart(2, '0'); return `photo-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`; };
+async function photoPreparer(f, i) {
+  const base = `${photoNom()}${i ? `-${i + 1}` : ''}`; const ext = /png/i.test(f.type) ? 'png' : /webp/i.test(f.type) ? 'webp' : /hei[cf]/i.test(f.type) ? 'heic' : 'jpg';
+  const renomme = () => { try { return new File([f], `${base}.${ext}`, { type: f.type || 'image/jpeg', lastModified: Date.now() }); } catch (e) { return f; } };
+  if (!/^image\/(?:jpe?g|png|webp)$/i.test(f.type || '') || typeof createImageBitmap !== 'function') return renomme();
+  try {
+    const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' }); const k = Math.min(1, PHOTO_COTE / Math.max(bmp.width, bmp.height));
+    if (k >= 1 && f.size <= 1.5e6) { if (bmp.close) bmp.close(); return renomme(); }
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height); if (bmp.close) bmp.close();
+    const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.85)); c.width = 0;
+    return blob && blob.size < f.size ? new File([blob], `${base}.jpg`, { type: 'image/jpeg', lastModified: Date.now() }) : renomme();
+  } catch (e) { return renomme(); }
+}
 // Bouton-zone en pointillés : clic = choisir les fichiers ; glisser-déposer dessus (ou sur le bloc qui porte useDepot)
 function ZoneDepot({ onFiles, accept, multiple = true, disabled, busy, label, sub, icon = '📎', inputLabel = 'Fichiers à joindre', depot, className, kind, dossiers }) {
   const ref = useRef(null); const own = useDepot(onFiles, { disabled: disabled || busy || !!depot, multiple, accept, dossiers });
   const d = depot || own;
   const pick = (e) => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (fs.length) onFiles(multiple ? fs : fs.slice(0, 1)); };
+  const photoRef = useRef(null); const [prep, setPrep] = useState(false); const photo = accepteImages(accept) && photoPossible();
+  const prendre = async (e) => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (!fs.length) return; setPrep(true); const L = []; for (let i = 0; i < fs.length; i += 1) L.push(await photoPreparer(fs[i], fs.length > 1 ? i : 0)); setPrep(false); onFiles(multiple ? L : L.slice(0, 1)); };
+  const Ligne = photo ? 'div' : Fragment;
   return (
-    <>
+    <Ligne {...(photo ? { className: 'zone-depot-ligne' } : {})}>
       <button type="button" {...(depot ? {} : d.props)} className={cx('zone-depot', d.sur && 'sur', kind === 'primary' && 'fort', className)} disabled={disabled || busy} onClick={() => ref.current && ref.current.click()} data-zone-depot="">
         <span className="zone-depot-ic" aria-hidden="true">{busy ? '⏳' : icon}</span>
         <span className="min-w-0"><b>{busy ? 'Enregistrement…' : d.sur ? 'Lâchez pour déposer' : label || 'Joindre des fichiers'}</b>
           <span className="zone-depot-sub"><span className="zone-depot-glisser">{multiple ? 'Glissez-déposez vos fichiers ici, ou cliquez pour les choisir' : 'Glissez-déposez le fichier ici, ou cliquez pour le choisir'}</span>{sub ? <span className="zone-depot-glisser"> · </span> : null}{sub || null}</span></span>
       </button>
+      {photo ? <button type="button" className="zone-photo" disabled={disabled || busy || prep} onClick={() => photoRef.current && photoRef.current.click()} title="Prendre une photo avec l’appareil photo" data-photo=""><span aria-hidden="true">📷</span><span>{prep ? 'Photo…' : 'Photo'}</span></button> : null}
       <input ref={ref} type="file" multiple={multiple} hidden onChange={pick} accept={accept} aria-label={inputLabel} />
-    </>
+      {photo ? <input ref={photoRef} type="file" accept="image/*" capture="environment" hidden onChange={prendre} aria-label="Photo à joindre" /> : null}
+    </Ligne>
   );
 }
