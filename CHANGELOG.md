@@ -2,6 +2,12 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.26.0-alpha.2 — 21/11/2026
+
+- Opérations : « Pesée de vendange » et « Pressurage » ne sont plus proposés dans l’onglet Opérations quand l’onglet Pressoir est actif (ils y faisaient double emploi) ; un lien « Pesées et pressurages : onglet Pressoir » y mène. Le journal des opérations garde l’historique des pesées et des marcs, et « Modifier » ouvre le formulaire du Pressoir.
+- Pressoir › Pressurages (ancien sous-onglet « Carnet de pressoir ») : « + Nouveau pressurage » charge un marc en choisissant les pesées pressées et les cuves des moûts ; sur chaque pesée du registre, « Presser » ouvre le pressurage avec la pesée déjà chargée (son n°, le poids restant à presser, le cépage et la désignation du marc proposés).
+- Onglet Pressoir désactivé (Paramètres › Modules) : les opérations « Pesée de vendange » et « Pressurage » restent proposées dans l’onglet Opérations, comme avant.
+
 ## 0.26.0-alpha.1 — 21/11/2026
 
 - Hygiène › Plan de nettoyage : plan de nettoyage et de désinfection (méthode HACCP) d’après un modèle à adapter à votre exploitation : ce qui se nettoie (cuves, pressoir, locaux et matériel), quand (après une vidange, avant un remplissage, au changement de revendication, chaque soir de vendange…), avec quels produits, comment, le contrôle après rinçage (visuel, papier pH, papier peroxyde) et le responsable. Imprimable pour le classeur qualité.

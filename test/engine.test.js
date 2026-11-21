@@ -1,7 +1,7 @@
 // Tests du moteur (sans navigateur) : concatène les fichiers JS « données » et exécute des scénarios.
 const fs = require('fs'); const path = require('path');
 const dir = path.join(__dirname, '..', 'src');
-const files = ['10-core.js', '11-crus.js', '12-vin.js', '13-operations.js', '14-formulaires.js', '15-baremes.js', '16-hygiene.js', '16b-intrants-fiches.js', '16c-plans-hygiene.js', '16d-complements.js', '17-ia.js', '17b-langues.js', '17c-traductions.js', '17d-trad-vocabulaire.js', '17e-trad-cuverie.js', '17f-trad-operations.js', '17g-trad-listes.js', '17h-trad-coque.js', '17i-trad-pesee.js', '17j-trad-pressoir-ops.js', '17k-trad-plans.js', '18-mentions.js', '19-pressoir.js', '20-engine.js', '25-trace.js', '30-store.js', '31-crud.js', '32-sync.js', '33-cloud.js', '34-acces.js', '35-seed.js'];
+const files = ['10-core.js', '11-crus.js', '12-vin.js', '13-operations.js', '14-formulaires.js', '15-baremes.js', '16-hygiene.js', '16b-intrants-fiches.js', '16c-plans-hygiene.js', '16d-complements.js', '17-ia.js', '17b-langues.js', '17c-traductions.js', '17d-trad-vocabulaire.js', '17e-trad-cuverie.js', '17f-trad-operations.js', '17g-trad-listes.js', '17h-trad-coque.js', '17i-trad-pesee.js', '17j-trad-pressoir-ops.js', '17k-trad-plans.js', '17l-trad-pressurage.js', '18-mentions.js', '19-pressoir.js', '20-engine.js', '25-trace.js', '30-store.js', '31-crud.js', '32-sync.js', '33-cloud.js', '34-acces.js', '35-seed.js'];
 let src = files.map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
 src = src.replace(/const \{ useState[^\n]*\n/, '');
 const canonJ = (v) => (v === null || typeof v !== 'object' ? JSON.stringify(v === undefined ? null : v) : Array.isArray(v) ? `[${v.map(canonJ).join(',')}]` : `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonJ(v[k])}`).join(',')}}`);
@@ -1634,7 +1634,7 @@ console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (7)');
   }
   // ---- 28. plans de nettoyage et de maintenance (HACCP), noms de produits, informations des documents, assistant IA (0.26.0-alpha.1)
   {
-    t('version 0.26.0-alpha.1 : nouvelle version mineure (plans d’hygiène, photo, fiches produits)', L.APP_VERSION === '0.26.0-alpha.1' && L.APP_NUM === 26000001 && L.CHANGELOG[0].v === '0.26.0-alpha.1' && L.CHANGELOG[0].notes.length === 6 && L.CHANGELOG[1].v === '0.25.0-alpha.2');
+    t('version 0.26.0-alpha.1 : nouvelle version mineure (plans d’hygiène, photo, fiches produits)', (() => { const i = L.CHANGELOG.findIndex((c) => c.v === '0.26.0-alpha.1'); return i >= 0 && L.versionNum('0.26.0-alpha.1') === 26000001 && L.APP_NUM >= 26000001 && L.CHANGELOG[i].notes.length === 6 && L.CHANGELOG[i + 1].v === '0.25.0-alpha.2'; })());
     const e0 = L.emptyDb();
     t('base neuve : plan de nettoyage (21 lignes) et de maintenance (14) d’origine, locaux, interventions, justifications, date de mise en place', e0.planNettoyage.length === 21 && e0.planMaintenance.length === 14 && e0.lists.locaux.length === 10 && Array.isArray(e0.maintenance) && Array.isArray(e0.hygieneAcquits) && L.isoOK(e0.settings.planHygieneDepuis) && e0.planNettoyage.every((x) => x.modele && x.actif));
     const h = L.normalizeDb(L.sampleDb()); L.syncConfig(h); const t0 = '2026-11-21';
@@ -1753,6 +1753,45 @@ console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (7)');
     t('synchronisation : intervention saisie sur un appareil, ligne du plan sur l’autre → les deux gardées', F.db.maintenance.length === 3 && F.db.planNettoyage.length === 23 && !F.conflits.length);
     L.syncConfig(L.normalizeDb(L.sampleDb()));
   }
-  console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (28 : plans de nettoyage et de maintenance, fiches produits ; compatibilité 0.25.0-alpha.2)');
+  // ---- 29. pesées et pressurages seulement dans l'onglet Pressoir, pressurage lancé depuis une pesée (0.26.0-alpha.2)
+  {
+    const i = L.CHANGELOG.findIndex((c) => c.v === '0.26.0-alpha.2');
+    t('version 0.26.0-alpha.2 : pré-version de la 0.26.0 (ajustement de la version en test)', i >= 0 && L.CHANGELOG[i + 1].v === '0.26.0-alpha.1' && L.CHANGELOG[i].notes.length === 3 && L.versionNum('0.26.0-alpha.2') === 26000002 && L.APP_NUM >= 26000002);
+    t('… nouveautés traduites dans les cinq langues', i >= 0 && L.CHANGELOG[i].notes.every((n) => L.LANGUES_TRAD.every((lg) => L.traduire(n, lg) !== n)));
+    const d = L.normalizeDb(L.sampleDb()); L.syncConfig(d);
+    const cat = (db) => L.opGroupes(db, (x) => !L.opViaPressoir(db, { type: x.id })).flatMap((g) => g.items);
+    t('onglet Pressoir actif : ni pesée ni pressurage au catalogue de l’onglet Opérations ; les autres opérations y restent', L.moduleActif(d, 'pressoir') && !cat(d).includes('apport') && !cat(d).includes('pressurage') && ['entree_mout', 'transfert', 'assemblage'].every((k) => cat(d).includes(k)), cat(d));
+    const ap = d.ops.find((o) => o.type === 'apport' && o.pesee); const mc = d.ops.find((o) => o.type === 'pressurage' && o.marc);
+    t('… le journal garde pesées et marcs : « Modifier » ouvre le formulaire du Pressoir', !!ap && !!mc && L.opViaPressoir(d, { type: 'apport', editId: ap.id }) === 'pesee' && L.opViaPressoir(d, { type: 'pressurage', editId: mc.id }) === 'marc');
+    const d2 = L.clone(d); const ra = L.moduleActiver(d2, 'pressoir', false);
+    t('onglet Pressoir désactivé : les deux opérations reviennent dans l’onglet Opérations, avec leurs formulaires généraux', ra.ok && !L.moduleActif(d2, 'pressoir') && cat(d2).includes('apport') && cat(d2).includes('pressurage') && L.opViaPressoir(d2, { type: 'pressurage' }) === '' && L.opViaPressoir(d2, { type: 'apport', editId: ap.id }) === '');
+    // « Presser » : marc chargé avec le reste de la pesée
+    const ctx = { maintenant: '2026-09-25T07:01:00', par: '' };
+    const p = L.peseeSave(d, { date: '2026-09-25', heure: '07:00', cepageId: 'chard', kg: 5000, etat: 'sain' }, null, ctx);
+    const m1 = p.ok ? L.marcSave(d, { date: '2026-09-25', heureDebut: '08:00', equipementId: 'pressoir', charges: [{ apportId: p.op.id, kg: 3000 }], code: 'PT-1' }, null, ctx) : p;
+    const r1 = p.ok ? L.peseeReste(d, p.op.id) : -1;
+    const m2 = p.ok ? L.marcSave(d, { date: '2026-09-25', heureDebut: '10:00', equipementId: 'pressoir', charges: [{ apportId: p.op.id, kg: r1 }], code: 'PT-2', sousCharge: 'Fin de la pesée' }, null, ctx) : p;
+    t('« Presser » sur une pesée : marc chargé avec le reste (2 000 kg), pesée entièrement pressée ensuite', p.ok && m1.ok && r1 === 2000 && m2.ok && L.peseeReste(d, p.op.id) === 0, [p.msg, m1.msg, r1, m2.msg]);
+    // base de test 0.26.0-alpha.2 ; compatibilité avec la 0.26.0-alpha.1 gelée ; synchronisation
+    const f29 = L.normalizeDb(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'base-0.26.0-alpha.2-pressurage.json'), 'utf8'))); L.syncConfig(f29);
+    const pz = f29.ops.find((o) => o.type === 'apport' && o.pesee && o.date === '2026-09-24'); const mz = pz ? f29.ops.filter((o) => o.type === 'pressurage' && (o.charges || []).some((c) => c.apportId === pz.id)) : [];
+    t('base 0.26.0-alpha.2 de test : une pesée pressée en deux marcs (nouveau pressurage, puis « Presser » avec le reste)', f29.meta.versions.includes('0.26.0-alpha.2') && mz.length === 2 && L.peseeReste(f29, pz.id) === 0 && mz.some((m) => m.parentSpec.code === 'PF-29' && m.parentSpec.designation === 'Chardonnay 2026 – marc' && m.charges[0].kg === 2000));
+    const dirX = path.join(__dirname, 'anciennes', '0.26.0-alpha.1');
+    const X = new Function('React', files.filter((f) => fs.existsSync(path.join(dirX, f))).map((f) => fs.readFileSync(path.join(dirX, f), 'utf8')).join('\n').replace(/const \{ useState[^\n]*\n/, '') + '\n;return { normalizeDb, clone, opSave, journalAlteres, APP_VERSION, APP_NUM };')({});
+    t('0.26.0-alpha.1 gelée chargée (n° 26 000 001)', X.APP_VERSION === '0.26.0-alpha.1' && X.APP_NUM === 26000001 && L.APP_NUM > X.APP_NUM);
+    const x = X.normalizeDb(X.clone(f29)); const K = ['ops', 'lots', 'contenants', 'journalPressoir', 'lists', 'settings', 'formulaires', 'planNettoyage', 'planMaintenance', 'maintenance', 'hygiene', 'hygieneAcquits'];
+    t('… ouvre la base 0.26.0-alpha.2 sans rien perdre (pesées, marcs, lots, journal du pressoir, plans d’hygiène)', K.every((k) => canonJ(x[k]) === canonJ(f29[k])), K.filter((k) => canonJ(x[k]) !== canonJ(f29[k])));
+    const xm = mz.length ? x.ops.find((o) => o.id === mz[1].id) : null; const rx = xm ? X.opSave(x, { ...X.clone(xm), notes: 'note 0.26.0-alpha.1' }, xm.id) : { ok: false, msg: 'marc absent' };
+    const back = L.normalizeDb(X.clone(x)); const bm = xm ? back.ops.find((o) => o.id === xm.id) : null;
+    t('… marc annoté par la 0.26.0-alpha.1 : pesée chargée et désignation gardées ; rouvert ici, pesée toujours pressée, journal intègre', rx.ok && !!bm && bm.notes === 'note 0.26.0-alpha.1' && bm.charges[0].apportId === pz.id && bm.parentSpec.designation === mz[1].parentSpec.designation && L.peseeReste(back, pz.id) === 0 && !L.journalAlteres(back).length, rx.msg);
+    const A1 = L.clone(f29); const A2 = L.clone(f29); const c2 = { maintenant: '2026-09-26T07:01:00', par: '' };
+    const q = L.peseeSave(A1, { date: '2026-09-26', heure: '07:00', cepageId: 'pn', kg: 4000, etat: 'sain', tap: 10.2 }, null, c2);
+    const qm = q.ok ? L.marcSave(A1, { date: '2026-09-26', heureDebut: '08:00', equipementId: 'pressoir', charges: [{ apportId: q.op.id, kg: L.peseeReste(A1, q.op.id) }], code: 'PF-30' }, null, c2) : q;
+    L.maintInterventionSave(A2, { date: '2026-11-21', entreeId: 'pm_filtres', type: 'preventive', resultat: 'conforme' });
+    const F = L.syncFusion(f29, A1, A2);
+    t('synchronisation : pesée pressée sur un appareil, intervention sur l’autre → les deux gardées', q.ok && qm.ok && F.db.ops.length === f29.ops.length + 2 && F.db.maintenance.length === f29.maintenance.length + 1 && !F.conflits.length, [q.msg, qm.msg, F.conflits.length]);
+    L.syncConfig(L.normalizeDb(L.sampleDb()));
+  }
+  console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (29 : pesées et pressurages dans l’onglet Pressoir ; compatibilité 0.26.0-alpha.1)');
   process.exitCode = fails ? 1 : 0;
 })();

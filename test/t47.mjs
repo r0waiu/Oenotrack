@@ -81,7 +81,7 @@ await sub('Bilan'); t = await txt(page.locator('main'));
 ok('bilan : TAP moyen et pourriture acide', /TAP moyen/i.test(t) && /% vol\./.test(t) && /Pourriture acide/i.test(t), t.slice(0, 500));
 await sub('Relevés'); t = await txt(page.locator('main'));
 ok('relevés par apporteur : colonne TAP moyen', /TAP moyen/i.test(t));
-await sub('Carnet'); await page.locator('[data-nouveau-marc]').click(); await page.waitForTimeout(300); f = ov();
+await sub('Pressurages'); await page.locator('[data-nouveau-marc]').click(); await page.waitForTimeout(300); f = ov();
 await f.locator('[data-remplir]').click().catch(() => {}); await page.waitForTimeout(300);
 t = await txt(f);
 ok('carnet : TAP moyen des pesées chargées proposé sous le TAV en puissance', /TAP moyen des pesées chargées : \d+,\d % vol\./.test(t), t.slice(0, 300));

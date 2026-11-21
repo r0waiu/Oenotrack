@@ -41,15 +41,15 @@ await ed.locator('[data-qualif="hve"] button[aria-label^="Monter"]').click(); aw
 ok('revendication utilisée : suppression impossible (bouton grisé)', await ed.locator('[data-qualif="bio"] button[aria-label^="Supprimer"]').isDisabled());
 await page.screenshot({ path: SC + '/shots/t39-revendications.png' });
 // formulaire d'apport : la nouvelle revendication est proposée ; masquée, elle ne l'est plus
-await page.click('#tab-ops'); await page.waitForTimeout(300);
-const ouvrirApport = async () => { await page.locator('main button', { hasText: 'Pesée de vendange' }).first().click(); await page.waitForTimeout(400); };
+await page.click('#tab-pressoir'); await page.waitForTimeout(300);
+const ouvrirApport = async () => { await page.locator('[data-nouvelle-pesee]').click(); await page.waitForTimeout(400); };
 await ouvrirApport();
 const optsQ = async () => top().locator('label:has-text("Revendication") select option').allInnerTexts();
 let oq = await optsQ(); ok('apport : HVE (rang 2) et « Agriculture biologique » proposés', oq.some((x) => x.startsWith('HVE (rang 2)')) && oq.some((x) => x.startsWith('Agriculture biologique (rang 3)')), oq.join(' | '));
 await echap(1);
 await page.click('#tab-params'); await page.waitForTimeout(200); await page.locator('main button', { hasText: 'Revendications, stades & listes' }).click(); await page.waitForTimeout(300);
 await ed.locator('[data-qualif="hve"] label', { hasText: 'masquée' }).click(); await page.waitForTimeout(300);
-await page.click('#tab-ops'); await page.waitForTimeout(300); await ouvrirApport();
+await page.click('#tab-pressoir'); await page.waitForTimeout(300); await ouvrirApport();
 oq = await optsQ(); ok('masquée : plus proposée à la saisie', !oq.some((x) => x.startsWith('HVE')), oq.join(' | ')); await echap(1);
 // intrants : une colonne de règles par revendication, lien vers l'éditeur
 await page.click('#tab-intrants'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: 'Produits & règles' }).click(); await page.waitForTimeout(300);

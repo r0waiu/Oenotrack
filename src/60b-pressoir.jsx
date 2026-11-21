@@ -148,7 +148,7 @@ function TicketPesee({ id, onClose }) {
 /* ---------- registre des pesées ---------- */
 function PeseesView({ annee }) {
   const { db, act, camp, uid } = useApp(); const droits = usePressoirDroits();
-  const [form, setForm] = useState(null); const [ticket, setTicket] = useState(null); const [annul, setAnnul] = useState(null); const [q, setQ] = useState(''); const [jour, setJour] = useState('');
+  const [form, setForm] = useState(null); const [ticket, setTicket] = useState(null); const [annul, setAnnul] = useState(null); const [q, setQ] = useState(''); const [jour, setJour] = useState(''); const [marc, setMarc] = useState(null);
   const L = peseesDe(db, annee).slice().reverse(); const auj = todayISO();
   const rows = L.filter((o) => (!jour || o.date === jour) && (!q || norm(`${apporteurName(db, o.apporteurId)} ${peseeOrigine(db, o)} ${lbl(db, 'cepages', o.cepageId)} ${(o.pesee || {}).num || ''}`).includes(norm(q))));
   const reste = (o) => peseeReste(db, o.id); const duJour = L.filter((o) => o.date === auj);
@@ -180,13 +180,14 @@ function PeseesView({ annee }) {
           ...colsReleves,
           { h: 'Reste', cls: 'r', r: (o) => { const x = reste(o); return <span className={cx('num whitespace-nowrap', x > 0.5 ? 'text-warn' : 'text-ink2')}>{x > 0.5 ? kgTxt(x) : 'pressée'}</span>; } },
           { h: 'Statut', r: (o) => statutChip(o.pesee, 'pesee') },
-          { h: '', r: (o) => <div className="flex flex-wrap gap-1"><Btn size="sm" onClick={() => setTicket(o.id)} title="Ticket à remettre à l’apporteur">Ticket</Btn><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? 'Modifier' : 'Voir'}</Btn>
+          { h: '', r: (o) => <div className="flex flex-wrap gap-1">{droits.ecrit && !camp.figee && reste(o) > 0.5 && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => setMarc({ date: o.date, charges: [{ apportId: o.id, kg: reste(o) }] })} title="Charger un marc avec le reste de cette pesée (pressurage)" data-presser={(o.pesee || {}).num || ''}>Presser</Btn> : null}<Btn size="sm" onClick={() => setTicket(o.id)} title="Ticket à remettre à l’apporteur">Ticket</Btn><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? 'Modifier' : 'Voir'}</Btn>
             {droits.ecrit && !(o.pesee && o.pesee.valide) && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => valider(o)}>Valider</Btn> : null}
             {droits.annuler && !isLocked(db, o.date) && reste(o) >= num(o.kg) - 0.5 ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} />
-        <p className="help mt-2">Chaque pesée reçoit un n° continu dans l’année ; une pesée annulée garde son n° (journal). Les pesées sont aussitôt proposées dans le carnet de pressoir et dans les pressurages de l’onglet Opérations.</p>
+        <p className="help mt-2">Chaque pesée reçoit un n° continu dans l’année ; une pesée annulée garde son n° (journal). « Presser » charge un marc avec le reste de la pesée ; les pesées sont aussi proposées dans chaque pressurage (onglet Pressurages).</p>
       </Sec>
       {form ? <PeseeForm id={form.id} onClose={() => setForm(null)} onTicket={(id) => setTicket(id)} /> : null}
       {ticket ? <TicketPesee id={ticket} onClose={() => setTicket(null)} /> : null}
+      {marc ? <MarcForm preset={marc} onClose={() => setMarc(null)} /> : null}
       {annul ? <MotifSheet title={`Annuler la pesée n° ${(annul.pesee || {}).num || ''} ?`} body="La pesée est retirée du registre ; son n° n’est jamais réattribué et une copie est gardée au journal du pressoir." ok="Annuler la pesée" danger onClose={annuler} /> : null}
     </div>
   );
@@ -202,7 +203,8 @@ function MarcForm({ id, onClose, preset }) {
   const persoM = formulaireDe(db, 'pressurage').perso; // champs personnalisés du formulaire « Pressurage » (Paramètres › Opérations)
   const [f, set, setF] = useDraft(o ? { date: o.date, heureDebut: m0.heureDebut || '', heureFin: m0.heureFin || '', equipementId: o.equipementId || '', charges: (o.charges || []).map((c) => ({ apportId: c.apportId, kg: String(c.kg) })), code: (o.parentSpec || {}).code || '', designation: (o.parentSpec || {}).designation || '', millesime: (o.parentSpec || {}).millesime || '', qualifId: (o.parentSpec || {}).qualifId || '', frac: frac0, tavp: hasNum(m0.tavp) ? String(m0.tavp) : '', bourbesL: hasNum(m0.bourbesL) ? String(m0.bourbesL) : '', sousCharge: m0.sousCharge || '', notes: o.notes || '', operateurs: o.operateurs || [], couleur: o.couleur || '', champs: champsEtat(o), motif: '', valider: false }
     : (() => { const P0 = preset || {}; const d0 = isoOK(P0.date) ? P0.date : defaultDate; const fr0 = { ...frac0 }; Object.keys(P0.frac || {}).forEach((k) => { if (fr0[k] && P0.frac[k] && P0.frac[k].contenantId) fr0[k] = { ...fr0[k], contenantId: P0.frac[k].contenantId }; });
-      const s0 = { date: d0, heureDebut: heureNow(), heureFin: '', equipementId: (PR.find((x) => x.id === P0.equipementId) || PR[0] || {}).id || '', charges: [], code: codeMarcSuivant(db, d0), designation: '', millesime: '', qualifId: '', frac: fr0, tavp: '', bourbesL: '', sousCharge: '', notes: '', operateurs: moi ? [moi] : [], couleur: couleurDefaut(db), champs: {}, motif: '', valider: false };
+      const ch0 = (Array.isArray(P0.charges) ? P0.charges : []).filter((c) => c && c.apportId && num(c.kg) > 0).map((c) => ({ apportId: c.apportId, kg: String(r2(num(c.kg))) })); const a0 = ch0.length ? db.ops.find((y) => y.id === ch0[0].apportId) : null;
+      const s0 = { date: d0, heureDebut: heureNow(), heureFin: '', equipementId: (PR.find((x) => x.id === P0.equipementId) || PR[0] || {}).id || '', charges: ch0, code: codeMarcSuivant(db, d0), designation: a0 ? `${lbl(db, 'cepages', a0.cepageId)} ${yearOf(d0)} – marc` : '', millesime: '', qualifId: '', frac: fr0, tavp: '', bourbesL: '', sousCharge: '', notes: '', operateurs: moi ? [moi] : [], couleur: couleurDefaut(db), champs: {}, motif: '', valider: false };
       persoM.forEach((d) => { if (d.defaut != null && d.defaut !== '' && d.type !== 'calcul') s0.champs[d.id] = d.defaut; }); return s0; })());
   const pr = PR.find((x) => x.id === f.equipementId);
   const dispo = db.ops.filter((x) => x.type === 'apport' && x.date <= f.date && yearOf(x.date) === yearOf(f.date) && (peseeReste(db, x.id, id) > 0.5 || f.charges.some((c) => c.apportId === x.id))).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : num((b.pesee || {}).num) - num((a.pesee || {}).num)));
@@ -288,8 +290,8 @@ function MarcsView({ annee }) {
         <Kpi label="Marcs" value={L.length} sub={`${fmt(sum(L, marcKg))} kg pressés`} /><Kpi label="Moûts" value={fmtL(sum(L, (o) => marcVolumes(db, o).total))} sub={`dont rebêches ${fmtL(sum(L, (o) => marcVolumes(db, o).rebeche))}`} />
         <Kpi label="En cours" value={enCours} tone={enCours ? 'warn' : undefined} sub="volumes à compléter" /><Kpi label="À valider" value={aValider} tone={aValider ? 'warn' : 'ok'} sub={aValider ? 'marcs non validés' : 'carnet à jour'} />
       </div>
-      <Sec title={`Carnet de pressoir ${annee}`} right={<><Btn onClick={() => setImp(true)} disabled={!L.length}>🖨 Imprimer le carnet</Btn>{droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouveau-marc="">+ Charger un marc</Btn> : null}</>}>
-        <Tbl rows={L} empty="Aucun marc cette année : « + Charger un marc » au début de chaque pressurage." cols={[
+      <Sec title={`Carnet de pressoir ${annee}`} right={<><Btn onClick={() => setImp(true)} disabled={!L.length}>🖨 Imprimer le carnet</Btn>{droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouveau-marc="" title="Charger un marc : pesées pressées, cuves des moûts">+ Nouveau pressurage</Btn> : null}</>}>
+        <Tbl rows={L} empty="Aucun marc cette année : « + Nouveau pressurage » (ou « Presser » sur une pesée) au début de chaque pressurage." cols={[
           { h: 'N°', r: (o) => <b className="num" data-num-marc="">{(o.marc || {}).num || '—'}</b> },
           { h: 'Date', r: (o) => <span className="num whitespace-nowrap">{fmtDate(o.date)} {(o.marc || {}).heureDebut || ''}{(o.marc || {}).heureFin ? `–${o.marc.heureFin}` : ''}</span> },
           { h: 'Pressoir', cls: 'hm', r: (o) => lbl(db, 'equipements', o.equipementId) },
@@ -485,7 +487,7 @@ function TabPressoir() {
   const [annee, setAnnee] = useState(annees.includes(a0) ? a0 : annees[0]);
   const b = useMemo(() => bilanPressoir(db, annee), [db, annee]);
   const nP = P.registre ? b.nonValides.pesees : 0; const nB = b.alertes.filter((a) => a.niveau === 'bloquant').length;
-  const items = [{ id: 'pesees', label: 'Pesées', badge: nP || null }, { id: 'marcs', label: 'Carnet de pressoir', badge: b.nonValides.marcs || null }, { id: 'releves', label: 'Relevés par apporteur' }, { id: 'bilan', label: 'Bilan', badge: nB || null }, { id: 'journal', label: 'Journal' }, { id: 'reglages', label: 'Réglages' }];
+  const items = [{ id: 'pesees', label: 'Pesées', badge: nP || null }, { id: 'marcs', label: 'Pressurages', badge: b.nonValides.marcs || null }, { id: 'releves', label: 'Relevés par apporteur' }, { id: 'bilan', label: 'Bilan', badge: nB || null }, { id: 'journal', label: 'Journal' }, { id: 'reglages', label: 'Réglages' }];
   const [sub, setSub] = useSousOnglet(items, 'pesees');
   const V = { pesees: PeseesView, marcs: MarcsView, releves: RelevesView, bilan: BilanPressoirView, journal: JournalPressoirView, reglages: ReglagesPressoirView }[sub] || PeseesView;
   return (
