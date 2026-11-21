@@ -389,6 +389,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       {cfgEd ? <FormulaireEditor catId={cat.id} onClose={() => setCfgEd(false)} /> : null}
       {old ? null : <div className="help">« ✓ Valider » enregistre l’opération réalisée (stocks mis à jour){moduleActif(db, 'previsions') ? ' ; « 📋 Planifier » la met dans la liste « À réaliser » sans toucher aux stocks' : ''}.</div>}
       {built.error ? <div className="text-sm text-ink2">{old ? 'Pour enregistrer : ' : 'Pour valider : '}{built.error}{old || !moduleActif(db, 'previsions') ? '' : ' — vous pouvez déjà la planifier.'}</div> : <PreviewBox pv={pv} />}
+      {!built.error && built.spec && !lecture && moduleActif(db, 'hygiene') ? <HygControlesNotices spec={built.spec} editId={editId} pv={pv} /> : null}
     </FormSheet>
   );
 }

@@ -8,6 +8,8 @@ export async function open(opts = {}) {
   const browser = await chromium.launch();
   // navigateur en français par défaut (0.24.0-alpha.1 : la langue de la toute première ouverture suit celle du navigateur) ; opts.locale pour les autres
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 900 }, colorScheme: opts.dark ? 'dark' : 'light', deviceScaleFactor: 1, isMobile: !!opts.mobile, hasTouch: !!opts.mobile, locale: opts.locale || 'fr-FR' });
+  // opts.date : date et heure figées (Date, todayISO) pour les tests qui en dépendent (plans d'hygiène), les minuteries tournent normalement
+  if (opts.date) await ctx.clock.setFixedTime(new Date(opts.date));
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));

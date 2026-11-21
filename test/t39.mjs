@@ -86,11 +86,12 @@ ok('… nature et mention d’avertissement', (await val('Nature', 'select')) ==
 const pres = async (grp) => top().locator(`[role=group][aria-label="${grp}"] button[aria-pressed="true"]`).count();
 ok('… pictogrammes (2) et protections (4) cochés', (await pres('Pictogrammes de danger')) === 2 && (await pres('Protections individuelles')) === 4);
 ok('… FDS en attente d’enregistrement', (await top().locator('[data-docs-attente] li').count()) === 1);
+ok('nom lu en majuscules : « Enregistré sous « Nettoyant Chloré Démo 123 » » (casse à la création, 0.26.0-alpha.1)', /Enregistré sous « Nettoyant Chloré Démo 123 »/.test(await top().innerText()));
 await page.screenshot({ path: SC + '/shots/t39-fds-lue.png' });
 await top().locator('input[aria-label="Concentration minimale"]').fill('1');
 await top().locator('input[aria-label="Concentration maximale"]').fill('2');
 await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(500);
-d = await dbj(); const pN = d.produitsHygiene.find((p) => p.nom === 'NETTOYANT CHLORÉ DÉMO 123');
+d = await dbj(); const pN = d.produitsHygiene.find((p) => p.nom === 'Nettoyant Chloré Démo 123');
 ok('produit créé, FDS jointe (catégorie FDS)', !!pN && d.docs.some((x) => x.cible.type === 'produitHygiene' && x.cible.id === pN.id && x.cat === 'fds') && pN.concMin === 1 && pN.concMax === 2 && pN.pictos.join() === 'SGH05,SGH09');
 ok('fiche du produit ouverte : FDS du 15/03/2023 (plus de 3 ans)', (await top().innerText()).includes('FDS du 15/03/2023'));
 await page.screenshot({ path: SC + '/shots/t39-fiche-produit.png' });
@@ -102,7 +103,7 @@ const nRev = await top().locator('[data-fds-revue] li').count(); ok('relecture :
 await top().locator('[data-fds-revue] input[aria-label="Reprendre : Nom du produit"]').uncheck();
 for (const lab of ['Nature', 'Pictogrammes de danger', 'Mentions de danger', 'Mention d’avertissement', 'Fabricant / fournisseur de la FDS', 'Composition']) { const c = top().locator(`[data-fds-revue] input[aria-label="Reprendre : ${lab}"]`); if (await c.count()) await c.uncheck(); }
 await top().locator('[data-fds-revue] button', { hasText: 'Reprendre la sélection' }).click(); await page.waitForTimeout(400);
-ok('reprise sélective : nom gardé, date de la nouvelle FDS reprise', (await val('Nom du produit')) === 'NETTOYANT CHLORÉ DÉMO 123' && (await val('Date de révision de la FDS')) === '2022-02-03');
+ok('reprise sélective : nom gardé, date de la nouvelle FDS reprise', (await val('Nom du produit')) === 'Nettoyant Chloré Démo 123' && (await val('Date de révision de la FDS')) === '2022-02-03');
 await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(400);
 d = await dbj(); ok('relecture enregistrée : nouveau fichier joint comme FDS', d.docs.filter((x) => x.cible.type === 'produitHygiene' && x.cible.id === pN.id && x.cat === 'fds').length === 2 && d.produitsHygiene.find((p) => p.id === pN.id).fdsDate === '2022-02-03');
 await echap();
@@ -118,7 +119,7 @@ await page.locator('main button', { hasText: '+ Nouvelle entrée' }).click(); aw
 const cinp = top().locator('input[role=combobox]').first(); await pick(page, cinp, 'Cuve 04', 'Cuve 04');
 const l0 = top().locator('[data-hyg-ligne="0"]');
 const pin = l0.locator('input[aria-label="Produit 1"], select[aria-label="Produit 1"]').first();
-if ((await pin.evaluate((e) => e.tagName)) === 'SELECT') await pin.selectOption({ label: 'NETTOYANT CHLORÉ DÉMO 123 (1 à 2 %)' }); else await pick(page, pin, 'NETTOYANT', 'NETTOYANT CHLORÉ DÉMO 123');
+if ((await pin.evaluate((e) => e.tagName)) === 'SELECT') await pin.selectOption({ label: 'Nettoyant Chloré Démo 123 (1 à 2 %)' }); else await pick(page, pin, 'NETTOYANT', 'Nettoyant Chloré Démo 123');
 await page.waitForTimeout(200);
 ok('produit choisi : concentration proposée (bas de la plage), rappels de sécurité', (await l0.locator('input[aria-label="Concentration du produit 1"]').inputValue()) === '1' && (await l0.locator('[data-securite] svg').count()) >= 4 && (await l0.innerText()).includes('Ne jamais mélanger'));
 await l0.locator('input[aria-label="Concentration du produit 1"]').fill('3'); await l0.locator('input[aria-label="Quantité du produit 1"]').fill('2,5');
@@ -132,21 +133,21 @@ await top().locator('label:has-text("Méthode") input').fill('eau chaude 50 °C'
 await page.screenshot({ path: SC + '/shots/t39-entree.png' });
 await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(400);
 d = await dbj(); const he = d.hygiene[d.hygiene.length - 1];
-ok('entrée enregistrée : produits, concentrations, quantité, méthode, résumé', he.produits.length === 2 && he.produits[0].conc === 3 && he.produits[0].quantite === 2.5 && he.methode === 'eau chaude 50 °C' && he.produit.startsWith('NETTOYANT CHLORÉ DÉMO 123 3 % + Acide citrique (détartrant)'), he.produit);
+ok('entrée enregistrée : produits, concentrations, quantité, méthode, résumé', he.produits.length === 2 && he.produits[0].conc === 3 && he.produits[0].quantite === 2.5 && he.methode === 'eau chaude 50 °C' && he.produit.startsWith('Nettoyant Chloré Démo 123 3 % + Acide citrique (détartrant)'), he.produit);
 const row = page.locator('main table tbody tr', { hasText: 'Cuve 04' }).first();
 ok('journal : pastilles des produits', (await row.locator('button.chip', { hasText: 'NETTOYANT' }).count()) === 1);
 await row.locator('button.chip', { hasText: 'NETTOYANT' }).click(); await page.waitForTimeout(300);
-ok('pastille → fiche du produit (utilisation comptée)', (await top().locator('h2').innerText()) === 'NETTOYANT CHLORÉ DÉMO 123' && (await top().innerText()).includes('Bac') === false && (await top().innerText()).includes('Cuve 04'));
+ok('pastille → fiche du produit (utilisation comptée)', (await top().locator('h2').innerText()) === 'Nettoyant Chloré Démo 123' && (await top().innerText()).includes('Bac') === false && (await top().innerText()).includes('Cuve 04'));
 await echap();
 // filtre par produit
-await page.locator('main select[aria-label="Produit d’hygiène"]').selectOption({ label: 'NETTOYANT CHLORÉ DÉMO 123' }); await page.waitForTimeout(200);
+await page.locator('main select[aria-label="Produit d’hygiène"]').selectOption({ label: 'Nettoyant Chloré Démo 123' }); await page.waitForTimeout(200);
 ok('filtre par produit', (await page.locator('main table tbody tr').count()) === 1);
 await page.locator('main select[aria-label="Produit d’hygiène"]').selectOption(''); await page.waitForTimeout(200);
 // création d'un produit depuis l'entrée
 await page.locator('main button', { hasText: '+ Nouvelle entrée' }).click(); await page.waitForTimeout(400);
 await top().locator('button', { hasText: '+ Nouveau produit d’hygiène' }).click(); await page.waitForTimeout(300);
 await top().locator('label:has-text("Nom du produit") input').fill('Eau ozonée démo'); await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(400);
-ok('produit créé depuis l’entrée : ajouté à la liste des produits utilisés', (await top().locator('[data-hyg-ligne]').count()) === 1 && /Eau ozonée démo/.test(await top().locator('[data-hyg-ligne="0"]').innerText() + (await top().locator('[data-hyg-ligne="0"] input, [data-hyg-ligne="0"] select').first().inputValue())));
+ok('produit créé depuis l’entrée : ajouté à la liste des produits utilisés', (await top().locator('[data-hyg-ligne]').count()) === 1 && /Eau Ozonée Démo/.test(await top().locator('[data-hyg-ligne="0"]').innerText() + (await top().locator('[data-hyg-ligne="0"] input, [data-hyg-ligne="0"] select').first().inputValue())));
 await echap();
 
 // ================= 4. registre, sauvegarde, base 0.17.0-alpha.2 =================

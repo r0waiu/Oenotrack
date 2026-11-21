@@ -215,7 +215,7 @@ function MarcForm({ id, onClose, preset }) {
   // aperçu des contrôles (sans enregistrer)
   const tapCharges = tapPesees(db, (f.charges || []).filter((c) => c.apportId && num(c.kg) > 0));
   const apercu = useMemo(() => { const r = marcSpec(db, f, o); if (!r.ok) return { err: r.msg, ctl: [] }; const op = { ...r.spec, id: id || '_nouveau', marc: { ...(o && o.marc), ...r.spec.marc, saisiLe: m0.saisiLe || pMaintenant() } };
-    const d = { ...db, ops: id ? db.ops.map((x) => (x.id === id ? op : x)) : [...db.ops, op] }; return { err: '', ctl: marcControles(d, op), vol: marcVolumes(d, op) }; }, [f, db]);
+    const d = { ...db, ops: id ? db.ops.map((x) => (x.id === id ? op : x)) : [...db.ops, op] }; return { err: '', ctl: marcControles(d, op), vol: marcVolumes(d, op), spec: op }; }, [f, db]);
   const save = (val) => {
     const r = act((d) => { const s = marcSave(d, f, id || null, { motif: f.motif, par: uid, maintenant: pMaintenant() }); if (!s.ok || !val) return s; return marcValider(d, s.op.id, { par: uid, maintenant: pMaintenant() }); },
       val ? 'Marc validé au carnet de pressoir.' : id ? 'Marc enregistré.' : 'Marc chargé : complétez les volumes à la fin du pressurage.');
@@ -267,6 +267,7 @@ function MarcForm({ id, onClose, preset }) {
       {apercu.err && f.charges.length ? <Notice tone="warn">{apercu.err}</Notice> : null}
       {bloquants.map((c, i) => <Notice key={`b${i}`} tone="bad">{c.msg}</Notice>)}
       {alertes.map((c, i) => <Notice key={`a${i}`} tone="warn">{c.msg}</Notice>)}
+      {apercu.spec && !lecture && moduleActif(db, 'hygiene') ? <HygControlesNotices spec={apercu.spec} editId={id || null} /> : null}
       {valide && !lecture ? <Field label="Motif de la correction (obligatoire si vous changez le marc)"><TI value={f.motif} onChange={(v) => set('motif', v)} data-motif-correction="" /></Field> : null}
     </FormSheet>
   );

@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.25.0--alpha.2-8C6E2F">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.26.0--alpha.1-8C6E2F">
   <img alt="Licence" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-1E242B">
   <img alt="Langues" src="https://img.shields.io/badge/langues-FR%20%C2%B7%20EN%20%C2%B7%20ES%20%C2%B7%20IT%20%C2%B7%20DE%20%C2%B7%20PT-5B636D">
 </p>
@@ -51,9 +51,10 @@
 | 🛢️ **Cuverie et lots** | Plan de cave, cuves, fûts, foudres, citernes avec leurs barèmes de jaugeage (cahier d’épalement lu en PDF, photo ou tableur), lots, portions et composition (cépages, crus, millésimes, revendications). |
 | ⚙️ **Opérations** | Débourbage, levurage, soutirages, assemblages, froid, filtration, tirage, remuage, dégorgement… avec des formulaires personnalisables et des fiches d’enregistrement à imprimer. |
 | 🔎 **Traçabilité et registres** | Traçabilité ascendante et descendante, par intrant, par parcelle ; registres et bilan matière exportés en CSV ou Excel. |
-| 🧪 **Intrants, analyses, hygiène** | Stocks d’intrants avec fiches techniques et FDS, règles par revendication (bio, Demeter…), déclassements, analyses, produits et journal d’hygiène. |
+| 🧪 **Intrants, analyses** | Stocks d’intrants avec fiches techniques et FDS (lues à leur dépôt, ou photographiées depuis un téléphone), règles par revendication (bio, Demeter…), déclassements, analyses. |
+| 🧽 **Hygiène (HACCP)** | Plan de nettoyage et de désinfection, plan de maintenance du matériel, journal d’hygiène avec contrôles après rinçage, tâches et alertes (cuve vidée sans rinçage, changement de revendication, pannes…), produits d’hygiène et leurs FDS. |
 | 👥 **À plusieurs** | Opérateurs, identifiants et droits par profil, journal des accès ; partage entre appareils et personnes par votre Google Drive, OneDrive ou Dropbox. |
-| 🤖 **Assistant IA facultatif** | Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…) : lecture des fiches d’intrants et suivi de leurs mises à jour. |
+| 🤖 **Assistant IA facultatif** | Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…) : identification et lecture des FT, FDS et certificats (fiches produits complétées), suivi de leurs mises à jour. |
 
 ## Le pressoir
 
@@ -84,6 +85,16 @@ Contrôles du profil **AOC Champagne**, d’après le cahier des charges homolog
 
 > [!IMPORTANT]
 > Œnotrack aide à tenir ces documents ; il ne remplace ni vos registres officiels ni les textes en vigueur. Aucun format d’échange officiel n’étant publié, les exports servent de copie et de contrôle.
+
+## Hygiène et maintenance (méthode HACCP)
+
+L’onglet **Hygiène** tient le plan de nettoyage et de désinfection, le plan de maintenance du matériel et leur suivi :
+
+- **Plan de nettoyage** : pour chaque zone (pressoir et réception, cuverie, tirage, dégorgement…), ce qui se nettoie (cuves par type, équipements, locaux et matériel), quand (après chaque vidange, avant chaque remplissage, au changement de revendication, chaque soir de vendange, avant et après les vendanges, avant les assemblages, périodiquement…), avec quels produits, comment, le temps de contact, le contrôle après rinçage (visuel, papier pH, papier peroxyde), le responsable et l’enregistrement. Un modèle d’origine est fourni, à adapter ; les lignes « consigne » rappellent la bonne pratique sans alerte. Imprimable pour le classeur qualité.
+- **À faire** : tâches et alertes tirées du plan et des opérations enregistrées (vidanges et remplissages rejoués) : cuve vidée à rincer, remplissage sans rinçage récent, changement de revendication (par exemple Conventionnel → Bio) sans nettoyage, nettoyages périodiques et des soirs de vendange, maintenance échue, pannes. Une non-conformité se justifie (motif gardé). Seuls les événements depuis la mise en place du plan sont contrôlés.
+- **À la saisie** : les formulaires d’opération et le carnet de pressoir préviennent avant d’enregistrer (cuve à rincer avant remplissage, changement de revendication), et le rinçage est proposé dès qu’une opération vide une cuve.
+- **Plan de maintenance** : préventive, réglementaire (vérifications obligatoires, registre de sécurité) et curative ; échéances, vérifications avant vendanges, pannes signalées jusqu’à leur réparation, interventions avec leurs documents.
+- **Journal d’hygiène** : entrées par contenant, équipement ou local, avec la ligne du plan suivie, le contrôle après rinçage et le changement de revendication.
 
 ## Champagne ou autre région viticole
 
@@ -224,6 +235,6 @@ Le nom « Œnotrack » et son logo ne sont pas couverts par la licence : une ver
 
 **Œnotrack** is free, open-source cellar traceability software for winegrowers, running entirely in the browser (computer, tablet, phone; installable, works offline). Data stays on your device; optional sharing goes through your own Google Drive, OneDrive or Dropbox folder.
 
-It covers the **press house** (weighing register with tickets, press logbook filled as you go, AOC Champagne pressing rules: 102 litres of settled must per 160 kg, minimum *rebêches* rate, at most 6 press cycles per 24 hours per press…), the **tank room** (tanks and barrels with calibration tables, lots and their composition), **cellar operations**, **traceability and registers** (CSV/Excel), **additives, analyses and hygiene**, and **multi-user rights**. Champagne-specific rules can be switched off for other wine regions (no cap, or *crémant*: 100 litres per 150 kg).
+It covers the **press house** (weighing register with tickets, press logbook filled as you go, AOC Champagne pressing rules: 102 litres of settled must per 160 kg, minimum *rebêches* rate, at most 6 press cycles per 24 hours per press…), the **tank room** (tanks and barrels with calibration tables, lots and their composition), **cellar operations**, **traceability and registers** (CSV/Excel), **additives and analyses** (technical and safety data sheets read when added, or photographed from a phone), **hygiene following the HACCP method** (cleaning and disinfection plan, equipment maintenance plan, tasks and alerts such as a tank emptied without rinsing or a switch from conventional to organic without cleaning), and **multi-user rights**. Champagne-specific rules can be switched off for other wine regions (no cap, or *crémant*: 100 litres per 150 kg).
 
 The interface is available in French, English, Spanish, Italian, German and Portuguese (translated in stages: welcome page, sign-in, tabs, press house, tank room, operations and their forms so far). Try it at **[oenotrack.fr](https://oenotrack.fr)**. Licence: AGPL-3.0-or-later; the name and logo are not covered by the licence.
