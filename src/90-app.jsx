@@ -2,10 +2,10 @@
 // Modules (onglets) : ordre et activation réglables dans Paramètres › Modules (MODULES_DEFAUT, modulesVisibles… : 31-crud.js)
 const MODULE_DEFS = {
   cuverie: { label: 'Cuverie & Lots', icone: '🛢', desc: 'Plan de cave, contenants, lots et composition des cuves.' },
-  pressoir: { label: 'Pressoir', icone: '🍇', desc: 'Registre des pesées et tickets, carnet de pressoir (marcs, cuvée, tailles, rebêches), relevés par apporteur, bilan et contrôles de la campagne.' },
+  pressoir: { label: 'Pressoir', icone: '🍇', desc: 'Registre des pesées et bons de pesée, carnet de pressoir et bons de pressoir (marcs, cuvée, tailles, rebêches), relevés par apporteur, bilan et contrôles de la campagne.' },
   ops: { label: 'Opérations & Assemblages', icone: '⚗', desc: 'Saisie des opérations (vendange, vinification, élevage, assemblages…) et journal.' },
   previsions: { label: 'À réaliser & fiches', icone: '📋', desc: 'Opérations planifiées, fiches à imprimer pour l’équipe.' },
-  declass: { label: 'Déclassements', icone: '⚠', desc: 'Alertes de déclassement (intrant non autorisé…) à valider ou refuser.' },
+  declass: { label: 'Déclassements', icone: '⚠', desc: 'Alertes de déclassement (intrant non autorisé…) à valider ou refuser, dans l’onglet « Opérations & Assemblages ».' },
   tirage: { label: 'Tirages', icone: '🍾', desc: 'Préparations (levain, pied de cuve, liqueur de tirage) et tirages (mixtions).' },
   cave: { label: 'Cave', icone: '🕯', desc: 'Bouteilles sur lattes : stock par lot, âge, remuage et mise sur pointes.' },
   degorgement: { label: 'Dégorgement', icone: '🥂', desc: 'Liqueurs d’expédition, dégorgements et lots finis.' },
@@ -110,8 +110,13 @@ function App() {
   const R = useMemo(() => getR(db), [db]);
   const camp = db.campagnes.find((c) => c.id === db.settings.campagneActive) || db.campagnes[0];
   const defaultDate = (() => { const t = todayISO(); return t >= camp.debut && t <= camp.fin ? t : (t < camp.debut ? camp.debut : camp.fin); })();
-  const setTab = useCallback((tab0, sub) => {
-    const tab = tab0 === 'registres' && SOUS_PARAMS.includes(sub) ? 'params' : tab0;
+  const setTab = useCallback((tab0, sub0) => {
+    let tab = tab0 === 'registres' && SOUS_PARAMS.includes(sub0) ? 'params' : tab0; let sub = sub0;
+    if (MODULES_DANS[tab]) { // module rangé dans l'onglet d'un autre (déclassements → Opérations & Assemblages)
+      if (!moduleActif(dbRef.current, tab)) { toast(`Le module « ${moduleNom(tab)} » est désactivé : réactivez-le dans Paramètres › Modules.`, 'bad'); return; }
+      if (!moduleAutorise(dbRef.current, sessionRef.current, tab)) { toast(`Votre profil ne donne pas accès au module « ${moduleNom(tab)} ».`, 'bad'); return; }
+      sub = tab; tab = MODULES_DANS[tab];
+    }
     if (!moduleActif(dbRef.current, tab)) { toast(`Le module « ${moduleNom(tab)} » est désactivé : réactivez-le dans Paramètres › Modules.`, 'bad'); return; }
     if (!moduleAutorise(dbRef.current, sessionRef.current, tab)) { toast(`Votre profil ne donne pas accès au module « ${moduleNom(tab)} ».`, 'bad'); return; }
     setNav({ tab, sub: sub || null }); setStack([]); window.scrollTo({ top: 0 });
@@ -196,7 +201,7 @@ function App() {
   const dluoIssues = db.arrivages.filter((a) => { const rest = arrivalRest(R, a); const k = dluoState(a.dluo).k; return rest > 0.0001 && (k === 'expire' || k === 'bientot'); }).length;
   const prevLate = (db.previsions || []).filter((p) => p.statut === 'prevue' && p.date <= todayISO()).length;
   const hygT = hygTachesBadge; // plans de nettoyage et de maintenance (0.26.0-alpha.1)
-  const badge = { hygiene: hygT.n ? { n: hygT.n, tone: hygT.nc ? 'bad' : 'warn' } : null, previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, declass: pendingAlerts ? { n: pendingAlerts, tone: 'bad' } : null, ops: toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null };
+  const badge = { hygiene: hygT.n ? { n: hygT.n, tone: hygT.nc ? 'bad' : 'warn' } : null, previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, ops: pendingAlerts && moduleActif(db, 'declass') && moduleAutorise(db, uid, 'declass') ? { n: pendingAlerts, tone: 'bad' } : toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null };
   const Cmp = TABS_REG[nav.tab];
   const sheetLabel = (sh) => (sh.k === 'cont' ? contName(db, sh.id) : sh.k === 'lot' ? lotCode(db, R, sh.id) : sh.k === 'opr' ? operateurNom(db, sh.id) || 'opérateur' : ((db.lotsFinis || []).find((f) => f.id === sh.id) || {}).code || 'lot fini');
 

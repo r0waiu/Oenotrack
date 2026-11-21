@@ -506,6 +506,11 @@ details>summary{cursor:pointer;font-weight:600}
 .report .rcols li{list-style:none}
 .report ul{margin:0;padding:0}
 .report .pill{display:inline-block;padding:0 7px;border-radius:999px;border:1px solid #999;font-size:10.5px;font-weight:600}
+.report.bon .bon-tete{display:flex;gap:14px;margin-bottom:12px}.report.bon .bon-bloc{flex:1;min-width:0;border:1px solid #bdb59d;border-radius:6px;padding:8px 10px;font-size:12px}
+.report.bon .bon-lbl{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#555;margin-bottom:2px}.report.bon .bon-camp{font-family:var(--font-display);font-weight:700;font-size:16px;font-style:italic;margin-bottom:6px;border-bottom:1px solid #bdb59d;padding-bottom:3px}
+.report.bon h1{font-size:22px}.report.bon .bon-ligne{font-size:12px;margin:2px 0 6px}
+@media (max-width:560px){.report.bon .bon-tete{flex-direction:column}}
+.ech-chip{display:inline-flex;align-items:center;gap:5px;border-width:1px;border-style:solid}.ech-chip i{display:inline-block;width:8px;height:8px;border-radius:8px}
 /* fiches d’enregistrement */
 .report.fiches{padding:0;border:0;background:transparent}
 .fiche-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -637,6 +642,8 @@ details>summary{cursor:pointer;font-weight:600}
 /* identifiants (0.15.0-alpha.1) : connexion, verrouillage, mots de passe, profils de droits */
 .login-wrap{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px 16px;background:var(--bg)}
 .login-card{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px;padding:24px;box-shadow:var(--shadow)}
+.login-tete{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px 12px;min-width:0}.login-tete>:first-child{flex:1 1 0;min-width:min-content}.login-tete>.langue-choix{flex:none;margin-top:4px;margin-left:auto}
+.login-societe{display:flex;justify-content:center;align-items:center;padding:10px 0 2px;border-top:1px solid var(--line)}.login-societe img{margin:0 auto}
 .login-titre{font:600 26px/1.2 var(--font-display,var(--font-serif));margin:4px 0 4px}
 .login-err{border:1px solid var(--bad);color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent);border-radius:8px;padding:8px 10px;font-size:13.5px}
 .login-pied{font-size:11.5px;color:var(--ink2);margin:0;border-top:1px solid var(--line);padding-top:10px}

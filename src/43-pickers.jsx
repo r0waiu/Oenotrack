@@ -17,7 +17,7 @@ function CruForm({ id, preset, onClose, onSaved }) {
 // Partenaire (db.apporteurs) : apporteur de raisins ou de moûts, vendeur de vins, ou les deux ; crus par défaut proposés à la saisie
 function ApporteurForm({ id, preset, onClose, onSaved }) {
   const { db, act } = useApp(); const a = id ? db.apporteurs.find((x) => x.id === id) : null; const p = preset || {};
-  const [f, set] = useDraft({ nom: a ? a.nom : p.nom || '', commune: a ? a.commune : '', contact: a ? a.contact : '', notes: a ? a.notes : p.notes || '', apporteur: a ? a.apporteur !== false : p.vendeur ? false : true, vendeur: a ? !!a.vendeur : !!p.vendeur, crusDefaut: a ? [...(a.crusDefaut || [])] : [], cruAuto: a ? !!a.cruAuto : true });
+  const [f, set] = useDraft({ nom: a ? a.nom : p.nom || '', commune: a ? a.commune : '', ident: a ? a.ident || '' : '', contact: a ? a.contact : '', notes: a ? a.notes : p.notes || '', apporteur: a ? a.apporteur !== false : p.vendeur ? false : true, vendeur: a ? !!a.vendeur : !!p.vendeur, crusDefaut: a ? [...(a.crusDefaut || [])] : [], cruAuto: a ? !!a.cruAuto : true });
   const [cru, setCru] = useState('');
   const save = () => { const r = act((d) => apporteurSave(d, f, id), id ? 'Partenaire modifié.' : 'Partenaire ajouté.'); if (r.ok) { if (onSaved) onSaved(r.id); onClose(); } };
   const addCru = (v) => { if (v && !f.crusDefaut.includes(v)) set('crusDefaut', [...f.crusDefaut, v]); setCru(''); };
@@ -26,6 +26,7 @@ function ApporteurForm({ id, preset, onClose, onSaved }) {
       <Field label="Nom" help={f.nom.trim() && nameTaken(db.apporteurs, f.nom, id) ? '⚠ Ce partenaire existe déjà.' : ''}><TI value={f.nom} onChange={(v) => set('nom', v)} autoFocus /></Field>
       <Group label="Rôles"><div className="flex flex-wrap gap-x-6 gap-y-1"><Check checked={f.apporteur} onChange={(v) => set('apporteur', v)} label="Apporteur (raisins, moûts)" /><Check checked={f.vendeur} onChange={(v) => set('vendeur', v)} label="Vendeur de vins (entrée de vin)" /></div></Group>
       <G><Field label="Commune"><TI value={f.commune} onChange={(v) => set('commune', v)} /></Field><Field label="Contact"><TI value={f.contact} onChange={(v) => set('contact', v)} placeholder="Téléphone, e-mail…" /></Field></G>
+      <Field label="Identifiant (facultatif)" help="Imprimé sur les bons de pesée : n° CVI, n° interprofessionnel…"><TI value={f.ident} onChange={(v) => set('ident', v)} placeholder="ex. CVI 51…" aria-label="Identifiant du partenaire" /></Field>
       <Group label="Crus par défaut" help="Proposés quand ce partenaire est choisi dans un apport ou un compartiment d’entrée de moûts (modifiables à chaque saisie).">
         <div className="space-y-2">
           {f.crusDefaut.length ? <div className="flex flex-wrap gap-1.5">{f.crusDefaut.map((c, i) => <span key={c} className="chip" style={{ gap: 6 }}>{i === 0 ? '★ ' : ''}{cruName(db, c)}<button type="button" className="linkish" aria-label={`Retirer ${cruName(db, c)}`} onClick={() => set('crusDefaut', f.crusDefaut.filter((x) => x !== c))}>✕</button></span>)}</div> : <div className="text-sm text-ink2">Aucun cru par défaut.</div>}

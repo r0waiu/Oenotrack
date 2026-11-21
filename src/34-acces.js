@@ -264,7 +264,10 @@ function gardeDroits(avant, apres, uid) {
     }
     if (k === 'campagnes') { if (!sp('campagnes')) return refus(`le profil ${nomP} ne permet pas de gérer les campagnes`); const d = diffParId(avant.campagnes, apres.campagnes); [...d.cree, ...d.modif.map((x) => x.apres)].forEach((c) => audit.push({ uid, action: d.cree.includes(c) ? 'creation' : 'modification', type: 'campagne', cibleId: c.id, resume: `Campagne ${c.nom}${c.figee ? ' (figée)' : ''}` })); if (d.suppr.length && !sp('supprimer')) return refus(`le profil ${nomP} ne permet pas de supprimer`); continue; }
     if (GARDE_PARAMS.includes(k)) {
-      if (!ecr('params')) return refus(`le profil ${nomP} ne permet pas de modifier les paramètres (${GARDE_NOMS[k]})`);
+      // listes de l'hygiène (0.27.0-alpha.2 : Hygiène › Listes, moyen de contrôle ajouté depuis le journal) : le droit de saisie dans l'Hygiène suffit
+      const sous = k === 'lists' ? uniq([...Object.keys(avant.lists || {}), ...Object.keys(apres.lists || {})]).filter((x) => JSON.stringify((avant.lists || {})[x]) !== JSON.stringify((apres.lists || {})[x])) : [];
+      const hyg = sous.length > 0 && sous.every((x) => /^(hyg|maint)[A-Z]/.test(x));
+      if (hyg ? !(ecr('hygiene') || ecr('params')) : !ecr('params')) return refus(`le profil ${nomP} ne permet pas de modifier les paramètres (${GARDE_NOMS[k]})`);
       if (Array.isArray(apres[k]) && Array.isArray(avant[k]) && diffParId(avant[k], apres[k]).suppr.length && !sp('supprimer')) return refus(`le profil ${nomP} ne permet pas de supprimer (${GARDE_NOMS[k]})`);
       audit.push({ uid, action: 'modification', type: 'parametres', resume: `Paramètres : ${GARDE_NOMS[k]}` }); continue;
     }

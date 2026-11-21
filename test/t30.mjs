@@ -126,7 +126,7 @@ await top().locator('.sheet-f button:text-is("Enregistrer")').click(); await pag
 ok('hygiène : opérateur choisi dans la liste', (await page.locator('main tbody tr').first().innerText()).includes('Thomas G.'), (await page.locator('main tbody tr').first().innerText()).slice(0, 140));
 
 // 8. déclassement : qui décide
-await page.click('#tab-declass'); await page.waitForTimeout(300);
+await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tablist] [role=tab]', { hasText: 'Déclassements' }).click(); await page.waitForTimeout(300);
 ok('déclassement : « Décision prise par »', (await page.locator('main').innerText()).includes('DÉCISION PRISE PAR') || (await page.locator('main').innerText()).toLowerCase().includes('décision prise par'));
 await page.locator('main .opr-tog', { hasText: 'Julien Morel' }).first().click(); await page.waitForTimeout(150);
 await page.locator('main button:has-text("Valider le déclassement")').first().click(); await page.waitForTimeout(500);

@@ -12,6 +12,10 @@ function OpWarns({ r, open, setOpen }) {
 
 function TabOps() {
   const { db, R, camp, act, confirm, setTab, openFiche, uid, openTrace } = useApp();
+  // déclassements (0.27.0-alpha.2) : sous-onglet de « Opérations & Assemblages » (module activable, droits gardés)
+  const voirDeclass = moduleActif(db, 'declass') && moduleAutorise(db, uid, 'declass'); const nDeclass = db.alertes.filter((a) => a.statut === 'attente').length;
+  const sousItems = [{ id: 'journal', label: 'Opérations' }, ...(voirDeclass ? [{ id: 'declass', label: 'Déclassements', badge: nDeclass || null }] : [])];
+  const [sousOnglet, setSousOnglet] = useSousOnglet(sousItems, 'journal');
   const [form, setForm] = useState(null); const [scope, setScope] = useState('camp'); const [typeF, setTypeF] = useState(''); const [oprF, setOprF] = useState(''); const [q, setQ] = useState(''); const [openW, setOpenW] = useState({});
   const quiOK = (o) => !oprF || (oprF === '-' ? !operateursValides(db, o.operateurs).length : Array.isArray(o.operateurs) && o.operateurs.includes(oprF));
   const inCamp = (o) => o.date >= camp.debut && o.date <= camp.fin;
@@ -32,17 +36,20 @@ function TabOps() {
       {r.op.type !== 'declassement' ? <Btn size="sm" kind="ghost" onClick={() => openFiche([{ kind: 'op', id: r.op.id }])} title="Fiche d’enregistrement à imprimer" aria-label="Fiche d’enregistrement">🖨</Btn> : null}
       {r.locked ? <Chip title="Campagne figée">🔒 figée</Chip> : <>{r.op.type !== 'declassement' ? <Btn size="sm" onClick={() => setForm({ editId: r.op.id })}>Modifier</Btn> : null}<Btn size="sm" kind="danger" onClick={() => del(r.op)} aria-label="Supprimer l’opération">Supprimer</Btn></>}
     </div>);
+  if (sousOnglet === 'declass') return <div><SubNav value={sousOnglet} onChange={setSousOnglet} items={sousItems} /><TabDeclass /></div>;
   const lotsOf = (r) => <div className="flex flex-wrap gap-x-2">{r.lots.map((id) => <LotLink key={id} id={id} />)}</div>;
   const contsOf = (r) => <div className="flex flex-wrap gap-x-2">{r.conts.map((id) => <ContLink key={id} id={id} />)}</div>;
   return (
     <div>
+      {sousItems.length > 1 ? <SubNav value={sousOnglet} onChange={setSousOnglet} items={sousItems} /> : null}
       <div className="mb-5 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
         <Kpi label={`Opérations ${camp.nom}`} value={fmt(nCamp)} /><Kpi label="À vérifier" value={fmt(toCheck)} tone={toCheck ? 'warn' : undefined} sub="avertissements non bloquants" />
-        <Kpi label="Volume en cuve" value={`${fmtL(R.totalVol)}`} />{moduleActif(db, 'declass') ? <button type="button" className="text-left" onClick={() => setTab('declass')}><Kpi label="Déclassements à valider" value={fmt(pending)} tone={pending ? 'bad' : undefined} sub={pending ? 'voir l’onglet dédié' : 'aucun'} /></button> : <Kpi label="Déclassements à valider" value={fmt(pending)} tone={pending ? 'bad' : undefined} sub="module Déclassements désactivé" />}
+        <Kpi label="Volume en cuve" value={`${fmtL(R.totalVol)}`} />{voirDeclass ? <button type="button" className="text-left" onClick={() => setSousOnglet('declass')}><Kpi label="Déclassements à valider" value={fmt(pending)} tone={pending ? 'bad' : undefined} sub={pending ? 'voir « Déclassements »' : 'aucun'} /></button> : <Kpi label="Déclassements à valider" value={fmt(pending)} tone={pending ? 'bad' : undefined} sub={moduleActif(db, 'declass') ? 'non accessible avec votre profil' : 'module Déclassements désactivé'} />}
       </div>
       <Sec title="Nouvelle opération" right={<>{camp.figee ? <Chip tone="bad">Campagne figée : saisie impossible</Chip> : null}<Btn size="sm" kind="ghost" onClick={() => setTab('params', 'operations')} title="Renommer, masquer, créer des opérations ; stade automatique et fiche associée">⚙ Personnaliser les opérations</Btn></>}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,270px),1fr))' }}>
-          {opGroupes(db, (x) => !opViaPressoir(db, { type: x.id })).map((g) => (<div key={g.title} className="card p-3" data-groupe={g.title}><div className="lbl">{g.title}</div>{g.title === OP_GROUPES[0] && moduleActif(db, 'pressoir') && moduleAutorise(db, uid, 'pressoir') ? <div className="mb-2 text-sm" data-vers-pressoir=""><span className="text-ink2">Pesées et pressurages : </span><button type="button" className="linkish" onClick={() => setTab('pressoir')}>onglet Pressoir</button></div> : null}<div className="flex flex-wrap gap-2">{g.items.map((t) => { const x = opDef(db, t); return <Btn key={t} disabled={camp.figee} title={x.aide || OP_HELP[x.base] || ''} onClick={() => setForm({ type: t })}><span aria-hidden="true" className="mr-1 opacity-70">{opIcone(db, t)}</span>{x.label}</Btn>; })}</div></div>))}
+          {opGroupes(db, (x) => x.base !== 'apport' && !opViaPressoir(db, { type: x.id })).map((g) => (<div key={g.title} className="card p-3" data-groupe={g.title}><div className="lbl">{g.title}</div>{g.title === OP_GROUPES[0] && moduleActif(db, 'pressoir') && moduleAutorise(db, uid, 'pressoir') ? <div className="mb-2 text-sm" data-vers-pressoir=""><span className="text-ink2">Pesées et pressurages : </span><button type="button" className="linkish" onClick={() => setTab('pressoir')}>onglet Pressoir</button></div>
+            : g.title === OP_GROUPES[0] ? <div className="mb-2 text-sm" data-vers-pressoir=""><span className="text-ink2">{`Pesées de vendange : onglet Pressoir${moduleActif(db, 'pressoir') ? '' : ' (masqué)'}`}</span>{!moduleActif(db, 'pressoir') && moduleAutorise(db, uid, 'params') ? <> — <button type="button" className="linkish" onClick={() => setTab('params', 'modules')}>l’afficher</button></> : null}</div> : null}<div className="flex flex-wrap gap-2">{g.items.map((t) => { const x = opDef(db, t); return <Btn key={t} disabled={camp.figee} title={x.aide || OP_HELP[x.base] || ''} onClick={() => setForm({ type: t })}><span aria-hidden="true" className="mr-1 opacity-70">{opIcone(db, t)}</span>{x.label}</Btn>; })}</div></div>))}
         </div>
         <p className="help mt-2">Dans chaque formulaire : « ✓ Valider » enregistre l’opération faite (stocks mis à jour) ou « 📋 Planifier (à réaliser) » la garde en attente, sans toucher aux stocks{nPlan && moduleActif(db, 'previsions') ? <> — <button type="button" className="linkish" onClick={() => setTab('previsions')}>{nPlan} opération{nPlan > 1 ? 's' : ''} à réaliser</button></> : null}. Préparations, tirage et dégorgement : onglet « Tirage & Dégorgement ». Astuce : clic droit (ou appui long) sur un contenant du plan de cave pour lancer une opération directement dessus.</p>
       </Sec>
@@ -72,7 +79,7 @@ function TabOps() {
 }
 TABS_REG.ops = TabOps;
 
-/* ---------- onglet dédié : alertes de déclassement ---------- */
+/* ---------- alertes de déclassement : sous-onglet « Déclassements » d'Opérations & Assemblages (onglet dédié jusqu'à 0.27.0-alpha.1) ---------- */
 function TabDeclass() {
   const { db, R, act, camp, defaultDate, showLot, moi } = useApp();
   const [dates, setDates] = useState({}); const [qui, setQui] = useState({});

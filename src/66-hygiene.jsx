@@ -24,7 +24,8 @@ function HygieneForm({ id, preset, onClose }) {
   const planE = planNettoyage(db).find((e) => e.id === f.planId) || null; const ctlT = f.controle.type || (planE && planE.controle !== 'aucun' ? planE.controle : '');
   const setCtl = (patch) => setF((x) => ({ ...x, controle: { ...x.controle, type: x.controle.type || ctlT, ...patch } }));
   const choisirPlan = (pid) => { const e = planNettoyage(db).find((x) => x.id === pid); setF((x) => ({ ...x, planId: pid, ...(e && !id ? { actionId: e.actionId, controle: { type: e.controle && e.controle !== 'aucun' ? e.controle : '', resultat: '', valeur: '' } } : {}) })); };
-  const [cree, setCree] = useState(false); const [voir, setVoir] = useState(null);
+  const [cree, setCree] = useState(false); const [voir, setVoir] = useState(null); const [ajoutCtl, setAjoutCtl] = useState(null);
+  const ajouterCtl = () => { const r = act((d) => hygListeAjouter(d, 'hygControles', ajoutCtl.label, { attendu: ajoutCtl.attendu }), 'Moyen de contrôle ajouté à la liste.'); if (r && r.ok) { setAjoutCtl(null); setF((x) => ({ ...x, controle: { ...x.controle, type: r.id } })); } };
   const setL = (i, patch) => setF((x) => ({ ...x, produits: x.produits.map((l, k) => (k === i ? { ...l, ...patch } : l)) }));
   const choisir = (i, pid) => setL(i, { produitId: pid, conc: pid ? hygTxtNb(hygDerniereConc(db, pid, id)) : '', concUnite: undefined, unite: undefined });
   const ajouter = (pid) => setF((x) => { const L = x.produits.filter((l) => l.produitId || !pid); return { ...x, produits: [...L, { produitId: pid || '', conc: pid ? hygTxtNb(hygDerniereConc(db, pid, id)) : '', quantite: '' }] }; });
@@ -59,12 +60,14 @@ function HygieneForm({ id, preset, onClose }) {
       </Group>
       {ctrl.map((c, i) => <Notice key={i} tone={c.tone}>{c.msg}</Notice>)}
       <Field label="Méthode / précisions" help="Eau chaude, vapeur, température, durée, rinçage…"><TI value={f.methode} onChange={(v) => set('methode', v)} placeholder="ex. eau chaude 60 °C, 20 min, puis rinçage" /></Field>
-      <Group label="Contrôle après rinçage" help={ctlT === 'ph' ? 'Papier pH sur l’eau de rinçage : pH 7 attendu (plus de produit alcalin ni acide).' : ctlT === 'peroxyde' ? 'Papier peroxyde : 0 attendu (plus de désinfectant oxydant).' : ctlT === 'visuel' ? 'Propreté vérifiée à l’œil : aucun résidu, eau claire.' : 'Vérification de l’efficacité du nettoyage et du rinçage (méthode HACCP).'}>
+      <Group label="Contrôle après rinçage" help={ctlT ? hygControleAide(ctlT) : 'Vérification de l’efficacité du nettoyage et du rinçage (méthode HACCP).'}>
         <div className="flex flex-wrap items-center gap-2" data-hyg-controle="">
-          <SI plain value={ctlT} onChange={(v) => setF((x) => ({ ...x, controle: { ...x.controle, type: v } }))} options={[{ value: '', label: '— aucun —' }, ...HYG_CONTROLES.filter((c) => c[0] !== 'aucun').map(([v, l]) => ({ value: v, label: l }))]} aria-label="Type de contrôle" style={{ width: 'auto' }} />
+          <SI plain value={ctlT} onChange={(v) => setF((x) => ({ ...x, controle: { ...x.controle, type: v } }))} options={[{ value: '', label: '— aucun —' }, ...hygOpts(HYG_CONTROLES.filter((c) => c[0] !== 'aucun'), ctlT)]} aria-label="Type de contrôle" style={{ width: 'auto' }} />
+          <Btn size="sm" kind="ghost" onClick={() => setAjoutCtl(ajoutCtl ? null : { label: '', attendu: '' })} title="Ajouter un moyen de contrôle à la liste (Hygiène › Listes)" aria-label="Ajouter un moyen de contrôle" data-ajout-controle="">+</Btn>
           {ctlT ? <>{[['conforme', '✓ Conforme'], ['non_conforme', '✕ Non conforme']].map(([v, l]) => <button key={v} type="button" className={cx('opr-tog', f.controle.resultat === v && 'on')} aria-pressed={f.controle.resultat === v} onClick={() => setCtl({ resultat: f.controle.resultat === v ? '' : v })}>{l}</button>)}
             {ctlT !== 'visuel' ? <input className="inp num" style={{ width: 90 }} value={f.controle.valeur || ''} onChange={(e) => setCtl({ valeur: e.target.value })} placeholder={ctlT === 'ph' ? 'pH lu' : 'valeur lue'} aria-label="Valeur lue" /> : null}</> : null}
         </div>
+        {ajoutCtl ? <div className="mt-2 flex flex-wrap items-center gap-2" data-ajout-controle-form=""><TI value={ajoutCtl.label} onChange={(v) => setAjoutCtl({ ...ajoutCtl, label: v })} placeholder="Moyen de contrôle (ex. conductimètre)" aria-label="Nouveau moyen de contrôle" autoFocus style={{ minWidth: 200, flex: 1 }} /><TI value={ajoutCtl.attendu} onChange={(v) => setAjoutCtl({ ...ajoutCtl, attendu: v })} placeholder="Résultat attendu" aria-label="Résultat attendu du contrôle" style={{ minWidth: 150, flex: 1 }} /><Btn size="sm" kind="primary" onClick={ajouterCtl}>Ajouter</Btn><Btn size="sm" onClick={() => setAjoutCtl(null)}>Annuler</Btn></div> : null}
         {ctlT && f.controle.resultat === 'non_conforme' ? <div className="mt-1 text-xs text-bad">Non conforme : rincez de nouveau jusqu’au résultat attendu, puis enregistrez une nouvelle entrée.</div> : null}
         {planE && ctlT && !f.controle.resultat && !String(f.controle.valeur || '').trim() ? <div className="mt-1 text-xs text-warn">Le plan prévoit ce contrôle : indiquez son résultat.</div> : null}
       </Group>
@@ -78,6 +81,14 @@ function HygieneForm({ id, preset, onClose }) {
   );
 }
 
+// aide du contrôle après rinçage : consigne d'origine, sinon le résultat attendu de la liste (Hygiène › Listes)
+function hygControleAide(id) {
+  const att = HYG_CONTROLE_ATTENDU[id] || ''; const o = ((hygListeDef('hygControles') || { origine: [] }).origine.find((x) => x[0] === id) || [])[2] || {};
+  if (id === 'ph' && att === (o.attendu || '')) return 'Papier pH sur l’eau de rinçage : pH 7 attendu (plus de produit alcalin ni acide).';
+  if (id === 'peroxyde' && att === (o.attendu || '')) return 'Papier peroxyde : 0 attendu (plus de désinfectant oxydant).';
+  if (id === 'visuel' && !att) return 'Propreté vérifiée à l’œil : aucun résidu, eau claire.';
+  return att ? `Résultat attendu : ${att}.` : 'Indiquez le résultat du contrôle.';
+}
 // produits d'une entrée : pastilles (nom + concentration) et méthode ; une entrée d'une version antérieure : son texte
 function HygProduitsCell({ h, onVoir }) {
   const { db } = useApp();
@@ -127,9 +138,9 @@ function HygJournal({ onAFaire }) {
 
 function TabHygiene() {
   const { db } = useApp(); const nMq = hygListe(db).filter((p) => !p.archive && hygFdsEtat(db, p).k === 'manquante').length; const T = usePlanTaches();
-  const items = [{ id: 'journal', label: 'Journal d’hygiène' }, { id: 'afaire', label: 'À faire', badge: T.length || null }, { id: 'plan', label: 'Plan de nettoyage' }, { id: 'maintenance', label: 'Maintenance' }, { id: 'produits', label: 'Produits d’hygiène', badge: nMq || null }];
+  const items = [{ id: 'journal', label: 'Journal d’hygiène' }, { id: 'afaire', label: 'À faire', badge: T.length || null }, { id: 'plan', label: 'Plan de nettoyage' }, { id: 'maintenance', label: 'Maintenance' }, { id: 'produits', label: 'Produits d’hygiène', badge: nMq || null }, { id: 'listes', label: '⚙ Listes' }];
   const [sub, setSub] = useSousOnglet(items, 'journal');
-  const V = { produits: HygProduitsView, afaire: HygAFaire, plan: PlanNettoyageView, maintenance: PlanMaintenanceView }[sub];
+  const V = { produits: HygProduitsView, afaire: HygAFaire, plan: PlanNettoyageView, maintenance: PlanMaintenanceView, listes: HygListesView }[sub];
   return (<div><SubNav value={sub} onChange={setSub} items={items} />{V ? <V /> : <HygJournal onAFaire={() => setSub('afaire')} />}</div>);
 }
 TABS_REG.hygiene = TabHygiene;

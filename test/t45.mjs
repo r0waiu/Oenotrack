@@ -26,7 +26,7 @@ await f.locator('[data-brut]').fill('4300'); await f.locator('[data-tare]').fill
 ok('poids net calculé (brut − tare)', (await f.locator('[data-net]').innerText()).replace(/\s/g, '') === '4000kg', await f.locator('[data-net]').innerText());
 await f.locator('.sheet-f .btn-primary', { hasText: 'Peser et valider' }).click(); await page.waitForTimeout(500);
 const tk = (await ov().innerText()).replace(/\s+/g, ' ');
-ok('ticket de pesée ouvert : n° 5, apporteur, poids brut / tare / net, signatures', /Ticket de pesée n° 5/.test(tk) && /Lefèvre/.test(tk) && /4 300 kg/.test(tk) && /4 000 kg/.test(tk) && /Signature de l’apporteur/.test(tk) && /cahier des charges de l’AOC Champagne/.test(tk), tk.slice(0, 400));
+ok('bon de pesée ouvert : n° 5, apporteur, poids brut / tare / net, signatures', /Bon de pesée n° 5/.test(tk) && /Lefèvre/.test(tk) && /4 300 kg/.test(tk) && /4 000 kg/.test(tk) && /Signature de l’apporteur/.test(tk) && /cahier des charges de l’AOC Champagne/.test(tk), tk.slice(0, 400));
 await page.screenshot({ path: SC + '/shots/t45-ticket.png' });
 await ov().locator('.sheet-f .btn', { hasText: 'Fermer' }).click(); await page.waitForTimeout(250);
 let d = await db(); const p5 = d.ops.find((o) => o.type === 'apport' && o.pesee && o.pesee.num === 5 && o.date.startsWith('2026'));

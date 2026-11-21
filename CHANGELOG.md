@@ -2,6 +2,13 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.27.0-alpha.2 — 21/11/2026
+
+- Pressoir : le cru et son échelle (Grand Cru, 1er Cru, Autre cru) s’affichent à la pesée, au registre et sur les bons ; le « ticket » devient un bon de pesée (livraison, relevés de qualité, cumul de la campagne de l’apporteur par cépage et par échelle) et chaque marc a son bon de pressoir (raisins chargés et leur origine, moûts obtenus et leurs cuves, rendement, contrôles). Identifiants officiels (CVI, accise…) de la société et des partenaires imprimés sur les bons.
+- Opérations & Assemblages : « Pesée de vendange » n’y est plus proposée, même onglet Pressoir masqué (les pesées se font dans l’onglet Pressoir) ; les déclassements y deviennent un sous-onglet (le module reste activable dans Paramètres › Modules).
+- Hygiène › Listes : toutes les listes de l’hygiène se personnalisent — contrôles après rinçage (avec le résultat attendu), zones, dangers, natures, formes et unités des produits, protections individuelles, moments du plan, types et résultats de maintenance ; un moyen de contrôle s’ajoute aussi directement depuis le journal.
+- Écran de connexion : logo de la société centré sous l’en-tête, choix de la langue toujours visible.
+
 ## 0.27.0-alpha.1 — 21/11/2026
 
 - Protection des importations : chaque fichier qui entre dans Œnotrack (documents, fiches FT et FDS, barèmes, bulletins, logo, sauvegardes, Drive, traçabilité) est vérifié en arrière-plan — type réel lu dans le contenu (programmes, scripts, pages web et archives refusés même renommés), PDF à contenu actif désarmés (JavaScript, actions automatiques, fichiers incorporés retirés), documents Office avec macros refusés, données nettoyées des clés piégées ; journal de sécurité et points de restauration dans Paramètres › 🛡 Sécurité des importations.

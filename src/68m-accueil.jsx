@@ -4,7 +4,7 @@
    seulement depuis le lien « Présentation » du pied de page. Sert aussi de page d'accueil publique pour les écrans de connexion
    Google, Microsoft et Dropbox (même site que la politique de confidentialité : …/#confidentialite). */
 const ACCUEIL_FONCTIONS = [
-  ['🍇', 'Pressoir et vendange', 'Registre des pesées et tickets, carnet de pressoir (cuvée, tailles, rebêches), entrées de moûts, crus, partenaires et analyses par lot.'],
+  ['🍇', 'Pressoir et vendange', 'Registre des pesées et bons de pesée, carnet et bons de pressoir (cuvée, tailles, rebêches), entrées de moûts, crus, partenaires et analyses par lot.'],
   ['🛢️', 'Cuverie et lots', 'Plan de cave, cuves, fûts et autres contenants avec leurs barèmes de jaugeage, lots et leur composition.'],
   ['⚙️', 'Opérations', 'Débourbage, levurage, soutirages, assemblages, froid, filtration, tirage, remuage, dégorgement… avec des formulaires adaptables.'],
   ['🔎', 'Traçabilité et registres', 'Traçabilité ascendante et descendante, registres et exports, fiches d’enregistrement à imprimer.'],

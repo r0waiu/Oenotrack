@@ -146,7 +146,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   const body = () => {
     switch (type) {
       case 'apport': return (<>
-        {old && old.pesee && old.pesee.num ? <Notice tone="info" title={`Registre des pesées : pesée n° ${old.pesee.num}${old.pesee.valide ? ', validée' : ''}`}>Brut, tare, caisses, état sanitaire et ticket : onglet Pressoir › Pesées.</Notice> : null}
+        {old && old.pesee && old.pesee.num ? <Notice tone="info" title={`Registre des pesées : pesée n° ${old.pesee.num}${old.pesee.valide ? ', validée' : ''}`}>Brut, tare, caisses, état sanitaire et bon de pesée : onglet Pressoir › Pesées.</Notice> : null}
         <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="cepageId" label="Cépage"><SI value={f.cepageId} onChange={(v) => upd({ cepageId: v })} options={opts(db, 'cepages')} /></CF></G>
         {pressoirParams(db).registre || (old && old.pesee) ? <div style={{ maxWidth: 220 }}><Field label="Heure de la pesée (registre)"><input className="inp num" type="time" value={f.heurePesee || ''} onChange={(e) => upd({ heurePesee: e.target.value })} aria-label="Heure de la pesée" /></Field></div> : null}
         <G><CF k="kg" label="Poids reçu (kg)"><NI value={f.kg} onChange={(v) => upd({ kg: v })} placeholder="ex. 4000" /></CF><CF k="qualifId" label="Revendication du raisin"><SI value={f.qualifId} onChange={(v) => upd({ qualifId: v })} options={qualifOptions(db, f.qualifId)} /></CF></G>

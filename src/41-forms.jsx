@@ -101,7 +101,7 @@ function PreviewBox({ pv }) {
   if (!pv.warnings.length && !pv.alerts.length) return <Notice tone="ok">Aucun avertissement : l’opération est cohérente avec les stocks et les règles.</Notice>;
   return (
     <div className="space-y-2">
-      {pv.alerts.length ? <Notice tone="bad" title="Alerte de déclassement à valider (jamais appliquée automatiquement)"><ul className="list-disc pl-5">{pv.alerts.map((a) => <li key={a.id}>{a.motif} : {qLabel(a.from)} → {qLabel(a.to)}</li>)}</ul><div className="mt-1 text-xs">Vous la validerez dans l’onglet « Déclassements ».</div></Notice> : null}
+      {pv.alerts.length ? <Notice tone="bad" title="Alerte de déclassement à valider (jamais appliquée automatiquement)"><ul className="list-disc pl-5">{pv.alerts.map((a) => <li key={a.id}>{a.motif} : {qLabel(a.from)} → {qLabel(a.to)}</li>)}</ul><div className="mt-1 text-xs">Vous la validerez dans Opérations & Assemblages › Déclassements.</div></Notice> : null}
       {pv.warnings.length ? <Notice title="Avertissements non bloquants (l’opération sera marquée « à vérifier »)"><ul className="list-disc pl-5">{pv.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></Notice> : null}
     </div>
   );
