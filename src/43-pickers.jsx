@@ -17,7 +17,7 @@ function CruForm({ id, preset, onClose, onSaved }) {
 // Partenaire (db.apporteurs) : apporteur de raisins ou de moûts, vendeur de vins, ou les deux ; crus par défaut proposés à la saisie
 function ApporteurForm({ id, preset, onClose, onSaved }) {
   const { db, act } = useApp(); const a = id ? db.apporteurs.find((x) => x.id === id) : null; const p = preset || {};
-  const [f, set] = useDraft({ nom: a ? a.nom : p.nom || '', commune: a ? a.commune : '', contact: a ? a.contact : '', notes: a ? a.notes : '', apporteur: a ? a.apporteur !== false : p.vendeur ? false : true, vendeur: a ? !!a.vendeur : !!p.vendeur, crusDefaut: a ? [...(a.crusDefaut || [])] : [], cruAuto: a ? !!a.cruAuto : true });
+  const [f, set] = useDraft({ nom: a ? a.nom : p.nom || '', commune: a ? a.commune : '', contact: a ? a.contact : '', notes: a ? a.notes : p.notes || '', apporteur: a ? a.apporteur !== false : p.vendeur ? false : true, vendeur: a ? !!a.vendeur : !!p.vendeur, crusDefaut: a ? [...(a.crusDefaut || [])] : [], cruAuto: a ? !!a.cruAuto : true });
   const [cru, setCru] = useState('');
   const save = () => { const r = act((d) => apporteurSave(d, f, id), id ? 'Partenaire modifié.' : 'Partenaire ajouté.'); if (r.ok) { if (onSaved) onSaved(r.id); onClose(); } };
   const addCru = (v) => { if (v && !f.crusDefaut.includes(v)) set('crusDefaut', [...f.crusDefaut, v]); setCru(''); };

@@ -2,6 +2,29 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.27.0-alpha.1 — 21/11/2026
+
+- Protection des importations : chaque fichier qui entre dans Œnotrack (documents, fiches FT et FDS, barèmes, bulletins, logo, sauvegardes, Drive, traçabilité) est vérifié en arrière-plan — type réel lu dans le contenu (programmes, scripts, pages web et archives refusés même renommés), PDF à contenu actif désarmés (JavaScript, actions automatiques, fichiers incorporés retirés), documents Office avec macros refusés, données nettoyées des clés piégées ; journal de sécurité et points de restauration dans Paramètres › 🛡 Sécurité des importations.
+- Documents : aperçu selon le type réel du fichier (une page web jointe n’est jamais exécutée, un texte s’affiche comme texte) ; documents déjà joints vérifiés une fois en arrière-plan, les suspects signalés ; exports CSV sans formule exécutée à l’ouverture dans un tableur.
+- Analyses : import des bulletins d’analyses (PDF, scan, photo, tableur, CSV) — paramètres, valeurs et unités reconnus (acidités converties en g/L H₂SO₄), échantillons rattachés aux lots et aux cuves cités, date de prélèvement ; l’IA complète la lecture si elle est configurée ; vérification avant d’enregistrer, nouveaux paramètres proposés, bulletin joint aux analyses.
+- Expéditions : sur une sortie vers un partenaire, « 📤 » prépare un fichier de traçabilité du moût ou du vin ; vous choisissez ce que vous partagez (composition, crus, apporteurs, parcelles, intrants, analyses, historique…), une empreinte garantit qu’il n’a pas été modifié.
+- Réceptions : dans l’entrée de moût ou de vin, le fichier de traçabilité de l’expéditeur préremplit le formulaire (partenaire, désignation, millésime, revendication, cépages, crus, n° de lot, analyses, volume) (un expéditeur inconnu se crée en partenaire d’un clic) et la traçabilité d’avant la réception est gardée : journal (📥), fiche des lots qui en descendent, et transmise à votre tour si vous réexpédiez.
+
+## 0.26.0-alpha.2 — 21/11/2026
+
+- Opérations : « Pesée de vendange » et « Pressurage » ne sont plus proposés dans l’onglet Opérations quand l’onglet Pressoir est actif (ils y faisaient double emploi) ; un lien « Pesées et pressurages : onglet Pressoir » y mène. Le journal des opérations garde l’historique des pesées et des marcs, et « Modifier » ouvre le formulaire du Pressoir.
+- Pressoir › Pressurages (ancien sous-onglet « Carnet de pressoir ») : « + Nouveau pressurage » charge un marc en choisissant les pesées pressées et les cuves des moûts ; sur chaque pesée du registre, « Presser » ouvre le pressurage avec la pesée déjà chargée (son n°, le poids restant à presser, le cépage et la désignation du marc proposés).
+- Onglet Pressoir désactivé (Paramètres › Modules) : les opérations « Pesée de vendange » et « Pressurage » restent proposées dans l’onglet Opérations, comme avant.
+
+## 0.26.0-alpha.1 — 21/11/2026
+
+- Hygiène › Plan de nettoyage : plan de nettoyage et de désinfection (méthode HACCP) d’après un modèle à adapter à votre exploitation : ce qui se nettoie (cuves, pressoir, locaux et matériel), quand (après une vidange, avant un remplissage, au changement de revendication, chaque soir de vendange…), avec quels produits, comment, le contrôle après rinçage (visuel, papier pH, papier peroxyde) et le responsable. Imprimable pour le classeur qualité.
+- Hygiène › À faire : tâches et alertes tirées du plan et des opérations enregistrées : cuve vidée sans rinçage, remplissage sans rinçage récent, changement de revendication (Conventionnel → Bio…) sans nettoyage, nettoyages périodiques et de vendanges ; une non-conformité se justifie. Après une opération qui vide une cuve, le rinçage est proposé tout de suite, et les formulaires d’opération préviennent avant d’enregistrer.
+- Hygiène › Maintenance : plan de maintenance du matériel (préventive, réglementaire, curative) avec ses échéances, les vérifications avant vendanges, les pannes signalées jusqu’à leur réparation et l’historique des interventions (documents joints) ; imprimable.
+- Photo : sur téléphone et tablette, « 📷 Photo » à côté des zones de dépôt de documents photographie directement une FT, une FDS, un bon ou une fiche remplie ; le choix de fichiers reste possible.
+- Fiches produits : chaque FT, FDS ou certificat déposé sur un intrant ou un produit d’hygiène est lu et ses informations sont proposées en complément de la fiche (fabricant, composition, dose et mode d’emploi, stockage, conservation, allergènes, utilisation en bio) ; avec un assistant IA configuré, l’IA complète ce que la lecture automatique n’a pas trouvé.
+- Nouveaux produits : le nom est harmonisé à la création (FRESH → Fresh) ; sigles, abréviations et codes restent en majuscules (PROVINHY OX2 → Provinhy OX2, NUTRIEFF AA FRESH → Nutrieff AA Fresh).
+
 ## 0.25.0-alpha.2 — 20/11/2026
 
 - Pesée : la pourriture acide et vos relevés de pourriture (pourriture grise…) n’apparaissent que si l’état sanitaire n’est pas « Sain » ; réglable champ par champ dans le formulaire de pesée (« Seulement si l’état sanitaire n’est pas « Sain » »). Une pesée « Sain » ne garde pas ces relevés.

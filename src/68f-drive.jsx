@@ -74,10 +74,11 @@ function useDriveSync({ db, dbRef, applyDb, toast }) {
   const appliquerAnalyse = async (a, choix, h, lm) => {
     // d'abord les fichiers joints et la version commune (asynchrone), puis la base en une fois sur l'état le plus récent
     const docsR = new Set(((a.remote && a.remote.docs) || []).map((x) => x.id)); const fich = (a.s.fichiers || []).filter((x) => docsR.has(x.id));
-    if (fich.length) await ecrireFichiers(fich);
+    const rap = sauvRapport(); if (fich.length) await ecrireFichiers(fich, rap); // chaque fichier vérifié (garde des importations)
     await snapEcrire(a.idF, a.remote);
     const L = dbRef.current; if (choix === 'fusion' && a.fusion && a.L !== L) a.fusion = syncFusion(a.baseDb || null, L, a.remote); // saisie faite entre-temps : on refait la fusion
     const nd = choix === 'fusion' && a.fusion ? normalizeDb(clone(a.fusion.db)) : normalizeDb(clone(a.remote));
+    sauvRapportAppliquer(nd, rap, 'sauvegarde'); if (choix !== 'fusion' || !a.fusion) { pointRetourEcrire(L, 'Base remplacée par le fichier du Drive'); gardeJournalGarder(L, nd); }
     if (choix === 'fusion' && a.fusion && a.fusion.conflits.length) nd.meta.syncConflits = [...a.fusion.conflits.map((c) => ({ ...c, date: nowISO(), fichier: a.fichier })), ...((L.meta && L.meta.syncConflits) || [])].slice(0, 60);
     else if (L.meta && L.meta.syncConflits && choix === 'fusion') nd.meta.syncConflits = L.meta.syncConflits;
     nd.meta.derniereSync = todayISO();
@@ -96,8 +97,10 @@ function useDriveSync({ db, dbRef, applyDb, toast }) {
     if (!file) return;
     if (!/\.json$/i.test(file.name || '') && !/json/i.test(file.type || '')) { toast('Déposez ici le fichier Œnotrack (.json) de votre Drive. Pour joindre un document à une opération, utilisez 📎 Documents.', 'bad'); return; }
     setOccupe('lecture'); let h = null; try { h = hp ? await hp : null; } catch (e) { h = null; } if (h && h.kind !== 'file') h = null;
+    // garde des importations (0.27.0-alpha.1) : type réel et taille vérifiés avant la lecture
+    const g = await gardeFichier(file, 'sauvegarde'); if (!g.file) { toast(`🛡 « ${gardeNomPropre(file.name)} » refusé : ${g.v.raisons[0]}.`, 'bad'); const d0 = clone(dbRef.current); gardeJournaliser(d0, { statut: 'refuse', usage: 'sauvegarde', nom: file.name, taille: file.size, raisons: g.v.raisons, appareil: appareilNom() }); applyDb(d0); setOccupe(''); return; }
     try {
-      const text = await lectureFichier(file); const a = await analyser(text, file.name || 'Oenotrack.json');
+      const text = await lectureFichier(g.file); const a = await analyser(text, file.name || 'Oenotrack.json');
       if (a.s.kind === 'documents') { toast('Ancienne sauvegarde de documents : importez-la avec « Importer une sauvegarde ».', 'bad'); setOccupe(''); return; }
       setRapport({ ...a, handle: h, lastModified: file.lastModified || null });
     } catch (er) { toast(er && er.message ? er.message : 'Lecture du fichier impossible.', 'bad'); }

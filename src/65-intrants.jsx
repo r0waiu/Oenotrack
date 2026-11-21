@@ -16,14 +16,16 @@ function ArrivageForm({ id, onClose }) {
 }
 function ProduitForm({ id, onClose }) {
   const { db, act } = useApp(); const p = id ? db.produits.find((x) => x.id === id) : null;
-  const [f, set] = useDraft({ nom: p ? p.nom : '', categorie: p ? p.categorie : 'oeno', unite: p ? p.unite : 'g', fournisseurId: p ? p.fournisseurId : '', actif: p ? p.actif !== false : true, notes: p ? p.notes : '', reference: p ? p.reference || '' : '', lien: p ? p.lien || '' : '', fdsNonRequise: p ? !!p.fdsNonRequise : false });
+  const [f, set, setF] = useDraft({ nom: p ? p.nom : '', categorie: p ? p.categorie : 'oeno', unite: p ? p.unite : 'g', fournisseurId: p ? p.fournisseurId : '', actif: p ? p.actif !== false : true, notes: p ? p.notes : '', reference: p ? p.reference || '' : '', lien: p ? p.lien || '' : '', fdsNonRequise: p ? !!p.fdsNonRequise : false, ...Object.fromEntries(PRODUIT_INFOS.map(([k]) => [k, p ? p[k] || '' : ''])) });
+  const [infosOuv, setInfosOuv] = useState(() => PRODUIT_INFOS.some(([k]) => p && p[k])); useSuiviFiche(p, setF, PRODUIT_INFOS.map((x) => x[0]));
   const [depot, setDepot] = useState(null); const [veille, setVeille] = useState(false);
-  const save = () => { const r = act((d) => produitSave(d, f, id), id ? 'Produit modifié.' : 'Produit créé (autorisé en Conventionnel par défaut : ajustez les règles).'); if (r.ok) onClose(); };
+  const nomCasse = nomProduitCasse(f.nom.trim()); // nouveau produit : casse du nom harmonisée (0.26.0-alpha.1)
+  const save = () => { const r = act((d) => produitSave(d, id ? f : { ...f, nom: nomCasse }, id), id ? 'Produit modifié.' : 'Produit créé (autorisé en Conventionnel par défaut : ajustez les règles).'); if (r.ok) onClose(); };
   const lienOk = lienNorm(f.lien); const foNom = (db.fournisseurs.find((x) => x.id === f.fournisseurId) || {}).nom || '';
   const fds = p ? prodFdsEtat(db, { ...p, categorie: f.categorie, fdsNonRequise: f.fdsNonRequise }) : null;
   return (
     <FormSheet wide={!!id} title={id ? 'Modifier le produit' : 'Nouveau produit'} onClose={onClose} onSave={save}>
-      <Field label="Nom" help={f.nom.trim() && nameTaken(db.produits, f.nom, id) ? '⚠ Ce produit existe déjà.' : ''}><TI value={f.nom} onChange={(v) => set('nom', v)} autoFocus /></Field>
+      <Field label="Nom" help={f.nom.trim() && nameTaken(db.produits, id ? f.nom : nomCasse, id) ? '⚠ Ce produit existe déjà.' : !id && f.nom.trim() && nomCasse !== f.nom.trim() ? `Enregistré sous « ${nomCasse} »` : ''}><TI value={f.nom} onChange={(v) => set('nom', v)} autoFocus /></Field>
       <G><Field label="Catégorie"><SI value={f.categorie} onChange={(v) => set('categorie', v)} options={Object.keys(CATEGORIES).map((k) => ({ value: k, label: CATEGORIES[k] }))} /></Field><Field label="Unité de stock"><SI value={f.unite} onChange={(v) => set('unite', v)} options={UNITES.map((u) => ({ value: u, label: u === 'u' ? 'u (pièces)' : u }))} /></Field></G>
       <G><Field label="Fournisseur habituel"><SI value={f.fournisseurId} onChange={(v) => set('fournisseurId', v)} placeholder="—" options={db.fournisseurs.map((x) => ({ value: x.id, label: x.nom }))} /></Field><Field label="Référence (code article du fournisseur)"><TI value={f.reference} onChange={(v) => set('reference', v)} placeholder="ex. 30210" /></Field></G>
       <Field label="Page du produit chez le fournisseur" help={f.lien.trim() && !lienOk ? '⚠ Adresse web invalide (ex. https://www.fournisseur.fr/produit).' : 'Fiche du produit sur le site du fournisseur : FT et FDS à jour, documents, conditionnements.'}>
@@ -31,12 +33,23 @@ function ProduitForm({ id, onClose }) {
           {lienOk ? <a className="btn btn-sm" href={lienOk} target="_blank" rel="noopener noreferrer">🔗 Ouvrir</a> : null}
           {f.nom.trim() ? <a className="btn btn-sm btn-ghost" href={rechercheWeb(`${f.nom} ${foNom}`)} target="_blank" rel="noopener noreferrer" title="Rechercher la page du produit sur le web">🌐 Chercher</a> : null}</div></Field>
       <div className="flex flex-wrap gap-x-5 gap-y-2"><Check checked={f.actif} onChange={(v) => set('actif', v)} label="Produit actif (proposé dans les formulaires)" />{f.categorie !== 'sec' ? <Check checked={f.fdsNonRequise} onChange={(v) => set('fdsNonRequise', v)} label="FDS non requise (produit non classé dangereux, sans fiche de données de sécurité)" /> : null}</div>
+      <div className="rounded-md border border-line" data-produit-infos="">
+        <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold" aria-expanded={infosOuv} onClick={() => setInfosOuv(!infosOuv)}><span aria-hidden="true">{infosOuv ? '▾' : '▸'}</span>Informations du produit (fiche technique, FDS)<span className="ml-auto text-xs font-normal text-ink2">{PRODUIT_INFOS.filter(([k]) => String(f[k] || '').trim()).length} / {PRODUIT_INFOS.length}</span></button>
+        {infosOuv ? <div className="space-y-2 px-3 pb-3">
+          <p className="help">Reprises des FT, FDS et certificats déposés (lecture automatique, assistant IA s’il est configuré) : vérifiez-les.</p>
+          <G><Field label="Fabricant"><TI value={f.fabricant} onChange={(v) => set('fabricant', v)} /></Field><Field label="Dose d’emploi"><TI value={f.doseEmploi} onChange={(v) => set('doseEmploi', v)} placeholder="ex. 10 à 30 g/hL" /></Field></G>
+          <Field label="Composition"><TA value={f.composition} onChange={(v) => set('composition', v)} rows={2} /></Field>
+          <Field label="Mode d’emploi"><TA value={f.modeEmploi} onChange={(v) => set('modeEmploi', v)} rows={2} /></Field>
+          <G><Field label="Stockage"><TI value={f.stockage} onChange={(v) => set('stockage', v)} /></Field><Field label="Conservation"><TI value={f.conservation} onChange={(v) => set('conservation', v)} placeholder="ex. 3 ans en emballage d’origine fermé" /></Field></G>
+          <G><Field label="Allergènes"><TI value={f.allergenes} onChange={(v) => set('allergenes', v)} placeholder="ex. aucun ; œuf (lysozyme)…" /></Field><Field label="Utilisation en bio"><TI value={f.usageBio} onChange={(v) => set('usageBio', v)} placeholder="ex. autorisé (règlement (UE) 2018/848)" /></Field></G>
+        </div> : null}
+      </div>
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
       {p ? (<Group label={`Fiches techniques, FDS et certificats${fds ? ` — ${fds.label}` : ''}`}>
         <DocsPanel cible={{ type: 'produit', id: p.id }} kind="produit" deposer={setDepot} aide="Chaque fichier déposé est lu (type, date de révision) ; une version plus récente remplace la précédente, qui reste dans les versions archivées." />
         {f.categorie !== 'sec' ? <div className="mt-2 flex flex-wrap items-center gap-2 text-sm"><span className="text-ink2">En ligne :</span><VeilleChip p={p} onClick={() => setVeille(true)} /></div> : null}
       </Group>) : <div className="help">FT, FDS et certificats : enregistrez le produit puis déposez-les ici, ou déposez-les en groupe dans Intrants › Fiches FT &amp; FDS.</div>}
-      {depot ? <FichesDepot fichiers={depot} cible={{ type: 'produit', id: p.id }} onClose={() => setDepot(null)} /> : null}
+      {depot ? <FichesDepot fichiers={depot} cible={{ type: 'produit', id: p.id }} onClose={() => setDepot(null)} onFini={(B) => { if (B && B.infos) setInfosOuv(true); }} /> : null}
       {veille ? <VeilleSheet id={p.id} onClose={() => setVeille(false)} /> : null}
     </FormSheet>
   );

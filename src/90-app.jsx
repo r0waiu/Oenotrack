@@ -52,6 +52,7 @@ function App() {
   const verrouille = !!(uid && session.verrou);
   const sessionRef = useRef(''); sessionRef.current = uid;
   const [stack, setStack] = useState([]); // fiches ouvertes : { k: 'lot' | 'cont' | 'fini', id } — la dernière ouverte est au premier plan
+  const [traceDlg, setTraceDlg] = useState(null); // fichier de traçabilité : export d'une expédition, traçabilité amont d'une entrée (0.27.0-alpha.1)
   const [opDlg, setOpDlg] = useState(null); const [misc, setMisc] = useState(null); const [menu, setMenu] = useState(null); const [contEdit, setContEdit] = useState(null); const [report, setReport] = useState(null); const [docsDlg, setDocsDlg] = useState(null); const [ficheDlg, setFicheDlg] = useState(null);
   const [theme, setTheme] = useState(() => { try { return window.localStorage.getItem(THEME_KEY) || window.localStorage.getItem('cuverie-champenoise-theme') || 'auto'; } catch (e) { return 'auto'; } });
 
@@ -152,7 +153,7 @@ function App() {
     db, R, act, toast, confirm, camp, defaultDate, nav, setTab, showLot, showCont, showFini, showOperateur, moi, setMoi, storeOK, sync, cloud, applyDb,
     uid, secu, niveau: (m) => niveauModule(db, uid, m), droit: (k) => peut(db, uid, k), connecter, deconnecter, verrouiller,
     openOp: (type, preset, editId, opts) => { setMenu(null); setOpDlg({ type, preset, editId, ...(opts || {}) }); },
-    openDocs: (cible, kind, title) => { setMenu(null); setDocsDlg({ cible, kind, title, k: Date.now() }); }, openLegal: (o) => { setMenu(null); setLegal(o || 'mentions'); }, openFiche: (sources) => { setMenu(null); setFicheDlg({ sources, k: Date.now() }); },
+    openDocs: (cible, kind, title) => { setMenu(null); setDocsDlg({ cible, kind, title, k: Date.now() }); }, openTrace: (x) => { setMenu(null); setTraceDlg(x ? { ...x, n: Date.now() } : null); }, openLegal: (o) => { setMenu(null); setLegal(o || 'mentions'); }, openFiche: (sources) => { setMenu(null); setFicheDlg({ sources, k: Date.now() }); },
     openAnalyse: (preset) => { setMenu(null); setMisc({ kind: 'analyse', preset }); }, openHyg: (preset) => { setMenu(null); setMisc({ kind: 'hyg', preset }); },
     openMenu: (cid, x, y) => setMenu({ cid, x, y, k: Date.now() }), editCont: (id) => { setMenu(null); setContEdit(id); }, openReport: (init) => { setMenu(null); setReport(init || { kind: 'lot', ids: [] }); },
   };
@@ -168,14 +169,15 @@ function App() {
   const resetEmpty = async () => {
     if (!autoriseBase()) return;
     const ok = await confirm({ title: 'Réinitialiser à vide ?', body: 'Toutes les données (contenants, lots, opérations, stocks…) seront effacées de ce navigateur ; la liste des crus (villages) est rétablie. Pensez à exporter la base complète avant (Paramètres › Sauvegarde & Drive).', ok: 'Tout effacer', danger: true });
-    if (ok) { const d = garderSecurite(emptyDb(), 'Base réinitialisée à vide (comptes gardés)'); dbRef.current = d; setDb(d); setStack([]); sync.suspendre(); cloud.suspendre(); toast('Base réinitialisée à vide.'); }
+    if (ok) { pointRetourEcrire(dbRef.current, 'Remise à zéro de la base'); const d = gardeJournalGarder(dbRef.current, garderSecurite(emptyDb(), 'Base réinitialisée à vide (comptes gardés)')); dbRef.current = d; setDb(d); setStack([]); sync.suspendre(); cloud.suspendre(); toast('Base réinitialisée à vide.'); }
   };
   const loadSample = async () => {
     if (!autoriseBase()) return;
     const ok = await confirm({ title: 'Recharger le jeu d’exemple ?', body: 'Les données actuelles seront remplacées par le jeu de démonstration (2 sites, apporteurs, crus, entrée de moûts, jarre, amphore, œuf…).', ok: 'Recharger l’exemple', danger: true });
-    if (ok) { const d = garderSecurite(normalizeDb(sampleDb()), 'Jeu d’exemple chargé (comptes gardés)'); dbRef.current = d; setDb(d); setStack([]); sync.suspendre(); cloud.suspendre(); toast('Jeu d’exemple rechargé.'); }
+    if (ok) { pointRetourEcrire(dbRef.current, 'Chargement du jeu d’exemple'); const d = gardeJournalGarder(dbRef.current, garderSecurite(normalizeDb(sampleDb()), 'Jeu d’exemple chargé (comptes gardés)')); dbRef.current = d; setDb(d); setStack([]); sync.suspendre(); cloud.suspendre(); toast('Jeu d’exemple rechargé.'); }
   };
-  ctx.replaceDb = (nd0, msg) => { if (!autoriseBase()) return false; const nd = garderSecurite(nd0, 'Sauvegarde restaurée'); dbRef.current = nd; setDb(nd); setStack([]); sync.suspendre(); cloud.suspendre(); if (msg) toast(msg); return true; };
+  // point de restauration (0.27.0-alpha.1) : la base de l'appareil est gardée avant d'être remplacée (Paramètres › Sécurité des importations)
+  ctx.replaceDb = (nd0, msg, motif) => { if (!autoriseBase()) return false; pointRetourEcrire(dbRef.current, motif || 'Base remplacée'); const nd = gardeJournalGarder(dbRef.current, garderSecurite(nd0, 'Sauvegarde restaurée')); dbRef.current = nd; setDb(nd); setStack([]); sync.suspendre(); cloud.suspendre(); if (msg) toast(msg); return true; };
   ctx.resetEmpty = resetEmpty; ctx.loadSample = loadSample; ctx.theme = theme; ctx.setTheme = setTheme; ctx.mode = mode;
 
   const toggleFreeze = async () => {
@@ -188,11 +190,13 @@ function App() {
     }
   };
 
+  const hygTachesBadge = useMemo(() => { if (!moduleActif(db, 'hygiene')) return { n: 0, nc: 0 }; try { const T = planTaches(db, todayISO()); return { n: T.length, nc: T.filter((x) => x.etat === 'nonconforme').length }; } catch (e) { console.error(e); return { n: 0, nc: 0 }; } }, [db]);
   const pendingAlerts = db.alertes.filter((a) => a.statut === 'attente').length;
   const toCheck = Object.keys(R.warn).filter((id) => { const o = db.ops.find((x) => x.id === id); return o && !o.verifie && o.date >= camp.debut && o.date <= camp.fin; }).length;
   const dluoIssues = db.arrivages.filter((a) => { const rest = arrivalRest(R, a); const k = dluoState(a.dluo).k; return rest > 0.0001 && (k === 'expire' || k === 'bientot'); }).length;
   const prevLate = (db.previsions || []).filter((p) => p.statut === 'prevue' && p.date <= todayISO()).length;
-  const badge = { previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, declass: pendingAlerts ? { n: pendingAlerts, tone: 'bad' } : null, ops: toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null };
+  const hygT = hygTachesBadge; // plans de nettoyage et de maintenance (0.26.0-alpha.1)
+  const badge = { hygiene: hygT.n ? { n: hygT.n, tone: hygT.nc ? 'bad' : 'warn' } : null, previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, declass: pendingAlerts ? { n: pendingAlerts, tone: 'bad' } : null, ops: toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null };
   const Cmp = TABS_REG[nav.tab];
   const sheetLabel = (sh) => (sh.k === 'cont' ? contName(db, sh.id) : sh.k === 'lot' ? lotCode(db, R, sh.id) : sh.k === 'opr' ? operateurNom(db, sh.id) || 'opérateur' : ((db.lotsFinis || []).find((f) => f.id === sh.id) || {}).code || 'lot fini');
 
@@ -276,6 +280,10 @@ function App() {
       {docsDlg ? <DocsSheet key={docsDlg.k} cible={docsDlg.cible} kind={docsDlg.kind} title={docsDlg.title} onClose={() => setDocsDlg(null)} /> : null}
       {ficheDlg ? <FicheDialog key={ficheDlg.k} sources={ficheDlg.sources} onClose={() => setFicheDlg(null)} /> : null}
       <VeilleAuto />
+      <GardeExistants />
+      {traceDlg && traceDlg.opId ? (traceDlg.k === 'amont' ? <TraceAmontSheet key={traceDlg.n} opId={traceDlg.opId} onClose={() => setTraceDlg(null)} /> : <TraceExportSheet key={traceDlg.n} opId={traceDlg.opId} onClose={() => setTraceDlg(null)} />) : null}
+      <SuiteExpedition />
+      {moduleActif(db, 'hygiene') && moduleAutorise(db, uid, 'hygiene') ? <SuiteHygiene /> : null}
       {menu ? <CtxMenu key={menu.k} m={menu} onClose={() => setMenu(null)} /> : null}
       <SyncSheet />
       <DossierChoix />

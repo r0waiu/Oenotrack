@@ -86,7 +86,7 @@ await browser.close();
 // 5. écran de connexion (identifiants activés, personne connectée) : liens accessibles sans se connecter
 {
   const dir = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'src');
-  const files = ['10-core.js', '11-crus.js', '12-vin.js', '13-operations.js', '14-formulaires.js', '15-baremes.js', '16-hygiene.js', '16b-intrants-fiches.js', '17-ia.js', '18-mentions.js', '19-pressoir.js', '20-engine.js', '25-trace.js', '30-store.js', '31-crud.js', '32-sync.js', '33-cloud.js', '34-acces.js', '35-seed.js'];
+  const files = ['10-core.js', '11-crus.js', '12-vin.js', '13-operations.js', '14-formulaires.js', '15-baremes.js', '16-hygiene.js', '16b-intrants-fiches.js', '16c-plans-hygiene.js', '16d-complements.js', '17-ia.js', '18-mentions.js', '19-pressoir.js', '20-engine.js', '25-trace.js', '30-store.js', '31-crud.js', '32-sync.js', '33-cloud.js', '34-acces.js', '35-seed.js'];
   globalThis.window = { localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} } };
   const L = new Function('React', files.map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n').replace(/const \{ useState[^\n]*\n/, '') + '\n;return { sampleDb, normalizeDb, securiteActiver, mdpEmpreinte };')({});
   const d = L.normalizeDb(L.sampleDb()); L.securiteActiver(d, { identifiant: 'admin', mdp: await L.mdpEmpreinte('Admin-2026', 1000) });

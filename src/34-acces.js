@@ -205,9 +205,9 @@ function auditAjouter(db, e) {
    Appelée par act() quand les identifiants sont activés : refuse l'action si un droit manque, sinon renvoie les entrées du journal
    et les opérations à marquer (saisiPar / modifiePar). Les réglages de vue (campagne, site, contour…) restent libres. */
 const GARDE_VUE = { settings: ['campagneActive', 'siteActif'], apparence: ['contourMode', 'interieurMode', 'interieurMotif'] };
-const GARDE_CLES = { journalPressoir: 'pressoir', contenants: 'cuverie', sites: 'cuverie', lots: 'cuverie', lotsFinis: 'degorgement', analyses: 'analyses', produits: 'intrants', arrivages: 'intrants', fournisseurs: 'intrants', regles: 'intrants', hygiene: 'hygiene', produitsHygiene: 'hygiene', previsions: 'previsions', alertes: 'declass' };
+const GARDE_CLES = { journalPressoir: 'pressoir', contenants: 'cuverie', sites: 'cuverie', lots: 'cuverie', lotsFinis: 'degorgement', analyses: 'analyses', produits: 'intrants', arrivages: 'intrants', fournisseurs: 'intrants', regles: 'intrants', hygiene: 'hygiene', produitsHygiene: 'hygiene', planNettoyage: 'hygiene', planMaintenance: 'hygiene', maintenance: 'hygiene', hygieneAcquits: 'hygiene', previsions: 'previsions', alertes: 'declass' };
 const GARDE_PARAMS = ['crus', 'apporteurs', 'parcelles', 'operateurs', 'modelesFiches', 'lists', 'entreprise', 'analysesParams', 'analysesModeles', 'formulaires', 'baremes'];
-const GARDE_NOMS = { baremes: 'barèmes de jaugeage', produitsHygiene: 'produits d’hygiène', contenants: 'contenants', sites: 'sites', lots: 'lots', lotsFinis: 'lots finis', analyses: 'analyses', produits: 'produits', arrivages: 'arrivages d’intrants', fournisseurs: 'fournisseurs', regles: 'règles d’intrants', hygiene: 'hygiène', previsions: 'opérations à réaliser', alertes: 'déclassements', crus: 'crus', apporteurs: 'partenaires', parcelles: 'parcelles', operateurs: 'opérateurs', modelesFiches: 'modèles de fiches', lists: 'listes', entreprise: 'société', analysesParams: 'paramètres d’analyse', analysesModeles: 'modèles d’analyse', campagnes: 'campagnes', settings: 'réglages', apparence: 'apparence', utilisateurs: 'utilisateurs', profils: 'profils de droits', docs: 'documents', formulaires: 'formulaires d’opérations', journalPressoir: 'journal du pressoir' };
+const GARDE_NOMS = { baremes: 'barèmes de jaugeage', produitsHygiene: 'produits d’hygiène', contenants: 'contenants', sites: 'sites', lots: 'lots', lotsFinis: 'lots finis', analyses: 'analyses', produits: 'produits', arrivages: 'arrivages d’intrants', fournisseurs: 'fournisseurs', regles: 'règles d’intrants', hygiene: 'hygiène', planNettoyage: 'plan de nettoyage', planMaintenance: 'plan de maintenance', maintenance: 'interventions de maintenance', hygieneAcquits: 'non-conformités justifiées', previsions: 'opérations à réaliser', alertes: 'déclassements', crus: 'crus', apporteurs: 'partenaires', parcelles: 'parcelles', operateurs: 'opérateurs', modelesFiches: 'modèles de fiches', lists: 'listes', entreprise: 'société', analysesParams: 'paramètres d’analyse', analysesModeles: 'modèles d’analyse', campagnes: 'campagnes', settings: 'réglages', apparence: 'apparence', utilisateurs: 'utilisateurs', profils: 'profils de droits', docs: 'documents', formulaires: 'formulaires d’opérations', journalPressoir: 'journal du pressoir' };
 const sansCles = (o, ks) => { if (!o || typeof o !== 'object') return o; const c = { ...o }; ks.forEach((k) => { delete c[k]; }); return c; };
 const OP_MARQUES = ['ficheOrdre', 'saisiPar', 'saisiLe', 'modifiePar', 'modifieLe'];
 const parId = (L) => { const m = new Map(); (Array.isArray(L) ? L : []).forEach((x) => { if (x && x.id != null) m.set(x.id, x); }); return m; };
@@ -270,7 +270,7 @@ function gardeDroits(avant, apres, uid) {
     }
     if (k === 'docs') {
       const d = diffParId(avant.docs, apres.docs);
-      const modDoc = (x) => (x.cible && (x.cible.type === 'arrivage' || x.cible.type === 'produit') ? 'intrants' : x.cible && x.cible.type === 'produitHygiene' ? 'hygiene' : x.cible && x.cible.type === 'bareme' ? 'params' : x.cible && x.cible.type === 'prev' ? 'previsions' : (() => { const o = (apres.ops || []).find((y) => y.id === (x.cible || {}).id) || (avant.ops || []).find((y) => y.id === (x.cible || {}).id); return o ? moduleDeType(o.type, o) : 'ops'; })());
+      const modDoc = (x) => (x.cible && (x.cible.type === 'arrivage' || x.cible.type === 'produit') ? 'intrants' : x.cible && (x.cible.type === 'produitHygiene' || x.cible.type === 'maintenance') ? 'hygiene' : x.cible && x.cible.type === 'bareme' ? 'params' : x.cible && x.cible.type === 'bulletin' ? 'analyses' : x.cible && x.cible.type === 'prev' ? 'previsions' : (() => { const o = (apres.ops || []).find((y) => y.id === (x.cible || {}).id) || (avant.ops || []).find((y) => y.id === (x.cible || {}).id); return o ? moduleDeType(o.type, o) : 'ops'; })());
       if (opsCh) { if (d.suppr.length && !sp('supprimer') && d.suppr.some((x) => !(x.cible && x.cible.type === 'op' && !(apres.ops || []).some((o) => o.id === x.cible.id)))) return refus(`le profil ${nomP} ne permet pas de retirer un document`); }
       else {
         for (const x of [...d.cree, ...d.modif.map((y) => y.apres)]) { const m = modDoc(x); if (!(ecr(m) || (!['intrants', 'hygiene'].includes(m) && ecr('ops')))) return refus(`le profil ${nomP} ne permet pas de joindre un document dans « ${nomMod(m)} »`); }
@@ -278,6 +278,10 @@ function gardeDroits(avant, apres, uid) {
       }
       d.cree.forEach((x) => audit.push({ uid, action: 'creation', type: 'document', cibleId: x.id, resume: `Document « ${x.nom} »` })); d.suppr.forEach((x) => audit.push({ uid, action: 'suppression', type: 'document', cibleId: x.id, resume: `Document « ${x.nom} »` }));
       continue;
+    }
+    if (k === 'gardeJournal') { // journal de sécurité des importations (0.27.0-alpha.1) : les entrées s'y ajoutent d'office ; le vider demande le droit de gérer les utilisateurs
+      const d = diffParId(avant.gardeJournal, apres.gardeJournal); if ((d.suppr.length || d.modif.length) && !sp('utilisateurs')) return refus(`le profil ${nomP} ne permet pas de vider le journal de sécurité`);
+      if (d.suppr.length) audit.push({ uid, action: 'suppression', type: 'gardeJournal', resume: `Journal de sécurité vidé (${d.suppr.length} entrée(s))` }); continue;
     }
     const m = GARDE_CLES[k];
     if (m) {

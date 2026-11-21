@@ -19,20 +19,45 @@ async function lireFicheProduit(file, { onEtape } = {}) {
         for (let i = 0; i < max; i += 1) { et(`Scan : reconnaissance du texte, page ${i + 1} / ${max} (la première fois, le module de lecture se télécharge)…`); const r = await renduPage(pages[i].pg, 200); nettoyerScan(r.canvas); pages[i] = { ...(await ocrCanvas(r.canvas, i + 1, r.echelle)), n: i + 1 }; r.canvas.width = 0; }
         pages.splice(max);
       }
-      return { ...base, ...ficheAnalyser(fdsTexteDePages(pages), { titre: ficheTitreDePage(pages[0]), fichier: nom }), ocr, nbPages: doc.numPages };
+      const texte = fdsTexteDePages(pages); return { ...base, ...ficheAnalyser(texte, { titre: ficheTitreDePage(pages[0]), fichier: nom }), texte: texte.slice(0, 20000), ocr, nbPages: doc.numPages };
     } finally { try { doc.destroy(); } catch (e) { /* ignoré */ } }
   }
-  if (estImage(file)) { et('Photo : reconnaissance du texte (la première fois, le module de lecture se télécharge)…'); const c = nettoyerScan(await imageCanvas(file)); const p = await ocrCanvas(c, 1, 1); return { ...base, ...ficheAnalyser(fdsTexteDePages([p]), { titre: ficheTitreDePage(p), fichier: nom }), ocr: true, nbPages: 1 }; }
-  if (/^text\//.test(file.type || '') || /\.txt$/i.test(nom)) return { ...base, ...ficheAnalyser(await lectureFichier(file), { fichier: nom }), nbPages: 1 };
+  if (estImage(file)) { et('Photo : reconnaissance du texte (la première fois, le module de lecture se télécharge)…'); const c = nettoyerScan(await imageCanvas(file)); const p = await ocrCanvas(c, 1, 1); const texte = fdsTexteDePages([p]); return { ...base, ...ficheAnalyser(texte, { titre: ficheTitreDePage(p), fichier: nom }), texte: texte.slice(0, 20000), ocr: true, nbPages: 1 }; }
+  if (/^text\//.test(file.type || '') || /\.txt$/i.test(nom)) { const texte = await lectureFichier(file); return { ...base, ...ficheAnalyser(texte, { fichier: nom }), texte: String(texte || '').slice(0, 20000), nbPages: 1 }; }
   return { ...base, ...ficheAnalyser('', { fichier: nom }) }; // Word, OpenDocument… : type d'après le nom du fichier
 }
 const lectureEchec = (f, e) => { const m = (e && e.message) || String(e || ''); return /fetch|import|module|réseau|network|script|worker/i.test(m) && (estPdf(f) || estImage(f)) ? 'module de lecture injoignable (connexion internet ? page affichée dans claude.ai ?) : choisissez le produit et la date à la main' : `lecture impossible (${m || 'fichier illisible'}) : choisissez le produit et la date à la main`; };
+
+// formulaire ouvert pendant qu'un dépôt complète la fiche du produit : les champs que l'utilisateur n'a pas modifiés suivent la base
+// (sinon « Enregistrer » remettrait les anciennes valeurs) — 0.26.0-alpha.1
+function useSuiviFiche(obj, setF, cles) {
+  const val = (o, k) => (o && o[k] != null ? o[k] : ''); const sig = cles.map((k) => JSON.stringify(val(obj, k))).join('\u0001');
+  const prec = useRef({ sig, obj });
+  useEffect(() => {
+    const avant = prec.current; if (avant.sig === sig) return; prec.current = { sig, obj };
+    setF((x) => { const o = { ...x }; cles.forEach((k) => { const cur = x[k] == null ? '' : x[k]; if (cur === '' || JSON.stringify(cur) === JSON.stringify(val(avant.obj, k))) o[k] = val(obj, k); }); return o; });
+  }, [sig]);
+}
+// informations d'un document proposées pour la fiche du produit (0.26.0-alpha.1) : lecture du script, complétée par l'assistant IA
+function FicheInfos({ r, props: P, coche, onCoche, ia }) {
+  if (!r.cle || (!P.length && !r.iaInfos)) return null;
+  return (
+    <div className="mt-2 rounded-md border border-line p-2" style={{ background: 'var(--surface2)' }} data-fiche-infos="">
+      <div className="flex flex-wrap items-center gap-2 text-xs"><b>Pour la fiche du produit</b>{r.iaInfos === 'enCours' ? <span className="text-accent">{`🤖 ${ia} complète la lecture…`}</span> : r.iaInfos && r.iaInfos.err ? <span className="text-bad">🤖 {r.iaInfos.err}</span> : r.iaInfos ? <span className="text-accent">{`🤖 complété par ${ia}`}</span> : null}</div>
+      {P.length ? <ul className="mt-1 space-y-1">{P.map((x) => (
+        <li key={x.k}><label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" style={{ accentColor: 'var(--accent)' }} checked={coche(x)} onChange={(e) => onCoche(x, e.target.checked)} data-info={x.k} />
+          <span className="min-w-0"><span className="text-xs text-ink2">{x.src === 'ia' ? <span title="Lu par l’assistant IA : à vérifier">🤖 </span> : null}{x.lab}{x.actuel ? ' (remplace la valeur actuelle)' : ''}</span><span className="block break-words" translate="no">{x.v}</span></span></label></li>))}</ul>
+        : r.iaInfos !== 'enCours' ? <div className="help">Rien de nouveau pour la fiche.</div> : null}
+    </div>
+  );
+}
 
 /* ---------- revue du dépôt : un fichier par carte (type, produit reconnu, date de révision, action) ---------- */
 const FICHE_ACTIONS = [['ajouter', 'Joindre (version en vigueur)'], ['remplacer', 'Remplacer la version en vigueur (l’ancienne est archivée)'], ['archiver', 'Joindre comme version précédente (archivée)'], ['ignorer', 'Ne pas joindre']];
 function FichesDepot({ fichiers, cible, onClose, onFini }) {
   const { db, act, toast, setTab } = useApp(); const dbR = useRef(db); dbR.current = db; const fixe = cible || null;
-  const [rows, setRows] = useState(() => (fichiers || []).map((f, i) => ({ k: `${i}:${f.name}:${f.size}`, file: f, etat: 'attente', etape: '', lu: null, genre: '', cle: fixe ? ficheCibleCle(fixe) : '', nom: '', categorie: 'oeno', date: '', version: '', action: '', raison: '', alerte: false, manuel: false, cands: [], ia: null, err: '' })));
+  const [rows, setRows] = useState(() => (fichiers || []).map((f, i) => ({ k: `${i}:${f.name}:${f.size}`, file: f, etat: 'attente', etape: '', lu: null, genre: '', cle: fixe ? ficheCibleCle(fixe) : '', nom: '', categorie: 'oeno', date: '', version: '', action: '', raison: '', alerte: false, manuel: false, cands: [], ia: null, err: '', infosScript: null, iaVals: null, iaInfos: null, choix: {} })));
+  const rowsR = useRef(rows); rowsR.current = rows;
   const [busy, setBusy] = useState(false); const [iaBusy, setIaBusy] = useState(false); const vivant = useRef(true); useEffect(() => () => { vivant.current = false; }, []);
   const maj = (k, patch) => setRows((L) => L.map((r) => (r.k === k ? { ...r, ...(typeof patch === 'function' ? patch(r) : patch) } : r)));
   const avecAction = (r) => {
@@ -49,9 +74,34 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
       try { lu = await lireFicheProduit(r0.file, { onEtape: (t) => { if (vivant.current) maj(r0.k, { etape: t }); } }); } catch (e) { err = lectureEchec(r0.file, e); lu = { fichier: r0.file.name, taille: r0.file.size, mime: r0.file.type, ...ficheAnalyser('', { fichier: r0.file.name }) }; }
       if (!vivant.current) return;
       const cands = fixe ? [] : ficheCorrespondances(dbR.current, lu); const rec = fixe || ficheReconnu(cands);
-      maj(r0.k, (r) => avecAction({ ...r, etat: 'pret', etape: '', err, lu, cands, genre: lu.genre || 'autre', date: lu.date || '', version: lu.version || '', nom: lu.nom || r.file.name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' '), cle: rec ? ficheCibleCle(rec) : '' }));
+      maj(r0.k, (r) => avecAction({ ...r, etat: 'pret', etape: '', err, lu, cands, genre: lu.genre || 'autre', date: lu.date || '', version: lu.version || '', nom: nomProduitCasse(lu.nom || r.file.name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ')), cle: rec ? ficheCibleCle(rec) : '', infosScript: ficheInfosScript(lu.texte || lu.extrait, lu.genre) }));
     }
+    // informations de la fiche complétées par l'assistant IA (s'il est configuré) : d'office jusqu'à 10 documents, sinon sur demande
+    const A1 = iaActive(); if (vivant.current && A1.pret && A1.completer && rows.length <= 10) { await new Promise((res) => setTimeout(res, 60)); completer(rows.map((r) => r.k)); } // après l'affichage des lectures
   })(); }, []);
+  const texteDe = (r) => String((r.lu && (r.lu.texte || r.lu.extrait)) || '');
+  const completer = async (keys) => {
+    const A1 = iaActive(); if (!A1.pret) { toast('Configurez d’abord l’assistant IA : Paramètres › 🤖 Assistant IA.', 'bad'); return; }
+    setIaBusy(true);
+    for (const k of keys) {
+      if (!vivant.current) break; let r = rowsR.current.find((x) => x.k === k);
+      for (let i = 0; i < 20 && r && r.etat !== 'pret'; i += 1) { await new Promise((res) => setTimeout(res, 50)); r = rowsR.current.find((x) => x.k === k); } // lecture encore en cours d'affichage
+      if (!r || r.etat !== 'pret' || texteDe(r).replace(/\s+/g, '').length < 80) continue;
+      maj(k, { iaInfos: 'enCours' });
+      try {
+        const c = ficheCibleDeCle(r.cle); const o = c ? ficheCibleObj(dbR.current, c) : null;
+        const P = iaPromptInfos({ ...r.lu, genre: r.genre }, PRODUIT_INFOS, (o && o.nom) || r.nom, r.infosScript); const R = await iaDemander(A1, { system: P.system, texte: P.texte, max: P.max });
+        const v = iaLireInfos(iaJson(R.texte), PRODUIT_INFOS); if (!v) throw new Error('réponse illisible'); maj(k, { iaVals: v, iaInfos: { n: Object.keys(v).length } });
+      } catch (e) { maj(k, { iaInfos: { err: (e && e.message) || String(e) } }); if (e && (e.reseau || e.config || [401, 402, 403, 404].includes(e.statut))) { toast(e.message, 'bad'); break; } }
+    }
+    setIaBusy(false);
+  };
+  // informations lues pour la fiche du produit : cochées si elles complètent la fiche, décochées si elles changeraient une valeur saisie
+  const cibleInfos = (r, base) => (r.cle === 'nouveau' ? null : ficheCibleDeCle(r.cle));
+  // seulement d'un document joint comme version en vigueur (ni ignoré, ni rangé dans les versions précédentes)
+  const propositions = (r, base) => (r.cle && !['ignorer', 'archiver'].includes(r.action || 'ignorer') ? infosPropositions(base || db, cibleInfos(r), infosFusion(r.infosScript, r.iaVals)) : []);
+  const coche = (r, x) => (r.choix[x.k] !== undefined ? r.choix[x.k] : x.complete);
+  const nInfos = (r) => propositions(r).filter((x) => coche(r, x)).length;
   const choisir = (k, champ, v) => maj(k, (r) => avecAction({ ...r, [champ]: v, manuel: champ === 'action' ? true : champ === 'cle' ? false : r.manuel, ...(champ === 'action' ? { raison: v === 'ignorer' ? '' : r.raison } : {}) }));
   // listes de produits : les candidats reconnus d'abord (avec leur score), puis tous les intrants et produits d'hygiène
   const tous = useMemo(() => [...(db.produits || []).slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr')).map((p) => ({ value: `produit:${p.id}`, label: `${p.nom}${p.actif === false ? ' (inactif)' : ''}` })),
@@ -59,6 +109,7 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
   const optionsDe = (r) => { const cs = r.cands.map((c) => ({ value: `${c.type}:${c.id}`, label: `${c.nom}${c.type === 'produitHygiene' ? ' (hygiène)' : ''} — reconnu à ${Math.round(c.score * 100)} %` })); const vus = new Set(cs.map((x) => x.value)); return [...cs, ...tous.filter((x) => !vus.has(x.value)), { value: 'nouveau', label: `➕ Nouveau produit : « ${r.nom || 'à nommer'} »` }]; };
   const A = iaActive(); const pretes = rows.filter((r) => r.etat === 'pret'); const enCours = rows.some((r) => r.etat !== 'pret');
   const aIdentifier = pretes.filter((r) => !r.ia && (!r.cle || !r.date || r.genre === 'autre') && r.lu && String(r.lu.extrait || '').trim().length > 40);
+  const aCompleter = pretes.filter((r) => !r.iaVals && r.iaInfos !== 'enCours' && texteDe(r).replace(/\s+/g, '').length >= 80);
   const aJoindre = pretes.filter((r) => r.cle && r.action !== 'ignorer' && (r.cle !== 'nouveau' || String(r.nom || '').trim()));
   const identifier = async (liste) => {
     if (!A.pret) { toast('Configurez d’abord l’assistant IA : Paramètres › 🤖 Assistant IA.', 'bad'); return; }
@@ -85,18 +136,24 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
       const crees = {}; const B = { joints: 0, remplaces: 0, archives: 0, crees: 0, ignores: 0 };
       for (const { r, meta } of pieces) {
         let c = ficheCibleDeCle(r.cle);
-        if (r.cle === 'nouveau') { const key = norm(r.nom).trim(); if (!crees[key]) { const x = ficheProduitCreer(d, { nom: r.nom, fabricant: r.lu && r.lu.fabricant, categorie: r.categorie }); if (!x.ok) return x; crees[key] = x.id; if (!x.existant) B.crees += 1; } c = { type: 'produit', id: crees[key] }; }
+        if (r.cle === 'nouveau') { const key = norm(r.nom).trim(); if (!crees[key]) { const x = ficheProduitCreer(d, { nom: nomProduitCasse(String(r.nom || '').trim()), fabricant: r.lu && r.lu.fabricant, categorie: r.categorie }); if (!x.ok) return x; crees[key] = x.id; if (!x.existant) B.crees += 1; } c = { type: 'produit', id: crees[key] }; }
         const fic = { nom: meta.nom, taille: meta.taille }; const action = r.manuel ? r.action : ficheActionDefaut(d, c, r.genre, r.date, fic).action; // recalculée au fil du dépôt
         if (action === 'ignorer') { ignores.push(meta.id); B.ignores += 1; continue; }
         const avantArch = ficheDocs(d, c.type, c.id, null, true).length;
         const x = ficheJoindre(d, { cible: c, meta, genre: r.genre, date: r.date, version: r.version, action }); if (!x.ok) return x;
         B.joints += 1; if (action === 'archiver') B.archives += 1; else B.remplaces += Math.max(0, ficheDocs(d, c.type, c.id, null, true).length - avantArch);
       }
+      // informations cochées reprises sur la fiche du produit (même si le document n'est pas joint : déjà présent)
+      B.infos = 0;
+      for (const r of rowsR.current) {
+        if (r.etat !== 'pret' || !r.cle) continue; const c = r.cle === 'nouveau' ? (crees[norm(r.nom).trim()] ? { type: 'produit', id: crees[norm(r.nom).trim()] } : null) : ficheCibleDeCle(r.cle); if (!c) continue;
+        const L = propositions(r, d).filter((x) => coche(r, x)); if (L.length) B.infos += produitInfosAppliquer(d, c, Object.fromEntries(L.map((x) => [x.k, x.v])));
+      }
       bilan = B; return okr(B);
     });
     if (!res || !res.ok) { pieces.forEach((x) => docDel(x.meta.id).catch(() => { /* ignoré */ })); setBusy(false); return; }
     ignores.forEach((id) => docDel(id).catch(() => { /* ignoré */ }));
-    const B = bilan || {}; toast([`${B.joints} document${B.joints > 1 ? 's' : ''} joint${B.joints > 1 ? 's' : ''}`, B.remplaces ? `${B.remplaces} ancienne${B.remplaces > 1 ? 's' : ''} version${B.remplaces > 1 ? 's' : ''} archivée${B.remplaces > 1 ? 's' : ''}` : '', B.crees ? `${B.crees} produit${B.crees > 1 ? 's' : ''} créé${B.crees > 1 ? 's' : ''}` : '', B.ignores ? `${B.ignores} déjà présent${B.ignores > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') + '.');
+    const B = bilan || {}; toast([`${B.joints} document${B.joints > 1 ? 's' : ''} joint${B.joints > 1 ? 's' : ''}`, B.remplaces ? `${B.remplaces} ancienne${B.remplaces > 1 ? 's' : ''} version${B.remplaces > 1 ? 's' : ''} archivée${B.remplaces > 1 ? 's' : ''}` : '', B.crees ? `${B.crees} produit${B.crees > 1 ? 's' : ''} créé${B.crees > 1 ? 's' : ''}` : '', B.ignores ? `${B.ignores} déjà présent${B.ignores > 1 ? 's' : ''}` : '', B.infos ? `${B.infos} information${B.infos > 1 ? 's' : ''} reprise${B.infos > 1 ? 's' : ''} sur les fiches` : ''].filter(Boolean).join(' · ') + '.');
     setBusy(false); onClose(); if (onFini) onFini(B);
   };
   // « Remplacer » n'est proposé que si le produit a déjà une version en vigueur de ce type de document
@@ -105,7 +162,7 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
   const titreFixe = fixe ? (ficheCibleObj(db, fixe) || {}).nom : '';
   return (
     <Sheet wide title={fixe ? `Documents de « ${titreFixe} »` : 'Dépôt de fiches techniques et FDS'} sub={`${rows.length} fichier${rows.length > 1 ? 's' : ''} · ${pretes.length} lu${pretes.length > 1 ? 's' : ''}${enCours ? '…' : ''} — vérifiez le produit, le type et la date de révision avant de joindre`} onClose={onClose}
-      footer={<><Btn className="mr-auto" onClick={onClose}>Annuler</Btn>{aIdentifier.length ? <Btn disabled={iaBusy || enCours || busy} onClick={() => identifier(aIdentifier)} title={A.pret ? `Envoie le début du texte des documents non reconnus et la liste de vos produits à ${A.nom}` : 'Assistant IA à configurer (Paramètres › 🤖 Assistant IA)'}>{iaBusy ? '🤖 Identification…' : `🤖 Identifier avec l’IA (${aIdentifier.length})`}</Btn> : null}<Btn kind="primary" disabled={busy || enCours || !aJoindre.length} onClick={joindre}>{busy ? 'Enregistrement…' : `Joindre ${aJoindre.length} document${aJoindre.length > 1 ? 's' : ''}`}</Btn></>}>
+      footer={<><Btn className="mr-auto" onClick={onClose}>Annuler</Btn>{aIdentifier.length ? <Btn disabled={iaBusy || enCours || busy} onClick={() => identifier(aIdentifier)} title={A.pret ? `Envoie le début du texte des documents non reconnus et la liste de vos produits à ${A.nom}` : 'Assistant IA à configurer (Paramètres › 🤖 Assistant IA)'}>{iaBusy ? '🤖 Identification…' : `🤖 Identifier avec l’IA (${aIdentifier.length})`}</Btn> : null}{A.pret && aCompleter.length ? <Btn disabled={iaBusy || enCours || busy} onClick={() => completer(aCompleter.map((r) => r.k))} title={`Envoie le texte des documents et le nom des produits à ${A.nom}`} data-completer-ia="">{iaBusy ? '🤖 Lecture en cours…' : `🤖 Compléter les fiches avec l’IA (${aCompleter.length})`}</Btn> : null}<Btn kind="primary" disabled={busy || enCours || (!aJoindre.length && !rows.some((r) => r.etat === 'pret' && nInfos(r)))} onClick={joindre}>{busy ? 'Enregistrement…' : !aJoindre.length && rows.some((r) => r.etat === 'pret' && nInfos(r)) ? 'Reprendre les informations' : `Joindre ${aJoindre.length} document${aJoindre.length > 1 ? 's' : ''}`}</Btn></>}>
       {aIdentifier.length && !A.pret && !enCours ? <div className="mb-3"><Notice tone="info" title={`${aIdentifier.length} document${aIdentifier.length > 1 ? 's' : ''} sans produit ou sans date reconnus`}>Choisissez-les à la main, ou laissez une IA les identifier avec votre propre compte (Claude, ChatGPT, Gemini, Mistral…). <button type="button" className="linkish" onClick={() => { onClose(); setTab('params', 'ia'); }}>Configurer l’assistant IA…</button></Notice></div> : null}
       <div className="space-y-2" data-fiches-depot="">
         {rows.map((r) => (
@@ -122,6 +179,7 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
               </div>
               {r.raison || r.err ? <div className={cx('help mt-1', (r.alerte || r.err) && 'text-warn')}>{[r.err, r.raison].filter(Boolean).join(' · ')}</div> : null}
               {r.lu && (r.lu.nom || r.lu.fabricant) && !fixe ? <div className="mt-1 text-xs text-ink2">Lu : {[r.lu.nom ? `« ${r.lu.nom} »` : '', r.lu.fabricant].filter(Boolean).join(' · ')}</div> : null}
+              <FicheInfos r={r} props={propositions(r)} coche={(x) => coche(r, x)} onCoche={(x, v) => maj(r.k, (q) => ({ choix: { ...q.choix, [x.k]: v } }))} ia={A.nom} />
               {r.ia === 'enCours' ? <div className="mt-1 text-xs text-accent">🤖 Identification en cours…</div> : r.ia && r.ia.err ? <div className="mt-1 text-xs text-bad">🤖 {r.ia.err}</div> : r.ia ? <div className="mt-1 text-xs text-accent">🤖 Identifié par {A.nom}{r.ia.confiance != null ? ` (confiance ${Math.round(r.ia.confiance * 100)} %)` : ''}{r.ia.nom ? ` : « ${r.ia.nom} »` : ''} — à vérifier</div> : null}
             </>)}
           </div>))}
@@ -209,7 +267,8 @@ function IntrantsFichesView() {
     if (aVerifier.length > 1 && !(await confirm({ title: `Vérifier en ligne ${aVerifier.length} produit${aVerifier.length > 1 ? 's' : ''} ?`, body: `${A.nom} cherche, pour chaque produit, sa page chez le fournisseur, la dernière FDS et la dernière fiche technique (nom du produit, fournisseur, référence et dates de vos fiches sont envoyés). Une demande par produit, facturée sur votre compte ${A.nom}, recherche web comprise. Comptez jusqu’à une minute par produit.`, ok: 'Vérifier' }))) return;
     V.lancer(aVerifier.map((p) => p.id));
   };
-  const choisirDossier = (ev) => { const fs = Array.from(ev.target.files || []).filter((f) => fichierAccepte(f, FICHES_ACCEPT) && !/^\./.test(f.name)); ev.target.value = ''; if (fs.length) setDepot(fs.slice(0, 300)); };
+  const garder = useGarde(); // dossier choisi : chaque fichier vérifié par la garde des importations (0.27.0-alpha.1)
+  const choisirDossier = async (ev) => { const fs = Array.from(ev.target.files || []).filter((f) => fichierAccepte(f, FICHES_ACCEPT) && !/^\./.test(f.name)); ev.target.value = ''; if (!fs.length) return; const ok = await garder(fs.slice(0, 300), 'fiche'); if (ok.length) setDepot(ok); };
   return (
     <div>
       <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>

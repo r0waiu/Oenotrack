@@ -47,7 +47,7 @@ function ModeleForm({ id, onClose }) {
 
 function TabAnalyses() {
   const { db, R, act, confirm, camp, openOp } = useApp();
-  const [sub, setSub] = useState('saisies'); const [form, setForm] = useState(null); const [lotF, setLotF] = useState(''); const [modF, setModF] = useState(''); const [contF, setContF] = useState('');
+  const [sub, setSub] = useState('saisies'); const [form, setForm] = useState(null); const [vueDoc, setVueDoc] = useState(null); const [lotF, setLotF] = useState(''); const [modF, setModF] = useState(''); const [contF, setContF] = useState('');
   const rows = db.analyses.filter((a) => (!lotF || a.lotId === lotF) && (!modF || a.modeleId === modF) && (!contF || a.contenantId === contF)).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   const pivotIds = lotF ? uniq(rows.flatMap((a) => Object.keys(a.valeurs))).filter((k) => db.analysesParams.some((p) => p.id === k)) : [];
   const delA = async (a) => { const ok = await confirm({ title: 'Supprimer cette analyse ?', body: `Analyse du ${fmtDate(a.date)} sur ${lotCode(db, R, a.lotId)}.`, ok: 'Supprimer', danger: true }); if (ok) act((d) => analyseDelete(d, a.id), 'Analyse supprimée.'); };
@@ -56,13 +56,14 @@ function TabAnalyses() {
     <div>
       <SubNav value={sub} onChange={setSub} items={[{ id: 'saisies', label: 'Saisies d’analyses' }, { id: 'modeles', label: 'Paramètres & modèles de fiches' }]} />
       {sub === 'saisies' ? (<>
+        {camp.figee ? null : <BulletinsImport />}
         <Sec title={`Analyses (${rows.length})`} right={<><SI value={lotF} onChange={setLotF} placeholder="Tous les lots" style={{ width: 'auto', maxWidth: 220 }} options={Object.values(R.lots).sort((a, b) => a.code.localeCompare(b.code, 'fr', { numeric: true })).map((l) => ({ value: l.id, label: l.code }))} aria-label="Lot" />
           <SI value={modF} onChange={setModF} placeholder="Tous les modèles" style={{ width: 'auto' }} options={db.analysesModeles.map((m) => ({ value: m.id, label: m.nom }))} aria-label="Modèle" />
           <SI value={contF} onChange={setContF} placeholder="Tous les contenants" style={{ width: 'auto' }} options={contOptions(db, true)} aria-label="Contenant" />
           <Btn kind="primary" onClick={() => setForm({})}>+ Nouvelle analyse</Btn></>}>
           <Tbl rows={rows} empty="Aucune analyse pour ces critères." cols={[
             { h: 'Date', r: (a) => <span className="num">{fmtDate(a.date)}</span> }, { h: 'Lot', r: (a) => <LotLink id={a.lotId} /> }, { h: 'Contenant prélevé', r: (a) => (a.contenantId ? <ContLink id={a.contenantId} /> : '—') },
-            { h: 'Modèle', r: (a) => (db.analysesModeles.find((m) => m.id === a.modeleId) || {}).nom || 'Libre' },
+            { h: 'Modèle', r: (a) => { const b = analyseBulletin(db, a); return <span className="inline-flex flex-wrap items-center gap-1">{(db.analysesModeles.find((m) => m.id === a.modeleId) || {}).nom || 'Libre'}{b ? <button type="button" className="chip" style={{ cursor: 'pointer' }} onClick={() => setVueDoc(b)} title={`Bulletin d’analyses : ${b.nom}`} data-bulletin-doc="">📄 bulletin</button> : null}</span>; } },
             { h: 'Résultats', r: (a) => <div className="flex flex-wrap gap-1">{Object.keys(a.valeurs).map((k) => <Chip key={k}>{valText(db, k, a.valeurs[k])}</Chip>)}{sugarOf(db, a.valeurs) != null ? <Chip tone="info">Sucre mixtion {fmt(sugarOf(db, a.valeurs), 1)} g/L</Chip> : null}{(() => { const sg = camp.figee ? null : stadeSuggestion(db, R, a); return sg ? <button type="button" className="chip chip-c" style={{ '--c': stadeColor(db, sg.stade), cursor: 'pointer' }} title={`${sg.why} : enregistrer le passage en « ${stadeLabel(db, sg.stade)} »`} onClick={() => openOp(opEtapePour(db, sg.stade), { lotId: sg.lotId, newStade: sg.stade, date: a.date, notes: `D’après l’analyse du ${fmtDate(a.date)} : ${sg.why}.` })}>→ {stadeCourt(db, sg.stade)} ?</button> : null; })()}</div> },
             { h: '', r: (a) => (isLocked(db, a.date) ? <Chip>🔒 figée</Chip> : <div className="flex gap-1"><Btn size="sm" onClick={() => setForm({ id: a.id })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => delA(a)}>Supprimer</Btn></div>) }]} />
         </Sec>
@@ -78,6 +79,7 @@ function TabAnalyses() {
             <div className="mt-2 flex flex-wrap gap-1">{m.paramIds.map((pid) => { const p = db.analysesParams.find((x) => x.id === pid); return p ? <Chip key={pid}>{p.nom}</Chip> : null; })}</div>
             <div className="mt-3 flex gap-1"><Btn size="sm" onClick={() => setForm({ modele: true, id: m.id })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => delX(`Supprimer le modèle « ${m.nom} » ?`, (d) => modeleDelete(d, m.id), 'Modèle supprimé.')}>Supprimer</Btn></div></div>))}</div></Sec>
       </>)}
+      {vueDoc ? <DocViewer doc={vueDoc} onClose={() => setVueDoc(null)} /> : null}
       {form && form.param ? <ParamForm id={form.id} onClose={() => setForm(null)} /> : form && form.modele ? <ModeleForm id={form.id} onClose={() => setForm(null)} /> : form ? <AnalyseForm id={form.id} preset={form.preset} onClose={() => setForm(null)} /> : null}
     </div>
   );

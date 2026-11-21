@@ -28,9 +28,9 @@ await page.locator('.overlay').last().locator('.linkish', { hasText: /M26/ }).fi
 await page.screenshot({ path: SH + '/lot-fraction.png' });
 log('fiche lot:', (await page.locator('.overlay').last().innerText()).slice(0, 260).replace(/\n/g, ' | '));
 await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(300);
-// 4. pressurage : seules les fractions « au pressurage »
-await page.click('#tab-ops'); await page.waitForTimeout(300);
-await page.locator('main button', { hasText: 'Pressurage' }).first().click(); await page.waitForTimeout(400);
+// 4. pressurage (onglet Pressoir › Pressurages, 0.26.0-alpha.2) : seules les fractions « au pressurage »
+await page.click('#tab-pressoir'); await page.waitForTimeout(300); await page.locator('[data-pressoir] [role=tab]', { hasText: 'Pressurages' }).click(); await page.waitForTimeout(300);
+await page.locator('[data-nouveau-marc]').click(); await page.waitForTimeout(400);
 log('pressurage:', (await page.locator('.overlay').last().locator('input[aria-label^="Volume "]').evaluateAll((e) => e.map((x) => x.getAttribute('aria-label')))).join(' / '));
 await page.keyboard.press('Escape'); await page.waitForTimeout(200);
 // 5. registres › listes
