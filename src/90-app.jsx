@@ -12,6 +12,7 @@ const MODULE_DEFS = {
   analyses: { label: 'Analyses', icone: '🔬', desc: 'Analyses et paramètres personnalisables.' },
   intrants: { label: 'Intrants & Stocks', icone: '📦', desc: 'Produits œnologiques, arrivages, lots fournisseurs, DLUO et stocks.' },
   hygiene: { label: 'Hygiène', icone: '🧽', desc: 'Journal des nettoyages, rinçages et désinfections.' },
+  equipements: { label: 'Équipements', icone: '🛠', desc: 'Parc de matériel (fiches, documents), maintenance préventive et réglementaire, pannes, vérifications périodiques des balances et instruments.' },
   trace: { label: 'Traçabilité', icone: '🔎', desc: 'Recherches ascendante et descendante, par intrant, par parcelle.' },
   registres: { label: 'Registres', icone: '📑', desc: 'Registres à exporter (CSV / Excel) et bilan matière.' },
   params: { label: 'Paramètres', icone: '⚙', desc: 'Société & opérateurs, modules, sauvegarde & Drive, campagnes, listes et réglages.' },
@@ -195,13 +196,14 @@ function App() {
     }
   };
 
-  const hygTachesBadge = useMemo(() => { if (!moduleActif(db, 'hygiene')) return { n: 0, nc: 0 }; try { const T = planTaches(db, todayISO()); return { n: T.length, nc: T.filter((x) => x.etat === 'nonconforme').length }; } catch (e) { console.error(e); return { n: 0, nc: 0 }; } }, [db]);
+  const hygTachesBadge = useMemo(() => { if (!moduleActif(db, 'hygiene')) return { n: 0, nc: 0 }; try { const T = planTaches(db, todayISO()).filter((x) => !(x.origine === 'maintenance' && maintDansEquipements(db, uid))); return { n: T.length, nc: T.filter((x) => x.etat === 'nonconforme').length }; } catch (e) { console.error(e); return { n: 0, nc: 0 }; } }, [db, uid]);
+  const equipBadge = useMemo(() => { if (!maintDansEquipements(db, uid)) return null; try { const T = equipTaches(db, todayISO()); return T.length ? { n: T.length, tone: T.some((x) => x.etat === 'retard' || x.interventionId) ? 'bad' : 'warn' } : null; } catch (e) { console.error(e); return null; } }, [db, uid]);
   const pendingAlerts = db.alertes.filter((a) => a.statut === 'attente').length;
   const toCheck = Object.keys(R.warn).filter((id) => { const o = db.ops.find((x) => x.id === id); return o && !o.verifie && o.date >= camp.debut && o.date <= camp.fin; }).length;
   const dluoIssues = db.arrivages.filter((a) => { const rest = arrivalRest(R, a); const k = dluoState(a.dluo).k; return rest > 0.0001 && (k === 'expire' || k === 'bientot'); }).length;
   const prevLate = (db.previsions || []).filter((p) => p.statut === 'prevue' && p.date <= todayISO()).length;
   const hygT = hygTachesBadge; // plans de nettoyage et de maintenance (0.26.0-alpha.1)
-  const badge = { hygiene: hygT.n ? { n: hygT.n, tone: hygT.nc ? 'bad' : 'warn' } : null, previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, ops: pendingAlerts && moduleActif(db, 'declass') && moduleAutorise(db, uid, 'declass') ? { n: pendingAlerts, tone: 'bad' } : toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null };
+  const badge = { hygiene: hygT.n ? { n: hygT.n, tone: hygT.nc ? 'bad' : 'warn' } : null, previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, ops: pendingAlerts && moduleActif(db, 'declass') && moduleAutorise(db, uid, 'declass') ? { n: pendingAlerts, tone: 'bad' } : toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null, equipements: equipBadge };
   const Cmp = TABS_REG[nav.tab];
   const sheetLabel = (sh) => (sh.k === 'cont' ? contName(db, sh.id) : sh.k === 'lot' ? lotCode(db, R, sh.id) : sh.k === 'opr' ? operateurNom(db, sh.id) || 'opérateur' : ((db.lotsFinis || []).find((f) => f.id === sh.id) || {}).code || 'lot fini');
 

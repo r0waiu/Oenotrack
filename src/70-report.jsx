@@ -75,18 +75,23 @@ function RptCont({ id, S, brk }) {
   );
 }
 
-// Impression : window.print() dans un try ; à défaut, enregistrement d'un fichier HTML prêt à imprimer.
-function useReportOutput(ref, filename) {
+// Sorties d'un rapport (0.28.0-alpha.1) : « 🖨 Imprimer » (boîte d'impression de l'appareil ; à défaut le PDF), « ⬇ PDF », « ⬇ HTML »
+function useReportOutput(ref, filename, opts = {}) {
   const { toast, db } = useApp();
-  // « Imprimer » : PDF (seule voie qui atteint l'imprimante depuis claude.ai)
-  const print = async () => { if (!ref.current) return; await printPdf({ units: [{ el: ref.current, orientation: 'portrait', fit: 'width' }], root: ref.current, filename: `${filename}.pdf`, title: filename, author: (db.entreprise || {}).nom, toast }); };
-  const direct = () => { try { window.print(); } catch (e) { /* ignoré */ } };
+  const meta = () => ({ units: [{ el: ref.current, orientation: opts.orientation || 'portrait', fit: 'width' }], root: ref.current, filename: `${filename}.pdf`, title: filename, author: (db.entreprise || {}).nom, toast });
+  const pdf = async () => { if (!ref.current) return; await printPdf(meta()); };
+  const print = async () => { if (!ref.current) return; const r = await imprimerZone(ref.current, { titre: filename, orientation: opts.orientation }); if (r === 'bloque') await pdfRepli(meta()); };
+  const direct = print;
   const download = async () => {
     const css = Array.from(document.querySelectorAll('style')).map((s) => s.textContent).join('\n').split('/* rapports imprimables */')[1] || '';
     const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${filename}</title><style>body{margin:0;font-family:Barlow,Arial,sans-serif}${css.split('@media (max-width')[0]}@page{size:A4;margin:12mm}.report .rpt-item+.rpt-item{break-before:page}</style></head><body>${ref.current ? ref.current.outerHTML : ''}</body></html>`;
     const r = await saveFile(`${filename}.html`, html, 'text/html'); if (r.ok) toast('Rapport enregistré : ouvrez-le puis imprimez-le (Ctrl/Cmd + P).'); else if (!r.declined) toast(failMsg(r), 'bad');
   };
-  return { print, download, direct };
+  return { print, pdf, download, direct };
+}
+// boutons de sortie d'un rapport : « 🖨 Imprimer » ouvre la boîte d'impression ; « ⬇ PDF » et « ⬇ HTML » en parallèle
+function BoutonsSortie({ out, html = true }) {
+  return <>{html ? <Btn onClick={out.download} title="Page web prête à imprimer, à garder ou à envoyer">⬇ HTML</Btn> : null}<Btn onClick={out.pdf} title="Enregistrer le PDF (à envoyer, archiver ou imprimer plus tard)" data-sortie-pdf="">⬇ PDF</Btn><Btn kind="primary" onClick={out.print} title="Ouvrir la boîte d’impression de l’appareil" data-sortie-imprimer="">🖨 Imprimer</Btn></>;
 }
 const ReportHead = ({ title, sub }) => { const { db } = useApp(); const e = db.entreprise || {}; return (<div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>{e.logo ? <img src={e.logo} alt={e.nom || 'Logo'} style={{ maxHeight: 54, maxWidth: 170, objectFit: 'contain' }} /> : <Logo size={40} />}<div><h1>{title}</h1><div className="muted" style={{ fontSize: 12 }}>{e.nom ? `${e.nom} · ` : ''}Œnotrack · {sub} · édité le {fmtDate(todayISO())}{db.sites.length ? ` · ${db.sites.map((s) => s.nom).join(', ')}` : ''}</div></div></div>); };
 
@@ -109,7 +114,7 @@ function ReportDialog({ init, onClose }) {
   const out = useReportOutput(ref, `oenotrack-rapport-${todayISO()}`);
   return (
     <Sheet wide title="Rapport imprimable" sub={view ? title : 'Choisissez les éléments et les rubriques à imprimer'} onClose={onClose}
-      footer={view ? <><Btn onClick={() => setView(false)} className="mr-auto">← Modifier la sélection</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>
+      footer={view ? <><Btn onClick={() => setView(false)} className="mr-auto">← Modifier la sélection</Btn><BoutonsSortie out={out} /></>
         : <><Btn onClick={onClose}>Annuler</Btn><Btn kind="primary" disabled={!ids.length || !secs.length} onClick={() => setView(true)}>Aperçu du rapport ({ids.length})</Btn></>}>
       {!view ? (
         <div className="space-y-4">

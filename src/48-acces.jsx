@@ -91,6 +91,7 @@ function EcranConnexion({ verrou, onConnecte, onChanger }) {
           </>}
           {err ? <div className="login-err" role="alert">{err}</div> : null}
           <Btn kind="primary" type="submit" className="w-full" disabled={busy || attente > 0}>{busy ? 'Vérification…' : attente ? `Patientez ${attente} s` : mode === 'secours' ? 'Réinitialiser et se connecter' : verrou && u0 ? 'Déverrouiller' : 'Se connecter'}</Btn>
+          {mode === 'connexion' ? <CleBoutonConnexion uid={verrou && u0 ? u0.id : ''} disabled={busy || attente > 0} onOk={({ u, k }) => { essais.current = 0; setErr(''); dernierIdentEcrire(u.identifiant); journal({ uid: u.id, action: 'connexion', resume: `${verrou ? 'Déverrouillage' : 'Connexion'} par clé d’accès (${k.nom})` }); onConnecte(u.id, garder); }} onErr={(m) => { setErr(m); if (!/annulée/.test(m)) journal({ action: 'echec', resume: `Clé d’accès : ${m}` }); }} /> : null}
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             {mode === 'secours' ? <button type="button" className="linkish" onClick={() => { setMode('connexion'); setErr(''); }}>← Retour à la connexion</button>
               : <details className="login-aide"><summary className="linkish">Mot de passe oublié ?</summary><p className="text-xs text-ink2">Demandez à un administrateur de réinitialiser votre mot de passe (Paramètres › Utilisateurs & droits). Administrateur : <button type="button" className="linkish" onClick={() => { setMode('secours'); setErr(''); }}>utiliser le code de secours</button>.</p></details>}
@@ -161,6 +162,7 @@ function CompteSheet({ onClose }) {
           <dt>Dernière connexion</dt><dd>{fmtDateHeure(derniereConnexion(db, uid)) || '—'}</dd>
           <dt>Verrouillage</dt><dd>{securiteReglages(db).verrouMin ? `après ${securiteReglages(db).verrouMin} min sans activité` : 'jamais automatique'}</dd></dl>
         <div className="flex flex-wrap gap-2"><Btn onClick={() => setMdp(true)}>🔑 Changer mon mot de passe</Btn>{droit('utilisateurs') ? <Btn onClick={() => { onClose(); setTab('params', 'utilisateurs'); }}>Gérer les utilisateurs et les droits</Btn> : null}</div>
+        <MesClesBloc />
       </div>
       {mdp ? <ChangerMdpSheet onClose={() => setMdp(false)} /> : null}
     </Sheet>
@@ -178,6 +180,7 @@ function UtilisateursView() {
       {codeSheet}
       <Notice tone="ok" title="Identifiants activés">Chaque personne se connecte avec son identifiant et son mot de passe ; ses droits dépendent de son profil. Toutes les connexions et les saisies sont tracées dans le journal des accès ci-dessous. Les mots de passe ne sont jamais enregistrés : seule leur empreinte salée (PBKDF2-SHA256, 120 000 itérations) est conservée, dans la base et dans les sauvegardes.</Notice>
       <UtilisateursListe />
+      <AppareilsAcceptes />
       <ProfilsListe />
       <SecuriteReglages />
       <JournalAcces />
@@ -190,6 +193,7 @@ function MonCompteView() {
     <div className="space-y-4">
       <Notice tone="info" title="Gestion des utilisateurs réservée aux administrateurs">Votre profil « {profilNom(db, u)} » ne permet pas de gérer les identifiants. Vous pouvez changer votre mot de passe.</Notice>
       <Btn onClick={() => setMdp(true)}>🔑 Changer mon mot de passe</Btn>
+      <div className="card p-4"><MesClesBloc /></div>
       {mdp ? <ChangerMdpSheet onClose={() => setMdp(false)} /> : null}
     </div>
   );
@@ -291,7 +295,7 @@ function MdpResetSheet({ id, onClose }) {
   );
 }
 // résumé d'un profil : modules en saisie / en lecture, droits spéciaux
-const profilResume = (p) => { const m = p.modules || {}; const e = MODULES_DEFAUT.filter((k) => m[k] === 'ecriture').length; const l = MODULES_DEFAUT.filter((k) => (m[k] || 'lecture') === 'lecture').length; const s = DROITS_SPECIAUX.filter(([k]) => p.speciaux && p.speciaux[k]).map((d) => d[1].toLowerCase()); return `${e} module(s) en saisie, ${l} en lecture${s.length ? ` · ${s.join(', ')}` : ''}`; };
+const profilResume = (p) => { const e = MODULES_DEFAUT.filter((k) => profilNiveau(p, k) === 'ecriture').length; const l = MODULES_DEFAUT.filter((k) => profilNiveau(p, k) === 'lecture').length; const s = DROITS_SPECIAUX.filter(([k]) => p.speciaux && p.speciaux[k]).map((d) => d[1].toLowerCase()); return `${e} module(s) en saisie, ${l} en lecture${s.length ? ` · ${s.join(', ')}` : ''}`; };
 function ProfilsListe() {
   const { db, act, confirm } = useApp(); const [form, setForm] = useState(null);
   const nb = (id) => (db.utilisateurs || []).filter((u) => u.profilId === id && u.actif !== false).length;
@@ -313,7 +317,7 @@ function ProfilsListe() {
 }
 function ProfilForm({ id, base, onClose }) {
   const { db, act } = useApp(); const p0 = profilDe(db, id || base); const fixe = !!(id && p0 && p0.fixe);
-  const [f, setF] = useState(() => ({ nom: id ? p0.nom : p0 ? `${p0.nom} (copie)` : '', description: p0 ? p0.description || '' : '', modules: { ...Object.fromEntries(MODULES_DEFAUT.map((m) => [m, 'lecture'])), ...((p0 && p0.modules) || {}) }, speciaux: { ...((p0 && p0.speciaux) || {}) } }));
+  const [f, setF] = useState(() => ({ nom: id ? p0.nom : p0 ? `${p0.nom} (copie)` : '', description: p0 ? p0.description || '' : '', modules: { ...((p0 && p0.modules) || {}), ...Object.fromEntries(MODULES_DEFAUT.map((m) => [m, profilNiveau(p0, m)])) }, speciaux: { ...((p0 && p0.speciaux) || {}) } }));
   const setM = (m, v) => setF((x) => ({ ...x, modules: { ...x.modules, [m]: v } })); const setS = (k, v) => setF((x) => ({ ...x, speciaux: { ...x.speciaux, [k]: v } }));
   const save = () => { if (fixe) { onClose(); return; } const r = act((d) => profilSave(d, f, id), id ? 'Profil modifié.' : 'Profil créé.'); if (r && r.ok) onClose(); };
   const tous = (v) => setF((x) => ({ ...x, modules: Object.fromEntries(MODULES_DEFAUT.map((m) => [m, v])) }));

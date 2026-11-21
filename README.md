@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.27.0--alpha.2-8C6E2F">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.28.0--alpha.1-8C6E2F">
   <img alt="Licence" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-1E242B">
   <img alt="Langues" src="https://img.shields.io/badge/langues-FR%20%C2%B7%20EN%20%C2%B7%20ES%20%C2%B7%20IT%20%C2%B7%20DE%20%C2%B7%20PT-5B636D">
 </p>
@@ -35,6 +35,10 @@
 - [Le pressoir](#le-pressoir)
 - [Bulletins d’analyses et fichiers de traçabilité](#bulletins-danalyses-et-fichiers-de-traçabilité)
 - [Protection des importations](#protection-des-importations)
+- [Hygiène (méthode HACCP)](#hygiène-méthode-haccp)
+- [Équipements](#équipements)
+- [Traçabilité à chaque étape et mode audit](#traçabilité-à-chaque-étape-et-mode-audit)
+- [Connexion simplifiée et impression](#connexion-simplifiée-et-impression)
 - [Champagne ou autre région viticole](#champagne-ou-autre-région-viticole)
 - [Langues](#langues)
 - [Vos données](#vos-données)
@@ -52,11 +56,13 @@
 | 🍇 **Pressoir et vendange** | Registre des pesées et tickets, carnet de pressoir (cuvée, tailles, rebêches), entrées de moûts par compartiment, crus, partenaires, analyses par lot. |
 | 🛢️ **Cuverie et lots** | Plan de cave, cuves, fûts, foudres, citernes avec leurs barèmes de jaugeage (cahier d’épalement lu en PDF, photo ou tableur), lots, portions et composition (cépages, crus, millésimes, revendications). |
 | ⚙️ **Opérations** | Débourbage, levurage, soutirages, assemblages, froid, filtration, tirage, remuage, dégorgement… avec des formulaires personnalisables et des fiches d’enregistrement à imprimer. |
-| 🔎 **Traçabilité et registres** | Traçabilité ascendante et descendante, par intrant, par parcelle ; registres et bilan matière exportés en CSV ou Excel ; fichier de traçabilité remis au destinataire d’un moût ou d’un vin, et repris à la réception. |
+| 🔎 **Traçabilité et registres** | Une seule recherche à n’importe quelle étape (pesée, marc, lot, cuve, lot fini, DAE, lot d’un produit, date) et la chaîne complète du raisin au dégorgé ; traçabilité par intrant, par parcelle ; registres et bilan matière exportés en CSV ou Excel ; fichier de traçabilité remis au destinataire d’un moût ou d’un vin, et repris à la réception. |
+| 🧾 **Mode audit** | Visites d’audit préparées et présentées chapitre par chapitre : agriculture biologique, Demeter, douanes, hygiène (HACCP), appellation, ou vos propres types ; points de contrôle notés, test de traçabilité chronométré, dossier imprimable. |
 | 🧪 **Intrants, analyses** | Stocks d’intrants avec fiches techniques et FDS (lues à leur dépôt, ou photographiées depuis un téléphone), règles par revendication (bio, Demeter…), déclassements (à valider dans **Opérations & Assemblages › Déclassements**), analyses et import des bulletins du laboratoire. |
 | 🛡 **Importations protégées** | Chaque fichier importé est vérifié avant d’être gardé : programmes et pages web déguisés refusés, PDF désarmés, macros refusées, sauvegardes nettoyées, journal de sécurité et points de restauration. |
-| 🧽 **Hygiène (HACCP)** | Plan de nettoyage et de désinfection, plan de maintenance du matériel, journal d’hygiène avec contrôles après rinçage, tâches et alertes (cuve vidée sans rinçage, changement de revendication, pannes…), produits d’hygiène et leurs FDS. |
-| 👥 **À plusieurs** | Opérateurs, identifiants et droits par profil, journal des accès ; partage entre appareils et personnes par votre Google Drive, OneDrive ou Dropbox. |
+| 🧽 **Hygiène (HACCP)** | Plan de nettoyage et de désinfection, journal d’hygiène avec contrôles après rinçage, tâches et alertes (cuve vidée sans rinçage, changement de revendication…), produits d’hygiène et leurs FDS. |
+| 🛠 **Équipements** | Parc de matériel (une fiche par équipement, documents), maintenance préventive et réglementaire, pannes, vérifications périodiques des bascules, balances, instruments et extincteurs. |
+| 👥 **À plusieurs** | Opérateurs, identifiants et droits par profil, connexion par empreinte, visage ou code PIN sur les appareils acceptés, journal des accès ; partage entre appareils et personnes par votre Google Drive, OneDrive ou Dropbox. |
 | 🤖 **Assistant IA facultatif** | Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…) : identification et lecture des FT, FDS et certificats (fiches produits complétées), suivi de leurs mises à jour. |
 
 ## Le pressoir
@@ -108,16 +114,35 @@ Chaque fichier qui entre dans Œnotrack (documents joints, FT et FDS, barèmes, 
 
 Refus et désarmements sont notés dans le **journal de sécurité** (**Paramètres › 🛡 Sécurité des importations**), qui suit l’appareil même quand une autre base est restaurée ; les documents déjà joints sont vérifiés une fois en arrière-plan.
 
-## Hygiène et maintenance (méthode HACCP)
+## Hygiène (méthode HACCP)
 
-L’onglet **Hygiène** tient le plan de nettoyage et de désinfection, le plan de maintenance du matériel et leur suivi :
+L’onglet **Hygiène** tient le plan de nettoyage et de désinfection et son suivi (le plan de maintenance est dans l’onglet **Équipements** ; il revient dans l’Hygiène si cet onglet est désactivé) :
 
 - **Plan de nettoyage** : pour chaque zone (pressoir et réception, cuverie, tirage, dégorgement…), ce qui se nettoie (cuves par type, équipements, locaux et matériel), quand (après chaque vidange, avant chaque remplissage, au changement de revendication, chaque soir de vendange, avant et après les vendanges, avant les assemblages, périodiquement…), avec quels produits, comment, le temps de contact, le contrôle après rinçage (visuel, papier pH, papier peroxyde), le responsable et l’enregistrement. Un modèle d’origine est fourni, à adapter ; les lignes « consigne » rappellent la bonne pratique sans alerte. Imprimable pour le classeur qualité.
 - **À faire** : tâches et alertes tirées du plan et des opérations enregistrées (vidanges et remplissages rejoués) : cuve vidée à rincer, remplissage sans rinçage récent, changement de revendication (par exemple Conventionnel → Bio) sans nettoyage, nettoyages périodiques et des soirs de vendange, maintenance échue, pannes. Une non-conformité se justifie (motif gardé). Seuls les événements depuis la mise en place du plan sont contrôlés.
 - **À la saisie** : les formulaires d’opération et le carnet de pressoir préviennent avant d’enregistrer (cuve à rincer avant remplissage, changement de revendication), et le rinçage est proposé dès qu’une opération vide une cuve.
-- **Plan de maintenance** : préventive, réglementaire (vérifications obligatoires, registre de sécurité) et curative ; échéances, vérifications avant vendanges, pannes signalées jusqu’à leur réparation, interventions avec leurs documents.
 - **Journal d’hygiène** : entrées par contenant, équipement ou local, avec la ligne du plan suivie, le contrôle après rinçage et le changement de revendication.
-- **Listes personnalisables** (**Hygiène › ⚙ Listes**) : contrôles après rinçage (avec le résultat attendu : conductimètre, bandelette ATP…), zones, dangers, natures, formes et unités des produits, protections individuelles, moments du plan, types et résultats de maintenance. Renommez, masquez, réordonnez, ajoutez vos éléments ; un élément utilisé se masque (l’historique le garde). Un moyen de contrôle s’ajoute aussi depuis le journal.
+- **Listes personnalisables** (**Hygiène › ⚙ Listes**) : contrôles après rinçage (avec le résultat attendu : conductimètre, bandelette ATP…), zones, dangers, natures, formes et unités des produits, protections individuelles, moments du plan. Renommez, masquez, réordonnez, ajoutez vos éléments ; un élément utilisé se masque (l’historique le garde). Un moyen de contrôle s’ajoute aussi depuis le journal.
+
+## Équipements
+
+L’onglet **Équipements** (après l’Hygiène) rassemble le matériel et son entretien :
+
+- **Parc** : une fiche par équipement, rangée par catégorie (pressoirs, réception, pompes, filtration, froid, cuverie, tirage, dégorgement, pesage et mesure, nettoyage, sécurité, levage…) : marque, modèle, n° de série, année, fournisseur, site et emplacement, garantie, état (en service, à l’arrêt, réformé), **vos informations** (puissance, contrat d’entretien…), documents joints (notice, certificat, facture, contrat, photo). Recherche et filtres ; la fiche s’imprime.
+- **Maintenance** : le plan de maintenance (préventive, réglementaire, curative), les interventions et les pannes signalées jusqu’à leur réparation.
+- **Vérifications** : vérifications périodiques des bascules et balances (vignette), instruments de mesure, extincteurs, appareils de levage ; la validité se calcule d’après la dernière vérification et la périodicité, et l’échéance arrive dans **À faire** un mois avant.
+- **Listes** : catégories du parc, types et résultats des interventions, personnalisables. Un matériel déjà utilisé ne se supprime pas : il passe en « Réformé » et son historique reste lisible.
+
+## Traçabilité à chaque étape et mode audit
+
+- **Toutes les étapes** (onglet **Traçabilité**) : une seule recherche — n° de pesée (« pesée 12 ») ou de marc (« marc 3 »), code de lot, lot fini, cuve, apporteur, cru, lieu-dit, n° de DAE, n° de lot d’un produit, date — puis la chaîne complète, étape par étape : raisins (pesées), pressurage (marcs), moûts et vins, assemblages et vins de réserve, tirage, dégorgé, expéditions. Chaque carte peut devenir le centre de la chaîne ; la chaîne s’imprime.
+- **Mode audit** : des types d’audit fournis — agriculture biologique, Demeter, douanes (contributions indirectes), hygiène (HACCP, plan de maîtrise sanitaire), appellation (ODG, contrôle AOC) — et les vôtres. Chaque type réunit les **pièces** attendues (registres, bilan matière, stocks, intrants et leurs fiches, SO₂ total, durée sur lattes, lots finis, plan de nettoyage, équipements, test de traçabilité…) et ses **points de contrôle**. Pendant la visite, tout se présente chapitre par chapitre sur la période choisie ; les réponses (conforme, observation, non-conformité, sans objet) et les notes sont gardées, le test de traçabilité est chronométré, le dossier s’imprime, puis l’audit se clôt.
+- Les types fournis sont des **aide-mémoire, pas les référentiels officiels** : les réglages proposés (durée sur lattes, SO₂ maximum…) sont à vérifier avec votre organisme et votre cahier des charges.
+
+## Connexion simplifiée et impression
+
+- **Clés d’accès** : sur un appareil accepté, connexion et déverrouillage par **empreinte, visage ou code PIN** — Windows Hello, Touch ID et Face ID (Mac, iPhone, iPad), déverrouillage Android ; sous Linux et ChromeOS : clé de sécurité, téléphone (QR code) ou code PIN du navigateur. Chacun active ses appareils depuis **Mon compte** ; un administrateur les accepte dans **Paramètres › Utilisateurs & droits** (réglable). Œnotrack ne garde que la clé publique ; le mot de passe reste toujours possible. Les clés d’accès demandent la version en ligne (https) ou l’application installée.
+- **Impression** : « 🖨 Imprimer » ouvre la boîte d’impression de l’appareil (ordinateur, Android, iPhone, iPad) et n’imprime que le document ; « ⬇ PDF » enregistre le PDF en parallèle. Là où l’impression directe n’est pas possible, le PDF prend le relais (sur téléphone : Partager › Imprimer).
 
 ## Champagne ou autre région viticole
 
@@ -129,7 +154,7 @@ Dans **Paramètres › Société** (ou **Pressoir › Réglages**), choisissez *
 
 ## Langues
 
-Français, English, Español, Italiano, Deutsch, Português : la langue se choisit sur la page d’accueil, l’écran de connexion et dans **Paramètres**. À la première ouverture, Œnotrack propose celle du navigateur. La traduction de l’interface se fait par étapes : la page d’accueil, la connexion, les onglets, le **Pressoir**, la **Cuverie**, les **Opérations** (journal, déclassements, tous les formulaires), les fiches des contenants et des lots sont traduits ; ce qui ne l’est pas encore reste en français. Ce que vous saisissez (noms des cuves, désignations, produits, libellés personnalisés) n’est jamais traduit.
+Français, English, Español, Italiano, Deutsch, Português : la langue se choisit sur la page d’accueil, l’écran de connexion et dans **Paramètres**. À la première ouverture, Œnotrack propose celle du navigateur. La traduction de l’interface se fait par étapes : la page d’accueil, la connexion, les onglets, le **Pressoir**, la **Cuverie**, les **Opérations** (journal, déclassements, tous les formulaires), les fiches des contenants et des lots, les **Équipements**, la **Traçabilité** (toutes les étapes, mode audit), les registres et **Utilisateurs & droits** sont traduits ; ce qui ne l’est pas encore reste en français. Ce que vous saisissez (noms des cuves, désignations, produits, libellés personnalisés) n’est jamais traduit.
 
 ## Vos données
 
@@ -239,7 +264,7 @@ Les tests d’interface utilisent Playwright (Chromium), pdf-lib et pdfjs-dist i
 Règles du projet :
 
 - **Compatibilité** : toute base, de toute version, s’ouvre dans toutes les autres sans rien perdre (champs inconnus gardés, une base d’essai par version, moteur précédent gelé et testé).
-- **Langues** : toute modification de l’interface est traduite dans les six langues (tables `src/17c-…` à `src/17n-…`, une ligne par texte : français, anglais, espagnol, italien, allemand, portugais ; `tools/textes-a-traduire.cjs` liste ce qui manque).
+- **Langues** : toute modification de l’interface est traduite dans les six langues (tables `src/17c-…` à `src/17o-…`, une ligne par texte : français, anglais, espagnol, italien, allemand, portugais ; `tools/textes-a-traduire.cjs` liste ce qui manque).
 - **Confidentialité** : aucune donnée n’est envoyée à l’éditeur ; les clés d’API restent sur l’appareil.
 
 Signalez un problème ou proposez une amélioration dans les [Issues](https://github.com/r0waiu/Oenotrack/issues).
@@ -258,6 +283,6 @@ Le nom « Œnotrack » et son logo ne sont pas couverts par la licence : une ver
 
 **Œnotrack** is free, open-source cellar traceability software for winegrowers, running entirely in the browser (computer, tablet, phone; installable, works offline). Data stays on your device; optional sharing goes through your own Google Drive, OneDrive or Dropbox folder.
 
-It covers the **press house** (weighing register with the cru scale and weighing slips showing each supplier’s campaign total, press logbook filled as you go with a pressing slip per press load, AOC Champagne pressing rules: 102 litres of settled must per 160 kg, minimum *rebêches* rate, at most 6 press cycles per 24 hours per press…), the **tank room** (tanks and barrels with calibration tables, lots and their composition), **cellar operations**, **traceability and registers** (CSV/Excel), **additives and analyses** (technical and safety data sheets read when added, or photographed from a phone; laboratory analysis reports imported from PDF, scans, photos or spreadsheets), **traceability files** handed to the buyer of a must or wine and read back at reception (you choose what you share; a SHA-256 fingerprint shows any change), **protected imports** (every imported file is checked: disguised programs and web pages refused, PDFs disarmed, macros refused, backups cleaned, security log and restore points), **hygiene following the HACCP method** (cleaning and disinfection plan, equipment maintenance plan, tasks and alerts such as a tank emptied without rinsing or a switch from conventional to organic without cleaning), and **multi-user rights**. Champagne-specific rules can be switched off for other wine regions (no cap, or *crémant*: 100 litres per 150 kg).
+It covers the **press house** (weighing register with the cru scale and weighing slips showing each supplier’s campaign total, press logbook filled as you go with a pressing slip per press load, AOC Champagne pressing rules: 102 litres of settled must per 160 kg, minimum *rebêches* rate, at most 6 press cycles per 24 hours per press…), the **tank room** (tanks and barrels with calibration tables, lots and their composition), **cellar operations**, **traceability and registers** (CSV/Excel), **additives and analyses** (technical and safety data sheets read when added, or photographed from a phone; laboratory analysis reports imported from PDF, scans, photos or spreadsheets), **traceability files** handed to the buyer of a must or wine and read back at reception (you choose what you share; a SHA-256 fingerprint shows any change), **protected imports** (every imported file is checked: disguised programs and web pages refused, PDFs disarmed, macros refused, backups cleaned, security log and restore points), **hygiene following the HACCP method** (cleaning and disinfection plan, tasks and alerts such as a tank emptied without rinsing or a switch from conventional to organic without cleaning), an **equipment** tab (fleet records, maintenance plan, breakdowns, periodic checks of weighbridges, scales and instruments), **traceability at any stage** (one search, then the full chain from grapes to disgorged bottles and shipments), an **audit mode** (organic, Demeter, customs, HACCP, appellation or your own audit types, presented chapter by chapter with checkpoints, a timed traceability test and a printable file), **direct printing** with a PDF alongside, and **multi-user rights** with sign-in by fingerprint, face or PIN (passkeys) on accepted devices. Champagne-specific rules can be switched off for other wine regions (no cap, or *crémant*: 100 litres per 150 kg).
 
-The interface is available in French, English, Spanish, Italian, German and Portuguese (translated in stages: welcome page, sign-in, tabs, press house, tank room, operations and their forms so far). Try it at **[oenotrack.fr](https://oenotrack.fr)**. Licence: AGPL-3.0-or-later; the name and logo are not covered by the licence.
+The interface is available in French, English, Spanish, Italian, German and Portuguese (translated in stages: welcome page, sign-in, tabs, press house, tank room, operations and their forms, equipment, traceability and audit mode, registers, users & rights so far). Try it at **[oenotrack.fr](https://oenotrack.fr)**. Licence: AGPL-3.0-or-later; the name and logo are not covered by the licence.

@@ -127,9 +127,14 @@ function PlanPrintDialog({ siteIds, onClose }) {
     await printPdf({ units, root: ref.current, filename: `plan-de-cave-${todayISO()}.pdf`, title: opt.titre || 'Plan de cave', author: (db.entreprise || {}).nom, toast });
     setBusy(false);
   };
+  const imprimer = async () => { // boîte d'impression de l'appareil (0.28.0-alpha.1) ; à défaut le PDF
+    if (!ref.current) return;
+    const r = await imprimerZone(Array.from(ref.current.querySelectorAll('.planpage')), { titre: opt.titre || 'Plan de cave', format: opt.page === 'A3' ? 'A3' : '' });
+    if (r === 'bloque') await pdf();
+  };
   return (
     <Sheet wide title="Imprimer le plan de cave" sub="Choisissez les sites, ce qui s’affiche sous chaque contenant et les légendes : l’aperçu se met à jour." onClose={onClose}
-      footer={<><span className="mr-auto text-xs text-ink2">{sites.length} page{sites.length > 1 ? 's' : ''} de plan · le PDF s’ouvre ensuite dans votre lecteur pour l’impression.</span><Btn onClick={onClose}>Fermer</Btn><Btn kind="primary" disabled={busy || !sites.length} onClick={pdf}>{busy ? 'Préparation…' : '🖨 Imprimer (PDF)'}</Btn></>}>
+      footer={<><span className="mr-auto text-xs text-ink2">{`${sites.length} page${sites.length > 1 ? 's' : ''} de plan · « ⬇ PDF » en parallèle de l’impression.`}</span><Btn onClick={onClose}>Fermer</Btn><Btn disabled={busy || !sites.length} onClick={pdf} data-sortie-pdf="">{busy ? 'Préparation…' : '⬇ PDF'}</Btn><Btn kind="primary" disabled={busy || !sites.length} onClick={imprimer} data-sortie-imprimer="">🖨 Imprimer</Btn></>}>
       <div className="mb-4 grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
         <div className="space-y-2">
           <Field label="Titre"><TI value={opt.titre} onChange={(v) => set('titre', v)} /></Field>

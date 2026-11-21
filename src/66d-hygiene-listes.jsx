@@ -40,13 +40,16 @@ function HygListeCarte({ def }) {
     </div>
   );
 }
-function HygListesView() {
+// groupes : 'hygiene', 'maintenance' (types et résultats d'intervention), 'equipements' (catégories du parc) — 0.28.0-alpha.1
+function HygListesView({ groupes = ['hygiene', 'maintenance'] }) {
+  const hyg = groupes.includes('hygiene');
   return (
     <div data-hyg-listes="">
-      <Notice tone="info" title="Listes de l’hygiène">Les choix proposés dans le journal, le plan de nettoyage, la maintenance et les produits d’hygiène se personnalisent ici : renommez, masquez, réordonnez, ajoutez vos propres éléments. Un élément déjà utilisé se masque (l’historique le garde) ; les éléments d’origine ne se suppriment pas.</Notice>
+      {hyg ? <Notice tone="info" title="Listes de l’hygiène">Les choix proposés dans le journal, le plan de nettoyage, la maintenance et les produits d’hygiène se personnalisent ici : renommez, masquez, réordonnez, ajoutez vos propres éléments. Un élément déjà utilisé se masque (l’historique le garde) ; les éléments d’origine ne se suppriment pas.</Notice>
+        : <Notice tone="info" title="Listes des équipements">Catégories du parc, types et résultats des interventions de maintenance : renommez, masquez, réordonnez, ajoutez vos propres éléments. Un élément déjà utilisé se masque (l’historique le garde) ; les éléments d’origine ne se suppriment pas.</Notice>}
       <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,340px),1fr))' }}>
-        {HYG_LISTES_DEF.map((d) => <HygListeCarte key={d.key} def={d} />)}
-        {LIST_META.filter((m) => m.key === 'actionsHygiene' || m.key === 'locaux').map((m) => <ListCard key={m.key} meta={m} />)}
+        {HYG_LISTES_DEF.filter((d) => groupes.includes(d.groupe || 'hygiene')).map((d) => <HygListeCarte key={d.key} def={d} />)}
+        {hyg ? LIST_META.filter((m) => m.key === 'actionsHygiene' || m.key === 'locaux').map((m) => <ListCard key={m.key} meta={m} />) : null}
       </div>
     </div>
   );

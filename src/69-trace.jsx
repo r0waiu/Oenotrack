@@ -32,7 +32,7 @@ function RapportsPanel() {
 
 function TabTrace() {
   const { db, R, toast } = useApp();
-  const [mode, setMode] = useState('intrant');
+  const [mode, setMode] = useState('etapes'); // « Toutes les étapes » d'abord (0.28.0-alpha.1)
   const [prod, setProd] = useState(''); const [arrs, setArrs] = useState([]);
   const [cru, setCru] = useState(''); const [app, setApp] = useState(''); const [parc, setParc] = useState(''); const [ech, setEch] = useState(() => echTop() || 'grand');
   const [printing, setPrinting] = useState(false); const ref = useRef(null);
@@ -71,8 +71,8 @@ function TabTrace() {
   );
   return (
     <div>
-      <SubNav value={mode} onChange={setMode} items={[{ id: 'intrant', label: 'Intrant (rappel de lot)' }, { id: 'cru', label: 'Cru (village)' }, { id: 'parcelle', label: 'Parcelle' }, { id: 'apporteur', label: 'Partenaire' }, { id: 'echelle', label: ECH.nom }, { id: 'rapports', label: '🖨 Rapports imprimables' }]} />
-      {mode === 'rapports' ? <RapportsPanel /> : <>
+      <SubNav value={mode} onChange={setMode} items={[{ id: 'etapes', label: '🔎 Toutes les étapes' }, { id: 'intrant', label: 'Intrant (rappel de lot)' }, { id: 'cru', label: 'Cru (village)' }, { id: 'parcelle', label: 'Parcelle' }, { id: 'apporteur', label: 'Partenaire' }, { id: 'echelle', label: ECH.nom }, { id: 'audit', label: '🧾 Mode audit' }, { id: 'rapports', label: '🖨 Rapports imprimables' }]} />
+      {mode === 'etapes' ? <TraceEtapes /> : mode === 'audit' ? <AuditsView /> : mode === 'rapports' ? <RapportsPanel /> : <>
         <div className="panel mb-5">
         {mode === 'intrant' ? <div className="grid2">
           <Field label="Produit (intrant)"><SI value={prod} onChange={(v) => { setProd(v); setArrs([]); }} placeholder="Choisir le produit…" options={prods.map((p) => ({ value: p.id, label: `${p.nom} (${CATEGORIES[p.categorie]})` }))} /></Field>
@@ -87,7 +87,7 @@ function TabTrace() {
         </div>
       </div>
       <Body /></>}
-      {printing && res ? <Sheet wide title="Rapport de traçabilité" sub={subject} onClose={() => setPrinting(false)} footer={<><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+      {printing && res ? <Sheet wide title="Rapport de traçabilité" sub={subject} onClose={() => setPrinting(false)} footer={<><BoutonsSortie out={out} /></>}>
         <div ref={ref} className="report"><ReportHead title="Rapport de traçabilité" sub={subject} />
           <div className="rpt-item">
             <h2>Synthèse</h2><table><tbody><tr><th>Lots concernés</th><td>{res.lots.length}</td><th>Volume en cuve</th><td>{fmtL(res.tot.vol)}</td></tr><tr><th>Bouteilles sur lattes</th><td>{fmt(res.tot.bottles)}</td><th>Lots finis</th><td>{res.finis.length} ({fmt(sum(res.finis, (f) => f.fini.nb))} bt)</td></tr></tbody></table>

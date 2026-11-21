@@ -153,7 +153,7 @@ function operateurDelete(db, id) {
    settings.modulesOrdre = [ids] : ordre des onglets (un id inconnu — module d'une version plus récente — garde sa place) ;
    settings.modulesOff = [ids] : modules désactivés (onglet masqué, aucune donnée supprimée). « Paramètres » reste toujours actif.
    Un module ajouté par une version plus récente et absent de l'ordre enregistré se place après son voisin de l'ordre d'origine. */
-const MODULES_DEFAUT = ['cuverie', 'pressoir', 'ops', 'previsions', 'declass', 'tirage', 'cave', 'degorgement', 'analyses', 'intrants', 'hygiene', 'trace', 'registres', 'params'];
+const MODULES_DEFAUT = ['cuverie', 'pressoir', 'ops', 'previsions', 'declass', 'tirage', 'cave', 'degorgement', 'analyses', 'intrants', 'hygiene', 'equipements', 'trace', 'registres', 'params'];
 const MODULE_FIXE = 'params';
 const estModule = (id) => MODULES_DEFAUT.includes(id);
 function modulesOrdre(db) {

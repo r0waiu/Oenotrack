@@ -12,13 +12,13 @@ await top.locator('label:has-text("Tableau des contenants") input').check();
 await page.waitForTimeout(300);
 console.log('pages après tableau:', await top.locator('.planpage').count());
 await page.screenshot({ path: SH + '/shots/t20-dialog.png' });
-const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), top.locator('button:has-text("Imprimer (PDF)")').click()]);
+const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), top.locator('button:has-text("⬇ PDF")').click()]);
 await dl.saveAs(SH + '/pdf/plan.pdf'); console.log('PDF :', fs.statSync(SH + '/pdf/plan.pdf').size, 'octets');
 // portrait + échelle
 await top.locator('select').first().selectOption('portrait');
 await top.locator('label:has-text("Tableau des contenants") input').uncheck();
 const sel = top.locator('select'); for (let i = 0; i < await sel.count(); i++) { const o = await sel.nth(i).locator('option').allTextContents(); if (o.includes('l’échelle des crus')) await sel.nth(i).selectOption('echelle'); }
 await page.waitForTimeout(300);
-const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), top.locator('button:has-text("Imprimer (PDF)")').click()]);
+const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), top.locator('button:has-text("⬇ PDF")').click()]);
 await dl2.saveAs(SH + '/pdf/plan-portrait.pdf'); console.log('PDF portrait :', fs.statSync(SH + '/pdf/plan-portrait.pdf').size, 'octets');
 console.log('ERREURS:', errors.join('\n') || 'aucune'); await browser.close();

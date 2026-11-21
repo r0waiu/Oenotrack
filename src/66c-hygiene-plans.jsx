@@ -4,34 +4,38 @@ const ETAT_TACHE = { nonconforme: ['bad', 'Non-conformité'], retard: ['warn', '
 function usePlanTaches() { const { db } = useApp(); return useMemo(() => planTaches(db, todayISO()), [db]); }
 
 // tâches et alertes : nettoyages dus, non-conformités à justifier, maintenance
-function HygAFaire() {
-  const { db, act, openHyg } = useApp(); const T = usePlanTaches(); const [filtre, setFiltre] = useState(''); const [acq, setAcq] = useState(null); const [mt, setMt] = useState(null);
+// quoi (0.28.0-alpha.1) : 'hygiene' (sans la maintenance, dans l'onglet Équipements), 'equipements' (maintenance et vérifications), sinon tout
+function HygAFaire({ quoi }) {
+  const { db, act, openHyg } = useApp(); const T0 = usePlanTaches(); const [filtre, setFiltre] = useState(''); const [acq, setAcq] = useState(null); const [mt, setMt] = useState(null); const [eq, setEq] = useState(null);
+  const T = useMemo(() => (quoi === 'equipements' ? [...T0.filter((x) => x.origine === 'maintenance'), ...equipAlertes(db, todayISO())] : quoi === 'hygiene' ? T0.filter((x) => x.origine !== 'maintenance') : T0), [T0, db, quoi]);
   const L = T.filter((x) => !filtre || x.origine === filtre || (filtre === 'nonconforme' && x.etat === 'nonconforme'));
   const n = (k) => T.filter((x) => x.etat === k).length; const actif = planHygieneActif(db);
-  const faire = (x) => (x.origine === 'maintenance' ? setMt(x.interventionId ? { id: x.interventionId, cloturer: true } : { preset: { entreeId: x.entreeId || '', type: 'preventive' } }) : openHyg(hygPresetTache(db, x)));
+  const faire = (x) => (x.origine === 'verif' ? setEq(x.equipementId) : x.origine === 'maintenance' ? setMt(x.interventionId ? { id: x.interventionId, cloturer: true } : { preset: { entreeId: x.entreeId || '', type: 'preventive' } }) : openHyg(hygPresetTache(db, x)));
   return (
     <div>
-      {!actif ? <Notice tone="info" title="Plans d’hygiène en pause">Aucune tâche ni alerte n’est calculée. Réactivez-les dans l’onglet Plan de nettoyage.</Notice> : null}
-      <Sec title={`À faire (${L.length})`} right={<SI plain value={filtre} onChange={setFiltre} options={[{ value: '', label: 'Tout' }, { value: 'nettoyage', label: 'Nettoyage et désinfection' }, { value: 'maintenance', label: 'Maintenance' }, { value: 'nonconforme', label: 'Non-conformités' }]} aria-label="Filtre des tâches" style={{ width: 'auto' }} />}>
+      {!actif ? <Notice tone="info" title="Plans d’hygiène en pause">{quoi === 'equipements' ? 'Aucune échéance de maintenance n’est calculée. Réactivez les plans dans Hygiène › Plan de nettoyage.' : 'Aucune tâche ni alerte n’est calculée. Réactivez-les dans l’onglet Plan de nettoyage.'}</Notice> : null}
+      <Sec title={`À faire (${L.length})`} right={<SI plain value={filtre} onChange={setFiltre} options={quoi === 'equipements' ? [{ value: '', label: 'Tout' }, { value: 'maintenance', label: 'Maintenance' }, { value: 'verif', label: 'Vérifications périodiques' }] : [{ value: '', label: 'Tout' }, { value: 'nettoyage', label: 'Nettoyage et désinfection' }, ...(quoi === 'hygiene' ? [] : [{ value: 'maintenance', label: 'Maintenance' }]), { value: 'nonconforme', label: 'Non-conformités' }]} aria-label="Filtre des tâches" style={{ width: 'auto' }} />}>
         <div className="mb-3 flex flex-wrap gap-2 text-sm" data-hyg-compteurs="">{n('nonconforme') ? <Chip tone="bad"><b>{n('nonconforme')}</b> non-conformité(s)</Chip> : null}{n('retard') ? <Chip tone="warn"><b>{n('retard')}</b> en retard</Chip> : null}{n('afaire') ? <Chip tone="info"><b>{n('afaire')}</b> à faire</Chip> : null}{!T.length && actif ? <Chip tone="ok">Rien en attente</Chip> : null}</div>
         {L.length ? <div className="space-y-2" data-hyg-taches="">{L.map((x) => { const [tone, et] = ETAT_TACHE[x.etat] || ['', x.etat]; return (
           <div key={x.cle} className="card flex flex-wrap items-center gap-2 p-3" data-tache={x.cle} data-etat={x.etat}>
-            <Chip tone={tone}>{et}</Chip><Chip>{x.origine === 'maintenance' ? '🔧 maintenance' : '🧽 hygiène'}</Chip>
+            <Chip tone={tone}>{et}</Chip><Chip>{x.origine === 'verif' ? '📏 vérification' : x.origine === 'maintenance' ? '🔧 maintenance' : '🧽 hygiène'}</Chip>
             <span className="min-w-0 flex-1" style={{ flexBasis: 260 }}><span>{x.msg}</span>{x.echeance && x.etat !== 'nonconforme' ? <span className="ml-2 text-xs text-ink2">{`échéance ${fmtDate(x.echeance)}`}</span> : null}</span>
             <span className="flex flex-wrap gap-1">
-              <Btn size="sm" kind={x.etat === 'nonconforme' ? '' : 'primary'} onClick={() => faire(x)}>{x.origine === 'maintenance' ? (x.interventionId ? 'Clore la panne' : 'Enregistrer l’intervention') : 'Enregistrer'}</Btn>
+              <Btn size="sm" kind={x.etat === 'nonconforme' ? '' : 'primary'} onClick={() => faire(x)}>{x.origine === 'verif' ? 'Mettre à jour la vérification' : x.origine === 'maintenance' ? (x.interventionId ? 'Clore la panne' : 'Enregistrer l’intervention') : 'Enregistrer'}</Btn>
               {x.etat === 'nonconforme' ? <Btn size="sm" onClick={() => setAcq(x)} title="Non-conformité vue : indiquez pourquoi (elle ne sera plus signalée)">Justifier</Btn> : null}
             </span>
           </div>); })}</div> : <p className="help">{actif ? 'Aucune tâche : le plan de nettoyage et le plan de maintenance sont à jour.' : ''}</p>}
-        <p className="help mt-2"><span>Les tâches viennent du plan de nettoyage (après une vidange, avant un remplissage, au changement de revendication, chaque soir de vendange, avant et après les vendanges…) et du plan de maintenance. Elles disparaissent dès que l’entrée correspondante est au journal.</span> <span>{`Seuls les événements depuis la mise en place du plan (${fmtDate(planDepuis(db))}) sont contrôlés.`}</span></p>
+        {quoi === 'equipements' ? <p className="help mt-2">Les tâches viennent du plan de maintenance (échéances, pannes signalées) et des vérifications périodiques du matériel (bascules, balances, instruments, extincteurs…). Elles disparaissent dès que l’intervention ou la vérification est enregistrée.</p>
+          : <p className="help mt-2"><span>{quoi === 'hygiene' ? 'Les tâches viennent du plan de nettoyage (après une vidange, avant un remplissage, au changement de revendication, chaque soir de vendange, avant et après les vendanges…) ; la maintenance est dans l’onglet Équipements. Elles disparaissent dès que l’entrée correspondante est au journal.' : 'Les tâches viennent du plan de nettoyage (après une vidange, avant un remplissage, au changement de revendication, chaque soir de vendange, avant et après les vendanges…) et du plan de maintenance. Elles disparaissent dès que l’entrée correspondante est au journal.'}</span> <span>{`Seuls les événements depuis la mise en place du plan (${fmtDate(planDepuis(db))}) sont contrôlés.`}</span></p>}
       </Sec>
-      {(db.hygieneAcquits || []).length ? <Sec title={`Non-conformités justifiées (${db.hygieneAcquits.length})`}>
+      {quoi !== 'equipements' && (db.hygieneAcquits || []).length ? <Sec title={`Non-conformités justifiées (${db.hygieneAcquits.length})`}>
         <Tbl rows={[...db.hygieneAcquits].reverse().slice(0, 50)} cols={[{ h: 'Date', r: (a) => <span className="num">{fmtDate(a.date)}</span> }, { h: 'Alerte', r: (a) => <span className="text-sm">{a.msg || a.id}</span> }, { h: 'Justification', r: (a) => <span className="text-sm">{a.motif}</span> }]} />
       </Sec> : null}
       {acq ? <FormSheet title="Justifier une non-conformité" sub={acq.msg} onClose={() => setAcq(null)} onSave={() => { const r = act((d) => hygAcquitter(d, acq.cle, { motif: acq.motif, msg: acq.msg, date: todayISO() }), 'Non-conformité justifiée.'); if (r && r.ok) setAcq(null); }} saveLabel="Justifier">
         <Field label="Justification (gardée dans l’historique)" help="ex. rinçage fait mais pas enregistré ; cuve neuve ; nettoyage fait par le prestataire…"><TA value={acq.motif || ''} onChange={(v) => setAcq({ ...acq, motif: v })} rows={3} aria-label="Justification" /></Field>
       </FormSheet> : null}
       {mt ? <MaintInterventionForm id={mt.id} cloturer={mt.cloturer} preset={mt.preset} onClose={() => setMt(null)} /> : null}
+      {eq ? <EquipForm id={eq} onClose={() => setEq(null)} /> : null}
     </div>
   );
 }
@@ -165,13 +169,13 @@ function PlanMaintenanceView() {
   );
 }
 function MaintEntreeForm({ id, onClose }) {
-  const { db, act } = useApp(); const e0 = id ? planMaintenance(db).find((x) => x.id === id) : null;
+  const { db, act, uid } = useApp(); const e0 = id ? planMaintenance(db).find((x) => x.id === id) : null;
   const [f, set] = useDraft(() => (e0 ? { ...clone(e0), frequence: { n: String((e0.frequence || {}).n || 1), unite: (e0.frequence || {}).unite || 'an' } } : { libelle: '', equipementIds: [], motCle: '', annee: '', type: 'preventive', frequence: { n: '1', unite: 'an' }, avantVendanges: false, interventions: '', enregistrement: '', intervenant: 'Interne', derniere: '', actif: true }));
   const save = () => { const r = act((d) => maintEntreeSave(d, f, id), id ? 'Matériel modifié.' : 'Matériel ajouté au plan de maintenance.'); if (r && r.ok) onClose(); };
   return (
     <FormSheet title={id ? `Maintenance — ${e0 ? e0.libelle : ''}` : 'Nouveau matériel suivi'} onClose={onClose} onSave={save}>
       <G><Field label="Matériel"><TI value={f.libelle} onChange={(v) => set('libelle', v)} placeholder="ex. Pompes à vin" aria-label="Matériel" /></Field><Field label="Année de mise en service"><TI value={f.annee} onChange={(v) => set('annee', v)} placeholder="ex. 2017" /></Field></G>
-      <Group label="Équipements concernés (liste Paramètres › Listes)"><div className="flex flex-wrap gap-1.5">{(db.lists.equipements || []).map((x) => <button key={x.id} type="button" className={cx('opr-tog', (f.equipementIds || []).includes(x.id) && 'on')} aria-pressed={(f.equipementIds || []).includes(x.id)} onClick={() => set('equipementIds', (f.equipementIds || []).includes(x.id) ? f.equipementIds.filter((y) => y !== x.id) : [...(f.equipementIds || []), x.id])}>{x.label}</button>)}</div></Group>
+      <Group label={maintDansEquipements(db, uid) ? 'Équipements concernés (parc de l’onglet Équipements)' : 'Équipements concernés (liste Paramètres › Listes)'}><div className="flex flex-wrap gap-1.5">{(db.lists.equipements || []).map((x) => <button key={x.id} type="button" className={cx('opr-tog', (f.equipementIds || []).includes(x.id) && 'on')} aria-pressed={(f.equipementIds || []).includes(x.id)} onClick={() => set('equipementIds', (f.equipementIds || []).includes(x.id) ? f.equipementIds.filter((y) => y !== x.id) : [...(f.equipementIds || []), x.id])}>{x.label}</button>)}</div></Group>
       <G n={3}><Field label="Type"><SI plain value={f.type} onChange={(v) => set('type', v)} options={hygOpts(MAINT_TYPES.filter((x) => x[0] !== 'curative'), f.type)} aria-label="Type de maintenance" /></Field>
         <Field label="Fréquence : tous les"><div className="flex gap-2"><input className="inp num" style={{ width: 70 }} inputMode="numeric" value={f.frequence.n} onChange={(e) => set('frequence', { ...f.frequence, n: e.target.value })} aria-label="Fréquence" /><SI plain value={f.frequence.unite} onChange={(v) => set('frequence', { ...f.frequence, unite: v })} options={MAINT_UNITES.map(([v, l]) => ({ value: v, label: l }))} aria-label="Unité de la fréquence" /></div></Field>
         <Field label="Dernière intervention connue" help="Avant Œnotrack : sert de départ à l’échéance."><DI value={f.derniere} onChange={(v) => set('derniere', v)} /></Field></G>
@@ -211,7 +215,7 @@ function PlanImpression({ quoi, onClose }) {
   const th = { textAlign: 'left', fontSize: 11 }; const td = { fontSize: 11, verticalAlign: 'top' };
   return (
     <Sheet wide title={maint ? 'Plan de maintenance' : 'Plan de nettoyage et de désinfection'} sub="À imprimer pour le classeur qualité (HACCP)" onClose={onClose}
-      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><BoutonsSortie out={out} /></>}>
       <div ref={ref} className="report" data-plan-impression="">
         <ReportHead title={maint ? 'Plan de maintenance du matériel' : 'Plan de nettoyage et de désinfection'} sub={`Mis en place le ${fmtDate(planDepuis(db))} · édité le ${fmtDate(todayISO())}`} />
         {maint ? <table><thead><tr>{['Matériel', 'Mise en service', 'Type', 'Fréquence', 'Interventions', 'Intervenant', 'Enregistrement', 'Dernière', 'Prochaine'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>

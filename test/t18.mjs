@@ -14,7 +14,7 @@ console.log('couleur en-tête :', await top.locator('.fiche .ft th').first().eva
 await page.screenshot({ path: SH + '/dialog2.png' });
 await top.locator('button:has-text("Personnaliser « ")').first().click(); await page.waitForTimeout(400);
 console.log('éditeur :', await page.locator('.overlay').last().locator('h2').innerText()); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
-const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), top.locator('button:has-text("Imprimer (PDF)")').click()]);
+const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), top.locator('button:has-text("⬇ PDF")').click()]);
 await dl.saveAs(SH + '/fiche.pdf'); console.log('PDF :', dl.suggestedFilename(), fs.statSync(SH + '/fiche.pdf').size, 'octets');
 console.log('toast :', await page.locator('.toast').innerText().catch(() => '-'));
 console.log('ERREURS:', errors.join('\n') || 'aucune'); await browser.close();

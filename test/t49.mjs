@@ -5,6 +5,8 @@ import { open, pick } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + ''; fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 600) : ''); };
 const { browser, page, errors } = await open({ viewport: { width: 1440, height: 950 }, date: '2026-11-21T10:00:00' });
+// 0.28.0-alpha.1 : la maintenance a son onglet (Équipements) ; ce test vérifie l'Hygiène telle qu'elle reste quand cet onglet est désactivé
+await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('oenotrack-db-v2')); d.settings.modulesOff = [...(d.settings.modulesOff || []), 'equipements']; localStorage.setItem('oenotrack-db-v2', JSON.stringify(d)); }); await page.reload(); await page.waitForTimeout(1200);
 const ov = () => page.locator('.overlay').last();
 const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
 const db = () => page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')));

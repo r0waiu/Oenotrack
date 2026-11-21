@@ -179,7 +179,7 @@ function LegalSheet({ onglet, onClose }) {
   const Doc = LEGAL_DOCS[o];
   return (
     <Sheet wide title="Informations légales" sub="Œnotrack — mentions légales, confidentialité, conditions d’utilisation, licence" onClose={onClose}
-      footer={<><Btn className="mr-auto" onClick={onClose}>Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn><Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+      footer={<><Btn className="mr-auto" onClick={onClose}>Fermer</Btn><BoutonsSortie out={out} /></>}>
       <SubNav value={o} onChange={setO} items={LEGAL_ONGLETS.map(([id, label]) => ({ id, label }))} />
       <div ref={ref} className="report legal-rapport"><Doc m={m} /></div>
     </Sheet>

@@ -235,7 +235,7 @@ function HygFichesImpression({ ids, onClose }) {
   const out = useReportOutput(ref, `fiches-securite-hygiene-${todayISO()}`);
   return (
     <Sheet wide title="Fiches de sécurité au poste" sub={`${P.length} produit${P.length > 1 ? 's' : ''} d’hygiène — une page par produit, à afficher près du poste de nettoyage`} onClose={onClose}
-      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><BoutonsSortie out={out} /></>}>
       <div ref={ref} className="report">
         <ReportHead title={P.length === 1 ? `Fiche de sécurité — ${P[0].nom}` : 'Fiches de sécurité — produits d’hygiène'} sub="hygiène" />
         {P.map((p, i) => <HygFiche key={p.id} p={p} brk={i > 0} />)}
