@@ -267,7 +267,8 @@ function IntrantsFichesView() {
     if (aVerifier.length > 1 && !(await confirm({ title: `Vérifier en ligne ${aVerifier.length} produit${aVerifier.length > 1 ? 's' : ''} ?`, body: `${A.nom} cherche, pour chaque produit, sa page chez le fournisseur, la dernière FDS et la dernière fiche technique (nom du produit, fournisseur, référence et dates de vos fiches sont envoyés). Une demande par produit, facturée sur votre compte ${A.nom}, recherche web comprise. Comptez jusqu’à une minute par produit.`, ok: 'Vérifier' }))) return;
     V.lancer(aVerifier.map((p) => p.id));
   };
-  const choisirDossier = (ev) => { const fs = Array.from(ev.target.files || []).filter((f) => fichierAccepte(f, FICHES_ACCEPT) && !/^\./.test(f.name)); ev.target.value = ''; if (fs.length) setDepot(fs.slice(0, 300)); };
+  const garder = useGarde(); // dossier choisi : chaque fichier vérifié par la garde des importations (0.27.0-alpha.1)
+  const choisirDossier = async (ev) => { const fs = Array.from(ev.target.files || []).filter((f) => fichierAccepte(f, FICHES_ACCEPT) && !/^\./.test(f.name)); ev.target.value = ''; if (!fs.length) return; const ok = await garder(fs.slice(0, 300), 'fiche'); if (ok.length) setDepot(ok); };
   return (
     <div>
       <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>

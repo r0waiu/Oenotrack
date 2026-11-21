@@ -130,6 +130,7 @@ function LotSheet({ id, onClose }) {
         {preps.length ? <div className="mt-3 text-sm text-ink2">Préparations incorporées : {preps.map((u) => { const p = prepOf(R, u.prepId); return `${p.code} (${PREP_TYPES[p.ptype]}, ${qLabel(p.qualif)}, ${fmtL(u.volL)})`; }).join(' · ')}</div> : null}
       </Sec>
 
+      <LotTraceAmont id={id} />
       <Sec title="Généalogie" className="mb-5">
         <div className="grid2">
           <div className="tree"><div className="lbl">Ascendance (d’où vient ce lot)</div>{(lot.sources && lot.sources.length) || (lot.parentIds || []).length || (lot.apports || []).length ? <ul style={{ borderLeft: 0, paddingLeft: 0 }}><AncTree lotId={id} /></ul> : <div className="text-sm text-ink2">Lot d’origine (aucun parent enregistré).</div>}</div>

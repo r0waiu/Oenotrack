@@ -1,5 +1,5 @@
 // Œnotrack — service worker : l'application s'ouvre même sans réseau (cave, vignes) ; nouvelle version prise dès que le réseau est là
-const VERSION = 'oenotrack-0.26.0-alpha.2-dfb6cf17';
+const VERSION = 'oenotrack-0.27.0-alpha.1-86f3e383';
 const COEUR = ['./', './index.html', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 const CDN = /^https:\/\/(cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|unpkg\.com|cdn\.tailwindcss\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//;
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COEUR)).catch(() => null).then(() => self.skipWaiting())); });

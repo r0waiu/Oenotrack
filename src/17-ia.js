@@ -5,7 +5,9 @@
    le nom du produit, son fournisseur, sa référence et les dates des fiches jointes. Jamais les volumes, lots, analyses ni la traçabilité.
    Usages : (a) identifier un document fournisseur non reconnu ; (b) veille : trouver en ligne les dernières FT et FDS (recherche web du service) ;
    (c) 0.26.0-alpha.1 : compléter la fiche d'un produit à la lecture de ses documents (FT, FDS, certificats) : envoyé, le texte du document
-   lu (ou reconnu sur un scan, une photo) et le nom du produit ; réglage « completer » (activé par défaut). */
+   lu (ou reconnu sur un scan, une photo) et le nom du produit ; réglage « completer » (activé par défaut).
+   (d) 0.27.0-alpha.1 : lire les bulletins d'analyses (onglet Analyses) : envoyé, le texte du bulletin et la liste des paramètres d'analyse
+   de la cave (noms et unités) ; jamais les codes des lots ni les noms des cuves (rapprochés sur l'appareil) ; réglage « bulletins » (activé par défaut). */
 const IA_KEY = 'oenotrack-ia'; const IA_AUTO_KEY = 'oenotrack-ia-veille';
 const IA_FOURNISSEURS = [
   { id: 'anthropic', nom: 'Claude (Anthropic)', court: 'Claude', modele: 'claude-sonnet-5-5', web: true, console: 'https://platform.claude.com/settings/keys', aide: 'Clé « sk-ant-… » créée dans la console Claude (platform.claude.com › API keys). Recherche et lecture de pages web incluses.' },
@@ -23,7 +25,7 @@ function iaActive(c0) {
   const c = c0 || iaConfigLire(); const f = iaFournisseur(c.fournisseur);
   const cle = String((c.cles || {})[f.id] || '').trim(); const modele = String((c.modeles || {})[f.id] || f.modele || '').trim();
   const url = f.id === 'perso' ? String(c.url || '').trim().replace(/\/+$/, '').replace(/\/chat\/completions$/, '') : '';
-  return { fournisseur: f.id, nom: f.court, cle, modele, url, web: f.web, pret: !!modele && (f.id === 'perso' ? /^https?:\/\/\S+$/.test(url) : !!cle), auto: !!c.auto, completer: c.completer !== false, autoJours: Math.max(7, Math.min(365, Number(c.autoJours) || 30)) };
+  return { fournisseur: f.id, nom: f.court, cle, modele, url, web: f.web, pret: !!modele && (f.id === 'perso' ? /^https?:\/\/\S+$/.test(url) : !!cle), auto: !!c.auto, completer: c.completer !== false, bulletins: c.bulletins !== false, autoJours: Math.max(7, Math.min(365, Number(c.autoJours) || 30)) };
 }
 const iaMasque = (k) => { const s = String(k || ''); return s.length <= 10 ? '•'.repeat(s.length) : `${s.slice(0, 6)}…${s.slice(-4)}`; };
 
@@ -78,17 +80,19 @@ function iaReponse(fid, j) {
   return { texte: texte.trim(), sources: src.slice(0, 15), suite };
 }
 // objet JSON contenu dans la réponse (bloc ```json, ou le plus grand objet {…} lisible)
+// réponse du service d'IA : lue comme une donnée importée (clés piégées retirées, profondeur limitée — 0.27.0-alpha.1)
+const iaParse = (t) => { const j = jsonSur(t, { max: 8 * GARDE_MO, profondeur: 24 }); if (!j.ok) throw new Error(j.msg); return j.valeur; };
 function iaJson(texte) {
-  const t = String(texte || ''); const f = /```(?:json)?\s*([\s\S]*?)```/i.exec(t); if (f) { try { const o = JSON.parse(f[1].trim()); if (o && typeof o === 'object') return o; } catch (e) { /* on cherche ailleurs */ } }
+  const t = String(texte || ''); const f = /```(?:json)?\s*([\s\S]*?)```/i.exec(t); if (f) { try { const o = iaParse(f[1].trim()); if (o && typeof o === 'object') return o; } catch (e) { /* on cherche ailleurs */ } }
   let best = null;
   for (let i = t.indexOf('{'); i >= 0; i = t.indexOf('{', i + 1)) {
     let prof = 0; let ch = false; let esc = false;
     for (let k = i; k < t.length; k += 1) {
       const c = t[k]; if (ch) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') ch = false; continue; }
-      if (c === '"') ch = true; else if (c === '{') prof += 1; else if (c === '}') { prof -= 1; if (!prof) { const seg = t.slice(i, k + 1); if (!best || seg.length > best.length) { try { JSON.parse(seg); best = seg; } catch (e) { /* pas du JSON */ } } break; } }
+      if (c === '"') ch = true; else if (c === '{') prof += 1; else if (c === '}') { prof -= 1; if (!prof) { const seg = t.slice(i, k + 1); if (!best || seg.length > best.length) { try { iaParse(seg); best = seg; } catch (e) { /* pas du JSON */ } } break; } }
     }
   }
-  return best ? JSON.parse(best) : null;
+  return best ? iaParse(best) : null;
 }
 const iaNul = (v) => v == null || (typeof v === 'string' && /^\s*(?:null|none|n\/?a|inconnu[e]?|-|)\s*$/i.test(v));
 const iaTexte = (v, n) => (iaNul(v) ? '' : String(v).trim().slice(0, n || 200));

@@ -11,7 +11,7 @@ function OpWarns({ r, open, setOpen }) {
 }
 
 function TabOps() {
-  const { db, R, camp, act, confirm, setTab, openFiche, uid } = useApp();
+  const { db, R, camp, act, confirm, setTab, openFiche, uid, openTrace } = useApp();
   const [form, setForm] = useState(null); const [scope, setScope] = useState('camp'); const [typeF, setTypeF] = useState(''); const [oprF, setOprF] = useState(''); const [q, setQ] = useState(''); const [openW, setOpenW] = useState({});
   const quiOK = (o) => !oprF || (oprF === '-' ? !operateursValides(db, o.operateurs).length : Array.isArray(o.operateurs) && o.operateurs.includes(oprF));
   const inCamp = (o) => o.date >= camp.debut && o.date <= camp.fin;
@@ -27,6 +27,8 @@ function TabOps() {
   const acts = (r) => (
     <div className="flex flex-wrap gap-1">
       <DocsButton cible={{ type: 'op', id: r.op.id }} kind="op" title={`${opNom(r.op)} du ${fmtDate(r.op.date)}`} />
+      {traceOpOk(r.op) ? <Btn size="sm" kind="ghost" onClick={() => openTrace({ k: 'export', opId: r.op.id })} title="Fichier de traçabilité pour le destinataire" aria-label="Fichier de traçabilité pour le destinataire" data-trace-export-btn={r.op.id}>📤{(r.op.traceExports || []).length ? ' ✓' : ''}</Btn> : null}
+      {(r.op.amont || []).length ? <Btn size="sm" kind="ghost" onClick={() => openTrace({ k: 'amont', opId: r.op.id })} title="Traçabilité amont (fichier de l’expéditeur)" aria-label="Traçabilité amont" data-trace-amont-btn={r.op.id}>📥</Btn> : null}
       {r.op.type !== 'declassement' ? <Btn size="sm" kind="ghost" onClick={() => openFiche([{ kind: 'op', id: r.op.id }])} title="Fiche d’enregistrement à imprimer" aria-label="Fiche d’enregistrement">🖨</Btn> : null}
       {r.locked ? <Chip title="Campagne figée">🔒 figée</Chip> : <>{r.op.type !== 'declassement' ? <Btn size="sm" onClick={() => setForm({ editId: r.op.id })}>Modifier</Btn> : null}<Btn size="sm" kind="danger" onClick={() => del(r.op)} aria-label="Supprimer l’opération">Supprimer</Btn></>}
     </div>);

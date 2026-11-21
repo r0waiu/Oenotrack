@@ -2,6 +2,14 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.27.0-alpha.1 — 21/11/2026
+
+- Protection des importations : chaque fichier qui entre dans Œnotrack (documents, fiches FT et FDS, barèmes, bulletins, logo, sauvegardes, Drive, traçabilité) est vérifié en arrière-plan — type réel lu dans le contenu (programmes, scripts, pages web et archives refusés même renommés), PDF à contenu actif désarmés (JavaScript, actions automatiques, fichiers incorporés retirés), documents Office avec macros refusés, données nettoyées des clés piégées ; journal de sécurité et points de restauration dans Paramètres › 🛡 Sécurité des importations.
+- Documents : aperçu selon le type réel du fichier (une page web jointe n’est jamais exécutée, un texte s’affiche comme texte) ; documents déjà joints vérifiés une fois en arrière-plan, les suspects signalés ; exports CSV sans formule exécutée à l’ouverture dans un tableur.
+- Analyses : import des bulletins d’analyses (PDF, scan, photo, tableur, CSV) — paramètres, valeurs et unités reconnus (acidités converties en g/L H₂SO₄), échantillons rattachés aux lots et aux cuves cités, date de prélèvement ; l’IA complète la lecture si elle est configurée ; vérification avant d’enregistrer, nouveaux paramètres proposés, bulletin joint aux analyses.
+- Expéditions : sur une sortie vers un partenaire, « 📤 » prépare un fichier de traçabilité du moût ou du vin ; vous choisissez ce que vous partagez (composition, crus, apporteurs, parcelles, intrants, analyses, historique…), une empreinte garantit qu’il n’a pas été modifié.
+- Réceptions : dans l’entrée de moût ou de vin, le fichier de traçabilité de l’expéditeur préremplit le formulaire (partenaire, désignation, millésime, revendication, cépages, crus, n° de lot, analyses, volume) (un expéditeur inconnu se crée en partenaire d’un clic) et la traçabilité d’avant la réception est gardée : journal (📥), fiche des lots qui en descendent, et transmise à votre tour si vous réexpédiez.
+
 ## 0.26.0-alpha.2 — 21/11/2026
 
 - Opérations : « Pesée de vendange » et « Pressurage » ne sont plus proposés dans l’onglet Opérations quand l’onglet Pressoir est actif (ils y faisaient double emploi) ; un lien « Pesées et pressurages : onglet Pressoir » y mène. Le journal des opérations garde l’historique des pesées et des marcs, et « Modifier » ouvre le formulaire du Pressoir.

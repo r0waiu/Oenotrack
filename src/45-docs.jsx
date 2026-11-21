@@ -36,7 +36,7 @@ function useDocActions() {
       if (file.size > DOC_MAX) { toast(`« ${file.name} » dépasse ${fmtSize(DOC_MAX)} : non joint.`, 'bad'); continue; }
       const id = newDocId();
       try { await docPut(id, file); } catch (e) { toast('Impossible d’enregistrer le fichier dans ce navigateur (stockage indisponible ou plein).', 'bad'); return n; }
-      const r = act((d) => docMetaAdd(d, { id, nom: file.name, mime: file.type, taille: file.size, cat, cible }));
+      const r = act((d) => docMetaAdd(d, { id, nom: gardeNomPropre(file.name), mime: file.type, taille: file.size, cat, cible, garde: gardeResume(GARDE_VERDICTS.get(file)) }));
       if (r.ok) n += 1;
     }
     if (n) toast(n > 1 ? `${n} documents joints.` : 'Document joint.');
@@ -53,16 +53,37 @@ function useDocActions() {
   return { add, download, remove };
 }
 
+// verdict de la garde des importations sur un document joint
+const GardeChip = ({ d }) => (d && d.garde && d.garde.statut === 'suspect' ? <Chip tone="bad" title={(d.garde.notes || []).join(' ; ')}>⚠ signalé</Chip> : d && d.garde && d.garde.statut === 'nettoye' ? <Chip tone="warn" title={(d.garde.notes || []).join(' ; ')}>🛡 désarmé</Chip> : null);
+// Visionneuse (0.27.0-alpha.1) : l'aperçu suit le type RÉEL du fichier (lu dans son contenu), jamais le type annoncé — image (hors SVG)
+// affichée comme image, PDF dans le lecteur PDF du navigateur, texte affiché comme texte (jamais interprété comme une page web) ;
+// document signalé par la garde : pas d'aperçu, téléchargement après confirmation.
 function DocViewer({ doc, onClose }) {
-  const [url, setUrl] = useState(null); const [err, setErr] = useState(null); const { download } = useDocActions();
-  useEffect(() => { let u = null; docGet(doc.id).then((b) => { if (!b) { setErr('Fichier introuvable dans ce navigateur.'); return; } u = URL.createObjectURL(b); setUrl(u); }).catch(() => setErr('Lecture impossible (stockage indisponible).')); return () => { if (u) URL.revokeObjectURL(u); }; }, [doc.id]);
-  const img = /^image\//.test(doc.mime); const pdf = /pdf/.test(doc.mime) || /\.pdf$/i.test(doc.nom); const txt = /^text\//.test(doc.mime);
+  const [vue, setVue] = useState(null); const [err, setErr] = useState(null); const { download } = useDocActions(); const { confirm } = useApp();
+  const suspect = !!(doc.garde && doc.garde.statut === 'suspect');
+  useEffect(() => {
+    let u = null; let vivant = true;
+    (async () => {
+      let b = null; try { b = await docGet(doc.id); } catch (e) { if (vivant) setErr('Lecture impossible (stockage indisponible).'); return; }
+      if (!b) { if (vivant) setErr('Fichier introuvable dans ce navigateur.'); return; }
+      if (suspect) { if (vivant) setVue({ kind: 'bloque' }); return; }
+      const tete = new Uint8Array(await b.slice(0, 65536).arrayBuffer()); const sig = gardeSignature(tete);
+      if (sig.famille === 'image' && sig.type) { u = URL.createObjectURL(new Blob([b], { type: sig.type })); if (vivant) setVue({ kind: 'image', url: u }); return; }
+      if (sig.famille === 'pdf') { u = URL.createObjectURL(new Blob([b], { type: 'application/pdf' })); if (vivant) setVue({ kind: 'pdf', url: u }); return; }
+      if (['texte', 'json', 'xml'].includes(sig.famille)) { const t = gardeDecoder(new Uint8Array(await b.slice(0, 2 * GARDE_MO).arrayBuffer()), sig.utf16); if (vivant) setVue({ kind: 'texte', texte: t, coupe: b.size > 2 * GARDE_MO }); return; }
+      if (vivant) setVue({ kind: 'aucun' });
+    })();
+    return () => { vivant = false; if (u) URL.revokeObjectURL(u); };
+  }, [doc.id]);
+  const telecharger = async () => { if (suspect && !(await confirm({ title: 'Télécharger ce document signalé ?', danger: true, ok: 'Télécharger quand même', body: `« ${doc.nom} » a été signalé par la protection des importations (${(doc.garde.notes || []).join(' ; ') || 'contenu dangereux'}). Ne l’ouvrez que si vous connaissez son origine.` }))) return; download(doc); };
   return (
-    <Sheet wide title={doc.nom} sub={`${fmtSize(doc.taille)} · ajouté le ${fmtDate(doc.date)}`} onClose={onClose} footer={<><Btn onClick={() => download(doc)}>⬇ Télécharger</Btn><Btn kind="primary" onClick={onClose}>Fermer</Btn></>}>
-      {err ? <Notice tone="bad">{err}</Notice> : !url ? <div className="text-sm text-ink2">Chargement…</div>
-        : img ? <img src={url} alt={doc.nom} style={{ maxWidth: '100%', maxHeight: '75vh', display: 'block', margin: '0 auto' }} />
-          : pdf || txt ? <iframe title={doc.nom} src={url} style={{ width: '100%', height: '75vh', border: '1px solid var(--line)', borderRadius: 6, background: '#fff' }} />
-            : <Empty>Aperçu indisponible pour ce type de fichier : utilisez « Télécharger ».</Empty>}
+    <Sheet wide title={doc.nom} sub={`${fmtSize(doc.taille)} · ajouté le ${fmtDate(doc.date)}`} onClose={onClose} footer={<><Btn onClick={telecharger}>⬇ Télécharger</Btn><Btn kind="primary" onClick={onClose}>Fermer</Btn></>}>
+      {err ? <Notice tone="bad">{err}</Notice> : !vue ? <div className="text-sm text-ink2">Chargement…</div>
+        : vue.kind === 'bloque' ? <Notice tone="bad" title="🛡 Document signalé : aperçu désactivé"><div>{(doc.garde.notes || []).join(' ; ') || 'Contenu actif ou type dangereux.'}</div><div>Retirez-le (Paramètres › Sécurité des importations) ou remplacez-le par une version propre.</div></Notice>
+          : vue.kind === 'image' ? <img src={vue.url} alt={doc.nom} style={{ maxWidth: '100%', maxHeight: '75vh', display: 'block', margin: '0 auto' }} />
+            : vue.kind === 'pdf' ? <iframe title={doc.nom} src={vue.url} referrerPolicy="no-referrer" style={{ width: '100%', height: '75vh', border: '1px solid var(--line)', borderRadius: 6, background: '#fff' }} />
+              : vue.kind === 'texte' ? <><pre className="doc-texte" data-doc-texte="">{vue.texte}</pre>{vue.coupe ? <p className="help">Aperçu limité aux 2 premiers Mo : téléchargez le fichier pour le lire en entier.</p> : null}</>
+                : <Empty>Aperçu indisponible pour ce type de fichier : utilisez « Télécharger ».</Empty>}
     </Sheet>
   );
 }
@@ -87,7 +108,7 @@ function DocsPanel({ cible, kind = 'op', locked, deposer: deposerPerso, aide }) 
     <li key={d.id} className={cx('flex flex-wrap items-center gap-2 px-3 py-2 text-sm', ancien && 'opacity-80')}>
       <span aria-hidden="true">{docIcon(d.mime)}</span>
       <button type="button" className="linkish min-w-0 truncate" style={{ maxWidth: '100%' }} onClick={() => setView(d)} title="Ouvrir">{d.nom}</button>
-      <Chip>{docCatLabel(kind, d.cat)}</Chip>{revisable && ['fds', 'ft'].includes(d.cat) ? <DocRevision d={d} editable={!locked && !ancien} avertir={kind === 'produit'} /> : d.revision ? <DocRevision d={d} /> : null}
+      <Chip>{docCatLabel(kind, d.cat)}</Chip><GardeChip d={d} />{revisable && ['fds', 'ft'].includes(d.cat) ? <DocRevision d={d} editable={!locked && !ancien} avertir={kind === 'produit'} /> : d.revision ? <DocRevision d={d} /> : null}
       <span className="text-xs text-ink2">{fmtSize(d.taille)} · {ancien ? `archivé le ${fmtDate(d.archive)}` : fmtDate(d.date)}</span>
       <span className="ml-auto flex gap-1">{ancien && !locked ? <Btn size="sm" onClick={() => act((x) => ficheDocArchiver(x, d.id, false), 'Version rétablie : elle est de nouveau en vigueur.')} title="Remettre cette version en vigueur">Rétablir</Btn> : null}{!ancien && revisable && !locked && ['fds', 'ft'].includes(d.cat) ? <Btn size="sm" kind="ghost" onClick={() => act((x) => ficheDocArchiver(x, d.id, true), 'Document archivé (versions précédentes).')} title="Ranger dans les versions précédentes">Archiver</Btn> : null}<Btn size="sm" onClick={() => download(d)} aria-label={`Télécharger ${d.nom}`}>⬇</Btn>{!locked ? <Btn size="sm" kind="danger" onClick={() => remove(d)} aria-label={`Retirer ${d.nom}`}>✕</Btn> : null}</span>
     </li>);
@@ -114,7 +135,7 @@ function DocsAttente({ items, onChange, kind = 'op' }) {
       if (file.size > DOC_MAX) { toast(`« ${file.name} » dépasse ${fmtSize(DOC_MAX)} : non joint.`, 'bad'); continue; }
       const id = newDocId();
       try { await docPut(id, file); } catch (er) { toast('Impossible d’enregistrer le fichier dans ce navigateur (stockage indisponible ou plein).', 'bad'); break; }
-      plus.push({ id, nom: file.name, mime: file.type, taille: file.size, cat, date: todayISO() });
+      plus.push({ id, nom: gardeNomPropre(file.name), mime: file.type, taille: file.size, cat, date: todayISO(), garde: gardeResume(GARDE_VERDICTS.get(file)) });
     }
     setBusy(false); if (plus.length) onChange((L) => [...L, ...plus]);
   };
@@ -173,8 +194,9 @@ function EntrepriseView() {
   useEffect(() => { setNom(e.nom || ''); setAdr(e.adresse || ''); }, [e.nom, e.adresse]);
   const docs = db.docs || []; const total = sum(docs, (d) => d.taille);
   const logoDe = async (f) => { if (!f) return; try { const r = await resizeLogo(f); act((d) => entrepriseSet(d, { logo: r.url, logoW: r.w, logoH: r.h }), `Logo enregistré (${r.w} × ${r.h} px).`); } catch (er) { toast(er.message, 'bad'); } };
-  const onLogo = (ev) => { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; logoDe(f); };
-  const depLogo = useDepot((fs) => logoDe(fs[0]), { multiple: false, accept: 'image/*,.svg', refus: 'Le logo doit être une image (PNG, JPG ou SVG).' });
+  const verifier = useGarde(); // logo vérifié (type réel, taille, SVG redessiné en PNG)
+  const onLogo = async (ev) => { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return; const ok = await verifier([f], 'logo'); if (ok[0]) logoDe(ok[0]); };
+  const depLogo = useDepot((fs) => logoDe(fs[0]), { multiple: false, accept: 'image/*,.svg', refus: 'Le logo doit être une image (PNG, JPG ou SVG).', garde: 'logo' });
   const scan = async () => { try { const keys = await docKeys(); const ids = new Set(docs.map((d) => d.id)); setOrph(keys.filter((k) => !ids.has(k))); } catch (er) { toast('Stockage des documents indisponible.', 'bad'); } };
   const clean = async () => { if (!orph || !orph.length) return; if (!(await confirm({ title: `Supprimer ${orph.length} fichier(s) orphelin(s) ?`, body: 'Ces fichiers ne sont plus rattachés à aucune opération ni aucun arrivage.', ok: 'Supprimer', danger: true }))) return; for (const k of orph) { try { await docDel(k); } catch (er) { /* ignoré */ } } setOrph([]); toast('Fichiers orphelins supprimés.'); };
   return (

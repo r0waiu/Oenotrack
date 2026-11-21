@@ -443,7 +443,7 @@ function bilanPressoir(db, annee, today) {
 }
 
 /* ---------- exports CSV (séparateur « ; », décimales à la française) ---------- */
-const csvCellule = (x) => { const s = x === null || x === undefined ? '' : typeof x === 'number' ? String(r2(x)).replace('.', ',') : String(x); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+const csvCellule = (x) => { const s = x === null || x === undefined ? '' : typeof x === 'number' ? String(r2(x)).replace('.', ',') : csvSansFormule(String(x)); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 const csvLignes = (rows) => rows.map((r) => r.map(csvCellule).join(';')).join('\r\n');
 // lignes des registres (1re ligne : en-têtes) : exports CSV ci-dessous et onglet Registres (CSV / Excel)
 function registrePeseesLignes(db, annee) {

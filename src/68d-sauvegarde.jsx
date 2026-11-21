@@ -29,13 +29,40 @@ async function buildSauvegarde(db0, marque, extra) {
 }
 // Lit toute sauvegarde Œnotrack, quelle que soit sa version : fichier complet, base seule (.json des versions précédentes,
 // « Cuverie champenoise » compris) ou ancienne sauvegarde de documents
+// 0.27.0-alpha.1 : lecture protégée (jsonSur : clés piégées retirées, profondeur limitée) ; base nettoyée (gardeBase : logo, noms) ;
+// fichiers joints aux identifiants douteux écartés — chaque fichier est ensuite vérifié à l'écriture (ecrireFichiers)
+const SAUV_ID_OK = /^[A-Za-z0-9_-]{1,80}$/;
+const sauvFichierOk = (x) => !!(x && typeof x === 'object' && typeof x.id === 'string' && SAUV_ID_OK.test(x.id) && typeof x.b64 === 'string');
 function lireSauvegarde(text) {
-  let j; try { j = JSON.parse(text); } catch (e) { throw new Error('Fichier illisible : ce n’est pas une sauvegarde Œnotrack (JSON attendu).'); }
-  if (j && j.format === SAUV_FORMAT) return { kind: 'complet', db: importObj(j.db), fichiers: Array.isArray(j.fichiers) ? j.fichiers : [], head: j, recente: num(j.formatVersion) > SAUV_VERSION };
-  if (j && j.kind === 'documents' && Array.isArray(j.files)) return { kind: 'documents', fichiers: j.files.filter((x) => x && x.meta).map((x) => ({ ...x.meta, b64: x.b64 })) };
-  return { kind: 'base', db: importObj(j), fichiers: [], head: { appVersion: (j.meta && j.meta.appVersion) || (j.app === 'cuverie-champenoise' || (j.schema || 1) < 2 ? 'Cuverie champenoise' : 'version précédente') } };
+  const js = jsonSur(text); if (!js.ok) throw new Error(js.code === 'json' ? 'Fichier illisible : ce n’est pas une sauvegarde Œnotrack (JSON attendu).' : js.msg);
+  const j = js.valeur; const garde = { retires: js.retires, fixes: [], ecartes: 0 };
+  const fin = (r) => { if (r.db) garde.fixes.push(...gardeBase(r.db)); return { ...r, garde }; };
+  const fich = (L) => { const a = Array.isArray(L) ? L : []; const ok = a.filter(sauvFichierOk); garde.ecartes += a.length - ok.length; return ok; };
+  if (j && j.format === SAUV_FORMAT) return fin({ kind: 'complet', db: importObj(j.db), fichiers: fich(j.fichiers), head: j, recente: num(j.formatVersion) > SAUV_VERSION });
+  if (j && j.kind === 'documents' && Array.isArray(j.files)) return fin({ kind: 'documents', fichiers: fich(j.files.filter((x) => x && x.meta && typeof x.meta === 'object').map((x) => ({ ...x.meta, b64: x.b64 }))) });
+  return fin({ kind: 'base', db: importObj(j), fichiers: [], head: { appVersion: (j.meta && j.meta.appVersion) || (j.app === 'cuverie-champenoise' || (j.schema || 1) < 2 ? 'Cuverie champenoise' : 'version précédente') } });
 }
-async function ecrireFichiers(fichiers) { let n = 0; for (const x of fichiers) { try { await docPut(x.id, new Blob([bytesFromB64(x.b64)], { type: x.mime || '' })); n += 1; } catch (e) { /* stockage plein ou indisponible */ } } return n; }
+// fichiers d'une sauvegarde (ou du Drive) : vérifiés un par un (garde des importations) avant d'être rangés dans ce navigateur ;
+// rapport : { ok: { id: résumé }, refus: [{ id, nom, raisons }] }
+async function ecrireFichiers(fichiers, rapport) {
+  let n = 0;
+  for (const x of fichiers) {
+    let octets; try { octets = bytesFromB64(x.b64); } catch (e) { if (rapport) rapport.refus.push({ id: x.id, nom: x.nom, raisons: ['contenu illisible'] }); continue; }
+    let v; try { v = await gardeAnalyser(octets, x.nom, 'document', GARDE_OUTILS); } catch (e) { v = { statut: 'refuse', raisons: ['vérification impossible'], avertissements: [] }; }
+    if (v.statut === 'refuse') { if (rapport) rapport.refus.push({ id: x.id, nom: x.nom, taille: octets.length, raisons: v.raisons }); continue; }
+    try { await docPut(x.id, new Blob([v.octets || octets], { type: v.type || '' })); n += 1; if (rapport) rapport.ok[x.id] = gardeResume(v); } catch (e) { /* stockage plein ou indisponible */ }
+  }
+  return n;
+}
+const sauvRapport = () => ({ ok: {}, refus: [] });
+// verdicts reportés sur les fiches des documents de la base importée ; refus notés au journal de sécurité
+function sauvRapportAppliquer(db, rap, usage) {
+  if (!db || !rap) return 0;
+  (db.docs || []).forEach((d) => { if (rap.ok[d.id]) d.garde = rap.ok[d.id]; const r = rap.refus.find((y) => y.id === d.id); if (r) d.garde = { statut: 'suspect', le: todayISO(), famille: '', notes: r.raisons.slice(0, 3) }; });
+  if (rap.refus.length) gardeJournaliser(db, rap.refus.map((r) => ({ statut: 'refuse', usage: usage || 'sauvegarde', nom: r.nom, taille: r.taille, raisons: r.raisons, appareil: appareilNom() })));
+  return rap.refus.length;
+}
+const sauvGardeMsg = (s, nRefus) => { const g = s.garde || {}; const L = [...(g.retires ? [`${g.retires} clé(s) piégée(s) retirée(s)`] : []), ...(g.fixes || []), ...(g.ecartes ? [`${g.ecartes} fichier(s) joint(s) mal formé(s) écarté(s)`] : []), ...(nRefus ? [`${nRefus} document(s) refusé(s) par la protection des importations`] : [])]; return L.length ? ` 🛡 ${L.join(' ; ')}.` : ''; }; // traduit par le motif « {a} 🛡 {b}. »
 const pl = (n, s, p) => `${n} ${n > 1 ? (p || `${s}s`) : s}`;
 const resumeBase = (db) => `${pl(db.contenants.length, 'contenant')} · ${pl(db.lots.length, 'lot')} · ${pl(db.ops.length, 'opération')} · ${pl((db.docs || []).length, 'document')}`;
 const ilYa = (iso) => { if (!iso) return null; const d = Math.round((Date.parse(todayISO()) - Date.parse(String(iso).slice(0, 10))) / 86400000); return d <= 0 ? 'aujourd’hui' : d === 1 ? 'hier' : `il y a ${d} jours`; };
@@ -49,14 +76,15 @@ function useRestaurer() {
     let s; try { s = lireSauvegarde(text); } catch (er) { toast(er.message, 'bad'); return false; }
     if (s.kind === 'documents') {
       if (!(await confirm({ title: 'Ajouter ces documents ?', body: `${s.fichiers.length} document(s) d’une ancienne sauvegarde de documents seront ajoutés à la base actuelle (rien n’est remplacé).`, ok: 'Ajouter' }))) return false;
-      const n = await ecrireFichiers(s.fichiers); act((d) => { s.fichiers.forEach((x) => { const { b64, ...meta } = x; if (!(d.docs || []).some((y) => y.id === meta.id)) docMetaAdd(d, meta); }); return okr(); }, `${n} document(s) restauré(s).`); return true;
+      const rap = sauvRapport(); const n = await ecrireFichiers(s.fichiers, rap);
+      act((d) => { s.fichiers.forEach((x) => { const { b64, ...meta } = x; if (!(d.docs || []).some((y) => y.id === meta.id) && (rap.ok[meta.id] || rap.refus.some((r) => r.id === meta.id))) docMetaAdd(d, { ...meta, nom: gardeNomPropre(meta.nom) }); }); sauvRapportAppliquer(d, rap, 'sauvegarde'); return okr(); }, `${n} document(s) restauré(s).${sauvGardeMsg(s, rap.refus.length)}`); return true;
     }
     const sans = s.kind === 'base' ? (s.db.docs || []).length : 0;
     const ok = await confirm({ title: `Restaurer cette sauvegarde ${source || ''} ?`.replace(/\s+\?/, ' ?'), danger: true, ok: 'Restaurer',
       body: `${s.head && s.head.exporteLe ? `Sauvegarde du ${fmtDate(String(s.head.exporteLe).slice(0, 10))}, ` : ''}créée avec ${!s.head || !s.head.appVersion || s.head.appVersion === 'version précédente' ? 'une version précédente d’Œnotrack' : s.head.appVersion === 'Cuverie champenoise' ? '« Cuverie champenoise »' : `Œnotrack ${versionAffichee(s.head.appVersion)}`} : ${resumeBase(s.db)}${s.kind === 'complet' ? ` (${pl(s.fichiers.length, 'fichier joint inclus', 'fichiers joints inclus')})` : ''}. Elle remplace TOUTES les données actuelles de ce navigateur (${resumeBase(db)}).${s.recente ? ' Elle vient d’une version plus récente : tout est conservé, les nouveautés seront utilisables en mettant Œnotrack à jour.' : ''}${sans ? ` Les ${sans} document(s) cités ne sont pas dans ce fichier (base seule) : ils restent ceux de ce navigateur.` : ''}` });
     if (!ok) return false;
-    const n = s.fichiers.length ? await ecrireFichiers(s.fichiers) : 0;
-    replaceDb(s.db, `Sauvegarde restaurée${n ? ` avec ${n} document(s)` : ''}.`); return true;
+    const rap = sauvRapport(); const n = s.fichiers.length ? await ecrireFichiers(s.fichiers, rap) : 0; const nr = sauvRapportAppliquer(s.db, rap, 'sauvegarde');
+    replaceDb(s.db, `Sauvegarde restaurée${n ? ` avec ${n} document(s)` : ''}.${sauvGardeMsg(s, nr)}`, 'Restauration d’une sauvegarde'); return true;
   };
 }
 
@@ -74,7 +102,8 @@ function SauvegardeView() {
     } catch (er) { toast('Sauvegarde impossible (stockage des documents indisponible ?).', 'bad'); }
     setBusy('');
   };
-  const onFile = (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return; const rd = new FileReader(); rd.onload = () => restaurer(String(rd.result), `« ${f.name} »`); rd.onerror = () => toast('Lecture du fichier impossible.', 'bad'); rd.readAsText(f); };
+  const verifier = useGarde(); // fichier de sauvegarde vérifié (type réel, taille) avant d'être lu
+  const onFile = async (e) => { const f0 = e.target.files && e.target.files[0]; e.target.value = ''; if (!f0) return; const [f] = await verifier([f0], 'sauvegarde'); if (!f) return; let t; try { t = await lectureFichier(f); } catch (er) { toast('Lecture du fichier impossible.', 'bad'); return; } restaurer(t, `« ${f.name} »`); };
   const pickDrive = (id) => { setDrive(id); try { window.localStorage.setItem('oenotrack-drive', id); } catch (e) { /* ignoré */ } };
   return (
     <div className="space-y-5">

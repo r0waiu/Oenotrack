@@ -270,7 +270,7 @@ function gardeDroits(avant, apres, uid) {
     }
     if (k === 'docs') {
       const d = diffParId(avant.docs, apres.docs);
-      const modDoc = (x) => (x.cible && (x.cible.type === 'arrivage' || x.cible.type === 'produit') ? 'intrants' : x.cible && (x.cible.type === 'produitHygiene' || x.cible.type === 'maintenance') ? 'hygiene' : x.cible && x.cible.type === 'bareme' ? 'params' : x.cible && x.cible.type === 'prev' ? 'previsions' : (() => { const o = (apres.ops || []).find((y) => y.id === (x.cible || {}).id) || (avant.ops || []).find((y) => y.id === (x.cible || {}).id); return o ? moduleDeType(o.type, o) : 'ops'; })());
+      const modDoc = (x) => (x.cible && (x.cible.type === 'arrivage' || x.cible.type === 'produit') ? 'intrants' : x.cible && (x.cible.type === 'produitHygiene' || x.cible.type === 'maintenance') ? 'hygiene' : x.cible && x.cible.type === 'bareme' ? 'params' : x.cible && x.cible.type === 'bulletin' ? 'analyses' : x.cible && x.cible.type === 'prev' ? 'previsions' : (() => { const o = (apres.ops || []).find((y) => y.id === (x.cible || {}).id) || (avant.ops || []).find((y) => y.id === (x.cible || {}).id); return o ? moduleDeType(o.type, o) : 'ops'; })());
       if (opsCh) { if (d.suppr.length && !sp('supprimer') && d.suppr.some((x) => !(x.cible && x.cible.type === 'op' && !(apres.ops || []).some((o) => o.id === x.cible.id)))) return refus(`le profil ${nomP} ne permet pas de retirer un document`); }
       else {
         for (const x of [...d.cree, ...d.modif.map((y) => y.apres)]) { const m = modDoc(x); if (!(ecr(m) || (!['intrants', 'hygiene'].includes(m) && ecr('ops')))) return refus(`le profil ${nomP} ne permet pas de joindre un document dans « ${nomMod(m)} »`); }
@@ -278,6 +278,10 @@ function gardeDroits(avant, apres, uid) {
       }
       d.cree.forEach((x) => audit.push({ uid, action: 'creation', type: 'document', cibleId: x.id, resume: `Document « ${x.nom} »` })); d.suppr.forEach((x) => audit.push({ uid, action: 'suppression', type: 'document', cibleId: x.id, resume: `Document « ${x.nom} »` }));
       continue;
+    }
+    if (k === 'gardeJournal') { // journal de sécurité des importations (0.27.0-alpha.1) : les entrées s'y ajoutent d'office ; le vider demande le droit de gérer les utilisateurs
+      const d = diffParId(avant.gardeJournal, apres.gardeJournal); if ((d.suppr.length || d.modif.length) && !sp('utilisateurs')) return refus(`le profil ${nomP} ne permet pas de vider le journal de sécurité`);
+      if (d.suppr.length) audit.push({ uid, action: 'suppression', type: 'gardeJournal', resume: `Journal de sécurité vidé (${d.suppr.length} entrée(s))` }); continue;
     }
     const m = GARDE_CLES[k];
     if (m) {

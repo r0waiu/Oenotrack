@@ -17,22 +17,26 @@ async function fichiersDesEntrees(entrees, max = 300) {
   for (const en of entrees) await visiter(en);
   return out;
 }
-function useDepot(onFiles, { disabled, multiple = true, accept, refus, dossiers } = {}) {
+// garde (0.27.0-alpha.1) : chaque fichier est vérifié en arrière-plan avant d'être transmis (16e-garde.js) ; garde = usage ('document',
+// 'logo', 'bareme', 'bulletin', 'tracabilite'…) ou false quand l'appelant vérifie lui-même
+function useDepot(onFiles, { disabled, multiple = true, accept, refus, dossiers, garde = 'document' } = {}) {
   const [sur, setSur] = useState(false); const n = useRef(0); const cb = useRef(onFiles); cb.current = onFiles; const { toast } = useApp();
+  const verifier = useGarde(); const [verif, setVerif] = useState(false);
   useEffect(() => { if (disabled) return undefined; DEPOT.zones += 1; return () => { DEPOT.zones = Math.max(0, DEPOT.zones - 1); }; }, [disabled]);
   useEffect(() => { if (disabled) { n.current = 0; setSur(false); } }, [disabled]);
-  if (disabled) return { sur: false, props: {} };
+  if (disabled) return { sur: false, props: {}, verif: false };
   const props = {
     onDragEnter: (e) => { if (!aDesFichiers(e)) return; e.preventDefault(); n.current += 1; setSur(true); },
     onDragOver: (e) => { if (!aDesFichiers(e)) return; e.preventDefault(); e.stopPropagation(); try { e.dataTransfer.dropEffect = 'copy'; } catch (er) { /* ignoré */ } },
     onDragLeave: (e) => { if (!aDesFichiers(e)) return; n.current = Math.max(0, n.current - 1); if (!n.current) setSur(false); },
     onDrop: (e) => {
       if (!aDesFichiers(e)) return; e.preventDefault(); e.stopPropagation(); n.current = 0; setSur(false);
-      const traiter = (liste) => {
+      const traiter = async (liste) => {
         let fs = liste; if (!fs.length) return;
         const non = fs.filter((f) => !fichierAccepte(f, accept)); fs = fs.filter((f) => fichierAccepte(f, accept));
         if (non.length) toast(refus || `${non.length > 1 ? `${non.length} fichiers ignorés` : `« ${non[0].name} » ignoré`} : type de fichier non pris en charge ici.`, 'bad');
         if (!fs.length) return; if (!multiple && fs.length > 1) { toast('Un seul fichier à la fois : le premier est utilisé.'); fs = fs.slice(0, 1); }
+        if (garde) { setVerif(true); try { fs = await verifier(fs, garde); } finally { setVerif(false); } if (!fs.length) return; }
         cb.current(fs);
       };
       const items = Array.from((e.dataTransfer && e.dataTransfer.items) || []); const entrees = dossiers ? items.map((it) => (it && it.webkitGetAsEntry ? it.webkitGetAsEntry() : null)).filter(Boolean) : [];
@@ -40,7 +44,7 @@ function useDepot(onFiles, { disabled, multiple = true, accept, refus, dossiers 
       traiter(Array.from((e.dataTransfer && e.dataTransfer.files) || []));
     },
   };
-  return { sur, props };
+  return { sur, props, verif };
 }
 // Appareil photo (0.26.0-alpha.1) : sur téléphone et tablette, « 📷 Photo » à côté de la zone ouvre directement l'appareil photo (le choix
 // de fichiers reste là) ; la photo est réduite (2 400 px de côté au plus, JPEG) et nommée « photo-AAAAMMJJ-HHMMSS.jpg ».
@@ -62,18 +66,19 @@ async function photoPreparer(f, i) {
   } catch (e) { return renomme(); }
 }
 // Bouton-zone en pointillés : clic = choisir les fichiers ; glisser-déposer dessus (ou sur le bloc qui porte useDepot)
-function ZoneDepot({ onFiles, accept, multiple = true, disabled, busy, label, sub, icon = '📎', inputLabel = 'Fichiers à joindre', depot, className, kind, dossiers }) {
-  const ref = useRef(null); const own = useDepot(onFiles, { disabled: disabled || busy || !!depot, multiple, accept, dossiers });
-  const d = depot || own;
-  const pick = (e) => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (fs.length) onFiles(multiple ? fs : fs.slice(0, 1)); };
+function ZoneDepot({ onFiles, accept, multiple = true, disabled, busy: busy0, label, sub, icon = '📎', inputLabel = 'Fichiers à joindre', depot, className, kind, dossiers, garde = 'document' }) {
+  const ref = useRef(null); const own = useDepot(onFiles, { disabled: disabled || busy0 || !!depot, multiple, accept, dossiers, garde });
+  const d = depot || own; const verifier = useGarde(); const [verif, setVerif] = useState(false); const enVerif = verif || !!d.verif; const busy = busy0 || enVerif;
+  const transmettre = async (fs0) => { let fs = multiple ? fs0 : fs0.slice(0, 1); if (!fs.length) return; if (garde) { setVerif(true); try { fs = await verifier(fs, garde); } finally { setVerif(false); } } if (fs.length) onFiles(fs); };
+  const pick = (e) => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (fs.length) transmettre(fs); };
   const photoRef = useRef(null); const [prep, setPrep] = useState(false); const photo = accepteImages(accept) && photoPossible();
-  const prendre = async (e) => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (!fs.length) return; setPrep(true); const L = []; for (let i = 0; i < fs.length; i += 1) L.push(await photoPreparer(fs[i], fs.length > 1 ? i : 0)); setPrep(false); onFiles(multiple ? L : L.slice(0, 1)); };
+  const prendre = async (e) => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (!fs.length) return; setPrep(true); const L = []; for (let i = 0; i < fs.length; i += 1) L.push(await photoPreparer(fs[i], fs.length > 1 ? i : 0)); setPrep(false); transmettre(L); };
   const Ligne = photo ? 'div' : Fragment;
   return (
     <Ligne {...(photo ? { className: 'zone-depot-ligne' } : {})}>
       <button type="button" {...(depot ? {} : d.props)} className={cx('zone-depot', d.sur && 'sur', kind === 'primary' && 'fort', className)} disabled={disabled || busy} onClick={() => ref.current && ref.current.click()} data-zone-depot="">
-        <span className="zone-depot-ic" aria-hidden="true">{busy ? '⏳' : icon}</span>
-        <span className="min-w-0"><b>{busy ? 'Enregistrement…' : d.sur ? 'Lâchez pour déposer' : label || 'Joindre des fichiers'}</b>
+        <span className="zone-depot-ic" aria-hidden="true">{enVerif ? '🛡' : busy ? '⏳' : icon}</span>
+        <span className="min-w-0"><b>{enVerif ? 'Vérification du fichier…' : busy ? 'Enregistrement…' : d.sur ? 'Lâchez pour déposer' : label || 'Joindre des fichiers'}</b>
           <span className="zone-depot-sub"><span className="zone-depot-glisser">{multiple ? 'Glissez-déposez vos fichiers ici, ou cliquez pour les choisir' : 'Glissez-déposez le fichier ici, ou cliquez pour le choisir'}</span>{sub ? <span className="zone-depot-glisser"> · </span> : null}{sub || null}</span></span>
       </button>
       {photo ? <button type="button" className="zone-photo" disabled={disabled || busy || prep} onClick={() => photoRef.current && photoRef.current.click()} title="Prendre une photo avec l’appareil photo" data-photo=""><span aria-hidden="true">📷</span><span>{prep ? 'Photo…' : 'Photo'}</span></button> : null}

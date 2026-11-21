@@ -577,7 +577,8 @@ function docMetaAdd(db, m) {
   if (!m || !m.id || !m.cible || !m.cible.id) return fail('Document invalide.');
   if (!db.docs) db.docs = [];
   db.docs.push({ id: m.id, nom: String(m.nom || 'document'), mime: m.mime || '', taille: num(m.taille), cat: m.cat || 'autre', cible: { type: m.cible.type, id: m.cible.id }, date: m.date || todayISO(),
-    ...(isoOK(m.revision) ? { revision: m.revision } : {}), ...(m.version ? { version: String(m.version).slice(0, 30) } : {}), ...(m.archive ? { archive: m.archive } : {}) }); // 0.20.0-alpha.1 : révision, version, archivage
+    ...(isoOK(m.revision) ? { revision: m.revision } : {}), ...(m.version ? { version: String(m.version).slice(0, 30) } : {}), ...(m.archive ? { archive: m.archive } : {}), // 0.20.0-alpha.1 : révision, version, archivage
+    ...(m.garde && typeof m.garde === 'object' ? { garde: m.garde } : {}), ...(Array.isArray(m.analyseIds) && m.analyseIds.length ? { analyseIds: m.analyseIds.map(String).slice(0, 200) } : {}) }); // 0.27.0-alpha.1 : verdict de la garde, analyses d'un bulletin
   return okr();
 }
 function docMetaEdit(db, id, patch) { const x = (db.docs || []).find((y) => y.id === id); if (!x) return fail('Document introuvable.'); if (patch.cat) x.cat = patch.cat; if (patch.nom != null && String(patch.nom).trim()) x.nom = String(patch.nom).trim(); return okr(); }
@@ -585,7 +586,7 @@ function docMetaDel(db, id) { db.docs = (db.docs || []).filter((x) => x.id !== i
 // documents joints avant validation (opération à réaliser) : rattachés à l'opération quand elle est validée (0.14.0-alpha.1)
 function docsDeplacer(db, de, vers) { let n = 0; (db.docs || []).forEach((x) => { if (x.cible && x.cible.type === de.type && x.cible.id === de.id) { x.cible = { type: vers.type, id: vers.id }; n += 1; } }); return n; }
 // plusieurs documents déjà rangés dans ce navigateur (choisis pendant la saisie) → métadonnées rattachées à l'enregistrement créé
-function docsJoindre(db, pieces, cible) { (pieces || []).forEach((x) => { if (x && x.id && !(db.docs || []).some((y) => y.id === x.id)) docMetaAdd(db, { id: x.id, nom: x.nom, mime: x.mime, taille: x.taille, cat: x.cat, cible }); }); return okr(); }
+function docsJoindre(db, pieces, cible) { (pieces || []).forEach((x) => { if (x && x.id && !(db.docs || []).some((y) => y.id === x.id)) docMetaAdd(db, { id: x.id, nom: x.nom, mime: x.mime, taille: x.taille, cat: x.cat, cible, garde: x.garde }); }); return okr(); }
 
 /* ---------- identité de l'entreprise (en-tête des fiches et rapports) ---------- */
 function entrepriseSet(db, patch) { db.entreprise = { ...(db.entreprise || {}), ...patch }; return okr(); }
