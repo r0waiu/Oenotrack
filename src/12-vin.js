@@ -152,5 +152,6 @@ function syncConfig(db) {
   ECH.nom = String((db.settings && db.settings.echelleNom) || '').trim() || 'Échelle des crus';
   if (typeof syncOps === 'function') syncOps(db); // catalogue des opérations → libellés
   if (typeof syncFormulaires === 'function') syncFormulaires(db); // champs personnalisés → données des fiches
+  if (typeof syncHygieneListes === 'function') syncHygieneListes(db); // listes de l'hygiène personnalisées (0.27.0-alpha.2)
 }
 const echTop = () => (ECHELLES.length ? ECHELLES[ECHELLES.length - 1].id : null);

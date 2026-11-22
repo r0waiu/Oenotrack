@@ -70,6 +70,15 @@ function ModulesView() {
           );
         })}
       </ol>
+      <div className="space-y-2" data-modules-dans="">
+        <div className="lbl">Inclus dans un autre onglet</div>
+        {Object.keys(MODULES_DANS).map((id) => { const D = MODULE_DEFS[id] || { label: id }; const on = moduleActif(db, id); const c = moduleContenu(db, R, id); return (
+          <div key={id} data-module-dans={id} className={cx('mod-row', !on && 'off')}>
+            <span className="mod-ic" aria-hidden="true">{D.icone}</span>
+            <div className="mod-txt"><div className="mod-nom">{D.label}<Chip>{`dans « ${moduleNom(MODULES_DANS[id])} »`}</Chip>{!on ? <Chip>désactivé</Chip> : null}</div><div className="mod-desc">{D.desc}</div><div className="mod-info">{c.txt}{!on && c.attente ? <span className="text-warn"> · ⚠ {c.attente}</span> : null}</div></div>
+            <div className="mod-ctl"><button type="button" role="switch" aria-checked={on} className={cx('mod-sw', on && 'on')} onClick={() => basculer(id, !on)} aria-label={`${D.label} : ${on ? 'actif' : 'désactivé'}`} title={on ? 'Désactiver ce module' : 'Activer ce module'}><span className="mod-sw-k" /></button><span className="mod-sw-l">{on ? 'actif' : 'désactivé'}</span></div>
+          </div>); })}
+      </div>
       <div className="flex flex-wrap gap-2">
         <Btn disabled={!perso} onClick={() => act((d) => modulesReinitialiser(d, 'ordre'), 'Ordre d’origine des modules rétabli.')}>Rétablir l’ordre d’origine</Btn>
         {nOff ? <Btn onClick={() => act((d) => modulesReinitialiser(d, 'activation'), 'Tous les modules sont actifs.')}>Réactiver tous les modules ({nOff})</Btn> : null}

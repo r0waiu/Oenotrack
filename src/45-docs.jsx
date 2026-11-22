@@ -190,7 +190,7 @@ const CompanyLogo = ({ maxH = 48, maxW = 170 }) => { const { db } = useApp(); co
 
 function EntrepriseView() {
   const { db, act, toast, confirm } = useApp(); const e = db.entreprise || {}; const ref = useRef(null);
-  const [nom, setNom] = useState(e.nom || ''); const [adr, setAdr] = useState(e.adresse || ''); const [orph, setOrph] = useState(null);
+  const [nom, setNom] = useState(e.nom || ''); const [adr, setAdr] = useState(e.adresse || ''); const [ids, setIds] = useState(e.identifiants || ''); const [orph, setOrph] = useState(null);
   useEffect(() => { setNom(e.nom || ''); setAdr(e.adresse || ''); }, [e.nom, e.adresse]);
   const docs = db.docs || []; const total = sum(docs, (d) => d.taille);
   const logoDe = async (f) => { if (!f) return; try { const r = await resizeLogo(f); act((d) => entrepriseSet(d, { logo: r.url, logoW: r.w, logoH: r.h }), `Logo enregistré (${r.w} × ${r.h} px).`); } catch (er) { toast(er.message, 'bad'); } };
@@ -206,6 +206,7 @@ function EntrepriseView() {
           <div className="space-y-3">
             <Field label="Nom de l’entreprise"><input className="inp" value={nom} onChange={(ev) => setNom(ev.target.value)} onBlur={() => nom !== (e.nom || '') && act((d) => entrepriseSet(d, { nom: nom.trim() }), 'Nom enregistré.')} placeholder="ex. Champagne …" /></Field>
             <Field label="Adresse / mentions"><textarea className="inp" value={adr} onChange={(ev) => setAdr(ev.target.value)} onBlur={() => adr !== (e.adresse || '') && act((d) => entrepriseSet(d, { adresse: adr }), 'Adresse enregistrée.')} /></Field>
+            <Field label="Identifiants officiels (facultatif)" help="Imprimés sur les bons de pesée et de pressoir : n° CVI, n° d’accise, n° interprofessionnel…"><input className="inp" value={ids} onChange={(ev) => setIds(ev.target.value)} onBlur={() => ids !== (e.identifiants || '') && act((d) => entrepriseSet(d, { identifiants: ids.trim().slice(0, 300) }), 'Identifiants enregistrés.')} placeholder="ex. CVI 51… · Accise FR0…" aria-label="Identifiants officiels" /></Field>
           </div>
           <div>
             <span className="lbl">Logo</span>

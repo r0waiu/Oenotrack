@@ -5,12 +5,12 @@ let ko = 0; const ok = (name, c, x) => { if (!c) ko++; console.log(c ? '✓' : '
 const { browser, page, errors } = await open();
 const onglets = async () => page.$$eval('.navtabs [role=tab]', (b) => b.map((x) => x.id.replace('tab-', '')));
 const toast = async () => page.locator('.toast').innerText().catch(() => '');
-const ligne = (id) => page.locator(`main [data-module="${id}"]`);
+const ligne = (id) => page.locator(`main [data-module="${id}"], main [data-module-dans="${id}"]`);
 const allerModules = async () => { await page.click('#tab-params'); await page.click('main button:has-text("Modules")'); await page.waitForTimeout(300); };
 
 // 1. onglets par défaut
 const o0 = await onglets();
-ok('14 onglets dans l’ordre d’origine (Pressoir après Cuverie), Paramètres en dernier', o0.join() === 'cuverie,pressoir,ops,previsions,declass,tirage,cave,degorgement,analyses,intrants,hygiene,trace,registres,params', o0.join());
+ok('13 onglets dans l’ordre d’origine (Pressoir après Cuverie ; Déclassements dans Opérations depuis 0.27.0-alpha.2), Paramètres en dernier', o0.join() === 'cuverie,pressoir,ops,previsions,tirage,cave,degorgement,analyses,intrants,hygiene,trace,registres,params', o0.join());
 ok('démarrage sur le premier module (Cuverie)', (await page.locator('#tab-cuverie').getAttribute('aria-selected')) === 'true');
 // 2. Tirages / Cave / Dégorgement et Registres / Paramètres
 await page.click('#tab-tirage'); await page.waitForTimeout(300); const tTir = await page.locator('main').innerText();
@@ -30,7 +30,7 @@ ok('lien « sauvegarde » → Paramètres › Sauvegarde & Drive', (await page.l
 
 // 3. écran Modules
 await allerModules();
-ok('Modules : 14 lignes, Paramètres verrouillé', (await page.locator('main [data-module]').count()) === 14 && (await ligne('params').locator('[role=switch]').isDisabled()) && (await ligne('params').innerText()).includes('toujours actif'));
+ok('Modules : 13 lignes à ordonner + Déclassements « dans Opérations & Assemblages », Paramètres verrouillé', (await page.locator('main [data-module]').count()) === 13 && (await page.locator('main [data-module-dans="declass"]').innerText()).includes('dans « Opérations & Assemblages »') && (await ligne('params').locator('[role=switch]').isDisabled()) && (await ligne('params').innerText()).includes('toujours actif'));
 ok('Modules : « s’ouvre au démarrage » sur Cuverie', (await ligne('cuverie').innerText()).includes('s’ouvre au démarrage'));
 await page.screenshot({ path: SH + '/t32-modules.png', fullPage: true });
 // désactiver Hygiène (rien en attente : pas de confirmation)
@@ -42,6 +42,9 @@ const dlg = page.locator('[role=alertdialog]');
 ok('Déclassements : confirmation (alerte en attente)', (await dlg.count()) === 1 && (await dlg.innerText()).includes('alerte de déclassement'), await dlg.innerText().catch(() => ''));
 await dlg.locator('button:text-is("Désactiver")').click(); await page.waitForTimeout(300);
 ok('Déclassements désactivés', !(await onglets()).includes('declass') && (await ligne('declass').innerText()).includes('en attente'));
+await page.click('#tab-ops'); await page.waitForTimeout(300);
+ok('… plus de sous-onglet « Déclassements » dans Opérations', (await page.locator('main [role=tablist] [role=tab]', { hasText: 'Déclassements' }).count()) === 0);
+await allerModules();
 // désactiver À réaliser → plus de « Planifier » dans les formulaires
 await ligne('previsions').locator('[role=switch]').click(); await page.waitForTimeout(300);
 await page.click('#tab-ops'); await page.waitForTimeout(300);
@@ -73,7 +76,7 @@ ok('tout désactivé : seul Paramètres reste', (await onglets()).join() === 'pa
 ok('pas de bouton « Exporter les registres » dans l’en-tête', (await page.locator('header button', { hasText: 'Exporter les registres' }).count()) === 0);
 await page.screenshot({ path: SH + '/t32-tout-off.png' });
 await page.locator('main button', { hasText: 'Réactiver tous les modules' }).click(); await page.waitForTimeout(300);
-ok('tout réactivé', (await onglets()).length === 14);
+ok('tout réactivé (13 onglets, Déclassements de nouveau dans Opérations)', (await onglets()).length === 13 && (await page.locator('main [data-module-dans="declass"] [role=switch]').getAttribute('aria-checked')) === 'true');
 await page.locator('main button', { hasText: 'Rétablir l’ordre d’origine' }).click(); await page.waitForTimeout(300);
 ok('ordre d’origine rétabli', (await onglets()).join() === o0.join());
 // 6. module ouvert puis désactivé (comme depuis un autre appareil) : retour au premier module actif

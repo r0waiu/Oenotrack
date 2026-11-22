@@ -106,7 +106,6 @@ TRAD_TABLE.push(...[
   ['Opération validée.', 'Operation validated.', 'Operación validada.', 'Operazione convalidata.', 'Arbeitsgang bestätigt.', 'Operação validada.'],
   ['Opération validée', 'Operation validated', 'Operación validada', 'Operazione convalidata', 'Arbeitsgang bestätigt', 'Operação validada'],
   // ---- apport, entrée de moûts, pressurage
-  ['Brut, tare, caisses, état sanitaire et ticket : onglet Pressoir › Pesées.', 'Gross, tare, crates, health status and ticket: Press tab › Weighings.', 'Bruto, tara, cajas, estado sanitario y ticket: pestaña Prensa › Pesadas.', 'Lordo, tara, casse, stato sanitario e scontrino: scheda Torchio › Pesate.', 'Brutto, Tara, Kisten, Gesundheitszustand und Beleg: Reiter Kelter › Wägungen.', 'Bruto, tara, caixas, estado sanitário e talão: separador Prensa › Pesagens.'],
   ['Heure de la pesée (registre)', 'Weighing time (register)', 'Hora de la pesada (registro)', 'Ora della pesata (registro)', 'Uhrzeit der Wägung (Register)', 'Hora da pesagem (registo)'],
   ['Poids reçu (kg)', 'Weight received (kg)', 'Peso recibido (kg)', 'Peso ricevuto (kg)', 'Erhaltenes Gewicht (kg)', 'Peso recebido (kg)'],
   ['ex. 4000', 'e.g. 4000', 'p. ej. 4000', 'es. 4000', 'z. B. 4000', 'ex. 4000'],

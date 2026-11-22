@@ -71,7 +71,8 @@ function EcranConnexion({ verrou, onConnecte, onChanger }) {
   return (
     <div className="login-wrap" data-connexion="">
       <form className="login-card card" onSubmit={mode === 'secours' ? secours : connexion} aria-label={mode === 'secours' ? 'Code de secours' : 'Connexion'}>
-        <div className="flex items-center justify-between gap-3"><Brand size={44} /><span className="flex items-center gap-2">{E.logo ? <CompanyLogo maxH={40} maxW={120} /> : null}<LangueChoix compact /></span></div>
+        <div className="login-tete"><Brand size={44} /><LangueChoix compact /></div>
+        {E.logo ? <div className="login-societe" data-login-logo=""><CompanyLogo maxH={72} maxW={260} /></div> : null}
         {mode === 'nouveauCode' ? <>
           <h1 className="login-titre">Mot de passe réinitialisé</h1>
           <CodeSecoursBloc code={nouveauCode} />

@@ -105,7 +105,7 @@ function OperationsView() {
                     <span>{opComportement(x.base)}</span>
                     <span>{sa && sa.actif && stadeDef(db, sa.stade) ? <>stade auto → <StadeChip id={sa.stade} compact /></> : 'pas de changement de stade'}</span>
                     <span>fiche : {fi ? fi.titre : '—'}</span>{n ? <span>{n} enregistrement{n > 1 ? 's' : ''}</span> : null}
-                    {opViaPressoir(db, { type: id }) === 'pesee' ? <span data-via-pressoir="">saisie dans l’onglet Pressoir seulement (registre des pesées)</span> : opViaPressoir(db, { type: id }) === 'marc' ? <span data-via-pressoir="">saisie dans l’onglet Pressoir seulement (pressurages : champs personnalisés repris)</span> : null}
+                    {x.base === 'apport' ? <span data-via-pressoir="">{`saisie dans l’onglet Pressoir seulement (registre des pesées)${moduleActif(db, 'pressoir') ? '' : ' — onglet masqué'}`}</span> : opViaPressoir(db, { type: id }) === 'marc' ? <span data-via-pressoir="">saisie dans l’onglet Pressoir seulement (pressurages : champs personnalisés repris)</span> : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">

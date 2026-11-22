@@ -44,7 +44,7 @@ ok('retour à « Sain » : relevés de pourriture masqués', (await f.locator('[
 await f.locator('[data-heure]').fill('10:20'); await f.locator('[data-brut]').fill('3200'); await f.locator('[data-tare]').fill('200');
 await f.locator('.sheet-f .btn-primary', { hasText: 'Peser et valider' }).click(); await page.waitForTimeout(500);
 const tk = await txt(ov());
-ok('ticket d’une pesée « Sain » : aucune ligne de pourriture', /Ticket de pesée n° 5/.test(tk) && !/Pourriture/i.test(tk), tk.slice(0, 700));
+ok('bon de pesée d’une pesée « Sain » : aucune ligne de pourriture', /Bon de pesée n° 5/.test(tk) && !/Pourriture/i.test(tk), tk.slice(0, 700));
 await fermer();
 let d = await db(); const o5 = d.ops.find((x) => x.type === 'apport' && x.pesee && x.pesee.num === 5 && x.date.startsWith('2026'));
 ok('base : pesée « Sain » sans pourriture acide ni pourriture grise', o5 && o5.pesee.etat === 'sain' && o5.pesee.pourritureAcide === undefined && !(o5.champs || []).some((c) => /Pourriture/.test(c.label)), o5 && { pesee: o5.pesee, champs: o5.champs });
@@ -88,9 +88,13 @@ await page.locator('footer [data-langue]').selectOption('fr'); await page.waitFo
 await page.evaluate(() => { const x = JSON.parse(localStorage.getItem('oenotrack-db-v2')); x.settings.modulesOff = [...(x.settings.modulesOff || []), 'pressoir']; localStorage.setItem('oenotrack-db-v2', JSON.stringify(x)); });
 await page.reload(); await page.waitForTimeout(800);
 await page.click('#tab-ops'); await page.waitForTimeout(400);
-await page.locator('main button', { hasText: 'Pesée de vendange' }).first().click(); await page.waitForTimeout(400); t = await txt(ov());
-ok('Pressoir désactivé : « Pesée de vendange » garde le formulaire général (poids reçu)', !/Nouvelle pesée/.test(t) && /Poids reçu/i.test(t), t.slice(0, 200));
+// 0.27.0-alpha.2 : la pesée de vendange n'est plus proposée dans Opérations, même onglet Pressoir masqué (les pesées : onglet Pressoir)
+ok('Pressoir désactivé : plus de « Pesée de vendange » parmi les nouvelles opérations ; renvoi vers l’onglet Pressoir (masqué)', (await page.locator('main [data-groupe] button', { hasText: 'Pesée de vendange' }).count()) === 0 && /Pesées de vendange : onglet Pressoir \(masqué\)/.test(await txt(page.locator('[data-vers-pressoir]'))));
+await page.locator('main tbody tr', { hasText: 'Pesée de vendange' }).first().locator('button', { hasText: 'Modifier' }).click(); await page.waitForTimeout(400); t = await txt(ov());
+ok('… une pesée déjà saisie se modifie dans le formulaire général (poids reçu)', !/Nouvelle pesée/.test(t) && /Poids reçu/i.test(t), t.slice(0, 200));
 await fermer();
+await page.locator('[data-vers-pressoir] button', { hasText: 'l’afficher' }).click(); await page.waitForTimeout(400);
+ok('… « l’afficher » ouvre Paramètres › Modules', (await page.locator('#tab-params').getAttribute('aria-selected')) === 'true' && (await page.locator('main [data-module="pressoir"]').count()) === 1);
 ok('aucune erreur', !errors.length, errors);
 console.log(ko ? `\n${ko} ÉCHEC(S)` : '\nt48 : TOUT PASSE');
 await browser.close();

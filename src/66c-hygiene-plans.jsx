@@ -85,7 +85,7 @@ function PlanEntreeForm({ id, onClose }) {
   const choix = c.type === 'contenants' ? (db.contenants || []).filter((x) => x.statut !== 'archive').map((x) => [x.id, x.nom]) : c.type === 'equipements' ? (db.lists.equipements || []).map((x) => [x.id, x.label]) : locauxDe(db).map((x) => [x.id, x.label]);
   return (
     <FormSheet wide title={id ? `Plan de nettoyage — ${e0 ? e0.libelle : ''}` : 'Nouvelle ligne du plan de nettoyage'} sub="Quoi, quand, avec quoi, comment, contrôle et responsable : la trace attendue au journal déclenche les tâches et les alertes." onClose={onClose} onSave={save}>
-      <G n={3}><Field label="Zone"><SI plain value={f.zone} onChange={(v) => set('zone', v)} options={HYG_ZONES.map(([v, l]) => ({ value: v, label: l }))} /></Field>
+      <G n={3}><Field label="Zone"><SI plain value={f.zone} onChange={(v) => set('zone', v)} options={hygOpts(HYG_ZONES, f.zone)} aria-label="Zone" /></Field>
         <Field label="Équipement ou local nettoyé"><TI value={f.libelle} onChange={(v) => set('libelle', v)} placeholder="ex. Intérieur des cuves vides" aria-label="Équipement ou local nettoyé" /></Field>
         <Field label="Action"><SI plain value={f.actionId} onChange={(v) => set('actionId', v)} options={opts(db, 'actionsHygiene')} aria-label="Action du plan" /></Field></G>
       <Group label="Cible (ce qui reçoit l’entrée au journal)">
@@ -98,11 +98,11 @@ function PlanEntreeForm({ id, onClose }) {
       <Group label="Quand">
         <div className="space-y-2">{f.quand.map((q, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2" data-quand={i}>
-            <SI plain value={q.type} onChange={(v) => setQ(i, QUAND_VIDE(v))} options={HYG_QUAND.map(([v, l]) => ({ value: v, label: l }))} aria-label={`Moment ${i + 1}`} style={{ width: 'auto' }} />
+            <SI plain value={q.type === 'texte' && q.momentId && HYG_MOMENTS.some((x) => x[0] === q.momentId) ? `m:${q.momentId}` : q.type} onChange={(v) => { if (v.startsWith('m:')) { const mm = HYG_MOMENTS.find((x) => x[0] === v.slice(2)); set('quand', f.quand.map((x, k) => (k === i ? { type: 'texte', texte: mm ? mm[1] : '', momentId: v.slice(2) } : x))); } else set('quand', f.quand.map((x, k) => (k === i ? QUAND_VIDE(v) : x))); }} options={[...HYG_QUAND.map(([v, l]) => ({ value: v, label: l })), ...hygOpts(HYG_MOMENTS, q.momentId).map((o) => ({ value: `m:${o.value}`, label: o.label }))]} aria-label={`Moment ${i + 1}`} style={{ width: 'auto' }} />
             {q.type === 'periodique' ? <><span className="text-sm">tous les</span><input className="inp num" style={{ width: 70 }} inputMode="numeric" value={q.jours ?? ''} onChange={(e) => setQ(i, { jours: e.target.value })} aria-label="Nombre de jours" /><span className="text-sm">jours</span><Check checked={!!q.pendantVendanges} onChange={(v) => setQ(i, { pendantVendanges: v })} label="pendant les vendanges seulement" /><Check checked={!!q.siVide} onChange={(v) => setQ(i, { siVide: v })} label="contenant vide seulement" /></> : null}
             {q.type === 'vidange' ? <><span className="text-sm">en retard après</span><input className="inp num" style={{ width: 60 }} inputMode="numeric" value={q.delai ?? 1} onChange={(e) => setQ(i, { delai: e.target.value })} aria-label="Délai en jours" /><span className="text-sm">jour(s)</span></> : null}
             {q.type === 'avantRemplissage' ? <><span className="text-sm">si le dernier passage a plus de</span><input className="inp num" style={{ width: 60 }} inputMode="numeric" value={q.heures ?? 24} onChange={(e) => setQ(i, { heures: e.target.value })} aria-label="Heures" /><span className="text-sm">h</span></> : null}
-            {q.type === 'texte' ? <input className="inp min-w-0 flex-1" value={q.texte || ''} onChange={(e) => setQ(i, { texte: e.target.value })} placeholder="ex. en cas de salissure, après les soutirages de fin de FML" aria-label="Moment (texte)" style={{ minWidth: 220 }} /> : null}
+            {q.type === 'texte' && !(q.momentId && HYG_MOMENTS.some((x) => x[0] === q.momentId)) ? <input className="inp min-w-0 flex-1" value={q.texte || ''} onChange={(e) => setQ(i, { texte: e.target.value })} placeholder="ex. en cas de salissure, après les soutirages de fin de FML" aria-label="Moment (texte)" style={{ minWidth: 220 }} /> : null}
             <Btn size="sm" kind="danger" onClick={() => set('quand', f.quand.filter((_, k) => k !== i))} aria-label={`Retirer le moment ${i + 1}`}>✕</Btn>
           </div>))}
           <Btn size="sm" onClick={() => set('quand', [...f.quand, QUAND_VIDE('periodique')])}>+ Ajouter un moment</Btn></div>
@@ -110,7 +110,7 @@ function PlanEntreeForm({ id, onClose }) {
       <Group label="Produits">
         <div className="space-y-2">{f.produits.map((p, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2">
-            <SI plain value={p.produitId ? `p:${p.produitId}` : `t:${p.type || ''}`} onChange={(v) => setP(i, v.startsWith('p:') ? { produitId: v.slice(2), type: undefined } : { type: v.slice(2), produitId: undefined })} options={[...HYG_TYPES.map(([v, l]) => ({ value: `t:${v}`, label: `Type : ${l}` })), ...hygListe(db).filter((x) => !x.archive).map((x) => ({ value: `p:${x.id}`, label: x.nom }))]} aria-label={`Produit ${i + 1}`} style={{ width: 'auto', maxWidth: 360 }} />
+            <SI plain value={p.produitId ? `p:${p.produitId}` : `t:${p.type || ''}`} onChange={(v) => setP(i, v.startsWith('p:') ? { produitId: v.slice(2), type: undefined } : { type: v.slice(2), produitId: undefined })} options={[...hygOpts(HYG_TYPES, p.type).map((o) => ({ value: `t:${o.value}`, label: `Type : ${o.label}` })), ...hygListe(db).filter((x) => !x.archive).map((x) => ({ value: `p:${x.id}`, label: x.nom }))]} aria-label={`Produit ${i + 1}`} style={{ width: 'auto', maxWidth: 360 }} />
             <input className="inp num" style={{ width: 80 }} inputMode="decimal" value={p.conc ?? ''} onChange={(e) => setP(i, { conc: e.target.value })} placeholder="conc." aria-label={`Concentration ${i + 1}`} /><span className="text-sm">%</span>
             <Btn size="sm" kind="danger" onClick={() => set('produits', f.produits.filter((_, k) => k !== i))} aria-label={`Retirer le produit ${i + 1}`}>✕</Btn></div>))}
           <Btn size="sm" onClick={() => set('produits', [...f.produits, { type: 'alcalin', conc: '' }])}>+ Ajouter un produit</Btn>
@@ -118,11 +118,11 @@ function PlanEntreeForm({ id, onClose }) {
       </Group>
       <Field label="Mode opératoire"><TA value={f.mode} onChange={(v) => set('mode', v)} rows={3} /></Field>
       <G n={3}><Field label="Temps de contact"><TI value={f.contact} onChange={(v) => set('contact', v)} placeholder="ex. 15 à 20 min" /></Field>
-        <Field label="Contrôle après rinçage"><SI plain value={f.controle} onChange={(v) => setF((x) => ({ ...x, controle: v, attendu: x.attendu || HYG_CONTROLE_ATTENDU[v] || '' }))} options={HYG_CONTROLES.map(([v, l]) => ({ value: v, label: l }))} aria-label="Contrôle après rinçage" /></Field>
+        <Field label="Contrôle après rinçage"><SI plain value={f.controle} onChange={(v) => setF((x) => ({ ...x, controle: v, attendu: x.attendu && x.attendu !== (HYG_CONTROLE_ATTENDU[x.controle] || '') ? x.attendu : HYG_CONTROLE_ATTENDU[v] || '' }))} options={hygOpts(HYG_CONTROLES, f.controle)} aria-label="Contrôle après rinçage" /></Field>
         <Field label="Résultat attendu"><TI value={f.attendu} onChange={(v) => set('attendu', v)} placeholder="ex. pH 7" /></Field></G>
       <G n={3}><Field label="Responsable"><TI value={f.responsable} onChange={(v) => set('responsable', v)} placeholder="ex. Opérateur de cuverie" /></Field>
         <Field label="Enregistrement (fiche, cahier)"><TI value={f.enregistrement} onChange={(v) => set('enregistrement', v)} placeholder="ex. cahier « Nettoyages cuverie »" /></Field>
-        <Field label="Danger maîtrisé"><SI plain value={f.danger} onChange={(v) => set('danger', v)} options={HYG_DANGERS.map(([v, l]) => ({ value: v, label: l }))} /></Field></G>
+        <Field label="Danger maîtrisé"><SI plain value={f.danger} onChange={(v) => set('danger', v)} options={hygOpts(HYG_DANGERS, f.danger)} aria-label="Danger maîtrisé" /></Field></G>
       <div className="flex flex-wrap gap-x-6 gap-y-2"><Check checked={f.enregistrer !== false} onChange={(v) => set('enregistrer', v)} label="Trace attendue au journal (tâches et alertes si elle manque)" /><Check checked={f.actif !== false} onChange={(v) => set('actif', v)} label="Ligne active" /></div>
     </FormSheet>
   );
@@ -172,7 +172,7 @@ function MaintEntreeForm({ id, onClose }) {
     <FormSheet title={id ? `Maintenance — ${e0 ? e0.libelle : ''}` : 'Nouveau matériel suivi'} onClose={onClose} onSave={save}>
       <G><Field label="Matériel"><TI value={f.libelle} onChange={(v) => set('libelle', v)} placeholder="ex. Pompes à vin" aria-label="Matériel" /></Field><Field label="Année de mise en service"><TI value={f.annee} onChange={(v) => set('annee', v)} placeholder="ex. 2017" /></Field></G>
       <Group label="Équipements concernés (liste Paramètres › Listes)"><div className="flex flex-wrap gap-1.5">{(db.lists.equipements || []).map((x) => <button key={x.id} type="button" className={cx('opr-tog', (f.equipementIds || []).includes(x.id) && 'on')} aria-pressed={(f.equipementIds || []).includes(x.id)} onClick={() => set('equipementIds', (f.equipementIds || []).includes(x.id) ? f.equipementIds.filter((y) => y !== x.id) : [...(f.equipementIds || []), x.id])}>{x.label}</button>)}</div></Group>
-      <G n={3}><Field label="Type"><SI plain value={f.type} onChange={(v) => set('type', v)} options={MAINT_TYPES.filter((x) => x[0] !== 'curative').map(([v, l]) => ({ value: v, label: l }))} /></Field>
+      <G n={3}><Field label="Type"><SI plain value={f.type} onChange={(v) => set('type', v)} options={hygOpts(MAINT_TYPES.filter((x) => x[0] !== 'curative'), f.type)} aria-label="Type de maintenance" /></Field>
         <Field label="Fréquence : tous les"><div className="flex gap-2"><input className="inp num" style={{ width: 70 }} inputMode="numeric" value={f.frequence.n} onChange={(e) => set('frequence', { ...f.frequence, n: e.target.value })} aria-label="Fréquence" /><SI plain value={f.frequence.unite} onChange={(v) => set('frequence', { ...f.frequence, unite: v })} options={MAINT_UNITES.map(([v, l]) => ({ value: v, label: l }))} aria-label="Unité de la fréquence" /></div></Field>
         <Field label="Dernière intervention connue" help="Avant Œnotrack : sert de départ à l’échéance."><DI value={f.derniere} onChange={(v) => set('derniere', v)} /></Field></G>
       <Field label="Interventions"><TA value={f.interventions} onChange={(v) => set('interventions', v)} rows={2} /></Field>
@@ -192,11 +192,11 @@ function MaintInterventionForm({ id, preset, cloturer, onClose }) {
         <Field label="Matériel (plan)"><SI plain value={f.entreeId} onChange={(v) => set('entreeId', v)} options={[{ value: '', label: '— hors plan —' }, ...planMaintenance(db).map((e) => ({ value: e.id, label: e.libelle }))]} aria-label="Matériel du plan" /></Field>
         <Field label="Équipement"><SI plain value={f.equipementId} onChange={(v) => set('equipementId', v)} options={[{ value: '', label: '—' }, ...(db.lists.equipements || []).map((x) => ({ value: x.id, label: x.label }))]} aria-label="Équipement" /></Field></G>
       {!f.entreeId && !f.equipementId ? <Field label="Matériel (texte)"><TI value={f.libelle} onChange={(v) => set('libelle', v)} placeholder="ex. Extracteur de CO₂" /></Field> : null}
-      <G><Field label="Type"><SI plain value={f.type} onChange={(v) => set('type', v)} options={MAINT_TYPES.map(([v, l]) => ({ value: v, label: l }))} aria-label="Type d’intervention" /></Field>
+      <G><Field label="Type"><SI plain value={f.type} onChange={(v) => set('type', v)} options={hygOpts(MAINT_TYPES, f.type)} aria-label="Type d’intervention" /></Field>
         {f.type === 'curative' ? <Field label="État"><SI plain value={f.statut} onChange={(v) => set('statut', v)} options={[{ value: 'ouverte', label: 'Panne en cours (à réparer)' }, { value: 'faite', label: 'Réparation faite' }]} aria-label="État de la panne" /></Field> : <div />}</G>
       {f.type === 'curative' ? <Field label="Panne, dysfonctionnement"><TA value={f.probleme} onChange={(v) => set('probleme', v)} rows={2} placeholder="ex. fuite au presse-étoupe" aria-label="Panne" /></Field> : null}
       {!panne ? <><Field label="Interventions réalisées"><TA value={f.interventions} onChange={(v) => set('interventions', v)} rows={2} /></Field>
-        <G><Field label="Intervenant"><TI value={f.intervenant} onChange={(v) => set('intervenant', v)} /></Field><Field label="Résultat"><SI plain value={f.resultat} onChange={(v) => set('resultat', v)} options={MAINT_RESULTATS.map(([v, l]) => ({ value: v, label: l }))} aria-label="Résultat" /></Field></G></> : null}
+        <G><Field label="Intervenant"><TI value={f.intervenant} onChange={(v) => set('intervenant', v)} /></Field><Field label="Résultat"><SI plain value={f.resultat} onChange={(v) => set('resultat', v)} options={hygOpts(MAINT_RESULTATS, f.resultat)} aria-label="Résultat" /></Field></G></> : null}
       <OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label={panne ? 'Signalée par' : 'Opérateur(s)'} />
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></Field>
       {id ? <DocsPanel cible={{ type: 'maintenance', id }} kind="op" locked={isLocked(db, f.date)} /> : null}

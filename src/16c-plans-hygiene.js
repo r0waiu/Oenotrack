@@ -4,9 +4,9 @@
    db.planNettoyage [{ id, zone, libelle, cible { type: 'contenants' | 'equipements' | 'locaux', formes [], ids [], motCle }, actionId,
      quand [{ type, delai, heures, jours, siVide, pendantVendanges, ops [], texte }], produits [{ type | produitId, conc, concUnite }],
      mode, contact, controle, attendu, enregistrement, enregistrer (alertes si la trace manque), responsable, danger, actif, modele }]
-   db.planMaintenance [{ id, libelle, equipementIds [], motCle, annee, type: 'preventive' | 'reglementaire', frequence { n, unite },
+   db.planMaintenance [{ id, libelle, equipementIds [], motCle, annee, type: 'preventive' | 'reglementaire' | type ajouté, frequence { n, unite },
      avantVendanges, interventions, enregistrement, intervenant, derniere (date connue avant Œnotrack), actif, modele }]
-   db.maintenance [{ id, date, entreeId, equipementId, libelle, type: 'preventive' | 'curative' | 'reglementaire', statut: 'faite' | 'ouverte',
+   db.maintenance [{ id, date, entreeId, equipementId, libelle, type: 'preventive' | 'curative' | 'reglementaire' | type ajouté, statut: 'faite' | 'ouverte',
      probleme, interventions, intervenant, resultat: 'conforme' | 'a_suivre' | 'hors_service', notes, operateurs }]
    db.hygieneAcquits [{ id (clé de la tâche), date, par, motif }] : non-conformités vues et justifiées, plus signalées.
    settings.planHygieneDepuis : mise en place du plan (seuls les événements suivants sont contrôlés) ; settings.planHygieneActif.
@@ -266,7 +266,7 @@ function planEntreeSave(db, s, id) {
   if (!s.actionId || !(db.lists.actionsHygiene || []).some((a) => a.id === s.actionId)) return fail('Choisissez l’action (rinçage, nettoyage, désinfection…).');
   const cible = s.cible && ['contenants', 'equipements', 'locaux'].includes(s.cible.type) ? { type: s.cible.type, ...(Array.isArray(s.cible.ids) && s.cible.ids.length ? { ids: s.cible.ids.filter(Boolean) } : {}), ...(Array.isArray(s.cible.formes) && s.cible.formes.length ? { formes: s.cible.formes.filter(Boolean) } : {}), ...(s.cible.motCle ? { motCle: String(s.cible.motCle).trim().slice(0, 60) } : {}) } : null;
   if (!cible) return fail('Choisissez la cible : contenants, équipements ou locaux.');
-  const quand = (Array.isArray(s.quand) ? s.quand : []).filter((q) => q && HYG_QUAND.some((x) => x[0] === q.type)).map((q) => ({ type: q.type, ...(q.type === 'periodique' ? { jours: Math.max(1, Math.round(num(q.jours) || 7)), ...(q.siVide ? { siVide: true } : {}), ...(q.pendantVendanges ? { pendantVendanges: true } : {}) } : {}), ...(q.type === 'vidange' ? { delai: Math.max(0, Math.round(num(q.delai == null ? 1 : q.delai))) } : {}), ...(q.type === 'avantRemplissage' ? { heures: Math.max(1, Math.round(num(q.heures) || 24)) } : {}), ...(q.type === 'apresOp' ? { ops: (Array.isArray(q.ops) && q.ops.length ? q.ops : ['pressurage']).filter(Boolean) } : {}), ...(q.type === 'texte' ? { texte: String(q.texte || '').trim().slice(0, 200) } : {}) }));
+  const quand = (Array.isArray(s.quand) ? s.quand : []).filter((q) => q && HYG_QUAND.some((x) => x[0] === q.type)).map((q) => ({ type: q.type, ...(q.type === 'periodique' ? { jours: Math.max(1, Math.round(num(q.jours) || 7)), ...(q.siVide ? { siVide: true } : {}), ...(q.pendantVendanges ? { pendantVendanges: true } : {}) } : {}), ...(q.type === 'vidange' ? { delai: Math.max(0, Math.round(num(q.delai == null ? 1 : q.delai))) } : {}), ...(q.type === 'avantRemplissage' ? { heures: Math.max(1, Math.round(num(q.heures) || 24)) } : {}), ...(q.type === 'apresOp' ? { ops: (Array.isArray(q.ops) && q.ops.length ? q.ops : ['pressurage']).filter(Boolean) } : {}), ...(q.type === 'texte' ? { texte: String(q.texte || '').trim().slice(0, 200), ...(q.momentId ? { momentId: String(q.momentId).slice(0, 60) } : {}) } : {}) }));
   if (!quand.length) return fail('Indiquez quand le faire (au moins un moment).');
   const produits = (Array.isArray(s.produits) ? s.produits : []).filter((p) => p && (p.produitId || p.type)).map((p) => ({ ...(p.produitId ? { produitId: p.produitId } : { type: p.type }), ...(hasNum(p.conc) ? { conc: Math.round(num(p.conc) * 1000) / 1000, concUnite: p.concUnite || '%' } : {}) }));
   const T = (k, n) => String((s && s[k]) || '').trim().slice(0, n);
@@ -284,7 +284,7 @@ function planModeleCharger(db, quoi, remplacer) {
 }
 function maintEntreeSave(db, s, id) {
   const libelle = String((s && s.libelle) || '').trim().slice(0, 120); if (!libelle) return fail('Indiquez le matériel concerné.');
-  if (!['preventive', 'reglementaire'].includes(s.type)) return fail('Type de maintenance : préventive ou réglementaire.');
+  if (s.type === 'curative' || !MAINT_TYPES.some((x) => x[0] === s.type)) return fail('Type de maintenance : choisissez-le dans la liste (une réparation s’enregistre comme intervention).'); // types ajoutés (Hygiène › Listes) acceptés
   const n = Math.round(num(s.frequence && s.frequence.n)); if (!(n > 0)) return fail('Indiquez la fréquence (tous les combien).');
   if (s.derniere && !isoOK(s.derniere)) return fail('Date de la dernière intervention invalide.');
   const T = (k, m) => String((s && s[k]) || '').trim().slice(0, m);
@@ -297,7 +297,7 @@ function maintEntreeDelete(db, id) { if ((db.maintenance || []).some((m) => m.en
 // intervention : faite (préventive, réglementaire ou réparation) ou panne signalée (curative ouverte)
 function maintInterventionSave(db, s, id) {
   if (!isoOK(s.date)) return fail('Date invalide.'); if (isLocked(db, s.date) && !id) return fail('Cette date appartient à une campagne figée.');
-  if (!['preventive', 'curative', 'reglementaire'].includes(s.type)) return fail('Type d’intervention inconnu.');
+  if (!MAINT_TYPES.some((x) => x[0] === s.type)) return fail('Type d’intervention inconnu.');
   if (!s.entreeId && !s.equipementId && !String(s.libelle || '').trim()) return fail('Indiquez le matériel concerné.');
   const statut = s.type === 'curative' && s.statut === 'ouverte' ? 'ouverte' : 'faite';
   if (statut === 'ouverte' && !String(s.probleme || '').trim()) return fail('Décrivez la panne ou le dysfonctionnement.');

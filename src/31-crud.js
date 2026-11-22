@@ -102,7 +102,7 @@ function apporteurSave(db, s, id) {
   if (nameTaken(db.apporteurs, nom, id)) return fail(`Le partenaire « ${nom} » existe déjà.`);
   if (s.apporteur === false && !s.vendeur) return fail('Choisissez au moins un rôle : apporteur (raisins, moûts) ou vendeur de vins.');
   const crus = uniq((Array.isArray(s.crusDefaut) ? s.crusDefaut : []).filter((c) => c && db.crus.some((x) => x.id === c)));
-  const item = { nom, commune: s.commune || '', contact: s.contact || '', notes: s.notes || '', apporteur: s.apporteur !== false, vendeur: !!s.vendeur, crusDefaut: crus, cruAuto: !!s.cruAuto && crus.length > 0 };
+  const item = { nom, commune: s.commune || '', ...(s.ident !== undefined ? { ident: String(s.ident || '').trim().slice(0, 120) } : {}), contact: s.contact || '', notes: s.notes || '', apporteur: s.apporteur !== false, vendeur: !!s.vendeur, crusDefaut: crus, cruAuto: !!s.cruAuto && crus.length > 0 };
   let rid = id; if (id) Object.assign(db.apporteurs.find((x) => x.id === id), item); else { rid = nid(db, 'apt'); db.apporteurs.push({ id: rid, ...item }); }
   db.apporteurs.sort((a, b) => a.nom.localeCompare(b.nom, 'fr')); return okr({ id: rid });
 }
@@ -167,7 +167,10 @@ function modulesOrdre(db) {
   return out;
 }
 const moduleActif = (db, id) => id === MODULE_FIXE || !((((db && db.settings) || {}).modulesOff) || []).includes(id);
-const modulesConnus = (db) => modulesOrdre(db).filter(estModule);
+// modules affichés dans l'onglet d'un autre module (0.27.0-alpha.2 : déclassements dans « Opérations & Assemblages ») : sans onglet ni
+// place dans l'ordre ; leur activation et leurs droits restent (une version antérieure les affiche encore en onglet)
+const MODULES_DANS = { declass: 'ops' };
+const modulesConnus = (db) => modulesOrdre(db).filter((id) => estModule(id) && !MODULES_DANS[id]);
 const modulesVisibles = (db) => modulesConnus(db).filter((id) => moduleActif(db, id));
 const moduleAccueil = (db) => modulesVisibles(db)[0] || MODULE_FIXE;
 // nouvel ordre des modules connus ; les ids inconnus restent à leur place
