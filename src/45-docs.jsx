@@ -5,6 +5,7 @@ const DOC_CATS = {
   arrivage: [['certificat', 'Certificat de conformité'], ['fiche_technique', 'Fiche technique'], ['fds', 'Fiche de données de sécurité (FDS)'], ['bon', 'Bon de livraison'], ['autre', 'Autre document']],
   produitHygiene: [['fds', 'Fiche de données de sécurité (FDS)'], ['ft', 'Fiche technique'], ['contact', 'Attestation contact alimentaire'], ['certif', 'Attestation bio, Demeter… (revendications)'], ['autre', 'Autre document']],
   produit: [['fds', 'Fiche de données de sécurité (FDS)'], ['ft', 'Fiche technique'], ['certificat', 'Certificat / attestation (bio, allergènes, OGM…)'], ['autre', 'Autre document']], // intrants (0.20.0-alpha.1)
+  equipement: [['notice', 'Notice, manuel'], ['verification', 'Certificat de vérification, étalonnage'], ['facture', 'Facture, garantie'], ['contrat', 'Contrat d’entretien'], ['photo', 'Photo'], ['autre', 'Autre document']], // équipements (0.28.0-alpha.1)
 };
 const docCatLabel = (kind, id) => ((DOC_CATS[kind] || DOC_CATS.op).find((c) => c[0] === id) || [id, id === 'autre' ? 'Autre document' : id])[1];
 const fmtSize = (n) => (n >= 1048576 ? `${fmt(n / 1048576, 1)} Mo` : `${fmt(Math.max(1, n / 1024))} Ko`);

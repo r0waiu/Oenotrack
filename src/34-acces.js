@@ -96,7 +96,7 @@ function PROFILS_DEFAUT() {
   return [
     { id: 'pf_admin', nom: 'Administrateur', description: 'Tous les droits, dont la gestion des utilisateurs et des droits.', modules: tous('ecriture'), speciaux: sp(...DROITS_SPECIAUX.map((d) => d[0])), fixe: true },
     { id: 'pf_chef', nom: 'Chef de cave', description: 'Toutes les saisies, corrections, suppressions et paramètres ; pas la gestion des utilisateurs.', modules: tous('ecriture'), speciaux: sp('modifier', 'supprimer', 'declasser', 'campagnes', 'sauvegarde') },
-    { id: 'pf_operateur', nom: 'Opérateur de chai', description: 'Saisie des opérations, analyses, intrants, hygiène et opérations à réaliser ; consultation du reste ; ni correction ni suppression.', modules: { ...tous('lecture'), ops: 'ecriture', pressoir: 'ecriture', previsions: 'ecriture', tirage: 'ecriture', cave: 'ecriture', degorgement: 'ecriture', analyses: 'ecriture', intrants: 'ecriture', hygiene: 'ecriture', params: 'aucun' }, speciaux: {} },
+    { id: 'pf_operateur', nom: 'Opérateur de chai', description: 'Saisie des opérations, analyses, intrants, hygiène et opérations à réaliser ; consultation du reste ; ni correction ni suppression.', modules: { ...tous('lecture'), ops: 'ecriture', pressoir: 'ecriture', previsions: 'ecriture', tirage: 'ecriture', cave: 'ecriture', degorgement: 'ecriture', analyses: 'ecriture', intrants: 'ecriture', hygiene: 'ecriture', equipements: 'ecriture', params: 'aucun' }, speciaux: {} },
     { id: 'pf_labo', nom: 'Laboratoire / œnologue', description: 'Saisie des analyses ; consultation de la cuverie, des opérations et de la traçabilité.', modules: { ...tous('lecture'), analyses: 'ecriture', registres: 'aucun', params: 'aucun' }, speciaux: {} },
     { id: 'pf_consult', nom: 'Consultation', description: 'Lecture seule : contrôle, comptabilité, stagiaire…', modules: { ...tous('lecture'), params: 'aucun' }, speciaux: {} },
   ];
@@ -114,8 +114,11 @@ function niveauModule(db, uid, mod) {
   const u = utilisateurDe(db, uid); if (!u || u.actif === false) return 'aucun'; const p = profilDe(db, u); if (!p) return 'aucun';
   if (p.speciaux && p.speciaux.utilisateurs) return 'ecriture';
   let v = (p.modules || {})[mod]; if (v === undefined && mod === 'pressoir') v = (p.modules || {}).ops; // profil d'avant l'onglet Pressoir : droits des opérations
+  if (v === undefined && mod === 'equipements') v = (p.modules || {}).hygiene; // profil d'avant l'onglet Équipements (0.28.0-alpha.1) : droits de l'Hygiène (maintenance)
   return v === 'ecriture' || v === 'lecture' || v === 'aucun' ? v : (MODULES_DEFAUT.includes(mod) ? 'lecture' : 'ecriture');
 }
+// niveau d'un module dans un profil (affichage et modification des profils), avec les mêmes reprises pour les profils d'avant un onglet
+const profilNiveau = (p, mod) => { const m = (p && p.modules) || {}; let v = m[mod]; if (v === undefined && mod === 'pressoir') v = m.ops; if (v === undefined && mod === 'equipements') v = m.hygiene; return v === 'ecriture' || v === 'lecture' || v === 'aucun' ? v : 'lecture'; };
 const peutModule = (db, uid, mod, niv) => { const n = niveauModule(db, uid, mod); return niv === 'ecriture' ? n === 'ecriture' : n !== 'aucun'; };
 function peut(db, uid, droit) {
   if (!securiteActive(db)) return true;
@@ -194,7 +197,7 @@ function profilSave(db, s, id) {
 function profilDelete(db, id) { const p = profilDe(db, id); if (!p) return fail('Profil introuvable.'); if (p.fixe) return fail('Le profil Administrateur ne peut pas être supprimé.'); const n = (db.utilisateurs || []).filter((u) => u.profilId === id).length; if (n) return fail(`Ce profil est attribué à ${n} utilisateur(s).`); db.profils = db.profils.filter((x) => x.id !== id); return okr(); }
 
 /* ---------- journal des accès et des actions ---------- */
-const AUDIT_ACTIONS = { connexion: 'Connexion', deconnexion: 'Déconnexion', verrouillage: 'Verrouillage', echec: 'Échec de connexion', secours: 'Code de secours utilisé', creation: 'Création', modification: 'Modification', suppression: 'Suppression', mdp: 'Mot de passe changé', securite: 'Sécurité' };
+const AUDIT_ACTIONS = { connexion: 'Connexion', deconnexion: 'Déconnexion', verrouillage: 'Verrouillage', echec: 'Échec de connexion', secours: 'Code de secours utilisé', creation: 'Création', modification: 'Modification', suppression: 'Suppression', mdp: 'Mot de passe changé', securite: 'Sécurité', cle: 'Clé d’accès' };
 function auditAjouter(db, e) {
   if (!Array.isArray(db.audit)) db.audit = [];
   const L = Array.isArray(e) ? e : [e]; L.filter(Boolean).forEach((x) => db.audit.push({ id: nid(db, 'au'), date: x.date || new Date().toISOString(), uid: x.uid || '', action: x.action, type: x.type || '', cibleId: x.cibleId || '', resume: String(x.resume || '').slice(0, 300), ...(x.appareil ? { appareil: x.appareil } : {}) }));
@@ -205,9 +208,9 @@ function auditAjouter(db, e) {
    Appelée par act() quand les identifiants sont activés : refuse l'action si un droit manque, sinon renvoie les entrées du journal
    et les opérations à marquer (saisiPar / modifiePar). Les réglages de vue (campagne, site, contour…) restent libres. */
 const GARDE_VUE = { settings: ['campagneActive', 'siteActif'], apparence: ['contourMode', 'interieurMode', 'interieurMotif'] };
-const GARDE_CLES = { journalPressoir: 'pressoir', contenants: 'cuverie', sites: 'cuverie', lots: 'cuverie', lotsFinis: 'degorgement', analyses: 'analyses', produits: 'intrants', arrivages: 'intrants', fournisseurs: 'intrants', regles: 'intrants', hygiene: 'hygiene', produitsHygiene: 'hygiene', planNettoyage: 'hygiene', planMaintenance: 'hygiene', maintenance: 'hygiene', hygieneAcquits: 'hygiene', previsions: 'previsions', alertes: 'declass' };
+const GARDE_CLES = { journalPressoir: 'pressoir', contenants: 'cuverie', sites: 'cuverie', lots: 'cuverie', lotsFinis: 'degorgement', analyses: 'analyses', produits: 'intrants', arrivages: 'intrants', fournisseurs: 'intrants', regles: 'intrants', hygiene: 'hygiene', produitsHygiene: 'hygiene', planNettoyage: 'hygiene', planMaintenance: 'hygiene', maintenance: 'hygiene', hygieneAcquits: 'hygiene', previsions: 'previsions', alertes: 'declass', audits: 'trace', auditModeles: 'trace' };
 const GARDE_PARAMS = ['crus', 'apporteurs', 'parcelles', 'operateurs', 'modelesFiches', 'lists', 'entreprise', 'analysesParams', 'analysesModeles', 'formulaires', 'baremes'];
-const GARDE_NOMS = { baremes: 'barèmes de jaugeage', produitsHygiene: 'produits d’hygiène', contenants: 'contenants', sites: 'sites', lots: 'lots', lotsFinis: 'lots finis', analyses: 'analyses', produits: 'produits', arrivages: 'arrivages d’intrants', fournisseurs: 'fournisseurs', regles: 'règles d’intrants', hygiene: 'hygiène', planNettoyage: 'plan de nettoyage', planMaintenance: 'plan de maintenance', maintenance: 'interventions de maintenance', hygieneAcquits: 'non-conformités justifiées', previsions: 'opérations à réaliser', alertes: 'déclassements', crus: 'crus', apporteurs: 'partenaires', parcelles: 'parcelles', operateurs: 'opérateurs', modelesFiches: 'modèles de fiches', lists: 'listes', entreprise: 'société', analysesParams: 'paramètres d’analyse', analysesModeles: 'modèles d’analyse', campagnes: 'campagnes', settings: 'réglages', apparence: 'apparence', utilisateurs: 'utilisateurs', profils: 'profils de droits', docs: 'documents', formulaires: 'formulaires d’opérations', journalPressoir: 'journal du pressoir' };
+const GARDE_NOMS = { audits: 'audits', auditModeles: 'types d’audit', baremes: 'barèmes de jaugeage', produitsHygiene: 'produits d’hygiène', contenants: 'contenants', sites: 'sites', lots: 'lots', lotsFinis: 'lots finis', analyses: 'analyses', produits: 'produits', arrivages: 'arrivages d’intrants', fournisseurs: 'fournisseurs', regles: 'règles d’intrants', hygiene: 'hygiène', planNettoyage: 'plan de nettoyage', planMaintenance: 'plan de maintenance', maintenance: 'interventions de maintenance', hygieneAcquits: 'non-conformités justifiées', previsions: 'opérations à réaliser', alertes: 'déclassements', crus: 'crus', apporteurs: 'partenaires', parcelles: 'parcelles', operateurs: 'opérateurs', modelesFiches: 'modèles de fiches', lists: 'listes', entreprise: 'société', analysesParams: 'paramètres d’analyse', analysesModeles: 'modèles d’analyse', campagnes: 'campagnes', settings: 'réglages', apparence: 'apparence', utilisateurs: 'utilisateurs', profils: 'profils de droits', docs: 'documents', formulaires: 'formulaires d’opérations', journalPressoir: 'journal du pressoir' };
 const sansCles = (o, ks) => { if (!o || typeof o !== 'object') return o; const c = { ...o }; ks.forEach((k) => { delete c[k]; }); return c; };
 const OP_MARQUES = ['ficheOrdre', 'saisiPar', 'saisiLe', 'modifiePar', 'modifieLe'];
 const parId = (L) => { const m = new Map(); (Array.isArray(L) ? L : []).forEach((x) => { if (x && x.id != null) m.set(x.id, x); }); return m; };
@@ -242,15 +245,28 @@ function gardeDroits(avant, apres, uid) {
   for (const k of ch) {
     if (k === 'ops') continue;
     if (k === 'utilisateurs' || k === 'profils') {
-      if (k === 'utilisateurs' && !sp('utilisateurs')) { // seul changement permis : son propre mot de passe
-        const d = diffParId(avant.utilisateurs, apres.utilisateurs); const soi = d.n === 1 && d.modif.length === 1 && d.modif[0].apres.id === uid && JSON.stringify(sansCles(d.modif[0].avant, ['mdp', 'doitChanger'])) === JSON.stringify(sansCles(d.modif[0].apres, ['mdp', 'doitChanger']));
+      if (k === 'utilisateurs' && !sp('utilisateurs')) { // seuls changements permis : son propre mot de passe, ses propres clés d'accès (0.28.0-alpha.1)
+        const d = diffParId(avant.utilisateurs, apres.utilisateurs); const soi = d.n === 1 && d.modif.length === 1 && d.modif[0].apres.id === uid && JSON.stringify(sansCles(d.modif[0].avant, ['mdp', 'doitChanger', 'cles'])) === JSON.stringify(sansCles(d.modif[0].apres, ['mdp', 'doitChanger', 'cles']));
         if (!soi) return refus(`le profil ${nomP} ne permet pas de gérer les utilisateurs`);
-        audit.push({ uid, action: 'mdp', type: 'utilisateur', cibleId: uid, resume: 'Mot de passe changé' }); continue;
+        const ka = d.modif[0].avant.cles || []; const kb = d.modif[0].apres.cles || [];
+        if (typeof clesReglages === 'function' && clesReglages(db).validation !== 'libre' && kb.some((x) => x && x.acceptee !== false && !ka.some((y) => y && y.id === x.id && y.acceptee !== false))) return refus('un nouvel appareil doit être accepté par un administrateur');
+        if (JSON.stringify(d.modif[0].avant.mdp) !== JSON.stringify(d.modif[0].apres.mdp)) audit.push({ uid, action: 'mdp', type: 'utilisateur', cibleId: uid, resume: 'Mot de passe changé' });
+        kb.filter((x) => x && !ka.some((y) => y && y.id === x.id)).forEach((x) => audit.push({ uid, action: 'cle', type: 'utilisateur', cibleId: uid, resume: `Clé d’accès ajoutée : ${x.nom}` }));
+        ka.filter((x) => x && !kb.some((y) => y && y.id === x.id)).forEach((x) => audit.push({ uid, action: 'cle', type: 'utilisateur', cibleId: uid, resume: `Clé d’accès retirée : ${x.nom}` }));
+        continue;
       }
       if (!sp('utilisateurs')) return refus(`le profil ${nomP} ne permet pas de gérer les utilisateurs et les droits`);
       const d = diffParId(avant[k], apres[k]); const nm = (x) => (k === 'utilisateurs' ? `${x.nom || x.identifiant} (${x.identifiant})` : x.nom);
       d.cree.forEach((x) => audit.push({ uid, action: 'creation', type: k === 'utilisateurs' ? 'utilisateur' : 'profil', cibleId: x.id, resume: nm(x) }));
-      d.modif.forEach((x) => audit.push({ uid, action: 'modification', type: k === 'utilisateurs' ? 'utilisateur' : 'profil', cibleId: x.apres.id, resume: `${nm(x.apres)}${k === 'utilisateurs' && JSON.stringify(x.avant.mdp) !== JSON.stringify(x.apres.mdp) ? ' — mot de passe réinitialisé' : ''}${k === 'utilisateurs' && x.avant.actif !== x.apres.actif ? (x.apres.actif === false ? ' — désactivé' : ' — réactivé') : ''}${k === 'utilisateurs' && x.avant.profilId !== x.apres.profilId ? ` — profil « ${(profilDe(apres, x.apres.profilId) || {}).nom || '?'} »` : ''}` }));
+      // clés d'accès ajoutées, retirées ou acceptées (0.28.0-alpha.1) : une ligne chacune au journal des accès
+      const clesDiff = (x) => { const ka = (x.avant.cles || []).filter(Boolean); const kb = (x.apres.cles || []).filter(Boolean); const qui = x.apres.id === uid ? '' : ` — ${nm(x.apres)}`; return [
+        ...kb.filter((c) => !ka.some((y) => y.id === c.id)).map((c) => `Clé d’accès ajoutée : ${c.nom}${qui}`), ...ka.filter((c) => !kb.some((y) => y.id === c.id)).map((c) => `Clé d’accès retirée : ${c.nom}${qui}`),
+        ...kb.filter((c) => c.acceptee !== false && ka.some((y) => y.id === c.id && y.acceptee === false)).map((c) => `Appareil accepté : ${c.nom}${qui}`)]; };
+      d.modif.forEach((x) => {
+        const kc = k === 'utilisateurs' ? clesDiff(x) : []; kc.forEach((r) => audit.push({ uid, action: 'cle', type: 'utilisateur', cibleId: x.apres.id, resume: r }));
+        if (kc.length && JSON.stringify(sansCles(x.avant, ['cles'])) === JSON.stringify(sansCles(x.apres, ['cles']))) return;
+        audit.push({ uid, action: 'modification', type: k === 'utilisateurs' ? 'utilisateur' : 'profil', cibleId: x.apres.id, resume: `${nm(x.apres)}${k === 'utilisateurs' && JSON.stringify(x.avant.mdp) !== JSON.stringify(x.apres.mdp) ? ' — mot de passe réinitialisé' : ''}${k === 'utilisateurs' && x.avant.actif !== x.apres.actif ? (x.apres.actif === false ? ' — désactivé' : ' — réactivé') : ''}${k === 'utilisateurs' && x.avant.profilId !== x.apres.profilId ? ` — profil « ${(profilDe(apres, x.apres.profilId) || {}).nom || '?'} »` : ''}` });
+      });
       d.suppr.forEach((x) => audit.push({ uid, action: 'suppression', type: k === 'utilisateurs' ? 'utilisateur' : 'profil', cibleId: x.id, resume: nm(x) }));
       continue;
     }
@@ -266,17 +282,19 @@ function gardeDroits(avant, apres, uid) {
     if (GARDE_PARAMS.includes(k)) {
       // listes de l'hygiène (0.27.0-alpha.2 : Hygiène › Listes, moyen de contrôle ajouté depuis le journal) : le droit de saisie dans l'Hygiène suffit
       const sous = k === 'lists' ? uniq([...Object.keys(avant.lists || {}), ...Object.keys(apres.lists || {})]).filter((x) => JSON.stringify((avant.lists || {})[x]) !== JSON.stringify((apres.lists || {})[x])) : [];
-      const hyg = sous.length > 0 && sous.every((x) => /^(hyg|maint)[A-Z]/.test(x));
-      if (hyg ? !(ecr('hygiene') || ecr('params')) : !ecr('params')) return refus(`le profil ${nomP} ne permet pas de modifier les paramètres (${GARDE_NOMS[k]})`);
+      // listes de la maintenance et des équipements, fiches des équipements (0.28.0-alpha.1) : droit de saisie dans l'onglet Équipements
+      const modListe = (x) => (/^hyg[A-Z]/.test(x) ? ['hygiene'] : /^maint[A-Z]/.test(x) ? ['hygiene', 'equipements'] : x === 'equipements' || /^equip[A-Z]/.test(x) ? ['equipements'] : null);
+      const okListes = sous.length > 0 && sous.every((x) => { const m = modListe(x); return !!m && m.some((y) => ecr(y)); });
+      if (!(okListes || ecr('params'))) return refus(`le profil ${nomP} ne permet pas de modifier les paramètres (${GARDE_NOMS[k]})`);
       if (Array.isArray(apres[k]) && Array.isArray(avant[k]) && diffParId(avant[k], apres[k]).suppr.length && !sp('supprimer')) return refus(`le profil ${nomP} ne permet pas de supprimer (${GARDE_NOMS[k]})`);
       audit.push({ uid, action: 'modification', type: 'parametres', resume: `Paramètres : ${GARDE_NOMS[k]}` }); continue;
     }
     if (k === 'docs') {
       const d = diffParId(avant.docs, apres.docs);
-      const modDoc = (x) => (x.cible && (x.cible.type === 'arrivage' || x.cible.type === 'produit') ? 'intrants' : x.cible && (x.cible.type === 'produitHygiene' || x.cible.type === 'maintenance') ? 'hygiene' : x.cible && x.cible.type === 'bareme' ? 'params' : x.cible && x.cible.type === 'bulletin' ? 'analyses' : x.cible && x.cible.type === 'prev' ? 'previsions' : (() => { const o = (apres.ops || []).find((y) => y.id === (x.cible || {}).id) || (avant.ops || []).find((y) => y.id === (x.cible || {}).id); return o ? moduleDeType(o.type, o) : 'ops'; })());
+      const modDoc = (x) => (x.cible && (x.cible.type === 'arrivage' || x.cible.type === 'produit') ? 'intrants' : x.cible && x.cible.type === 'equipement' ? 'equipements' : x.cible && (x.cible.type === 'produitHygiene' || x.cible.type === 'maintenance') ? (ecr('hygiene') || !ecr('equipements') ? 'hygiene' : 'equipements') : x.cible && x.cible.type === 'bareme' ? 'params' : x.cible && x.cible.type === 'bulletin' ? 'analyses' : x.cible && x.cible.type === 'prev' ? 'previsions' : (() => { const o = (apres.ops || []).find((y) => y.id === (x.cible || {}).id) || (avant.ops || []).find((y) => y.id === (x.cible || {}).id); return o ? moduleDeType(o.type, o) : 'ops'; })());
       if (opsCh) { if (d.suppr.length && !sp('supprimer') && d.suppr.some((x) => !(x.cible && x.cible.type === 'op' && !(apres.ops || []).some((o) => o.id === x.cible.id)))) return refus(`le profil ${nomP} ne permet pas de retirer un document`); }
       else {
-        for (const x of [...d.cree, ...d.modif.map((y) => y.apres)]) { const m = modDoc(x); if (!(ecr(m) || (!['intrants', 'hygiene'].includes(m) && ecr('ops')))) return refus(`le profil ${nomP} ne permet pas de joindre un document dans « ${nomMod(m)} »`); }
+        for (const x of [...d.cree, ...d.modif.map((y) => y.apres)]) { const m = modDoc(x); if (!(ecr(m) || (!['intrants', 'hygiene', 'equipements'].includes(m) && ecr('ops')))) return refus(`le profil ${nomP} ne permet pas de joindre un document dans « ${nomMod(m)} »`); }
         if (d.suppr.length && !sp('supprimer')) return refus(`le profil ${nomP} ne permet pas de retirer un document`);
       }
       d.cree.forEach((x) => audit.push({ uid, action: 'creation', type: 'document', cibleId: x.id, resume: `Document « ${x.nom} »` })); d.suppr.forEach((x) => audit.push({ uid, action: 'suppression', type: 'document', cibleId: x.id, resume: `Document « ${x.nom} »` }));
@@ -299,7 +317,7 @@ function gardeDroits(avant, apres, uid) {
       }
       const d = Array.isArray(apres[k]) ? diffParId(avant[k], apres[k], k === 'previsions' ? ['ficheOrdre'] : null) : null;
       if (d && !d.n) continue; // seulement le n° d'une fiche imprimée
-      if (!ecr(m)) return refus(`le profil ${nomP} ne permet pas de saisir dans « ${nomMod(m)} »`);
+      if (!(ecr(m) || (['planMaintenance', 'maintenance'].includes(k) && ecr('equipements')))) return refus(`le profil ${nomP} ne permet pas de saisir dans « ${nomMod(m)} »`);
       if (d && d.suppr.length && !sp('supprimer')) return refus(`le profil ${nomP} ne permet pas de supprimer (${GARDE_NOMS[k]})`);
       if (d) { if (d.cree.length) audit.push({ uid, action: 'creation', type: k, resume: `${GARDE_NOMS[k]} : ${d.cree.length} ajout(s)` }); if (d.modif.length) audit.push({ uid, action: 'modification', type: k, resume: `${GARDE_NOMS[k]} : ${d.modif.length} modification(s)` }); if (d.suppr.length) audit.push({ uid, action: 'suppression', type: k, resume: `${GARDE_NOMS[k]} : ${d.suppr.length} suppression(s)` }); }
       continue;

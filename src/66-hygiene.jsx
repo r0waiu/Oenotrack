@@ -136,11 +136,14 @@ function HygJournal({ onAFaire }) {
   );
 }
 
+// maintenance dans l'onglet Équipements (0.28.0-alpha.1) quand il est actif et autorisé ; sinon dans l'Hygiène, comme avant
+const maintDansEquipements = (db, uid) => moduleActif(db, 'equipements') && moduleAutorise(db, uid, 'equipements');
 function TabHygiene() {
-  const { db } = useApp(); const nMq = hygListe(db).filter((p) => !p.archive && hygFdsEtat(db, p).k === 'manquante').length; const T = usePlanTaches();
-  const items = [{ id: 'journal', label: 'Journal d’hygiène' }, { id: 'afaire', label: 'À faire', badge: T.length || null }, { id: 'plan', label: 'Plan de nettoyage' }, { id: 'maintenance', label: 'Maintenance' }, { id: 'produits', label: 'Produits d’hygiène', badge: nMq || null }, { id: 'listes', label: '⚙ Listes' }];
+  const { db, uid } = useApp(); const nMq = hygListe(db).filter((p) => !p.archive && hygFdsEtat(db, p).k === 'manquante').length; const T0 = usePlanTaches();
+  const eq = maintDansEquipements(db, uid); const T = eq ? T0.filter((x) => x.origine !== 'maintenance') : T0;
+  const items = [{ id: 'journal', label: 'Journal d’hygiène' }, { id: 'afaire', label: 'À faire', badge: T.length || null }, { id: 'plan', label: 'Plan de nettoyage' }, ...(eq ? [] : [{ id: 'maintenance', label: 'Maintenance' }]), { id: 'produits', label: 'Produits d’hygiène', badge: nMq || null }, { id: 'listes', label: '⚙ Listes' }];
   const [sub, setSub] = useSousOnglet(items, 'journal');
-  const V = { produits: HygProduitsView, afaire: HygAFaire, plan: PlanNettoyageView, maintenance: PlanMaintenanceView, listes: HygListesView }[sub];
-  return (<div><SubNav value={sub} onChange={setSub} items={items} />{V ? <V /> : <HygJournal onAFaire={() => setSub('afaire')} />}</div>);
+  const V = { produits: HygProduitsView, plan: PlanNettoyageView, maintenance: PlanMaintenanceView }[sub];
+  return (<div><SubNav value={sub} onChange={setSub} items={items} />{sub === 'afaire' ? <HygAFaire quoi={eq ? 'hygiene' : undefined} /> : sub === 'listes' ? <HygListesView groupes={eq ? ['hygiene'] : ['hygiene', 'maintenance']} /> : V ? <V /> : <HygJournal onAFaire={() => setSub('afaire')} />}</div>);
 }
 TABS_REG.hygiene = TabHygiene;

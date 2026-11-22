@@ -21,10 +21,15 @@ const HYG_LISTES_DEF = [
   { key: 'maintResultats', titre: 'Résultats d’une intervention', L: MAINT_RESULTATS },
 ];
 // listes d'origine : copie prise au chargement, avant toute synchronisation (les résultats attendus d'origine en plus pour les contrôles)
-HYG_LISTES_DEF.forEach((d) => {
+// groupe (0.28.0-alpha.1) : 'hygiene' (Hygiène › Listes), 'maintenance' et 'equipements' (Équipements › Listes quand l'onglet est actif)
+function hygListePreparer(d) {
+  d.groupe = d.groupe || (/^maint/.test(d.key) ? 'maintenance' : 'hygiene');
   d.origine = d.L.filter((x) => !(d.special || []).includes(x[0])).map((x) => [x[0], x[1], d.key === 'hygControles' && HYG_CONTROLE_ATTENDU[x[0]] ? { attendu: HYG_CONTROLE_ATTENDU[x[0]] } : {}]);
   d.speciaux = d.L.filter((x) => (d.special || []).includes(x[0])).map((x) => [...x]);
-});
+}
+HYG_LISTES_DEF.forEach(hygListePreparer);
+// autre liste personnalisable déclarée par un autre module (catégories d'équipements…)
+function hygListeDeclarer(d) { if (!HYG_LISTES_DEF.some((x) => x.key === d.key)) { hygListePreparer(d); HYG_LISTES_DEF.push(d); } return d; }
 const hygListeDef = (key) => HYG_LISTES_DEF.find((d) => d.key === key) || null;
 // éléments d'une liste : ceux de la base dans leur ordre, puis les éléments d'origine qui y manquent
 function hygListeItems(db, key) {
@@ -62,6 +67,7 @@ function hygListeUsage(db, key, id) {
     case 'hygMoments': { const it = hygListeItems(db, key).find((x) => x.id === id); return PN.filter((e) => (e.quand || []).some((q) => q && q.type === 'texte' && (q.momentId === id || (it && q.texte === it.label)))).length; }
     case 'maintTypes': return (db.planMaintenance || []).filter((e) => e && e.type === id).length + (db.maintenance || []).filter((m) => m && m.type === id).length;
     case 'maintResultats': return (db.maintenance || []).filter((m) => m && m.resultat === id).length;
+    case 'equipCategories': return ((db.lists && db.lists.equipements) || []).filter((e) => e && e.categorie === id).length;
     default: return 0;
   }
 }

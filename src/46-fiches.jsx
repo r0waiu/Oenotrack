@@ -422,20 +422,25 @@ function FicheDialog({ sources, onClose }) {
   const vierge = (g) => g.items.every((x) => x.st.vierge); // fiche vierge : n° et date à écrire à la main
   const ordreOf = (g, gi) => { const k = `${g.tpl.id}|${g.items[0].st.date}`; if (ordres[k] != null) return ordres[k]; if (vierge(g)) return ''; const before = groups.slice(0, gi).filter((x) => x.tpl.id === g.tpl.id && x.items[0].st.date === g.items[0].st.date).length; return ordreAuto(db, g.tpl, g.items[0].st.date, before); };
   const log = () => { if (logged) return; groups.forEach((g, gi) => { if (vierge(g) && !ordreOf(g, gi)) return; const src = g.items.filter((x) => x.s.kind === 'op' || x.s.kind === 'prev').map((x) => ({ kind: x.s.kind, id: x.s.id })); act((d) => ficheAdd(d, { modele: g.tpl.id, ordre: ordreOf(g, gi), date: g.items[0].st.date || todayISO(), sources: src })); }); setLogged(true); };
+  const nomPdf = () => `fiches-${groups.map((g, gi) => ordreOf(g, gi)).join('_').slice(0, 80) || todayISO()}.pdf`;
   const pdf = async () => {
     if (!ref.current) return; setBusy(true);
     const units = Array.from(ref.current.querySelectorAll('.fiche')).map((el) => ({ el, orientation: el.classList.contains('portrait') ? 'portrait' : 'paysage', fit: 'page' }));
-    const ok = await printPdf({ units, root: ref.current, filename: `fiches-${groups.map((g, gi) => ordreOf(g, gi)).join('_').slice(0, 80) || todayISO()}.pdf`, title: groups.map((g) => g.tpl.titre).join(' · '), author: (db.entreprise || {}).nom, toast });
+    const ok = await printPdf({ units, root: ref.current, filename: nomPdf(), title: groups.map((g) => g.tpl.titre).join(' · '), author: (db.entreprise || {}).nom, toast });
     setBusy(false); if (ok) log();
   };
-  const direct = () => { log(); try { window.print(); } catch (e) { /* ignoré */ } };
+  const imprimer = async () => { // boîte d'impression de l'appareil (0.28.0-alpha.1) ; à défaut le PDF
+    if (!ref.current) return; log();
+    const r = await imprimerZone(ref.current, { titre: groups.map((g) => g.tpl.titre).join(' · ') || 'Fiches d’enregistrement' });
+    if (r === 'bloque') { setBusy(true); const units = Array.from(ref.current.querySelectorAll('.fiche')).map((el) => ({ el, orientation: el.classList.contains('portrait') ? 'portrait' : 'paysage', fit: 'page' })); await pdfRepli({ units, root: ref.current, filename: nomPdf(), title: groups.map((g) => g.tpl.titre).join(' · '), author: (db.entreprise || {}).nom, toast }); setBusy(false); }
+  };
   const html = async () => { log(); const o = groups[0] ? groups[0].tpl.orientation : 'paysage'; const r = await saveFile(`fiches-${todayISO()}.html`, ficheHtml(ref.current, 'Fiches d’enregistrement', o), 'text/html'); if (r.ok) toast('Fiches enregistrées en HTML.'); else if (!r.declined) toast(failMsg(r), 'bad'); };
   const champs = {}; if (ops.trim()) (groups[0] ? groups[0].tpl.champs || [] : []).forEach((ch) => { if (/op[ée]rateur/i.test(ch)) champs[ch] = ops.trim(); });
   const oprDe = (items) => operateursNoms(db, uniq(items.flatMap((x) => (x.st.f && x.st.f.operateurs) || []))); // opérateurs prévus / choisis des éléments de la fiche
   const oprDefaut = oprDe(states);
   return (
     <Sheet wide title="Fiches d’enregistrement" sub={states.every((x) => x.st.vierge) ? 'Fiche vierge, à remplir entièrement à la main' : `${states.length} élément(s) → ${groups.length} fiche(s) à imprimer pour les opérateurs`} onClose={onClose}
-      footer={<><span className="mr-auto text-xs text-ink2">{logged ? (groups.every((g, gi) => vierge(g) && !ordreOf(g, gi)) ? '✓ Fiche vierge imprimée.' : '✓ N° de fiche noté dans « Fiches imprimées ».') : 'Le PDF s’ouvre dans votre lecteur : imprimez-le de là.'}</span><Btn onClick={html} title="Fichier HTML modifiable">⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={pdf} disabled={busy}>{busy ? 'Préparation…' : '🖨 Imprimer (PDF)'}</Btn></>}>
+      footer={<><span className="mr-auto text-xs text-ink2">{logged ? (groups.every((g, gi) => vierge(g) && !ordreOf(g, gi)) ? '✓ Fiche vierge imprimée.' : '✓ N° de fiche noté dans « Fiches imprimées ».') : '« 🖨 Imprimer » ouvre la boîte d’impression ; « ⬇ PDF » enregistre le fichier.'}</span><Btn onClick={html} title="Fichier HTML modifiable">⬇ HTML</Btn><Btn onClick={pdf} disabled={busy} title="Enregistrer le PDF (à envoyer, archiver ou imprimer plus tard)" data-sortie-pdf="">{busy ? 'Préparation…' : '⬇ PDF'}</Btn><Btn kind="primary" onClick={imprimer} disabled={busy} title="Ouvrir la boîte d’impression de l’appareil" data-sortie-imprimer="">🖨 Imprimer</Btn></>}>
       <div className="no-print mb-4 grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))' }}>
         <div className="space-y-2">
           <div className="lbl">1 · Modèle de fiche</div>
@@ -459,7 +464,7 @@ function FicheDialog({ sources, onClose }) {
             {FICHE_PRESETS.map((p) => <Btn key={p.id} size="sm" kind={coulTmp === p.id ? 'primary' : undefined} aria-pressed={coulTmp === p.id} onClick={() => setCoulTmp(p.id)}><span className="swatch" style={{ background: p.c.th || FICHE_COULEURS().th }} />{p.nom}</Btn>)}
           </div>
           <div className="flex flex-wrap gap-1.5">{uniq(groups.map((g) => g.tpl.id)).map((id) => { const t = groups.find((g) => g.tpl.id === id).tpl; return <Btn key={id} size="sm" onClick={() => setEdTpl(t)} title="Colonnes, champs, couleurs, taille du texte… enregistrés pour les prochaines fois">🎨 Personnaliser « {t.titre} »…</Btn>; })}</div>
-          <p className="text-ink2">Gris italique = valeurs prévues par Œnotrack ; cases teintées = valeurs à relever. « 🖨 Imprimer (PDF) » crée un PDF A4 identique à l’aperçu : ouvrez-le puis imprimez-le.</p>
+          <p className="text-ink2">Gris italique = valeurs prévues par Œnotrack ; cases teintées = valeurs à relever. « 🖨 Imprimer » ouvre la boîte d’impression de l’appareil ; « ⬇ PDF » crée un PDF A4 identique à l’aperçu.</p>
         </div>
       </div>
       <div className="fiche-scroll"><div ref={ref} className="report fiches">

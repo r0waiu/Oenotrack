@@ -49,12 +49,27 @@ function syncValeur(aBase, b, l, r) {
 }
 // fiches de catalogue (intrants, fournisseurs, produits d'hygiène) modifiées des deux côtés : fusion champ par champ quand les
 // changements portent sur des champs différents (ex. FDS jointe sur un appareil, référence saisie sur l'autre) — 0.20.0-alpha.1
-const SYNC_PAR_CHAMP = ['produits', 'fournisseurs', 'produitsHygiene'];
+// 0.28.0-alpha.1 : aussi les comptes (mot de passe changé sur un appareil, profil sur l'autre) et les fiches du parc de matériel
+const SYNC_PAR_CHAMP = ['produits', 'fournisseurs', 'produitsHygiene', 'utilisateurs', 'lists.equipements'];
+// clés d'accès d'un compte ajoutées ou retirées sur deux appareils entre deux synchronisations : réunies clé par clé
+function syncSousListe(b, l, r) {
+  const ok = (a) => a === undefined || (Array.isArray(a) && a.every((x) => x && typeof x === 'object' && typeof x.id === 'string'));
+  if (![b, l, r].every(ok)) return null;
+  const M = (a) => new Map((a || []).map((x) => [x.id, x])); const mb = M(b); const ml = M(l); const mr = M(r); const out = [];
+  for (const id of new Set([...ml.keys(), ...mr.keys(), ...mb.keys()])) {
+    const vl = ml.get(id); const vr = mr.get(id);
+    if (!mb.has(id) && (vl === undefined || vr === undefined)) { out.push(vl || vr); continue; } // ajoutée d'un seul côté
+    const x = syncValeur(mb.has(id), mb.get(id), vl, vr); if (x.k === 'conflit') return null; if (x.v !== undefined) out.push(x.v); // retirée d'un côté : x.v absent
+  }
+  return out;
+}
 function syncChamps(b, l, r) {
   const out = {};
   for (const k of new Set([...Object.keys(l), ...Object.keys(r), ...Object.keys(b)])) {
     if (k === 'modifLe' && typeof l[k] === 'string' && typeof r[k] === 'string') { out[k] = l[k] > r[k] ? l[k] : r[k]; continue; }
-    const x = syncValeur(true, b[k], l[k], r[k]); if (x.k === 'conflit') return null; if (x.v !== undefined) out[k] = x.v;
+    const x = syncValeur(true, b[k], l[k], r[k]);
+    if (x.k === 'conflit') { const sl = k === 'cles' ? syncSousListe(b[k], l[k], r[k]) : null; if (!sl) return null; out[k] = sl; continue; }
+    if (x.v !== undefined) out[k] = x.v;
   }
   return out;
 }

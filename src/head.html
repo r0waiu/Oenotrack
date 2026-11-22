@@ -636,6 +636,22 @@ details>summary{cursor:pointer;font-weight:600}
   .fiche{margin:0!important;padding:0!important}.fiche.paysage{page:fpaysage;width:auto}.fiche.portrait{page:fportrait;width:auto}
   .fiche+.fiche{break-before:page}.fiche .ft thead{display:table-header-group}.fiche-scroll{overflow:visible!important}
 }
+/* impression directe (0.28.0-alpha.1) : seule la zone copiée s'imprime, le reste de la page est masqué (pas de pages blanches) */
+.zone-impression{display:none}
+@page zpaysage{size:A4 landscape;margin:8mm}
+@page zportrait{size:A4 portrait;margin:8mm}
+@page za3{size:A3 landscape;margin:8mm}
+@media print{
+  html.impression-zone body>*:not(#zone-impression){display:none!important}
+  html.impression-zone #zone-impression{display:block!important;visibility:visible!important}
+  html.impression-zone #zone-impression *{visibility:visible!important}
+  html.impression-zone #zone-impression .report{position:static!important;width:auto!important}
+  html.impression-zone #zone-impression[data-orientation=paysage]{page:zpaysage}
+  html.impression-zone #zone-impression .planpage{box-shadow:none!important;zoom:.95;break-after:page}
+  html.impression-zone #zone-impression .planpage.paysage{page:zpaysage}
+  html.impression-zone #zone-impression .planpage.portrait{page:zportrait}
+  html.impression-zone #zone-impression[data-format=A3] .planpage.paysage{page:za3}
+}
 @page fpaysage{size:A4 landscape;margin:10mm}
 @page fportrait{size:A4 portrait;margin:10mm}
 

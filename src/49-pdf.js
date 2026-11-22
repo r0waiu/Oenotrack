@@ -1,8 +1,8 @@
-/* ============ IMPRESSION EN PDF ============
-   Dans claude.ai, la page tourne dans un cadre où window.print() n'atteint pas l'imprimante : on fabrique donc un PDF
-   (vectoriel : fonds, bordures, mots placés exactement comme à l'écran ; images et dessins SVG intégrés), que l'utilisateur
-   enregistre puis imprime. Bibliothèque pdf-lib chargée à la demande (jsDelivr). */
-// Impression directe (window.print) : seulement quand la page n'est pas dans un cadre (fichier ouvert seul dans le navigateur)
+/* ============ IMPRESSION ET PDF ============
+   « 🖨 Imprimer » ouvre la boîte d'impression de l'appareil (imprimerZone, 0.28.0-alpha.1) ; « ⬇ PDF » fabrique en parallèle un PDF
+   vectoriel (fonds, bordures, mots placés exactement comme à l'écran ; images et dessins SVG intégrés) à enregistrer. Dans claude.ai, la
+   page tourne dans un cadre où window.print() n'atteint pas l'imprimante : le PDF prend alors le relais. pdf-lib chargé à la demande. */
+// page ouverte seule (pas dans un cadre) : l'impression directe y fonctionne à coup sûr
 const CAN_PRINT_DIRECT = (() => { try { return window.self === window.top; } catch (e) { return false; } })();
 const PDFLIB_URL = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
 let _pdfLibP = null;
@@ -169,15 +169,69 @@ async function htmlToPdf(units, meta = {}) {
   doc.setTitle(pdfSafe(meta.title || 'Œnotrack')); doc.setCreator('Œnotrack'); doc.setProducer('Œnotrack'); doc.setAuthor(pdfSafe(meta.author || 'Œnotrack'));
   return doc.save();
 }
-// Fabrique le PDF (en police proche d'Arial pour un placement exact) puis propose de l'enregistrer
-async function printPdf({ units, filename, title, author, toast, root }) {
+// Fabrique le PDF (en police proche d'Arial pour un placement exact) : octets du fichier, ou null (message déjà affiché)
+async function pdfOctets({ units, title, author, toast, root }) {
   const host = root || (units[0] && units[0].el); if (host) host.classList.add('pdf-mode');
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   let bytes;
-  try { bytes = await htmlToPdf(units, { title, author }); } catch (e) { if (host) host.classList.remove('pdf-mode'); toast(`Création du PDF impossible : ${e.message}`, 'bad'); return false; }
+  try { bytes = await htmlToPdf(units, { title, author }); } catch (e) { if (host) host.classList.remove('pdf-mode'); toast(`Création du PDF impossible : ${e.message}`, 'bad'); return null; }
   if (host) host.classList.remove('pdf-mode');
+  return bytes;
+}
+// « ⬇ PDF » : le PDF est proposé à l'enregistrement (à envoyer, archiver ou imprimer plus tard)
+async function printPdf({ units, filename, title, author, toast, root }) {
+  const bytes = await pdfOctets({ units, title, author, toast, root }); if (!bytes) return false;
   const r = await saveFile(filename, new Blob([bytes], { type: 'application/pdf' }), 'application/pdf');
-  if (r.ok) { toast('PDF enregistré : ouvrez-le puis lancez l’impression (Ctrl/Cmd + P).'); return true; }
+  if (r.ok) { toast('PDF enregistré.'); return true; }
+  if (!r.declined) toast(failMsg(r), 'bad');
+  return false;
+}
+
+/* ---------- impression directe (0.28.0-alpha.1) : la boîte d'impression de l'appareil (Windows, Mac, Linux, Android, iPhone, iPad) ----------
+   La zone demandée est copiée dans #zone-impression, seule visible à l'impression (le reste de la page est masqué), puis window.print()
+   ouvre la boîte du système. Si rien ne s'ouvre (aperçu dans claude.ai, navigateur qui refuse), le PDF prend le relais : partagé sur
+   téléphone (menu Partager › Imprimer) quand c'est possible, sinon enregistré. */
+let _impressionEnCours = null;
+function imprimerZone(els, o = {}) {
+  const L = (Array.isArray(els) ? els : [els]).filter(Boolean); if (!L.length) return Promise.resolve('rien');
+  if (_impressionEnCours) return _impressionEnCours;
+  _impressionEnCours = new Promise((res) => {
+    const zone = document.createElement('div'); zone.id = 'zone-impression'; zone.className = 'zone-impression'; zone.setAttribute('aria-hidden', 'true');
+    if (o.orientation) zone.dataset.orientation = o.orientation; if (o.format) zone.dataset.format = o.format;
+    L.forEach((el) => {
+      const c = el.cloneNode(true); const src = el.querySelectorAll('canvas');
+      c.querySelectorAll('canvas').forEach((cv, i) => { try { const img = document.createElement('img'); img.src = src[i].toDataURL('image/png'); img.style.cssText = cv.style.cssText; img.style.width = `${src[i].clientWidth || src[i].width}px`; cv.replaceWith(img); } catch (e) { /* dessin non copiable */ } });
+      zone.appendChild(c);
+    });
+    document.body.appendChild(zone); const html = document.documentElement; html.classList.add('impression-zone');
+    const titre0 = document.title; if (o.titre) document.title = o.titre; // nom proposé par « Enregistrer au format PDF »
+    let lance = false; let fini = false;
+    const avant = () => { lance = true; };
+    const fin = () => {
+      if (fini) return; fini = true;
+      window.removeEventListener('beforeprint', avant); window.removeEventListener('afterprint', apres); window.removeEventListener('focus', retour);
+      zone.remove(); html.classList.remove('impression-zone'); document.title = titre0; _impressionEnCours = null; res(lance ? 'imprime' : 'bloque');
+    };
+    const apres = () => setTimeout(fin, 400);
+    const retour = () => setTimeout(fin, 800);
+    window.addEventListener('beforeprint', avant); window.addEventListener('afterprint', apres);
+    const t0 = Date.now();
+    try { window.print(); } catch (e) { /* refusé par le navigateur */ }
+    if (Date.now() - t0 > 400) lance = true; // boîte bloquante (ordinateur) : l'appel a duré le temps de la boîte
+    setTimeout(() => { if (!lance) fin(); else window.addEventListener('focus', retour); }, 1200);
+    setTimeout(fin, 180000); // garde-fou
+  });
+  return _impressionEnCours;
+}
+// impression impossible dans cette vue : le PDF à la place (partagé sur téléphone si possible : Partager › Imprimer)
+async function pdfRepli({ units, filename, title, author, toast, root }) {
+  const bytes = await pdfOctets({ units, title, author, toast, root }); if (!bytes) return false;
+  try {
+    const f = typeof File === 'function' ? new File([bytes], filename, { type: 'application/pdf' }) : null;
+    if (f && navigator.canShare && navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title }); return true; }
+  } catch (e) { if (e && e.name === 'AbortError') return false; }
+  const r = await saveFile(filename, new Blob([bytes], { type: 'application/pdf' }), 'application/pdf');
+  if (r.ok) { toast('Impression directe impossible dans cette vue : le PDF est enregistré, ouvrez-le pour l’imprimer.'); return true; }
   if (!r.declined) toast(failMsg(r), 'bad');
   return false;
 }

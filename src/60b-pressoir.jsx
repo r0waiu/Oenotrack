@@ -166,7 +166,7 @@ function BonPesee({ id, onClose }) {
     vu('ref', o.ref) && [L('ref', 'N° de bon'), o.ref || '—'], vu('operateurs', (o.operateurs || []).length ? 1 : '') && [L('operateurs', 'Pesée faite par'), operateursNoms(db, o.operateurs) || '—']].filter(Boolean);
   return (
     <Sheet wide title={`Bon de pesée n° ${p.num || '—'}`} sub="À remettre à l’apporteur" onClose={onClose}
-      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><BoutonsSortie out={out} /></>}>
       <div ref={ref} className="report bon" data-ticket="" data-bon-pesee="">
         <BonTete droite={<><div className="bon-camp">{`Vendanges ${an}`}</div><div className="bon-lbl">{o.apporteurId ? 'Apporteur' : 'Origine des raisins'}</div><b>{ap ? ap.nom : 'Raisins de l’exploitation'}</b>{ap && ap.commune ? <div>{ap.commune}</div> : null}{ap && ap.ident ? <div className="muted">{ap.ident}</div> : null}</>} />
         <h1>{`Bon de pesée n° ${p.num || '—'}`}</h1>
@@ -202,7 +202,7 @@ function BonPressoir({ id, onClose }) {
   const lotFr = (x) => x.code || (x.lotId ? lotCode(db, null, x.lotId) : '') || '—';
   return (
     <Sheet wide title={`Bon de pressoir — marc n° ${m.num || '—'}`} sub={`Carnet de pressoir ${yearOf(o.date)}`} onClose={onClose}
-      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><BoutonsSortie out={out} /></>}>
       <div ref={ref} className="report bon" data-bon-pressoir="">
         <BonTete droite={<><div className="bon-camp">{`Vendanges ${yearOf(o.date)}`}</div><div className="bon-lbl">Pressée</div><b>{(o.parentSpec || {}).code || '—'}</b>{(o.parentSpec || {}).designation ? <div>{o.parentSpec.designation}</div> : null}</>} />
         <h1>{`Bon de pressoir — marc n° ${m.num || '—'}`}</h1>
@@ -413,7 +413,7 @@ function CarnetImpression({ annee, onClose }) {
   const rows = L.map((o) => { const m = o.marc || {}; const ce = marcCepages(db, o); const orig = uniq((o.charges || []).map((c) => db.ops.find((x) => x.id === c.apportId)).filter(Boolean).map((a) => [a.apporteurId ? apporteurName(db, a.apporteurId) : '', a.cruId ? `${cruName(db, a.cruId)} (${cruEchUn(db, a.cruId)})` : '', (a.pesee || {}).mention || ''].filter(Boolean).join(' · '))).join(' | ');
     return [m.num || '', fmtDate(o.date), `${m.heureDebut || ''}${m.heureFin ? `–${m.heureFin}` : ''}`, lbl(db, 'equipements', o.equipementId), Object.keys(ce).map((k) => `${lbl(db, 'cepages', k)} ${fmt(ce[k])}`).join(', '), orig, ...fr.map((x) => fmtHL(sum((o.fractions || []).filter((y) => y.fractionId === x.id), (y) => y.volL))), hasNum(m.tavp) ? fmt(m.tavp, 1) : '', hasNum(m.bourbesL) ? fmtHL(m.bourbesL) : '', m.valide ? 'validé' : 'à valider']; });
   return (
-    <Sheet wide title={`Carnet de pressoir ${annee}`} onClose={onClose} footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+    <Sheet wide title={`Carnet de pressoir ${annee}`} onClose={onClose} footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><BoutonsSortie out={out} /></>}>
       <div ref={ref} className="report"><ReportHead title={`Carnet de pressoir — vendanges ${annee}`} sub={`${L.length} marc(s)`} />
         <RTable head={['N°', 'Date', 'Heures', 'Pressoir', 'Poids par cépage (kg)', 'Apporteurs · origine', ...fr.map((x) => `${x.label} (hL)`), 'TAV puiss.', 'Bourbes (hL)', 'Statut']} rows={rows} empty="Aucun marc." /></div>
     </Sheet>
@@ -441,7 +441,7 @@ const releveNom = (db, id) => (id ? apporteurName(db, id) : 'Raisins de l’expl
 function RelevesImpression({ annee, L, onClose }) {
   const { db } = useApp(); const ref = useRef(null); const out = useReportOutput(ref, `releves-apporteurs-${annee}`);
   return (
-    <Sheet wide title={`Relevés par apporteur — ${annee}`} sub="une page par apporteur" onClose={onClose} footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={out.download}>⬇ HTML</Btn>{CAN_PRINT_DIRECT ? <Btn onClick={out.direct}>Impression directe</Btn> : null}<Btn kind="primary" onClick={out.print}>🖨 Imprimer (PDF)</Btn></>}>
+    <Sheet wide title={`Relevés par apporteur — ${annee}`} sub="une page par apporteur" onClose={onClose} footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><BoutonsSortie out={out} /></>}>
       <div ref={ref} className="report">
         {L.map((r, i) => <div key={i} className="rpt-item"><ReportHead title={`Relevé de pressurage — ${releveNom(db, r.apporteurId)}`} sub={`Vendanges ${annee} · répartition au prorata du poids`} />
           <RTable head={['Marc', 'Date', 'Poids apporté (kg)', 'Part du marc', 'Cuvée (hL)', 'Tailles (hL)', 'Rebêches (hL)']} rows={r.marcs.map((m) => [`n° ${m.num || '?'}`, fmtDate(m.date), fmt(m.kg), pct(m.part), fmtHL(m.cuvee), fmtHL(m.taille), fmtHL(m.rebeche)])} />

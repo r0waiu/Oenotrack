@@ -2,6 +2,14 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.28.0-alpha.1 — 22/11/2026
+
+- Impression : « 🖨 Imprimer » ouvre maintenant la boîte d’impression de l’appareil (Windows, Mac, Linux, Android, iPhone et iPad) et n’imprime que le document ; « ⬇ PDF » enregistre le PDF en parallèle. Là où l’impression directe est impossible (aperçu dans claude.ai), le PDF prend le relais.
+- Connexion simplifiée : sur un appareil accepté, connexion et déverrouillage par empreinte, visage ou code PIN (Windows Hello, Touch ID et Face ID, Android ; sous Linux : clé de sécurité, téléphone ou code PIN du navigateur) grâce aux clés d’accès. Chacun active ses appareils depuis son compte ; un administrateur les accepte (Paramètres › Utilisateurs & droits). Le mot de passe reste possible.
+- Nouvel onglet Équipements : parc de matériel avec une fiche par équipement (catégorie, marque, modèle, n° de série, site, état, garantie, vos informations, documents), maintenance (plan et interventions, déplacés depuis l’Hygiène), pannes, vérifications périodiques (bascules, balances, instruments, extincteurs) et tâches à faire ; catégories, types et résultats d’intervention personnalisables.
+- Traçabilité › Toutes les étapes : une seule recherche (n° de pesée ou de marc, lot, lot fini, cuve, apporteur, cru, lieu-dit, DAE, lot d’un produit, date) puis la chaîne complète, des pesées aux expéditions, en amont et en aval de ce qui est choisi ; imprimable.
+- Traçabilité › Mode audit : types d’audit fournis et personnalisables (agriculture biologique, Demeter, douanes, hygiène HACCP, appellation) ou créés par vous ; pendant la visite, chaque pièce attendue (registres, bilan matière, stocks, SO₂, durée sur lattes, test de traçabilité chronométré…) est présentée chapitre par chapitre, les points de contrôle sont notés et le dossier s’imprime.
+
 ## 0.27.0-alpha.2 — 21/11/2026
 
 - Pressoir : le cru et son échelle (Grand Cru, 1er Cru, Autre cru) s’affichent à la pesée, au registre et sur les bons ; le « ticket » devient un bon de pesée (livraison, relevés de qualité, cumul de la campagne de l’apporteur par cépage et par échelle) et chaque marc a son bon de pressoir (raisins chargés et leur origine, moûts obtenus et leurs cuves, rendement, contrôles). Identifiants officiels (CVI, accise…) de la société et des partenaires imprimés sur les bons.

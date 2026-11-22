@@ -25,7 +25,7 @@ ok('en-tête compact (moins de 12 mm)', h < 12 * 3.78, `${Math.round(h)} px`);
 ok('fiche vierge : n° et date à écrire à la main', (await top().locator('.fiche .fh2-no b').innerText()).trim() === '' && (await top().locator('.fiche .fh-ch').first().innerText()).replace(/\s+/g, ' ').trim() === 'Date :');
 ok('fiche vierge : 14 lignes avec case « rinçage »', (await top().locator('.fiche .ft tbody tr').count()) === 14 && (await top().locator('.fiche .ft tbody tr').first().innerText()).includes('☐'));
 const nf0 = (await dbj()).fiches.length;
-const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), top().locator('button', { hasText: 'Imprimer (PDF)' }).click()]);
+const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), top().locator('button', { hasText: '⬇ PDF' }).click()]);
 await dl.saveAs(SC + '/fiche-vierge.pdf'); const pdf = fs.readFileSync(SC + '/fiche-vierge.pdf');
 ok('PDF de la fiche vierge', pdf.slice(0, 5).toString() === '%PDF-' && pdf.length > 5000, `${pdf.length} octets`);
 ok('fiche vierge sans n° : pas notée dans « Fiches imprimées »', (await dbj()).fiches.length === nf0);
@@ -41,7 +41,7 @@ ok('transfert : modèle « Soutirages et transferts », n° MVT-261108-1', t.sta
 ok('transfert : volumes prévus (avant, transféré, après) en gris', /Cuve 02 P26-02-C 19,75 4,00 15,75 Œuf 01 0,00 4,00/.test(t) && (await f.locator('td.pre').count()) >= 7);
 ok('transfert : cases « relevé » teintées', (await f.locator('tbody tr').first().locator('td.saisie').count()) === 5);
 const nf1 = (await dbj()).fiches.length;
-const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), top().locator('button', { hasText: 'Imprimer (PDF)' }).click()]); await dl2.path(); await page.waitForTimeout(800);
+const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), top().locator('button', { hasText: '⬇ PDF' }).click()]); await dl2.path(); await page.waitForTimeout(800);
 const fi = (await dbj()).fiches; ok('imprimée : notée dans « Fiches imprimées » avec son n°', fi.length === nf1 + 1 && fi[fi.length - 1].ordre === 'MVT-261108-1' && fi[fi.length - 1].modele === 'mouvements', JSON.stringify([nf1, fi.length, fi[fi.length - 1]]));
 await echap();
 f = await ficheDe(/15\/09\/2026[^]*Pressurage/); t = (await f.innerText()).replace(/\s+/g, ' ');
