@@ -28,7 +28,8 @@ function evenementsOp(R, op, avant) {
 }
 function replay(db, upTo, opts) {
   syncConfig(db);
-  const R = { upTo: upTo || null, lots: {}, portions: {}, pinfo: {}, contVol: {}, preps: {}, tir: {}, raisins: {}, arrUsed: {}, apps: [], warn: {}, flows: [], prepUse: [], opsByLot: {}, capOver: {}, stadeHist: {} };
+  const R = { upTo: upTo || null, lots: {}, portions: {}, pinfo: {}, contVol: {}, preps: {}, tir: {}, raisins: {}, arrUsed: {}, apps: [], warn: {}, flows: [], prepUse: [], opsByLot: {}, capOver: {}, stadeHist: {},
+    conc: {}, concDir: {}, concPrep: {}, tirVol: {}, so2Ev: {}, depass: {} }; // cumul des intrants, SO₂ ajouté, dépassements (0.30.0-alpha.1)
   for (const l of db.lots) {
     const st = l.stade || stadeFromType(l.type); const co = l.couleur || couleurDefaut(db);
     R.lots[l.id] = { ...l, stade: st, couleur: co };
@@ -54,8 +55,24 @@ function replay(db, upTo, opts) {
     const t = contTotal(cid);
     if (c.volMax > 0 && t > c.volMax + 0.5) warn(op, `Capacité dépassée en ${c.nom} : ${fmtL(t)} pour ${fmtL(c.volMax)} max.`);
   };
-  const addPortion = (op, lotId, cid, vol, id) => {
+  // cumul des intrants par lot (0.30.0-alpha.1) : dose apportée par hL du lot (toutes ses cuves), transmise au prorata des volumes quand du vin
+  // d'autres lots entre (assemblage, tirage) ; « @so2 » : SO₂ apporté (g/hL) par les produits dont la teneur est connue
+  const volLot = (lotId) => { let v = 0; for (const k in R.portions) { const q = R.portions[k]; if (q.lotId === lotId) v += q.vol; } return v; };
+  const concAjout = (lotId, pid, d, direct) => { if (!lotId || !(d > 0)) return; const c = (R.conc[lotId] = R.conc[lotId] || {}); c[pid] = (c[pid] || 0) + d; if (direct) { const k = (R.concDir[lotId] = R.concDir[lotId] || {}); k[pid] = (k[pid] || 0) + d; } };
+  const concMelange = (lotId, v0, cin, vin) => { // vin litres de concentration cin entrent dans le lot qui en avait v0
+    if (!lotId || !(vin > 0)) return; const t = v0 + vin; const c = R.conc[lotId] || {}; const n = {};
+    for (const k of new Set([...Object.keys(c), ...Object.keys(cin || {})])) { const v = ((c[k] || 0) * v0 + ((cin || {})[k] || 0) * vin) / t; if (v > 1e-12) n[k] = v; }
+    R.conc[lotId] = n; const d = R.concDir[lotId]; if (d) { const m = {}; for (const k in d) { const v = d[k] * v0 / t; if (v > 1e-12) m[k] = v; } R.concDir[lotId] = m; }
+  };
+  const concDe = (parts) => { const tot = sum(parts, (x) => x.vol); const r = {}; if (!(tot > 0)) return r; parts.forEach((x) => { const c = R.conc[x.lotId] || {}; for (const k in c) r[k] = (r[k] || 0) + c[k] * x.vol / tot; }); return r; };
+  const so2Ev = (op, lotId, mgL) => { if (lotId && mgL > 1e-9) (R.so2Ev[lotId] = R.so2Ev[lotId] || []).push({ date: op.date, opId: op.id, mgL }); };
+  const depasse = (op, x) => { const a = (R.depass[op.id] = R.depass[op.id] || []); const motif = op.depassement && op.depassement.motif ? String(op.depassement.motif) : '';
+    if (motif && !a.length) warn(op, `Dépassement justifié : « ${motif.slice(0, 200)} »`); a.push({ ...x, opId: op.id, date: op.date, justifie: !!motif }); };
+  // préparation (pied de cuve, liqueur) versée dans un lot : ses intrants entrent avec son volume
+  const prepVerse = (op, prepId, lotId, v0, volL) => { const c = R.concPrep[prepId]; if (!lotId || !(volL > 0)) return; concMelange(lotId, v0, c || {}, volL); if (c && c['@so2']) so2Ev(op, lotId, c['@so2'] * volL / (v0 + volL) * 10); };
+  const addPortion = (op, lotId, cid, vol, id, cin) => {
     if (vol <= 0) return null;
+    if (cin !== undefined) concMelange(lotId, volLot(lotId), cin, vol); // moût ou vin venu d'ailleurs ({} : sans intrant) ; absent : même lot déplacé
     const ex = Object.values(R.portions).find((p) => p.lotId === lotId && p.contenantId === cid);
     if (ex) { ex.vol += vol; return ex; }
     const p = { id, lotId, contenantId: cid, vol, since: op.date };
@@ -88,12 +105,26 @@ function replay(db, upTo, opts) {
         R.arrUsed[a.id] = (R.arrUsed[a.id] || 0) + q;
       }
       const dose = tg.vol && tg.kind !== 'prep' ? doseHL(q, pr.unite, tg.vol) : null; // la dose légale se juge sur le vin final, pas sur la préparation
-      const rule = tg.qualif && pr.categorie !== 'sec' ? ruleFor(db, pr.id, tg.qualif) : null;
+      const rule = tg.qualif && pr.categorie !== 'sec' ? regleEffective(db, pr, tg.qualif) : null; // règle du produit + règles de substance du cahier des charges
       const unauth = !!(tg.qualif && pr.categorie !== 'sec' && !(rule && rule.autorise));
       if (unauth && tg.kind === 'prep') warn(op, `${pr.nom} n’est pas autorisé pour une préparation ${qLabel(tg.qualif)}.`);
       const over = !!(rule && rule.autorise && rule.doseMax != null && rule.doseMax !== '' && dose != null && dose > num(rule.doseMax) + 1e-9);
       if (over) warn(op, `${pr.nom} : dose ${fmt(dose, 1)} ${doseUnit(pr.unite)} supérieure à la dose légale max (${fmt(rule.doseMax, 1)}) pour ${qLabel(tg.qualif)}.`);
-      R.apps.push({ opId: op.id, date: op.date, opType: op.type, opSousType: op.sousType || '', produitId: pr.id, arrivageId: l.arrivageId || null, numLot: a ? a.numLot : '', qty: q, unite: pr.unite, kind: tg.kind, portionId: tg.portionId || null, lotId: tg.lotId || null, contenantId: tg.contenantId || null, prepId: tg.prepId || null, vol: tg.vol || null, dose, qualif: tg.qualif || null, unauth, over });
+      // cumul par lot : dose rapportée au volume du lot (ou au vin tiré), SO₂ ajouté quand la teneur du produit est connue
+      let volLotA = null; let cumul = null; let so2 = 0;
+      if (tg.lotId && (tg.kind === 'portion' || tg.kind === 'tirage')) {
+        const V = tg.kind === 'portion' ? volLot(tg.lotId) : (R.tirVol[tg.lotId] || tg.vol || 0); volLotA = V || null;
+        const dl = V > 0 ? doseHL(q, pr.unite, V) : null; if (dl != null) { concAjout(tg.lotId, pr.id, dl, true); cumul = (R.conc[tg.lotId] || {})[pr.id]; }
+        const t = so2Teneur(pr); if (t != null && V > 0 && q > 0) { so2 = q * t * 1000 / V; concAjout(tg.lotId, '@so2', so2 / 10, true); so2Ev(op, tg.lotId, so2); }
+      } else if (tg.kind === 'prep' && tg.prepId && tg.vol > 0) {
+        const c = (R.concPrep[tg.prepId] = R.concPrep[tg.prepId] || {}); const dl = doseHL(q, pr.unite, tg.vol); if (dl != null) c[pr.id] = (c[pr.id] || 0) + dl;
+        const t = so2Teneur(pr); if (t != null && q > 0) c['@so2'] = (c['@so2'] || 0) + q * t * 100 / tg.vol;
+      }
+      const maxD = rule && rule.autorise && rule.doseMax != null && rule.doseMax !== '' ? num(rule.doseMax) : null;
+      const overC = !over && maxD != null && cumul != null && cumul > maxD + 1e-9 && !produitSulfitant(pr); // sulfitants : contrôlés par le SO₂ total estimé
+      if (overC) warn(op, `${pr.nom} : dose cumulée ${fmt(cumul, 1)} ${doseUnit(pr.unite)} dans le lot ${(R.lots[tg.lotId] || {}).code || ''}, supérieure à la dose maximale (${fmt(maxD, 1)}) pour ${qLabel(tg.qualif)}.`);
+      if (over || overC) depasse(op, { type: over ? 'dose' : 'cumul', produitId: pr.id, lotId: tg.lotId || null, valeur: over ? dose : cumul, max: maxD, unite: doseUnit(pr.unite), qualif: tg.qualif, aVerifier: !!(rule && rule.aVerifier) });
+      R.apps.push({ opId: op.id, date: op.date, opType: op.type, opSousType: op.sousType || '', produitId: pr.id, arrivageId: l.arrivageId || null, numLot: a ? a.numLot : '', qty: q, unite: pr.unite, kind: tg.kind, portionId: tg.portionId || null, lotId: tg.lotId || null, contenantId: tg.contenantId || null, prepId: tg.prepId || null, vol: tg.vol || null, dose, qualif: tg.qualif || null, unauth, over, volLot: volLotA, cumul, so2 });
     });
   };
   const usePrep = (op, u, lotId) => {
@@ -119,7 +150,7 @@ function replay(db, upTo, opts) {
         (op.charges || []).forEach((c) => { const r = R.raisins[c.apportId]; if (!r) { warn(op, 'Apport de vendange introuvable.'); return; } r.used += num(c.kg); if (r.used > r.kg + 0.5) warn(op, `Apport du ${fmtDate(r.date)} : plus de raisin pressé (${fmt(r.used)} kg) que reçu (${fmt(r.kg)} kg).`); });
         touch(op, op.parentLotId);
         { const aq = (op.charges || []).map((c) => (R.raisins[c.apportId] || {}).qualifId).filter(Boolean); const want = (op.parentSpec || {}).qualifId; if (aq.length && want && rang(want) > rang(minQualif(aq))) warn(op, `Revendication choisie (${qLabel(want)}) supérieure à celle d’un apport pressé (${qLabel(minQualif(aq))}).`); }
-        (op.fractions || []).forEach((f) => { if (num(f.volL) <= 0) return; touch(op, f.lotId); addPortion(op, f.lotId, f.contenantId, num(f.volL), f.portionId); flow(op, 'entree', num(f.volL), { lotId: f.lotId }); checkCap(op, f.contenantId); });
+        (op.fractions || []).forEach((f) => { if (num(f.volL) <= 0) return; touch(op, f.lotId); addPortion(op, f.lotId, f.contenantId, num(f.volL), f.portionId, {}); flow(op, 'entree', num(f.volL), { lotId: f.lotId }); checkCap(op, f.contenantId); });
         break;
       }
       case 'debourbage': case 'soutirage': case 'transfert': {
@@ -148,7 +179,7 @@ function replay(db, upTo, opts) {
         if (op.type === 'filtration' && (op.pertes || []).length) { const lv = sum(op.pertes, (x) => x.volL); (op.pertes || []).forEach((x) => flow(op, 'perte', -num(x.volL), { typeId: x.typeId, lotId: p.lotId })); p.vol = Math.max(0, p.vol - lv); }
         applyLignes(op, op.lignes, { kind: 'portion', portionId: p.id, lotId: p.lotId, contenantId: p.contenantId, vol: p.vol, qualif: lot && lot.qualif });
         if (op.stade) setStade(op, p.lotId, op.stade);
-        (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, p.lotId); if (pr) { p.vol += num(u.volL); flow(op, 'ajout', num(u.volL), { lotId: p.lotId, prepId: pr.id }); if (lot && rang(pr.qualif) < rang(lot.qualif)) R.apps.push({ opId: op.id, date: op.date, opType: op.type, opSousType: op.sousType || '', kind: 'prep', prepId: pr.id, lotId: p.lotId, portionId: p.id, contenantId: p.contenantId, qualif: lot.qualif, prepQualif: pr.qualif, unauth: true, qty: num(u.volL), unite: 'L', produitId: null }); } });
+        (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, p.lotId); if (pr) { prepVerse(op, pr.id, p.lotId, volLot(p.lotId), num(u.volL)); p.vol += num(u.volL); flow(op, 'ajout', num(u.volL), { lotId: p.lotId, prepId: pr.id }); if (lot && rang(pr.qualif) < rang(lot.qualif)) R.apps.push({ opId: op.id, date: op.date, opType: op.type, opSousType: op.sousType || '', kind: 'prep', prepId: pr.id, lotId: p.lotId, portionId: p.id, contenantId: p.contenantId, qualif: lot.qualif, prepQualif: pr.qualif, unauth: true, qty: num(u.volL), unite: 'L', produitId: null }); } });
         if ((op.prepUses || []).length) checkCap(op, p.contenantId); // seul un ajout de volume peut faire déborder
         break;
       }
@@ -165,10 +196,10 @@ function replay(db, upTo, opts) {
       case 'assemblage': {
         let tot = 0; touch(op, op.lotId);
         mixWarn(op, (op.sources || []).map((s) => pq(s.portionId)), `le lot ${(R.lots[op.lotId] || {}).code || ''}`);
-        (op.sources || []).forEach((s) => { const t = take(op, s.portionId, s.volL); if (t) tot += t.vol; });
+        const parts = []; (op.sources || []).forEach((s) => { const t = take(op, s.portionId, s.volL); if (t) { tot += t.vol; parts.push({ lotId: t.lotId, vol: t.vol }); } });
         const lossV = sum(op.pertes, (x) => x.volL);
         (op.pertes || []).forEach((x) => flow(op, 'perte', -num(x.volL), { typeId: x.typeId, lotId: op.lotId }));
-        const np = addPortion(op, op.lotId, op.destId, Math.max(0, tot - lossV), op.outPortionId);
+        const np = addPortion(op, op.lotId, op.destId, Math.max(0, tot - lossV), op.outPortionId, concDe(parts)); // intrants des lots d'origine au prorata
         checkCap(op, op.destId);
         if (np) applyLignes(op, op.lignes, { kind: 'portion', portionId: np.id, lotId: op.lotId, contenantId: op.destId, vol: np.vol, qualif: R.lots[op.lotId] && R.lots[op.lotId].qualif });
         break;
@@ -179,14 +210,16 @@ function replay(db, upTo, opts) {
         let srcLot = null;
         if (op.sourcePortionId && num(op.sourceVolL) > 0) { const t = take(op, op.sourcePortionId, op.sourceVolL); if (t) { flow(op, 'prelevement', -t.vol, { lotId: t.lotId }); srcLot = t.lotId; } }
         R.preps[op.prepId] = { id: op.prepId, code: op.code, ptype: op.ptype, qualif: op.qualifId, vol: num(op.volL), remaining: num(op.volL), date: op.date, opId: op.id, srcLot };
+        if (srcLot && num(op.volL) > 0) { const c = R.conc[srcLot] || {}; const f = Math.min(1, num(op.sourceVolL) / num(op.volL)); const k = {}; for (const x in c) k[x] = c[x] * f; R.concPrep[op.prepId] = k; }
         applyLignes(op, op.lignes, { kind: 'prep', prepId: op.prepId, vol: num(op.volL), qualif: op.qualifId });
         break;
       }
       case 'tirage': {
         touch(op, op.lotId);
         mixWarn(op, [...(op.sources || []).map((s) => pq(s.portionId)), ...(op.prepUses || []).map((u) => (R.preps[u.prepId] || {}).qualif)], `la cuvée de tirage ${(R.lots[op.lotId] || {}).code || ''}`);
-        (op.sources || []).forEach((s) => { const t = take(op, s.portionId, s.volL); if (t) flow(op, 'tirage', -t.vol, { lotId: t.lotId }); });
-        (op.prepUses || []).forEach((u) => usePrep(op, u, op.lotId));
+        const parts = []; (op.sources || []).forEach((s) => { const t = take(op, s.portionId, s.volL); if (t) { flow(op, 'tirage', -t.vol, { lotId: t.lotId }); parts.push({ lotId: t.lotId, vol: t.vol }); } });
+        { const v = sum(parts, (x) => x.vol); if (v > 0) { const v0 = R.tirVol[op.lotId] || 0; concMelange(op.lotId, v0, concDe(parts), v); R.tirVol[op.lotId] = v0 + v; } }
+        (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, op.lotId); if (pr) { const v0 = R.tirVol[op.lotId] || 0; prepVerse(op, pr.id, op.lotId, v0, num(u.volL)); R.tirVol[op.lotId] = v0 + num(u.volL); } });
         R.tir[op.lotId] = { lotId: op.lotId, nb: num(op.nbBouteilles), mis: num(op.nbBouteilles), date: op.date };
         applyLignes(op, op.lignes, { kind: 'tirage', lotId: op.lotId, vol: num(op.nbBouteilles) * num(op.volBouteilleL || 0.75), qualif: R.lots[op.lotId] && R.lots[op.lotId].qualif });
         break;
@@ -197,7 +230,8 @@ function replay(db, upTo, opts) {
         const t = R.tir[op.sourceLotId];
         if (!t) warn(op, 'Lot de tirage introuvable (aucune bouteille en stock à cette date).');
         else { if (num(op.nb) > t.nb) warn(op, `Dégorgement de ${fmt(op.nb)} bouteilles pour ${fmt(t.nb)} en stock.`); t.nb = Math.max(0, t.nb - num(op.nb)); t.deg = (t.deg || 0) + num(op.nb); if (t.nb <= 0) setStade(op, op.sourceLotId, stadeRole(db, 'degorgement')); }
-        (op.prepUses || []).forEach((u) => usePrep(op, u, op.sourceLotId));
+        (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, op.sourceLotId); const vd = num(op.nb) * num(op.volBouteilleL || (R.tirVol[op.sourceLotId] && t && t.mis ? R.tirVol[op.sourceLotId] / t.mis : 0.75));
+          const c = pr && R.concPrep[pr.id]; if (c && vd > 0) for (const k in c) { const d = c[k] * num(u.volL) / vd; concAjout(op.sourceLotId, k, d, true); if (k === '@so2') so2Ev(op, op.sourceLotId, d * 10); } });
         applyLignes(op, op.lignes, { kind: 'deg', lotId: op.sourceLotId, vol: null, qualif: null });
         break;
       }
@@ -205,14 +239,14 @@ function replay(db, upTo, opts) {
         moutLots(op).forEach((l) => {
           touch(op, l.lotId);
           mixWarn(op, l.qualifs, `le lot ${l.code || ''} (${cont[l.contenantId] ? cont[l.contenantId].nom : 'cuve'})`);
-          if (l.vol > 0) { addPortion(op, l.lotId, l.contenantId, l.vol, l.portionId); flow(op, 'entree', l.vol, { lotId: l.lotId, mout: true }); checkCap(op, l.contenantId); }
+          if (l.vol > 0) { addPortion(op, l.lotId, l.contenantId, l.vol, l.portionId, {}); flow(op, 'entree', l.vol, { lotId: l.lotId, mout: true }); checkCap(op, l.contenantId); }
         });
         break;
       }
       case 'reprise': {
         touch(op, op.lotId);
         if (num(op.nbBouteilles) > 0) R.tir[op.lotId] = { lotId: op.lotId, nb: num(op.nbBouteilles), mis: num(op.nbBouteilles), date: op.date, reprise: true };
-        if (num(op.volL) > 0 && op.contenantId) { addPortion(op, op.lotId, op.contenantId, num(op.volL), op.portionId); flow(op, 'entree', num(op.volL), { lotId: op.lotId, reprise: true }); checkCap(op, op.contenantId); }
+        if (num(op.volL) > 0 && op.contenantId) { addPortion(op, op.lotId, op.contenantId, num(op.volL), op.portionId, {}); flow(op, 'entree', num(op.volL), { lotId: op.lotId, reprise: true }); checkCap(op, op.contenantId); }
         break;
       }
       default: break;

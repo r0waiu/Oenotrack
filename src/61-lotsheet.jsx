@@ -100,6 +100,7 @@ function LotSheet({ id, onClose }) {
   const pertes = {}; R.flows.filter((f) => f.lotId === id && (f.kind === 'perte' || f.kind === 'jaugeage')).forEach((f) => { const k = `${f.kind}|${f.typeId || ''}`; pertes[k] = pertes[k] || { kind: f.kind, typeId: f.typeId, L: 0 }; pertes[k].L += f.L; });
   const preps = R.prepUse.filter((u) => u.lotId === id);
   const blocs = {
+    so2: <Sec title="SO₂ total estimé (analyse + ajouts depuis)" className="mb-5"><So2EstimeBloc lotId={id} /></Sec>,
     stades: <StadesFrise lotId={id} onEtape={(preset) => setOpForm({ type: preset && preset.newStade ? opEtapePour(db, preset.newStade) : 'etape', preset })} />,
     fermentation: <FermentationSection lotId={id} />,
     composition: <Sec title="Composition calculée" className="mb-5">
@@ -116,6 +117,7 @@ function LotSheet({ id, onClose }) {
         ]} />
       </Sec>,
     intrants: <Sec title="Intrants cumulés par portion (avec n° de lots fournisseurs)" className="mb-5">
+        <DosesCumuleesTable lotId={id} />
         {Object.keys(byCont).length ? Object.keys(byCont).map((k) => (
           <div key={k} className="mb-3"><div className="mb-1 text-sm font-semibold">{k === '_tirage' ? 'Tirage (mixtion)' : <>Portion en <ContLink id={k} /></>}</div>
             <Tbl rows={byCont[k]} cols={[{ h: 'Date', r: (a) => fmtDate(a.date) }, { h: 'Opération', r: (a) => OP_LABELS[a.opSousType || a.opType] || OP_LABELS[a.opType] }, { h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> }, { h: 'Dose', cls: 'r', r: (a) => (a.dose != null ? <span className={cx('num', a.over && 'text-bad')}>{doseTexte(a.dose, a.unite)}</span> : '—') }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }, { h: '', r: (a) => (a.unauth ? <Chip tone="bad">non autorisé</Chip> : null) }]} /></div>

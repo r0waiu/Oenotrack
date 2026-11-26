@@ -2,6 +2,18 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.30.0-alpha.1 — 26/11/2026
+
+- Catalogues de produits œnologiques préinstallés : Laffort, IOC et Sofralab (Oenofrance, SOEC, Martin Vialatte) — 906 produits, avec leur famille, la dose conseillée, les conditionnements, les mentions bio et vegan et leur source (catalogue, page) ; à vérifier sur la fiche technique avant usage
+- Intrants › Catalogues : masquer un fournisseur ou une marque, rechercher (fournisseur, famille, bio), ajouter un produit à vos produits ; importer un autre catalogue (tableur, PDF lu par le script ou par l’assistant IA) dont les lignes restent « à vérifier » jusqu’à leur validation
+- Saisie d’un intrant : le fournisseur (ou « En stock ») se choisit à chaque ligne, puis ses produits, y compris ceux de ses catalogues ; « ＋ Réception… » enregistre le lot fournisseur sans quitter l’opération
+- Doses cumulées par lot : dose de chaque produit par hL du lot, héritée des lots d’origine au prorata des volumes (assemblages, tirage, liqueurs) ; affichées sur les fiches de lot et de cuve, contrôlées à chaque ajout
+- SO₂ total estimé = dernière analyse + ajouts depuis (produits dont la teneur en SO₂ est connue : « 150 g/L », « 0,5 g/g »…), comparé au plafond de la revendication
+- Intrants › Revendications & plafonds : plafonds de SO₂ total d’exemple (UE, bio, Demeter) « à vérifier », règles de substances (interdiction, dose maximale) ; import d’un cahier des charges (PDF ou texte, script ou assistant IA) dont chaque limite est relue avant d’être appliquée
+- Dépassement d’un plafond (dose, dose cumulée, SO₂ total estimé) : jamais bloqué, mais l’opération exige un motif, tracé avec elle (journal, registre des intrants) ; aussi en saisie groupée
+- Règles d’exemple venues des catalogues marquées « à vérifier » dans « Produits & règles par revendication », avec « ✓ Vérifiée »
+- Onglet Intrants & Stocks traduit dans les six langues (stocks et arrivages, produits et règles, fournisseurs), avec les messages des lignes d’intrants
+
 ## 0.29.0-alpha.1 — 26/11/2026
 
 - Fiches de cuve et de lot personnalisables (« ⚙ Personnaliser la fiche ») : rubriques affichées ou masquées et leur ordre, réglage commun à l’équipe et ajustement de chacun (sur son compte, ou sur l’appareil) ; le stade du vin s’affiche sur la fiche de la cuve

@@ -18,27 +18,31 @@ function PortionSelect({ db, Rd, value, onChange, filter, placeholder = 'Choisir
   return <SI value={value} onChange={onChange} options={o} placeholder={placeholder} />;
 }
 
-/* ---------- lignes d'intrants (produit + lot fournisseur + quantité) ---------- */
+/* ---------- lignes d'intrants (fournisseur, produit + lot fournisseur + quantité) ---------- */
+// 0.30.0-alpha.1 : le fournisseur (ou « En stock ») se choisit à chaque ligne, puis ses produits (y compris ceux de ses catalogues) ;
+// un produit sans lot fournisseur se reçoit depuis la ligne (« ＋ Réception… »)
 function LignesEditor({ db, Rd, lignes, onChange, qualif, vol, cats, hideDose, addLabel = '+ Ajouter un intrant' }) {
-  const prods = db.produits.filter((p) => p.actif !== false && (!cats || cats.includes(p.categorie))).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  const [recep, setRecep] = useState(null);
   const arrivals = (pid) => db.arrivages.filter((a) => a.produitId === pid).map((a) => ({ a, rest: arrivalRest(Rd, a) })).sort((x, y) => (x.a.dluo || '9999') < (y.a.dluo || '9999') ? -1 : 1);
   const upd = (i, patch) => onChange(lignes.map((l, k) => (k === i ? { ...l, ...patch } : l)));
-  const setProd = (i, pid) => { const first = arrivals(pid).find((x) => x.rest > 0) || arrivals(pid)[0]; upd(i, { produitId: pid, arrivageId: first ? first.a.id : '' }); };
+  const setProd = (i, pid, fo) => { const first = arrivals(pid).find((x) => x.rest > 0) || arrivals(pid)[0]; upd(i, { produitId: pid, arrivageId: first ? first.a.id : '', _fo: fo }); };
   return (
     <div className="space-y-2">
       {lignes.map((l, i) => {
         const pr = prodOf(db, l.produitId); const arrs = l.produitId ? arrivals(l.produitId) : [];
         const dose = !hideDose && l.produitId && vol ? doseHL(l.qty, pr.unite, vol) : null;
-        const rule = qualif && pr.categorie && pr.categorie !== 'sec' ? ruleFor(db, l.produitId, qualif) : null;
+        const rule = qualif && pr.categorie && pr.categorie !== 'sec' ? regleEffective(db, pr, qualif) : null; const fo = foDeLigne(db, l);
         const unauth = !!(qualif && pr.categorie && pr.categorie !== 'sec' && !(rule && rule.autorise));
         const over = !!(rule && rule.autorise && rule.doseMax != null && rule.doseMax !== '' && dose != null && dose > num(rule.doseMax));
         const sel = arrs.find((x) => x.a.id === l.arrivageId);
         const ds = sel ? dluoState(sel.a.dluo) : null;
         return (
           <div key={i} className="rounded-md border border-line p-2">
-            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
-              <Group label="Produit"><SI value={l.produitId} onChange={(v) => setProd(i, v)} placeholder="Produit…" options={prods.map((p) => ({ value: p.id, label: `${p.nom} (${p.unite})` }))} /></Group>
-              <Group label="Lot fournisseur (arrivage)"><SI value={l.arrivageId} onChange={(v) => upd(i, { arrivageId: v })} placeholder={l.produitId ? (arrs.length ? 'Lot fournisseur…' : 'Aucun arrivage') : '—'} options={arrs.map((x) => ({ value: x.a.id, label: `${x.a.numLot} · reste ${fmt(x.rest, 2)} ${pr.unite}${x.a.dluo ? ' · DLUO ' + fmtDate(x.a.dluo) : ''}` }))} /></Group>
+            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }} data-ligne-intrant={i}>
+              <Group label="Fournisseur"><FournisseurChoix value={fo} onChange={(v) => upd(i, { _fo: v, produitId: v === fo ? l.produitId : '', arrivageId: v === fo ? l.arrivageId : '' })} /></Group>
+              <Group label="Produit"><ProduitFournisseurChoix fo={fo} value={l.produitId} cats={cats} Rd={Rd} onChange={(v) => setProd(i, v, fo)} /></Group>
+              <Group label="Lot fournisseur (arrivage)"><div className="flex gap-2"><SI value={l.arrivageId} onChange={(v) => upd(i, { arrivageId: v })} placeholder={l.produitId ? (arrs.length ? 'Lot fournisseur…' : 'Aucun arrivage') : '—'} options={arrs.map((x) => ({ value: x.a.id, label: `${x.a.numLot} · reste ${fmt(x.rest, 2)} ${pr.unite}${x.a.dluo ? ' · DLUO ' + fmtDate(x.a.dluo) : ''}` }))} />
+                {l.produitId && !arrs.some((x) => x.rest > 1e-6) ? <Btn size="sm" onClick={() => setRecep({ i, produitId: l.produitId })} title="Enregistrer la réception d’un lot fournisseur de ce produit">＋ Réception…</Btn> : null}</div></Group>
               <Group label={`Quantité${pr.unite ? ` (${pr.unite})` : ''}`}><div className="flex gap-2"><NI value={l.qty} onChange={(v) => upd(i, { qty: v })} placeholder="0" /><Btn kind="danger" size="sm" aria-label="Retirer la ligne" onClick={() => onChange(lignes.filter((_, k) => k !== i))}>✕</Btn></div></Group>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -50,7 +54,8 @@ function LignesEditor({ db, Rd, lignes, onChange, qualif, vol, cats, hideDose, a
           </div>
         );
       })}
-      <Btn size="sm" onClick={() => onChange([...lignes, { produitId: '', arrivageId: '', qty: '' }])}>{addLabel}</Btn>
+      <Btn size="sm" onClick={() => onChange([...lignes, { produitId: '', arrivageId: '', qty: '', _fo: '' }])}>{addLabel}</Btn>
+      {recep ? <ArrivageForm produitId0={recep.produitId} onClose={() => setRecep(null)} onSaved={(aid) => upd(recep.i, { arrivageId: aid })} /> : null}
     </div>
   );
 }

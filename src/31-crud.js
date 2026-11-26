@@ -286,6 +286,9 @@ function produitSave(db, s, id) {
   if (s.fdsNonRequise !== undefined) item.fdsNonRequise = !!s.fdsNonRequise;
   // 0.26.0-alpha.1 : informations du produit (FT, FDS), reprises seulement si elles sont fournies
   PRODUIT_INFOS.forEach(([k, , max]) => { if (s[k] !== undefined) item[k] = String(s[k] == null ? '' : s[k]).trim().slice(0, max); });
+  // 0.30.0-alpha.1 : famille (catalogues), teneur en SO₂ (« 150 g/L », « 0,5 g/g », « 5 g/u ») pour l'estimation du SO₂ total
+  if (s.famille !== undefined) item.famille = CAT_FAM[s.famille] ? s.famille : '';
+  if (s.so2 !== undefined) { const t = String(s.so2 || '').trim().replace(/\s+/g, ' '); if (t && !/^\d+(?:[.,]\d+)?\s*(g|mg)\s*\/\s*(L|mL|kg|g|u)$/i.test(t)) return fail('Teneur en SO₂ : indiquez par exemple « 150 g/L », « 0,5 g/g » ou « 5 g/u ».'); item.so2 = t; }
   if (id) { const p = db.produits.find((x) => x.id === id); if (!p) return fail('Produit introuvable.'); Object.assign(p, item); return okr({ id }); }
   const pid = nid(db, 'pr'); db.produits.push({ id: pid, ...item });
   QUALIFS.forEach((q) => db.regles.push({ produitId: pid, qualifId: q.id, autorise: q.id === 'conv', doseMax: null }));

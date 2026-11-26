@@ -6,7 +6,7 @@ const TABS_REG = {}; // chaque onglet s'enregistre ici (voir 6x-*.jsx)
 const cx = (...a) => a.filter(Boolean).join(' ');
 const useDraft = (init) => { const [v, setV] = useState(init); const set = (k, val) => setV((p) => ({ ...p, [k]: val })); return [v, set, setV]; };
 
-const Chip = ({ tone, children, title, className }) => <span title={title} className={cx('chip', tone && `chip-${tone}`, className)}>{children}</span>;
+const Chip = ({ tone, children, title, className, ...p }) => <span title={title} className={cx('chip', tone && `chip-${tone}`, className)} {...p}>{children}</span>;
 // pastille de revendication : couleur de la liste (variable CSS --q<id>, posée par l'application pour chaque revendication)
 const qStyle = (id) => ({ '--c': `var(--q${qDef(id).id}, #7C8A84)` });
 const QChip = ({ id }) => <span className={`chip chip-c q-${qDef(id).id}`} style={qStyle(id)} title={`Revendication — rang ${rang(id)}`}>{qLabel(id)}</span>;

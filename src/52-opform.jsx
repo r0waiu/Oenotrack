@@ -107,6 +107,8 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   const nDocs = () => (piecesRef.current.length ? ` ${piecesRef.current.length > 1 ? `${piecesRef.current.length} documents joints` : '1 document joint'}.` : '');
   const built = useMemo(() => buildSpec(type, f, db, Rd, old), [f, db, Rd]);
   const pv = useMemo(() => (built.spec ? previewOp(db, built.spec, editId) : null), [built, db, editId]);
+  // dépassement d'un plafond (dose, dose cumulée, SO₂ total estimé) : avertir et exiger le motif, tracé avec l'opération (0.30.0-alpha.1)
+  const [motifDep, setMotifDep] = useState(() => (old && old.depassement && old.depassement.motif) || ''); const deps = (pv && pv.ok && pv.depassements) || [];
   const upd = (patch) => setF((x) => ({ ...x, ...patch }));
   // mesures de jaugeage (📏) gardées avec l'opération, une par champ de volume (0.17.0-alpha.1)
   const jauger = (champ) => (r) => setF((x) => ({ ...x, jauges: [...(x.jauges || []).filter((j) => j.champ !== champ), { champ, contenantId: r.contenantId, baremeId: r.baremeId, mesure: r.mesure, avant: r.avant, apres: r.apres, volL: Math.round(r.volL) }] }));
@@ -127,7 +129,9 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   const valider = () => {
     if (built.error) { toast(built.error, 'bad'); return; }
     if (!old && champEffectif(fcfg, type, 'docs').obligatoire && !piecesRef.current.length && !(prevId && docsOf(db, 'prev', prevId).length)) { toast(`Joignez au moins un document : « ${champEffectif(fcfg, type, 'docs').libelle || 'Documents joints'} » est obligatoire pour cette opération.`, 'bad'); return; }
-    const spec = plan0 && plan0.groupe && !old ? { ...built.spec, groupe: plan0.groupe } : built.spec; // validée seule, une opération d'un groupe planifié y reste (0.29.0-alpha.1)
+    if (deps.length && !String(motifDep || '').trim()) { toast('Dépassement d’un plafond : indiquez le motif (il est tracé avec l’opération).', 'bad'); return; }
+    const spec0 = plan0 && plan0.groupe && !old ? { ...built.spec, groupe: plan0.groupe } : built.spec; // validée seule, une opération d'un groupe planifié y reste (0.29.0-alpha.1)
+    const spec = deps.length ? { ...spec0, depassement: depassementSpec(deps, motifDep, uid) } : old && old.depassement ? { ...spec0, depassement: null } : spec0;
     const r = act((d) => { const r1 = opSave(d, spec, editId, { motif: f.motifRegistre, par: uid, maintenant: new Date().toISOString() }); if (r1 && r1.ok && prevId) previsionStatut(d, prevId, 'realisee', r1.op.id); if (r1 && r1.ok && !old) docsJoindre(d, piecesRef.current, { type: 'op', id: r1.op.id }); return r1; });
     if (r && r.ok) { engage.current = true; toast(`${pv && (pv.warnings.length || pv.alerts.length) ? 'Opération validée — des avertissements sont à vérifier dans le journal.' : prevId ? 'Opération validée : retirée de la liste « À réaliser ».' : old ? 'Opération modifiée.' : 'Opération validée.'}${old ? '' : nDocs()}`); onClose(); }
   };
@@ -392,6 +396,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       {cfgEd ? <FormulaireEditor catId={cat.id} onClose={() => setCfgEd(false)} /> : null}
       {old ? null : <div className="help">« ✓ Valider » enregistre l’opération réalisée (stocks mis à jour){moduleActif(db, 'previsions') ? ' ; « 📋 Planifier » la met dans la liste « À réaliser » sans toucher aux stocks' : ''}.</div>}
       {built.error ? <div className="text-sm text-ink2">{old ? 'Pour enregistrer : ' : 'Pour valider : '}{built.error}{old || !moduleActif(db, 'previsions') ? '' : ' — vous pouvez déjà la planifier.'}</div> : <PreviewBox pv={pv} />}
+      {!built.error && !lecture ? <DepassementBox deps={deps} R={pv && pv.R} motif={motifDep} setMotif={setMotifDep} /> : null}
       {!built.error && built.spec && !lecture && moduleActif(db, 'hygiene') ? <HygControlesNotices spec={built.spec} editId={editId} pv={pv} /> : null}
     </FormSheet>
   );

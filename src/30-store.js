@@ -314,7 +314,7 @@ function opSave(db, spec, editingId, opts) {
   const neuf = old && num(old.av) > APP_NUM;
   // qui a saisi (et corrigé) l'opération : gardé quand on la modifie (la garde des droits ajoute « corrigée par »)
   // saisie groupée (0.29.0-alpha.1) : une opération corrigée seule reste dans son groupe
-  const marques = {}; if (old) ['saisiPar', 'saisiLe', 'modifiePar', 'modifieLe', 'groupe'].forEach((k) => { if (old[k] !== undefined && spec[k] === undefined) marques[k] = old[k]; });
+  const marques = {}; if (old) ['saisiPar', 'saisiLe', 'modifiePar', 'modifieLe', 'groupe', 'depassement'].forEach((k) => { if (old[k] !== undefined && spec[k] === undefined) marques[k] = old[k]; });
   const op = { ...(neuf ? old : {}), ...marques, ...spec, ...(old && old.ficheOrdre ? { ficheOrdre: old.ficheOrdre } : {}), id: old ? old.id : nid(db, 'op'), seq: old ? old.seq : ++db.meta.opSeq, av: neuf ? num(old.av) : APP_NUM };
   // registre des pesées et carnet de pressoir : n° continu, données gardées, motif exigé pour corriger une saisie validée (journal)
   const rg = registreAvantEnregistrer(db, old, op, opts); if (!rg.ok) return rg;
@@ -354,7 +354,11 @@ function previewOp(db, spec, editingId) {
   if (!r.ok) return { ok: false, msg: r.msg, warnings: [], alerts: [], lot: null };
   const R = replay(d, null, typeof hygEvenementsUtiles === 'function' && hygEvenementsUtiles(d) ? { evenements: true } : undefined); // événements : contrôles des plans d'hygiène à la saisie (0.26.0-alpha.1)
   const before = new Set(db.alertes.map((a) => a.id));
-  return { ok: true, op: r.op, warnings: R.warn[r.op.id] || [], alerts: d.alertes.filter((a) => a.opId === r.op.id && a.statut === 'attente' && !before.has(a.id)), lot: r.op.lotId ? (R.lots[r.op.lotId] || null) : null, R };
+  // dépassements (0.30.0-alpha.1) : dose, dose cumulée, SO₂ total estimé des lots que l'opération sulfite au-delà du plafond de leur revendication
+  const depassements = [...(R.depass[r.op.id] || [])]; const just = !!(r.op.depassement && r.op.depassement.motif);
+  Object.keys(R.so2Ev || {}).filter((k) => R.so2Ev[k].some((x) => x.opId === r.op.id)).forEach((lotId) => { const e = so2TotalEstime(d, R, lotId);
+    if (e.depasse) depassements.push({ type: 'so2t', opId: r.op.id, lotId, valeur: e.estime, max: e.plafond.valeur, unite: 'mg/L', qualif: (R.lots[lotId] || {}).qualif, aVerifier: !!e.plafond.aVerifier, justifie: just, estimation: e }); });
+  return { ok: true, op: r.op, warnings: R.warn[r.op.id] || [], alerts: d.alertes.filter((a) => a.opId === r.op.id && a.statut === 'attente' && !before.has(a.id)), lot: r.op.lotId ? (R.lots[r.op.lotId] || null) : null, R, depassements };
 }
 
 /* ---------- campagnes ---------- */

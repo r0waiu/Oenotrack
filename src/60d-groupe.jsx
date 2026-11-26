@@ -58,7 +58,8 @@ function GroupeForm({ action: a0, contIds, gid: gidCorr, prevGid, onClose, onFai
   const inclus = lignes.filter((l) => ovDe(l).inclus);
   const arrs = pr ? db.arrivages.filter((a) => a.produitId === pr.id).map((a) => ({ a, rest: arrivalRest(Rd, a) })) : [];
   const totalQ = sum(inclus, (l) => qteL(l) || 0); const arrSel = arrs.find((x) => x.a.id === c.arrivageId);
-  const prods = db.produits.filter((p) => p.actif !== false && ['oeno', 'aux'].includes(p.categorie)).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  // fournisseur (ou « En stock ») choisi à chaque saisie (0.30.0-alpha.1) ; correction d'un groupe : celui du produit déjà choisi
+  const [foG, setFoG] = useState(() => (l0.produitId ? foDeLigne(db, { produitId: l0.produitId }) : ''));
   const choisirProduit = (pid) => { const L = db.arrivages.filter((a) => a.produitId === pid).map((a) => ({ a, rest: arrivalRest(Rd, a) })).sort((x, y) => ((x.a.dluo || '9999') < (y.a.dluo || '9999') ? -1 : 1)); const f0 = L.find((x) => x.rest > 0) || L[0]; setC((x) => ({ ...x, produitId: pid, arrivageId: f0 ? f0.a.id : '' })); };
   // spécifications (mêmes règles que le formulaire d'une opération)
   const construire = () => {
@@ -81,13 +82,29 @@ function GroupeForm({ action: a0, contIds, gid: gidCorr, prevGid, onClose, onFai
     return { erreurs, out, ignores };
   };
   const C = construire(); const [essai, setEssai] = useState(false);
+  // dépassements (0.30.0-alpha.1) : simulés sur une copie de la base ; un motif commun est exigé et tracé avec chaque opération concernée
+  const [motifDep, setMotifDep] = useState(() => ((anciens.find((o) => o.depassement && o.depassement.motif) || {}).depassement || {}).motif || '');
+  const cleSim = C.erreurs.length || !C.out.length ? '' : JSON.stringify(C.out.map((x) => [x.spec, x.editId]));
+  const sim = useMemo(() => {
+    if (!cleSim) return { deps: [], parOp: {}, R: null };
+    try {
+      const d = clone(db); const r1 = opsGroupeEnregistrer(d, gidCorr || prevGid || groupeNouvelId(d), C.out.map((x) => ({ ...x, spec: { ...x.spec, depassement: undefined } })), exclus, { apercu: true }); if (!r1.ok) return { deps: [], parOp: {}, R: null };
+      const R2 = replay(d); const ids = r1.ids || []; const deps = []; const parOp = {};
+      ids.forEach((id, i) => (R2.depass[id] || []).forEach((x) => { deps.push(x); (parOp[i] = parOp[i] || []).push(x); }));
+      Object.keys(R2.so2Ev || {}).forEach((lotId) => { const ev = R2.so2Ev[lotId].filter((x) => ids.includes(x.opId)); if (!ev.length) return; const e = so2TotalEstime(d, R2, lotId); if (!e.depasse) return;
+        const x = { type: 'so2t', lotId, valeur: e.estime, max: e.plafond.valeur, unite: 'mg/L', qualif: (R2.lots[lotId] || {}).qualif, aVerifier: !!e.plafond.aVerifier }; deps.push(x); uniq(ev.map((y) => ids.indexOf(y.opId))).forEach((i) => { (parOp[i] = parOp[i] || []).push(x); }); });
+      return { deps, parOp, R: R2 };
+    } catch (e) { console.error(e); return { deps: [], parOp: {}, R: null }; }
+  }, [cleSim, db]); // eslint-disable-line react-hooks/exhaustive-deps
   const valider = () => {
     setEssai(true); if (C.erreurs.length) { toast(C.erreurs[0], 'bad'); return; } if (!C.out.length) { toast('Aucune ligne à enregistrer.', 'bad'); return; }
+    if (sim.deps.length && !String(motifDep || '').trim()) { toast('Dépassement d’un plafond : indiquez le motif (il est tracé avec les opérations concernées).', 'bad'); return; }
+    const out = C.out.map((x, i) => { const dp = sim.parOp[i]; const old = x.editId ? db.ops.find((o) => o.id === x.editId) : null; return dp && dp.length ? { ...x, spec: { ...x.spec, depassement: depassementSpec(dp, motifDep, uid) } } : old && old.depassement ? { ...x, spec: { ...x.spec, depassement: null } } : x; });
     let gidFait = null;
     const r = act((d) => {
       const gid = gidCorr || prevGid || groupeNouvelId(d); gidFait = gid;
-      const r1 = opsGroupeEnregistrer(d, gid, C.out, exclus, { par: uid, maintenant: new Date().toISOString() }); if (!r1.ok) return r1;
-      C.out.forEach((x, i) => { if (x.prevId) previsionStatut(d, x.prevId, 'realisee', r1.ids[i]); });
+      const r1 = opsGroupeEnregistrer(d, gid, out, exclus, { par: uid, maintenant: new Date().toISOString() }); if (!r1.ok) return r1;
+      out.forEach((x, i) => { if (x.prevId) previsionStatut(d, x.prevId, 'realisee', r1.ids[i]); });
       return r1;
     }, `${C.out.length} opération(s) enregistrée(s) en une saisie groupée${C.ignores.length ? ` (${C.ignores.length} ligne(s) laissée(s) de côté)` : ''}.`);
     if (r && r.ok) { onClose(); if (onFait) onFait(); if (gidFait && openGroupe) openGroupe({ gid: gidFait }); }
@@ -114,7 +131,8 @@ function GroupeForm({ action: a0, contIds, gid: gidCorr, prevGid, onClose, onFai
         {A.stade ? <Field label="Nouveau stade"><SI plain value={c.newStade} onChange={(v) => setCc('newStade', v)} options={[{ value: '', label: 'Choisir…' }, ...stadeOptions(db)]} /></Field> : null}
       </div>
       {A.intrant ? <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
-        <Group label="Produit"><SI value={c.produitId} onChange={choisirProduit} placeholder="Produit…" options={prods.map((p) => ({ value: p.id, label: `${p.nom} (${p.unite})` }))} /></Group>
+        <Group label="Fournisseur"><FournisseurChoix value={foG} onChange={(v) => { setFoG(v); if (v !== foG) setC((x) => ({ ...x, produitId: '', arrivageId: '' })); }} /></Group>
+        <Group label="Produit"><ProduitFournisseurChoix fo={foG} value={c.produitId} cats={['oeno', 'aux']} Rd={Rd} onChange={choisirProduit} /></Group>
         <Group label="Lot fournisseur (arrivage)"><SI value={c.arrivageId} onChange={(v) => setCc('arrivageId', v)} placeholder={pr ? (arrs.length ? 'Lot fournisseur…' : 'Aucun arrivage') : '—'} options={arrs.map((x) => ({ value: x.a.id, label: `${x.a.numLot} · reste ${fmt(x.rest, 2)} ${unite}` }))} /></Group>
         <Field label={<>Dose{doseUnit(unite) ? <span translate="no"> ({doseUnit(unite)})</span> : null}</>} help="Commune à toutes les cuves (modifiable ligne par ligne) : la quantité de chaque cuve = dose × volume."><NI value={c.dose} onChange={(v) => setCc('dose', v)} placeholder="ex. 3" disabled={!pr || !doseUnit(unite)} /></Field>
       </div> : null}
@@ -137,6 +155,7 @@ function GroupeForm({ action: a0, contIds, gid: gidCorr, prevGid, onClose, onFai
       {videsSel.length ? <p className="help">Cuve(s) vide(s) à cette date, laissée(s) de côté : <span translate="no">{videsSel.map((id) => contName(db, id)).join(', ')}</span>.</p> : null}
       {C.ignores.length && essai ? <p className="help">{C.ignores.length} ligne(s) laissée(s) de côté : <span translate="no">{C.ignores.join(' · ')}</span>.</p> : null}
       {C.erreurs.length && essai ? <Notice tone="bad" title="À corriger">{C.erreurs.slice(0, 4).map((x, i) => <div key={i}>{x}</div>)}</Notice> : null}
+      <DepassementBox deps={sim.deps} R={sim.R} motif={motifDep} setMotif={setMotifDep} />
       <Field label="Notes (communes)"><TI value={c.notes} onChange={(v) => setCc('notes', v)} /></Field>
       <p className="help">Une opération est enregistrée par cuve, avec les mêmes contrôles qu’une saisie cuve par cuve (doses maximales, produits autorisés, stocks) ; elles restent reliées : correction, annulation et fiche à imprimer en une fois.</p>
     </FormSheet>
