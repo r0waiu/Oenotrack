@@ -46,6 +46,12 @@ function MdpChiffrementDialog({ d, onFin }) {
   );
 }
 
+// clé IA commune de l'espace de travail (0.38.0-alpha.1) : rechiffrée avec la nouvelle clé de l'équipe au changement de mot de passe
+async function iaCleReChiffrer(db, kNouveau) {
+  const r = iaEspaceReglage(db); if (!r || !r.cle) return null; const e = enveloppeChiffree(r.cle); if (!e) return null;
+  const ancien = await chiffrementCleAppareil(e.chiffrement.cleId); if (!ancien) return null; // illisible ici : l'administrateur la ressaisira
+  try { const v = await dechiffrerTexte(ancien, r.cle); return { cle: await chiffrerTexte(kNouveau, v), cleId: kNouveau.cleId }; } catch (er) { return null; }
+}
 // carte « Chiffrement » (Paramètres › Sauvegarde & Drive)
 function ChiffrementCard() {
   const { db, act, confirm, toast, uid, secu } = useApp(); const reg = chiffrementReglage(db); const [dlg, setDlg] = useState(null); const [, setN] = useState(0);
@@ -54,7 +60,7 @@ function ChiffrementCard() {
   const activer = (mode) => setDlg({ mode, raison: mode === 'activer' ? 'Les prochaines sauvegardes et la synchronisation avec le Drive seront chiffrées avec ce mot de passe, commun à toute l’équipe.' : 'Les fichiers déjà enregistrés restent lisibles avec l’ancien mot de passe ; les prochains utiliseront le nouveau. Chaque appareil devra saisir le nouveau mot de passe.' });
   const fin = async (k) => {
     const m = dlg && dlg.mode; setDlg(null); if (!k) return;
-    if (m === 'activer' || m === 'changer') { const nouveau = await chiffrementReglageNouveau(k, uid || ''); const r = act((d) => { d.settings.chiffrement = nouveau; return okr(); }, m === 'activer' ? 'Chiffrement activé : prochaines sauvegardes et synchronisations chiffrées.' : 'Mot de passe de chiffrement changé.'); if (r && r.ok) chiffrementRetenir(k); }
+    if (m === 'activer' || m === 'changer') { const nouveau = await chiffrementReglageNouveau(k, uid || ''); const ia = await iaCleReChiffrer(db, k); const r = act((d) => { d.settings.chiffrement = nouveau; if (ia) d.settings.ia = { ...d.settings.ia, ...ia }; return okr(); }, m === 'activer' ? 'Chiffrement activé : prochaines sauvegardes et synchronisations chiffrées.' : 'Mot de passe de chiffrement changé.'); if (r && r.ok) chiffrementRetenir(k); }
     setN((x) => x + 1);
   };
   const desactiver = async () => { if (!(await confirm({ title: 'Désactiver le chiffrement ?', body: 'Les prochaines sauvegardes et la synchronisation avec le Drive seront de nouveau en clair. Les fichiers déjà chiffrés restent lisibles avec le mot de passe.', ok: 'Désactiver', danger: true }))) return; act((d) => { d.settings.chiffrement = { ...(d.settings.chiffrement || {}), actif: false }; return okr(); }, 'Chiffrement désactivé.'); };
@@ -63,7 +69,7 @@ function ChiffrementCard() {
   return (
     <section className="card p-4" aria-labelledby="svch" data-chiffrement={reg ? (cleOK ? 'actif' : 'sans-cle') : 'inactif'}>
       <div className="flex flex-wrap items-center gap-3"><div className="sauv-ic" aria-hidden="true">🔒</div><h3 id="svch" className="text-lg font-semibold">Chiffrement des sauvegardes et du Drive</h3>{reg ? <Chip tone="ok">activé</Chip> : <Chip>désactivé</Chip>}</div>
-      <p className="mt-2 text-sm">Un mot de passe commun à l’équipe chiffre (AES-256) ce qui quitte l’appareil : sauvegarde complète, fichier du Drive et ses copies, documents joints envoyés au Drive, fichier de synchronisation. Les données restent en clair sur chaque appareil, qui garde sa clé.</p>
+      <p className="mt-2 text-sm">Un mot de passe commun à l’équipe chiffre (AES-256) ce qui quitte l’appareil : sauvegarde complète, fichier du Drive et ses copies, documents joints envoyés au Drive, fichier de synchronisation. Sur chaque appareil, les données sont aussi chiffrées par le coffre de l’appareil, qui garde la clé de l’équipe.</p>
       {reg ? <div className="mt-2 flex flex-wrap items-center gap-2 text-sm"><span>Depuis le </span><span className="num">{fmtDate(reg.depuis)}</span><span> · cet appareil :</span>{cleOK ? <Chip tone="ok">clé enregistrée</Chip> : <Chip tone="warn">mot de passe à saisir</Chip>}</div> : null}
       {!dispo ? <div className="mt-2"><Notice tone="warn" title="Indisponible ici">Le chiffrement demande une connexion sécurisée (https) ou l’application installée.</Notice></div> : null}
       <div className="mt-3 flex flex-wrap gap-2">

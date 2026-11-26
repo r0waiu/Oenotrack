@@ -7,19 +7,20 @@ Mémoire du projet pour Claude et pour le vigneron. Œnotrack sert à la traçab
 ## 1. Architecture et stack
 
 - **Local-first, sans serveur.** L'application tient en une seule page React : `dist/cuverie.html`. Tout se calcule dans le navigateur, et aucune donnée n'est envoyée à l'éditeur.
-- **Bibliothèques** :
-  - React 18.3.1 UMD et Tailwind 3.4.17 (CDN) ;
-  - à la demande : pdf-lib 1.17.1, xlsx 0.18.5, pdfjs-dist 6.2.108, tesseract.js 5.1.1.
-  - Build : esbuild (`/opt/npm-tools/node_modules`). Tests : Playwright/Chromium.
+- **Bibliothèques** (0.38 : versions figées et vérifiées, `16r-bibliotheques.js` → `BIB_TABLE` entre `/*BIB-DEBUT*/` et `/*BIB-FIN*/`) :
+  - React 18.3.1 UMD (balises avec `integrity`) ; Tailwind 3.4.17 **précompilé** par `build.mjs` (`<style id="oenotrack-tailwind">`, configuration `TW_CONFIG` dans `build.mjs`), plus de compilateur chargé ;
+  - à la demande : pdf-lib 1.17.1, xlsx 0.18.5, pdfjs-dist 6.2.108, tesseract.js 5.1.1 — `bibScript(nom)` (attribut `integrity`), `bibModule` / `bibModuleUrl` (octets vérifiés en SHA-256 puis importés depuis la mémoire), `bibPdfjsBase()` ;
+  - fichier seul (`dist/cuverie.html`) : jsDelivr `/npm/` (octets du paquet npm) + Google Fonts ; Œnotrack en ligne : tout dans `vendor/` (`<meta name="oenotrack-bibliotheques" content="vendor/">`), aucun CDN ;
+  - `build.mjs` compare chaque empreinte aux paquets installés et s'arrête si l'une diffère ; changer de version = mettre à jour `BIB_TABLE` (sri, sha256) ;
+  - Build : esbuild, tailwindcss (`/opt/npm-tools/node_modules`). Tests : Playwright/Chromium.
 - **Stockage navigateur** :
-  - `localStorage` :
-    - `oenotrack-db-v2` : la base JSON ; l'ancienne clé `cuverie-champenoise-db-v1` est migrée ;
+  - `localStorage` (0.38 : la base et les secrets y sont des **enveloppes chiffrées** du coffre de l'appareil, voir § Sécurité) :
+    - `oenotrack-db-v2` : la base JSON (enveloppe `{ format: 'oenotrack-coffre', coffre: { id }, nom, iv, donnees }`) ; l'ancienne clé `cuverie-champenoise-db-v1` est migrée ;
+    - `oenotrack-coffre-secrets` : secrets chiffrés (`iaCles`, `chiffrementCle`, `cloudJetons`) ; `oenotrack-ia` ne garde que les choix (service, modèles, `source`, `memoire`) ;
     - `oenotrack-langue` ;
     - `oenotrack-config` ;
-    - jetons cloud ;
-    - clé de chiffrement **sur l'appareil seulement** ;
-    - commodités de cet appareil : `oenotrack-recap-intrants` / `oenotrack-recap-maintenance` (colonnes des fiches récapitulatives), `oenotrack-maint-vue`.
-  - IndexedDB : documents joints (`45-docs`), instantanés de synchronisation et liens vers les dossiers choisis (`68f-drive` : clés `dossier`, `reseau`), points de restauration (`44c-garde`).
+    - commodités de cet appareil : `oenotrack-recap-intrants` / `oenotrack-recap-maintenance` (colonnes des fiches récapitulatives), `oenotrack-maint-vue`, `oenotrack-etiquettes` (format des étiquettes QR, planche personnalisée `perso`, `contour`).
+  - IndexedDB : documents joints (`45-docs`), instantanés de synchronisation et liens vers les dossiers choisis (`68f-drive` : clés `dossier`, `reseau`), points de restauration (`44c-garde`) — textes et documents chiffrés par le coffre (`coffreTexteChiffrer`, `coffreBlobChiffrer`, ceux d'avant 0.38 lus tels quels) ; `oenotrack-coffre` (enregistrement du coffre : clé maîtresse **non extractible**, clé de données emballée, mode).
 - **Moteur rejoué.** La base stocke des *opérations*. `replay()` / `getR(db, date)` (`20-engine.js`) recalcule les lots, les portions, les volumes, les bouteilles sur lattes, les flux et les doses cumulées. On ne stocke jamais d'état dérivé.
   - L'interface affiche `campEtatR(db, camp)` (`30-store.js`) : état complet, sauf pour une campagne **antérieure** (`anterieure: true`, posé par `campCreate` quand elle finit avant toutes les autres), rejouée jusqu'à sa fin — elle démarre vide.
 - **Synchronisation** (`32-sync.js`, `33-cloud.js`, `33c-dossier-reseau.js`, `34-cloud-fournisseurs.js`, `68f-drive.jsx`, `68g-stockage.jsx`, `68p-dossier-reseau.jsx`) :
@@ -52,7 +53,22 @@ Mémoire du projet pour Claude et pour le vigneron. Œnotrack sert à la traçab
   - détection à l'import d'une FT / FDS (`ficheDetections` → clés `allergenesListe`, `rev:<id>`, `contactAlimentaire`) : propositions cochées dans la revue du dépôt (`detectionPropositions`), décochées si elles changeraient un choix vérifié ; reprise par `produitInfosAppliquer` (allergènes ajoutés, jamais retirés ; règle marquée « lu dans une FT / FDS déposée », à vérifier) ;
   - fiches récapitulatives à colonnes choisies (`RECAP_INTRANTS_COLS`, `recapIntrants`, `RecapSheet` : impression, PDF, HTML, CSV via `recapCsv`).
 - **Produits de maintenance** (0.36, `16q-produits-maintenance.js`, `66f-produits-maintenance.jsx`, Équipements › Maintenance › Produits de maintenance) : `db.produitsMaintenance = [{ id, nom, fournisseur, fabricant, reference, usage, contactAlimentaire, caveVinif ('oui' | 'non' | ''), composition, stockage, unite, suiviStock, seuil, champs [{ label, valeur }], fdsNonRequise, actif, notes }]` ; stock recalculé depuis `db.mouvementsMaintenance = [{ id, produitId, date, type (entree | sortie | regul), qty, motif, numLot, compte?, notes, par, le }]`, jamais négatif ; documents `cible { type: 'produitMaintenance' }` (FDS, FT, attestation contact alimentaire), même dépôt groupé que les intrants ; fiche récapitulative `recapMaintenance`. Droits : module `equipements` ; régularisations d'intrants : module `intrants`.
-- **IA optionnelle** (`17-ia.js`, `68k-ia.jsx`) : Claude, OpenAI, Gemini ou Mistral avec **la clé de l'utilisateur**, gardée en localStorage et jamais placée dans la base, la synchronisation ou les sauvegardes.
+- **IA optionnelle** (`17-ia.js`, `68k-ia.jsx`) : Claude, OpenAI, Gemini, Mistral, OpenRouter ou service compatible :
+  - clé **personnelle** dans le coffre de l'appareil (secret `iaCles`, chiffré) ou en mémoire seulement (`memoire`) ; jamais dans la base, la synchronisation ou les sauvegardes ;
+  - **espace de travail** (0.38) : `db.settings.ia = { fournisseur, modele, url, cle, cleId, masque, perso: 'tous' | 'aucun' | 'choisis', persoUtilisateurs, par, le }` réglé par les administrateurs (`gardeDroits` : droit « utilisateurs ») ; `cle` = enveloppe `oenotrack-chiffre` chiffrée avec la **clé de l'équipe** (chiffrement des sauvegardes obligatoire), déchiffrée en mémoire par `useIaEspace` (App) → `_iaEspace` ; rechiffrée au changement du mot de passe de l'équipe (`iaCleReChiffrer`) ;
+  - `iaPersoAutorise(db, uid)` (sans identifiants : oui ; administrateurs : toujours) ; `iaActive()` choisit la clé (`source` : `auto` / `perso` / `espace`).
+- **Étiquettes QR** (`60e-qr.jsx`, `16j-cave.js`) : A4 24 × 70 × 37 mm, A6, et planche A4 personnalisée (`etiqPersoNorm`, `etiqPersoMise` : colonnes × lignes, largeur × hauteur, marges, espacements, `ETIQ_PERSO_MODELES` « à vérifier »).
+- **Impression des couleurs** : `print-color-adjust: exact` sur tout en `@media print` (`head.html`) et dans les fichiers HTML exportés (fiches, rapports) — les fonds s'impriment même sans « graphiques d'arrière-plan ».
+
+### Sécurité (architecture sans serveur, 0.38)
+
+- **Chiffrement au repos sur l'appareil** (`33d-coffre.js`, `68q-coffre.jsx`) : AES-256-GCM avec une clé de données (DEK) emballée par une clé maîtresse non extractible (IndexedDB `oenotrack-coffre`, mode `appareil`) ou par une clé PBKDF2 (600 000 it.) d'un **mot de passe de l'appareil** demandé à l'ouverture (mode `mdp`, `CoffrePorte` avant `App`). Lecture synchrone de la copie claire en mémoire (`coffreLire`, `coffreEcrire` : chiffrement en arrière-plan, événement `oenotrack-stockage`). Données authentifiées : `oenotrack-coffre|id|clé de stockage`.
+  - Migration transparente : base et secrets en clair (versions antérieures, autre voie) chiffrés à l'ouverture après relecture ; données écrites à côté de l'enveloppe par une version antérieure réunies (`coffreAncien` + `syncFusion(null, …)`).
+  - Clé perdue : écran « illisible », rien n'est écrasé, `coffreRepartir` met l'enveloppe de côté (`oenotrack-db-v2-illisible-<date>`).
+  - Sans Web Crypto ni IndexedDB (page en http hors localhost) : rien n'est chiffré, comme avant (signalé dans Paramètres).
+- **Hors de l'appareil** : chiffrement de l'équipe (`33b`) pour sauvegardes, Drive, dossier partagé ; sa clé est désormais dans le coffre (plus en clair).
+- **Clé d'API** : coffre ou mémoire ; clé commune chiffrée avec la clé de l'équipe ; CSP `connect-src` limitée (exfiltration par un script injecté). Limite connue : une extension compromise s'exécutant dans la page peut toujours utiliser une clé déchiffrée — l'option « session seulement » et la clé commune révocable réduisent l'exposition.
+- **Chaîne d'approvisionnement** : `tools/paquet-web.py` copie les bibliothèques et polices (Fontsource) dans `vendor/` en vérifiant les empreintes, écrit la CSP (`script-src 'self'` + empreintes SHA-256 des scripts en ligne + `'wasm-unsafe-eval'` + GIS ; `connect-src` : services d'Œnotrack + `localhost` + `config.json › securite.connexions`), et le service worker met `vendor/` en cache (hors-ligne).
 
 ## 2. Structure
 
@@ -88,6 +104,10 @@ dist/       sortie (non versionnée)
 | Impression, PDF | `49-pdf` | `70-report`, `61d-visuel`, `46-fiches` |
 | Navigation, onglets, modules, onglet d'ouverture | `31-crud` (`MODULES_DEFAUT`, `MODULES_DANS`, `ONGLETS_GROUPES`, `ongletOuverture`) | `90-app` (`TABS_REG`, `ONGLET_GROUPE_DEFS`), `68h-modules` |
 | Synchronisation, dossier réseau de l'entreprise | `32-sync`, `33-cloud`, `33c-dossier-reseau`, `34-cloud-fournisseurs` | `68f-drive`, `68g-stockage`, `68p-dossier-reseau` |
+| Coffre de l'appareil (chiffrement au repos, mot de passe de l'appareil) | `33d-coffre` | `68q-coffre` (`CoffrePorte`, `CoffreCard`) |
+| Bibliothèques vérifiées (versions, empreintes, vendor/) | `16r-bibliotheques` | `49-pdf`, `57-jauge` ; `build.mjs`, `tools/paquet-web.py` |
+| Assistant IA (clés personnelles, espace de travail, droits) | `17-ia` | `68k-ia` (`IaEspaceCard`, `useIaEspace`) |
+| Étiquettes QR (A4, A6, planche personnalisée) | `16j-cave` | `60e-qr` |
 
 ### Navigation (0.34.0-alpha.1)
 
@@ -103,6 +123,7 @@ dist/       sortie (non versionnée)
   - les campagnes figées ne sont pas modifiées ; les pesées et marcs validés ne changent qu'avec un motif tracé ;
   - une campagne créée avant les campagnes existantes démarre vide (`anterieure: true`) : jamais de lots ni de volumes repris des campagnes suivantes, et leur état ne change pas ;
   - à chaque version : une fixture `test/fixtures/base-X.json`, le moteur précédent gelé dans `test/anciennes/`, et un bloc de compatibilité dans `engine.test.js` (ouvrir, modifier et synchroniser dans les deux sens).
+- **Sécurité** : jamais de secret en clair dans le navigateur ni dans la base (coffre de l'appareil, clé de l'équipe) ; jamais de bibliothèque non vérifiée ; un nouvel hôte appelé par l'application doit être ajouté à `CONNECT` de `tools/paquet-web.py` (CSP).
 - **Synchronisation** : rien n'est jamais perdu. Un conflit se résout en gardant la version la plus récente et en journalisant l'autre. Toute nouvelle collection est déclarée dans `SYNC_NOMS`, et dans `GARDE_CLES` ou `GARDE_PARAMS`.
 - **Vocabulaire champenois exact** (ne pas traduire ni « simplifier » en français) :
   - vendange et pressurage : moût, débourbage, bourbes, lies, cuvée, 1ère et 2ème taille, rebêches, marc, carnet de pressoir, registre des pesées ;
@@ -112,13 +133,14 @@ dist/       sortie (non versionnée)
 - **Impression** :
   - préserver les mises en page et couleurs `@media print` de `head.html` et les rapports (`ReportHead`, formes logigramme / frise / tableau) ;
   - garder l'impression directe par zone (`#zone-impression`, `html.impression-zone`), les pages `@page` A4 portrait / paysage / A3, `.no-print`, et les sauts de page `.rpt-item` / `.fiche` ;
-  - l'orientation s'écrit `paysage` / `portrait`, jamais `landscape`.
+  - l'orientation s'écrit `paysage` / `portrait`, jamais `landscape` ;
+  - les couleurs s'impriment telles qu'à l'écran : garder `print-color-adjust: exact` (règle globale de `@media print` et en-tête des HTML exportés).
 - **Traductions obligatoires** : toute modification d'interface est traduite dans les 6 langues (fr, en, es, it, de, pt), dans une nouvelle table `17x-trad-NNN.js` :
-  - lignes exactes, ou `TRAD_MOTIFS` avec `{a}`…`{j}` ;
+  - lignes exactes, ou `TRAD_MOTIFS` avec `{a}`…`{j}` (éviter `{b}` = « s » de pluriel : reformuler) ;
   - les données sont marquées `translate="no"` (libellés de produits, lots, appellations).
 - **Confidentialité** :
   - NOTES.md, `test/t37.mjs`, les PDF et données réelles de l'exploitation et le schéma XSD des douanes ne vont **jamais** dans le dépôt public ni dans les fixtures (données fictives uniquement) ;
-  - la clé de chiffrement et les clés d'API restent sur l'appareil.
+  - la clé de chiffrement et les clés d'API personnelles restent sur l'appareil (coffre) ; la clé IA commune n'entre dans la base que chiffrée avec la clé de l'équipe.
 
 ## 4. Conventions de développement
 
@@ -128,7 +150,7 @@ node test/engine.test.js                     # moteur (OENOTRACK_XSD_DTI=chemin.
 OENOTRACK_TESTS=/tmp/x node test/tNN.mjs     # un test d'interface (relancer toute la suite tNN avant publication)
 node tools/textes-a-traduire.cjs [fichiers]  # textes non traduits (comparer avec la version précédente)
 node tools/changelog.mjs                     # CHANGELOG.md depuis CHANGELOG de 10-core.js
-python3 tools/paquet-web.py                  # site + zip (dist/web) ; à la livraison, recopier index.html, sw.js, licence.html à la racine
+python3 tools/paquet-web.py                  # site + zip (dist/web, avec vendor/ et CSP) ; à la livraison, recopier index.html, sw.js, licence.html et vendor/ à la racine
 python3 tools/depot-github.py <dépôt>        # copie publique (sans fichiers privés)
 ```
 
@@ -146,7 +168,9 @@ python3 tools/depot-github.py <dépôt>        # copie publique (sans fichiers p
 - **Tests** :
   - tout nouveau comportement du moteur a son bloc dans `engine.test.js` (exposer les fonctions dans la liste `return {…}` et ajouter le fichier à `files`) ;
   - toute nouvelle interface a un `tNN.mjs` (le CSS met en capitales `th`, `.lbl` et les pastilles : utiliser des regex `/i`) ; le harnais `ui.mjs` passe par « Vinification » quand un test clique `#tab-cuverie` / `#tab-ops` / `#tab-previsions` depuis un autre onglet ;
-  - outils de test attendus dans `/opt/npm-tools/node_modules` : esbuild, pdf-lib, jszip, pdfjs-dist, typescript, playwright (lien vers l'installation globale) ;
+  - outils attendus dans `/opt/npm-tools/node_modules` : esbuild, tailwindcss@3.4.17, react@18.3.1, react-dom@18.3.1, pdf-lib@1.17.1, xlsx@0.18.5, pdfjs-dist@6.2.108, tesseract.js@5.1.1, tesseract.js-core, @tesseract.js-data/fra, @fontsource/* (16 familles), jszip, typescript, playwright (lien vers l'installation globale) ;
+  - harnais `ui.mjs` (0.38) : attributs `integrity` retirés et propriété neutralisée (copies de test), sauf `open({ sri: true })` ; `localStorage.getItem` d'une enveloppe du coffre rend la copie claire (`window.__coffreClair`, crochet posé seulement si `window.__oenotrackTests`) ; `localStorage.__brut(k)` lit l'enveloppe ; le coffre n'est actif qu'en `https: true` (Web Crypto) ;
+  - `t38`, `t73` testent le paquet web : lancer `python3 tools/paquet-web.py` avant ;
   - vérifier aussi l'absence de « ✗ » dans les journaux.
 - **Collaboration** :
   - carte blanche sur la technique ;

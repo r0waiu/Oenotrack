@@ -405,7 +405,7 @@ const FICHE_CSS_KEY = '/* fiches d’enregistrement */';
 function ficheHtml(node, title, orientation) {
   const css = Array.from(document.querySelectorAll('style')).map((s) => s.textContent).join('\n'); const i = css.indexOf(FICHE_CSS_KEY); const j = css.indexOf('/* fin fiches */', i);
   const fcss = i >= 0 && j > i ? css.slice(i, j) : '';
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${title}</title><style>body{margin:0;background:#fff}@page{size:A4 ${orientation === 'portrait' ? 'portrait' : 'landscape'};margin:10mm}${fcss}.fiche{width:auto!important;margin:0;zoom:1!important}.fiche+.fiche{break-before:page}</style></head><body>${node ? node.innerHTML : ''}</body></html>`;
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${title}</title><style>*,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}body{margin:0;background:#fff}@page{size:A4 ${orientation === 'portrait' ? 'portrait' : 'landscape'};margin:10mm}${fcss}.fiche{width:auto!important;margin:0;zoom:1!important}.fiche+.fiche{break-before:page}</style></head><body>${node ? node.innerHTML : ''}</body></html>`;
 }
 // n° de fiche : préfixe du modèle, date (AAMMJJ) et rang de la fiche du jour — ex. MVT-261119-1
 const ordreAuto = (db, tpl, date, offset = 0) => `${tpl.prefixe || 'FIC'}-${date.slice(2, 4)}${date.slice(5, 7)}${date.slice(8, 10)}-${(db.fiches || []).filter((y) => y.modele === tpl.id && y.date === date).length + 1 + offset}`;

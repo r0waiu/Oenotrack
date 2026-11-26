@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
+import crypto from 'crypto';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const esbuild = require('/opt/npm-tools/node_modules/esbuild');
@@ -34,7 +35,34 @@ try {
 }
 fs.writeFileSync(path.join(distDir, 'app.js'), out.code);
 
+// 0.38.0-alpha.1 : Tailwind précompilé (plus de compilateur chargé depuis un CDN à l'ouverture) et bibliothèques vérifiées
+// (empreintes de src/16r-bibliotheques.js comparées aux paquets npm installés : la construction s'arrête si l'une ne correspond plus)
+const NM = '/opt/npm-tools/node_modules';
+const bibTexte = fs.readFileSync(path.join(srcDir, '16r-bibliotheques.js'), 'utf8');
+const BIB = JSON.parse(bibTexte.slice(bibTexte.indexOf('{', bibTexte.indexOf('/*BIB-DEBUT*/')), bibTexte.lastIndexOf('}', bibTexte.indexOf('/*BIB-FIN*/')) + 1));
+const bibFichier = (b) => path.join(NM, b.npm.replace(/@[^@/]+$/, ''), b.fichier);
+const bibPb = [];
+for (const [nom, b] of Object.entries(BIB)) {
+  const f = bibFichier(b); if (!fs.existsSync(f)) { bibPb.push(`${nom} : ${f} absent (npm install ${b.npm})`); continue; }
+  const v = JSON.parse(fs.readFileSync(path.join(NM, b.npm.replace(/@[^@/]+$/, ''), 'package.json'), 'utf8')).version; if (`${b.npm.replace(/@[^@/]+$/, '')}@${v}` !== b.npm) bibPb.push(`${nom} : version ${v} installée, ${b.npm} attendue`);
+  const o = fs.readFileSync(f); const h = `sha384-${crypto.createHash('sha384').update(o).digest('base64')}`; if (h !== b.sri) bibPb.push(`${nom} : empreinte ${h} ≠ ${b.sri}`);
+  if (b.sha256 && `sha256-${crypto.createHash('sha256').update(o).digest('base64')}` !== b.sha256) bibPb.push(`${nom} : empreinte SHA-256 différente`);
+}
+if (bibPb.length) { console.error('BIBLIOTHÈQUES NON VÉRIFIÉES\n' + bibPb.join('\n')); process.exit(1); }
+const TW_CONFIG = {
+  content: [{ raw: jsx, extension: 'jsx' }, { raw: fs.readFileSync(path.join(srcDir, 'head.html'), 'utf8'), extension: 'html' }],
+  theme: { extend: {
+    colors: { bg: 'var(--bg)', surface: 'var(--surface)', surface2: 'var(--surface2)', ink: 'var(--ink)', ink2: 'var(--ink2)', line: 'var(--line)', accent: 'var(--accent)', accentSoft: 'var(--accentSoft)', accentInk: 'var(--accentInk)', gold: 'var(--gold)', goldSoft: 'var(--goldSoft)', ok: 'var(--ok)', okSoft: 'var(--okSoft)', warn: 'var(--warn)', warnSoft: 'var(--warnSoft)', bad: 'var(--bad)', badSoft: 'var(--badSoft)', qconv: 'var(--qconv)', qbio: 'var(--qbio)', qdem: 'var(--qdem)' },
+    borderColor: { DEFAULT: 'var(--line)' },
+    fontFamily: { display: ['"Barlow Condensed"', 'Arial Narrow', 'sans-serif'], sans: ['Barlow', 'system-ui', 'sans-serif'], mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'], serif: ['"Cormorant Garamond"', 'Georgia', 'serif'] },
+  } },
+};
+const twReq = createRequire(fs.realpathSync(path.join(NM, 'tailwindcss', 'package.json')));
+const twCss = (await twReq('postcss')([twReq('tailwindcss')(TW_CONFIG)]).process('@tailwind base;@tailwind components;@tailwind utilities;', { from: undefined })).css;
+const twMin = esbuild.transformSync(twCss, { loader: 'css', minify: true, legalComments: 'none' }).code;
 let head = fs.readFileSync(path.join(srcDir, 'head.html'), 'utf8');
+head = head.replace('/*__TAILWIND__*/', () => twMin.replace(/<\/style/gi, '<\\/style'));
+for (const [nom, b] of Object.entries(BIB)) head = head.split(`__SRI_${nom}__`).join(b.sri);
 const safe = s => s.replace(/<\/script/gi, '<\\/script');
 head = head.replace('/*__APPJS__*/', () => safe(out.code)).replace('<!--__JSXSRC__-->', () => (avecSource ? `<script type="text/plain" id="jsx-source">\n${safe(jsx)}\n</script>` : ''));
 fs.writeFileSync(sortie, head);

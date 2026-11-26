@@ -38,7 +38,7 @@ function ConfirmDialog({ cfm, onClose }) {
 }
 
 function App() {
-  const first = useRef(null); if (!first.current) { const l = loadDb(); first.current = { db: l.db || normalizeDb(sampleDb()), migrated: !!l.migrated, neuf: !l.db }; }
+  const first = useRef(null); if (!first.current) { const l = loadDb(); first.current = { db: l.db || normalizeDb(sampleDb()), migrated: !!l.migrated, neuf: !l.db, reunie: !!l.reunie }; }
   const [db, setDb] = useState(first.current.db);
   const dbRef = useRef(db); dbRef.current = db;
   const [storeOK, setStoreOK] = useState(true);
@@ -55,6 +55,7 @@ function App() {
   const uid = uSession && uSession.actif !== false ? uSession.id : ''; // reste le même pendant le verrouillage : la page dessous garde son état
   const verrouille = !!(uid && session.verrou);
   const sessionRef = useRef(''); sessionRef.current = uid;
+  useIaEspace(db, uid); // assistant IA de l'espace de travail (0.38.0-alpha.1) : clé commune déchiffrée en mémoire
   const [stack, setStack] = useState([]); // fiches ouvertes : { k: 'lot' | 'cont' | 'fini', id } — la dernière ouverte est au premier plan
   const [traceDlg, setTraceDlg] = useState(null); // fichier de traçabilité : export d'une expédition, traçabilité amont d'une entrée (0.27.0-alpha.1)
   const [opDlg, setOpDlg] = useState(null); const [misc, setMisc] = useState(null); const [menu, setMenu] = useState(null); const [contEdit, setContEdit] = useState(null); const [report, setReport] = useState(null); const [docsDlg, setDocsDlg] = useState(null); const [ficheDlg, setFicheDlg] = useState(null);
@@ -63,6 +64,9 @@ function App() {
   const [theme, setTheme] = useState(() => { try { return window.localStorage.getItem(THEME_KEY) || window.localStorage.getItem('cuverie-champenoise-theme') || 'auto'; } catch (e) { return 'auto'; } });
 
   useEffect(() => { setStoreOK(saveDb(db)); }, [db]);
+  // écriture chiffrée terminée (coffre de l'appareil) : stockage plein ou refusé signalé comme avant
+  useEffect(() => { const f = (e) => { if (e && e.detail && e.detail.cle === STORAGE_KEY) setStoreOK(!!e.detail.ok); }; window.addEventListener('oenotrack-stockage', f); return () => window.removeEventListener('oenotrack-stockage', f); }, []);
+  useEffect(() => { if (first.current.reunie) setTimeout(() => toast('Données saisies avec une version antérieure d’Œnotrack sur cet appareil : réunies à la base chiffrée (rien n’est perdu).'), 600); }, []);
   const [sysDark, setSysDark] = useState(() => { try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; } });
   useEffect(() => { let mq = null; const f = (e) => setSysDark(!!e.matches); try { mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', f); else mq.addListener(f); } catch (e) { /* ignoré */ } return () => { try { if (mq) { if (mq.removeEventListener) mq.removeEventListener('change', f); else mq.removeListener(f); } } catch (e) { /* ignoré */ } }; }, []);
   syncConfig(db); // échelle des crus personnalisée → variables globales
@@ -346,4 +350,5 @@ class Boundary extends React.Component {
   render() { return this.state.e ? <div className="wrap py-8"><Notice tone="bad" title="Erreur d’affichage">{String(this.state.e && this.state.e.message || this.state.e)}<div className="mt-2"><button className="btn" onClick={() => { try { window.localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignoré */ } window.location.reload(); }}>Effacer les données locales et recharger</button></div></Notice></div> : this.props.children; }
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<Boundary><App /></Boundary>);
+// 0.38.0-alpha.1 : le coffre de l'appareil s'ouvre avant l'application (base et secrets déchiffrés en mémoire)
+ReactDOM.createRoot(document.getElementById('root')).render(<CoffrePorte><Boundary><App /></Boundary></CoffrePorte>);

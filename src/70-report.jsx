@@ -85,7 +85,7 @@ function useReportOutput(ref, filename, opts = {}) {
   const direct = print;
   const download = async () => {
     const css = Array.from(document.querySelectorAll('style')).map((s) => s.textContent).join('\n').split('/* rapports imprimables */')[1] || '';
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${filename}</title><style>body{margin:0;font-family:Barlow,Arial,sans-serif}${css.split('@media (max-width')[0]}@page{size:A4${opts.orientation === 'paysage' ? ' landscape' : ''};margin:12mm}.report .rpt-item+.rpt-item{break-before:page}</style></head><body>${ref.current ? ref.current.outerHTML : ''}</body></html>`;
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${filename}</title><style>*,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}body{margin:0;font-family:Barlow,Arial,sans-serif}${css.split('@media (max-width')[0]}@page{size:A4${opts.orientation === 'paysage' ? ' landscape' : ''};margin:12mm}.report .rpt-item+.rpt-item{break-before:page}</style></head><body>${ref.current ? ref.current.outerHTML : ''}</body></html>`;
     const r = await saveFile(`${filename}.html`, html, 'text/html'); if (r.ok) toast('Rapport enregistré : ouvrez-le puis imprimez-le (Ctrl/Cmd + P).'); else if (!r.declined) toast(failMsg(r), 'bad');
   };
   return { print, pdf, download, direct };

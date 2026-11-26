@@ -198,6 +198,40 @@ function qrLire(texte) {
   try { const u = new URL(s); return lienCuveLire(u.hash, u.search); } catch (e) { return null; }
 }
 
+/* ---------- planche d'étiquettes A4 personnalisable (0.38.0-alpha.1) ----------
+   Colonnes × lignes, largeur × hauteur d'une étiquette, marges (haut, gauche) et espacements (entre colonnes, entre lignes), en mm.
+   Les deux formats standards (A4 24 × 70 × 37 mm, A6) restent proposés tels quels. Modèles courants : dimensions « à vérifier »
+   sur la notice des planches achetées (les fabricants publient le gabarit exact). */
+const ETIQ_A4 = { l: 210, h: 297 };
+const ETIQ_PERSO_DEFAUT = { cols: 3, lignes: 8, largeur: 70, hauteur: 37, margeHaut: 0, margeGauche: 0, espH: 0, espV: 0 };
+const ETIQ_PERSO_MODELES = [
+  { id: 'a4-24', nom: '24 étiquettes 70 × 37 mm (3 × 8)', v: { cols: 3, lignes: 8, largeur: 70, hauteur: 37, margeHaut: 0.5, margeGauche: 0, espH: 0, espV: 0 } },
+  { id: 'a4-21', nom: '21 étiquettes 63,5 × 38,1 mm (3 × 7)', v: { cols: 3, lignes: 7, largeur: 63.5, hauteur: 38.1, margeHaut: 15.15, margeGauche: 7.2, espH: 2.5, espV: 0 } },
+  { id: 'a4-14', nom: '14 étiquettes 99,1 × 38,1 mm (2 × 7)', v: { cols: 2, lignes: 7, largeur: 99.1, hauteur: 38.1, margeHaut: 15.15, margeGauche: 4.65, espH: 2.5, espV: 0 } },
+  { id: 'a4-8', nom: '8 étiquettes 99,1 × 67,7 mm (2 × 4)', v: { cols: 2, lignes: 4, largeur: 99.1, hauteur: 67.7, margeHaut: 13.1, margeGauche: 4.65, espH: 2.5, espV: 0 } },
+  { id: 'a4-40', nom: '40 étiquettes 48,5 × 25,4 mm (4 × 10)', v: { cols: 4, lignes: 10, largeur: 48.5, hauteur: 25.4, margeHaut: 21.5, margeGauche: 8, espH: 0, espV: 0 } },
+  { id: 'a4-65', nom: '65 étiquettes 38,1 × 21,2 mm (5 × 13)', v: { cols: 5, lignes: 13, largeur: 38.1, hauteur: 21.2, margeHaut: 10.7, margeGauche: 4.7, espH: 2.5, espV: 0 } },
+];
+const ETIQ_BORNES = { cols: [1, 10], lignes: [1, 30], largeur: [10, 210], hauteur: [10, 297], margeHaut: [0, 150], margeGauche: [0, 150], espH: [0, 50], espV: [0, 50] };
+// réglage lu (stockage de l'appareil, saisie) → valeurs bornées ; un champ illisible reprend la valeur par défaut
+function etiqPersoNorm(o) {
+  const x = o && typeof o === 'object' ? o : {}; const r = {};
+  Object.keys(ETIQ_PERSO_DEFAUT).forEach((k) => { const t = String(x[k] == null ? '' : x[k]).trim().replace(',', '.'); const v = Number(t); const [a, b] = ETIQ_BORNES[k]; r[k] = t !== '' && Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : ETIQ_PERSO_DEFAUT[k]; });
+  r.cols = Math.round(r.cols); r.lignes = Math.round(r.lignes); return r;
+}
+// mise en page : étiquettes par page, encombrement (mm) et ce qui dépasse de la feuille A4
+function etiqPersoMise(o) {
+  const p = etiqPersoNorm(o); const lt = p.margeGauche + p.cols * p.largeur + (p.cols - 1) * p.espH; const ht = p.margeHaut + p.lignes * p.hauteur + (p.lignes - 1) * p.espV;
+  const erreurs = [];
+  if (lt > ETIQ_A4.l + 0.5) erreurs.push(`Trop large pour une feuille A4 : ${r2(lt)} mm pour ${ETIQ_A4.l} mm (réduisez la largeur, les colonnes, la marge gauche ou l’espacement).`);
+  if (ht > ETIQ_A4.h + 0.5) erreurs.push(`Trop haut pour une feuille A4 : ${r2(ht)} mm pour ${ETIQ_A4.h} mm (réduisez la hauteur, les lignes, la marge du haut ou l’espacement).`);
+  const haute = p.hauteur >= p.largeur * 0.9; // étiquette haute : QR au-dessus du nom
+  const pad = Math.max(1.5, Math.min(4, Math.min(p.largeur, p.hauteur) * 0.09));
+  const qr = Math.max(6, haute ? Math.min(p.largeur - 2 * pad, p.hauteur * 0.62) : Math.min(p.hauteur - 2 * pad, p.largeur * 0.45));
+  const k = Math.max(0.45, Math.min(2.2, haute ? p.largeur / 70 : Math.min(p.hauteur / 37, (p.largeur - qr) / 41)));
+  return { ...p, parPage: p.cols * p.lignes, largeurTotale: r2(lt), hauteurTotale: r2(ht), erreurs, valide: !erreurs.length, haute, pad: r2(pad), qr: r2(qr), echelle: r2(k) };
+}
+
 /* ---------- rappel de sauvegarde (données gardées seulement sur cet appareil) ---------- */
 // → { montrer, jours (depuis la dernière sauvegarde), jamais }
 // (jamais sauvegardée : compté depuis la création de la base)

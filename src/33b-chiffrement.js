@@ -96,9 +96,21 @@ async function dechiffrerOctets(k, u8) {
   if (h.cleId && h.cleId !== k.cleId) throw { chiffre: true, autreCle: true, message: 'Document chiffré avec un autre mot de passe.' };
   return chAes(k.cle, u8.slice(p, p + 12), u8.slice(p + 12), 'dechiffrer', e);
 }
-// clé de cet appareil (stockage local) : jamais dans la base
-const chiffrementCleLire = () => { try { const k = JSON.parse(window.localStorage.getItem(CHIFFRE_CLE_KEY) || 'null'); return k && k.brut && k.cleId ? k : null; } catch (e) { return null; } };
-const chiffrementCleEcrire = (k) => { try { if (k) window.localStorage.setItem(CHIFFRE_CLE_KEY, JSON.stringify({ cleId: k.cleId, brut: chB64(k.brut), sel: k.sel, iter: k.iter, le: todayISO() })); else window.localStorage.removeItem(CHIFFRE_CLE_KEY); return true; } catch (e) { return false; } };
+// clé de cet appareil : jamais dans la base. 0.38.0-alpha.1 : rangée dans le coffre de l'appareil (secret « chiffrementCle »,
+// chiffré, 33d-coffre.js) ; l'ancienne copie en clair (« oenotrack-chiffrement-cle ») y est reprise puis effacée
+function chiffrementCleLire() {
+  const ok = (k) => (k && k.brut && k.cleId ? k : null);
+  if (typeof coffrePret === 'function' && coffrePret()) { if (window.localStorage.getItem(CHIFFRE_CLE_KEY)) coffreMigrerSecrets(); return ok(coffreSecret('chiffrementCle')); }
+  try { return ok(JSON.parse(window.localStorage.getItem(CHIFFRE_CLE_KEY) || 'null')); } catch (e) { return null; }
+}
+function chiffrementCleEcrire(k) {
+  const v = k ? { cleId: k.cleId, brut: chB64(k.brut), sel: k.sel, iter: k.iter, le: todayISO() } : null;
+  try { window.setTimeout(() => { try { window.dispatchEvent(new Event('oenotrack-cle-equipe')); } catch (e) { /* ignoré */ } }, 0); } catch (e) { /* hors navigateur */ }
+  try {
+    if (typeof coffrePret === 'function' && coffrePret()) { coffreSecretEcrire('chiffrementCle', v); window.localStorage.removeItem(CHIFFRE_CLE_KEY); return true; }
+    if (v) window.localStorage.setItem(CHIFFRE_CLE_KEY, JSON.stringify(v)); else window.localStorage.removeItem(CHIFFRE_CLE_KEY); return true;
+  } catch (e) { return false; }
+}
 let _chCle = null; // clé importée (CryptoKey) en mémoire
 async function chiffrementCleAppareil(cleId) {
   const k = chiffrementCleLire(); if (!k || (cleId && k.cleId !== cleId)) return null;

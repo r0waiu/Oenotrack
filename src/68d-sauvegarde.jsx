@@ -110,6 +110,7 @@ function SauvegardeView() {
 
       <CloudCard />
       <ChiffrementCard />
+      <CoffreCard />
       {cloud.lie ? <details className="card sync-guide p-4"><summary>Synchroniser par fichier (sans connexion au Drive)</summary><div className="mt-3"><DriveSyncCard drive={drive} setDrive={pickDrive} /></div></details> : <DriveSyncCard drive={drive} setDrive={pickDrive} />}
 
       <div className="sauv-grid">

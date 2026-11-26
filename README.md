@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.37.0--alpha.1-8C6E2F">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.38.0--alpha.1-8C6E2F">
   <img alt="Licence" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-1E242B">
   <img alt="Langues" src="https://img.shields.io/badge/langues-FR%20%C2%B7%20EN%20%C2%B7%20ES%20%C2%B7%20IT%20%C2%B7%20DE%20%C2%B7%20PT-5B636D">
 </p>
@@ -226,8 +226,11 @@ Le paquet `oenotrack-web` (fabriqué par `tools/paquet-web.py`) contient Œnotra
 | `confidentialite.html`, `mentions-legales.html`, `cgu.html`, `licence.html` | les informations légales en pages fixes, lisibles sans JavaScript (écrans de connexion, moteurs de recherche) |
 | `manifest.webmanifest`, `sw.js`, icônes | pour installer Œnotrack comme une application |
 | `code-source.zip`, `LICENCE.txt` | le code source de cette version et sa licence |
+| `vendor/` | les bibliothèques (React, SheetJS, pdf-lib, PDF.js, Tesseract) et les polices, embarquées et vérifiées : le site ne contacte aucun CDN (depuis 0.38.0-alpha.1) ; leurs licences dans `vendor/LICENCES/` |
 
-**Mise à jour** : remplacez `index.html`, `sw.js` et les pages `.html` (ajoutez les fichiers nouveaux) et gardez votre `config.json`.
+**Mise à jour** : remplacez `index.html`, `sw.js`, les pages `.html` et le dossier `vendor/` (ajoutez les fichiers nouveaux) et gardez votre `config.json`.
+
+**Sécurité** : `index.html` porte une politique de sécurité du contenu (CSP) stricte : seuls les scripts de la page et du site s’exécutent, et les connexions sont limitées aux services d’Œnotrack (Google Drive, OneDrive, Dropbox, services d’IA proposés, `localhost`). Pour un service d’IA « compatible OpenAI » hébergé ailleurs, ajoutez son adresse dans `config.json` (`"securite": { "connexions": ["https://ia.exemple.fr"] }`) **avant** de fabriquer le paquet.
 
 ### 1. Mettre en ligne (gratuit, environ 5 minutes)
 

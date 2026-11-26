@@ -2,6 +2,14 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.38.0-alpha.1 — 26/11/2026
+
+- Impression : les couleurs des fiches d’opération à remplir (cases « relevé », en-têtes, bandeaux, lignes alternées) et des rapports sont imprimées telles qu’à l’écran, même quand « Graphiques d’arrière-plan » est décoché, et dans les fichiers HTML enregistrés
+- Étiquettes QR des cuves : en plus de la planche A4 de 24 étiquettes et de la grande étiquette A6, une planche A4 personnalisée — colonnes × lignes, largeur × hauteur, marges et espacements en millimètres, modèles courants à vérifier et contour d’alignement
+- Assistant IA de l’espace de travail : l’administrateur règle un service, un modèle et une clé API communs (clé chiffrée avec la clé de l’équipe, jamais en clair dans la base ni sur le Drive) et accorde ou retire aux autres utilisateurs le droit d’utiliser leurs propres clés et modèles
+- Sécurité sans serveur : la base, les documents, les points de restauration et les secrets (clés d’API, clé de l’équipe, connexions aux services) sont chiffrés dans le navigateur par le coffre de l’appareil, avec en option un mot de passe demandé à l’ouverture ; les données déjà enregistrées sont chiffrées d’office à la première ouverture
+- Bibliothèques : Œnotrack en ligne embarque React, SheetJS, pdf-lib, PDF.js, Tesseract et ses polices (plus aucun CDN au chargement) avec une politique de sécurité du contenu stricte ; le fichier seul vérifie l’empreinte de chaque bibliothèque avant de l’exécuter ; Tailwind est précompilé
+
 ## 0.37.0-alpha.1 — 26/11/2026
 
 - Entrée de moûts : un bulletin d’analyses (PDF, scan, tableur ou CSV) se glisse directement dans l’opération ou dans l’onglet d’un partenaire ; chaque échantillon d’un bulletin à plusieurs échantillons est reporté sur son moût (n° de lot, compartiment, mêmes nombres), avec une affectation guidée en cas de doute

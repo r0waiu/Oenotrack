@@ -24,7 +24,7 @@ let fichierChiffre = null;
   await ov().locator('input[type=password]').nth(0).fill(MDP); await ov().locator('input[type=password]').nth(1).fill(MDP + 'x'); await ov().locator('button', { hasText: 'Enregistrer' }).click(); await page.waitForTimeout(300);
   ok('… confirmation différente refusée', /pas identiques/.test(await txt(ov())));
   await ov().locator('input[type=password]').nth(1).fill(MDP); await ov().locator('button', { hasText: 'Enregistrer' }).click(); await page.waitForTimeout(4000);
-  const d = await db(); const cle = await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-chiffrement-cle') || 'null'));
+  const d = await db(); const cle = await page.evaluate(() => (localStorage.__brut('oenotrack-chiffrement-cle') ? null : /"oenotrack-coffre"/.test(localStorage.__brut('oenotrack-coffre-secrets') || '') && !/brut/.test(localStorage.__brut('oenotrack-coffre-secrets')) ? (JSON.parse(localStorage.getItem('oenotrack-coffre-secrets') || '{}').chiffrementCle || null) : null)); // 0.38 : clé dans le coffre de l’appareil (chiffrée), plus en clair
   ok('chiffrement activé : réglage commun (sel, empreinte, témoin), clé gardée sur l’appareil, ni mot de passe ni clé dans la base', d.settings.chiffrement.actif && d.settings.chiffrement.iter === 600000 && cle && cle.cleId === d.settings.chiffrement.cleId && !JSON.stringify(d).includes(MDP) && !JSON.stringify(d).includes(cle.brut) && (await page.locator('[data-chiffrement=actif]').count()) === 1);
   const f1 = await telecharger(page, () => page.locator('main button', { hasText: '⬇ Exporter la base complète (chiffrée)' }).click());
   const j1 = f1 && JSON.parse(f1.texte);
@@ -49,7 +49,7 @@ let fichierChiffre = null;
   await ov().locator('input[type=password]').fill(MDP); await ov().locator('button', { hasText: 'Déverrouiller' }).click(); await page.waitForTimeout(4000);
   ok('… bon mot de passe : confirmation de restauration (sauvegarde lisible)', /Restaurer cette sauvegarde/.test(await txt(ov())), (await txt(ov())).slice(0, 120));
   await ov().locator('button', { hasText: 'Restaurer' }).last().click(); await page.waitForTimeout(1500);
-  const d = await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2'))); const cle = await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-chiffrement-cle') || 'null'));
+  const d = await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2'))); const cle = await page.evaluate(() => (localStorage.__brut('oenotrack-chiffrement-cle') ? null : /"oenotrack-coffre"/.test(localStorage.__brut('oenotrack-coffre-secrets') || '') && !/brut/.test(localStorage.__brut('oenotrack-coffre-secrets')) ? (JSON.parse(localStorage.getItem('oenotrack-coffre-secrets') || '{}').chiffrementCle || null) : null)); // 0.38 : clé dans le coffre de l’appareil (chiffrée), plus en clair
   ok('… base restaurée, chiffrement toujours actif, clé gardée sur ce nouvel appareil', /Sauvegarde restaurée/.test((await page.locator('.toast').allInnerTexts()).join(' ')) && d.settings.chiffrement.actif && cle && cle.cleId === d.settings.chiffrement.cleId);
   console.log('ERREURS', vraies(errors).length ? vraies(errors) : 'aucune'); if (vraies(errors).length) ko++;
   await browser.close();

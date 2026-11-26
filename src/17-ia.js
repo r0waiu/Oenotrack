@@ -7,7 +7,16 @@
    (c) 0.26.0-alpha.1 : compléter la fiche d'un produit à la lecture de ses documents (FT, FDS, certificats) : envoyé, le texte du document
    lu (ou reconnu sur un scan, une photo) et le nom du produit ; réglage « completer » (activé par défaut).
    (d) 0.27.0-alpha.1 : lire les bulletins d'analyses (onglet Analyses) : envoyé, le texte du bulletin et la liste des paramètres d'analyse
-   de la cave (noms et unités) ; jamais les codes des lots ni les noms des cuves (rapprochés sur l'appareil) ; réglage « bulletins » (activé par défaut). */
+   de la cave (noms et unités) ; jamais les codes des lots ni les noms des cuves (rapprochés sur l'appareil) ; réglage « bulletins » (activé par défaut).
+   0.38.0-alpha.1 :
+   - les clés personnelles ne sont plus en clair dans le navigateur : elles vont dans le coffre de l'appareil (33d-coffre.js, secret
+     « iaCles », chiffré) ; « oenotrack-ia » ne garde que les choix (service, modèles, options) ; option « memoire » : clé gardée le
+     temps de la session seulement (jamais enregistrée) ;
+   - espace de travail : l'administrateur règle un service, un modèle et une clé communs (db.settings.ia = { fournisseur, modele, url,
+     cle, cleId, masque, perso: 'tous' | 'aucun' | 'choisis', persoUtilisateurs: [uid], par, le }). La clé commune est CHIFFRÉE avec la
+     clé de chiffrement de l'équipe (33b, enveloppe « oenotrack-chiffre ») : jamais en clair dans la base, la synchronisation ni les
+     sauvegardes ; déchiffrée en mémoire sur les appareils qui ont la clé de l'équipe. L'administrateur accorde ou retire aux autres
+     utilisateurs le droit d'utiliser leurs propres clés et modèles (iaPersoAutorise). */
 const IA_KEY = 'oenotrack-ia'; const IA_AUTO_KEY = 'oenotrack-ia-veille';
 const IA_FOURNISSEURS = [
   { id: 'anthropic', nom: 'Claude (Anthropic)', court: 'Claude', modele: 'claude-sonnet-5-5', web: true, console: 'https://platform.claude.com/settings/keys', aide: 'Clé « sk-ant-… » créée dans la console Claude (platform.claude.com › API keys). Recherche et lecture de pages web incluses.' },
@@ -18,14 +27,68 @@ const IA_FOURNISSEURS = [
   { id: 'perso', nom: 'Autre service compatible OpenAI (adresse à saisir)', court: 'Service IA', modele: '', web: false, console: '', aide: 'Adresse de base du service (ex. https://api.exemple.com/v1, ou http://localhost:11434/v1 pour un modèle installé sur cet ordinateur) ; clé facultative.' },
 ];
 const iaFournisseur = (id) => IA_FOURNISSEURS.find((f) => f.id === id) || IA_FOURNISSEURS[0];
-function iaConfigLire() { try { const c = JSON.parse(window.localStorage.getItem(IA_KEY) || 'null'); return c && typeof c === 'object' && !Array.isArray(c) ? c : {}; } catch (e) { return {}; } }
-function iaConfigEcrire(c) { try { window.localStorage.setItem(IA_KEY, JSON.stringify(c || {})); return true; } catch (e) { return false; } }
+let _iaClesMemoire = {}; // clés « pour cette session seulement » : en mémoire, jamais enregistrées
+function iaConfigLire() {
+  let c = {}; try { const j = JSON.parse(window.localStorage.getItem(IA_KEY) || 'null'); c = j && typeof j === 'object' && !Array.isArray(j) ? j : {}; } catch (e) { c = {}; }
+  if (typeof coffrePret === 'function' && coffrePret()) {
+    if (c.cles && Object.keys(c.cles).length) { coffreMigrerSecrets(); } // clé en clair laissée par une version antérieure : reprise dans le coffre
+    const { cles: _x, ...reste } = c; return { ...reste, cles: { ...(c.memoire ? {} : coffreSecret('iaCles') || {}), ...(c.memoire ? _iaClesMemoire : {}) } };
+  }
+  return { ...c, cles: { ...(c.cles || {}), ...(c.memoire ? _iaClesMemoire : {}) } }; // navigateur sans coffre : comme avant 0.38
+}
+function iaConfigEcrire(c0) {
+  const c = c0 || {}; const cles = {}; Object.keys(c.cles || {}).forEach((k) => { const v = String(c.cles[k] || '').trim(); if (v) cles[k] = v; });
+  const { cles: _x, ...reste } = c;
+  try {
+    if (c.memoire) { _iaClesMemoire = cles; if (typeof coffrePret === 'function' && coffrePret()) coffreSecretEcrire('iaCles', null); window.localStorage.setItem(IA_KEY, JSON.stringify(reste)); return true; }
+    _iaClesMemoire = {};
+    if (typeof coffrePret === 'function' && coffrePret()) { coffreSecretEcrire('iaCles', Object.keys(cles).length ? cles : null); window.localStorage.setItem(IA_KEY, JSON.stringify(reste)); return true; }
+    window.localStorage.setItem(IA_KEY, JSON.stringify({ ...reste, cles })); return true;
+  } catch (e) { return false; }
+}
+/* ---------- espace de travail (réglage commun de l'administrateur) ---------- */
+const IA_PERSO = ['tous', 'aucun', 'choisis'];
+function iaEspaceReglage(db) {
+  const s = db && db.settings && db.settings.ia; if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
+  return { fournisseur: iaFournisseur(s.fournisseur).id, modele: String(s.modele || '').trim(), url: String(s.url || '').trim(), cle: typeof s.cle === 'string' ? s.cle : '', cleId: String(s.cleId || ''), masque: String(s.masque || ''),
+    perso: IA_PERSO.includes(s.perso) ? s.perso : 'tous', persoUtilisateurs: Array.isArray(s.persoUtilisateurs) ? s.persoUtilisateurs.filter((x) => typeof x === 'string') : [], par: s.par || '', le: s.le || '' };
+}
+// l'utilisateur peut-il utiliser ses propres clés et modèles ? (sans identifiants : oui ; administrateurs : toujours)
+function iaPersoAutorise(db, uid) {
+  const r = iaEspaceReglage(db); if (!r || !securiteActive(db)) return true; if (estAdmin(db, uid)) return true;
+  return r.perso === 'tous' || (r.perso === 'choisis' && r.persoUtilisateurs.includes(uid));
+}
+// réglage commun : contrôlé par gardeDroits (administrateurs) ; la clé arrive déjà chiffrée (enveloppe de l'équipe)
+function iaEspaceRegler(db, patch, uid) {
+  const r0 = iaEspaceReglage(db) || { perso: 'tous', persoUtilisateurs: [] }; const p = patch || {}; const n = { ...((db.settings && db.settings.ia) || {}) };
+  if (p.fournisseur !== undefined) n.fournisseur = iaFournisseur(p.fournisseur).id;
+  if (p.modele !== undefined) n.modele = String(p.modele || '').trim().slice(0, 120);
+  if (p.url !== undefined) { const u = String(p.url || '').trim().replace(/\/+$/, ''); if (u && !/^https?:\/\/\S+$/.test(u)) return fail('Adresse du service : https://… attendue.'); n.url = u; }
+  if (p.cle !== undefined) { if (p.cle && !enveloppeChiffree(p.cle)) return fail('La clé commune doit être chiffrée avec la clé de l’équipe.'); n.cle = p.cle || ''; n.cleId = p.cle ? String(p.cleId || '') : ''; n.masque = p.cle ? String(p.masque || '').slice(0, 24) : ''; }
+  if (p.perso !== undefined) { if (!IA_PERSO.includes(p.perso)) return fail('Droit des clés personnelles inconnu.'); n.perso = p.perso; }
+  if (p.persoUtilisateurs !== undefined) n.persoUtilisateurs = uniq((p.persoUtilisateurs || []).filter((x) => typeof x === 'string'));
+  if (!n.perso) n.perso = r0.perso; if (!Array.isArray(n.persoUtilisateurs)) n.persoUtilisateurs = r0.persoUtilisateurs;
+  n.par = uid || ''; n.le = new Date().toISOString(); db.settings.ia = n; return okr();
+}
+const iaEspaceRetirer = (db) => { delete db.settings.ia; return okr(); };
+// état de l'espace de travail pour cet appareil : posé par IaEspaceSync (68k-ia.jsx) après déchiffrement de la clé commune
+let _iaEspace = null; // { reglage, cle (déchiffrée ou ''), persoAutorise, etatCle: 'ok' | 'sans-cle-equipe' | 'illisible' | 'absente' }
 // réglage effectif : service choisi, sa clé, son modèle, et si la recherche web est demandée
+// (source : clé personnelle de l'utilisateur ou clé commune de l'espace de travail ; c.source = 'auto' | 'perso' | 'espace')
 function iaActive(c0) {
-  const c = c0 || iaConfigLire(); const f = iaFournisseur(c.fournisseur);
+  const c = c0 || iaConfigLire(); const P = iaActivePerso(c); const E = _iaEspace;
+  if (!E || !E.reglage) return P;
+  const f = iaFournisseur(E.reglage.fournisseur); const modele = E.reglage.modele || f.modele || ''; const url = f.id === 'perso' ? E.reglage.url.replace(/\/chat\/completions$/, '') : '';
+  const S = { ...P, fournisseur: f.id, nom: f.court, cle: E.cle || '', modele, url, web: f.web, source: 'espace', pret: !!modele && (f.id === 'perso' ? /^https?:\/\/\S+$/.test(url) : !!E.cle) };
+  if (!E.persoAutorise) return S;
+  if (c.source === 'espace') return S; if (c.source === 'perso') return P;
+  return P.pret ? P : S.pret ? S : P;
+}
+function iaActivePerso(c) {
+  const f = iaFournisseur(c.fournisseur);
   const cle = String((c.cles || {})[f.id] || '').trim(); const modele = String((c.modeles || {})[f.id] || f.modele || '').trim();
   const url = f.id === 'perso' ? String(c.url || '').trim().replace(/\/+$/, '').replace(/\/chat\/completions$/, '') : '';
-  return { fournisseur: f.id, nom: f.court, cle, modele, url, web: f.web, pret: !!modele && (f.id === 'perso' ? /^https?:\/\/\S+$/.test(url) : !!cle), auto: !!c.auto, completer: c.completer !== false, bulletins: c.bulletins !== false, autoJours: Math.max(7, Math.min(365, Number(c.autoJours) || 30)) };
+  return { fournisseur: f.id, nom: f.court, cle, modele, url, web: f.web, pret: !!modele && (f.id === 'perso' ? /^https?:\/\/\S+$/.test(url) : !!cle), auto: !!c.auto, completer: c.completer !== false, bulletins: c.bulletins !== false, source: 'perso', autoJours: Math.max(7, Math.min(365, Number(c.autoJours) || 30)) };
 }
 const iaMasque = (k) => { const s = String(k || ''); return s.length <= 10 ? '•'.repeat(s.length) : `${s.slice(0, 6)}…${s.slice(-4)}`; };
 

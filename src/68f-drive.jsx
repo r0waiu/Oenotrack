@@ -16,12 +16,13 @@ const sdbRun = (store, mode, fn) => sdb().then((d) => new Promise((res, rej) => 
 // versions communes (instantanés) : les 8 dernières, pour retrouver l'ancêtre commun d'un fichier reçu
 async function snapEcrire(id, db) {
   try {
-    await sdbRun('instantanes', 'readwrite', (s) => s.put({ id, date: new Date().toISOString(), db: JSON.stringify(db) }, id));
+    const texte = await coffreTexteChiffrer(JSON.stringify(db)); // 0.38.0-alpha.1 : chiffré par le coffre de l'appareil
+    await sdbRun('instantanes', 'readwrite', (s) => s.put({ id, date: new Date().toISOString(), db: texte }, id));
     const all = (await sdbRun('instantanes', 'readonly', (s) => s.getAll())) || [];
     for (const x of all.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(8)) await sdbRun('instantanes', 'readwrite', (s) => s.delete(x.id));
   } catch (e) { /* stockage indisponible : la prochaine synchronisation se fera sans version commune */ }
 }
-const snapLire = async (id) => { try { const x = await sdbRun('instantanes', 'readonly', (s) => s.get(id)); return x ? JSON.parse(x.db) : null; } catch (e) { return null; } };
+const snapLire = async (id) => { try { const x = await sdbRun('instantanes', 'readonly', (s) => s.get(id)); return x ? JSON.parse(await coffreTexteDechiffrer(x.db)) : null; } catch (e) { return null; } };
 const lienLire = async () => { try { return (await sdbRun('lien', 'readonly', (s) => s.get('fichier'))) || null; } catch (e) { return null; } };
 const lienEcrire = async (h) => { try { await sdbRun('lien', 'readwrite', (s) => (h ? s.put(h, 'fichier') : s.delete('fichier'))); return true; } catch (e) { return false; } };
 // identité de cet appareil : marque des identifiants (« op124-k7f ») et nom affiché dans le fichier

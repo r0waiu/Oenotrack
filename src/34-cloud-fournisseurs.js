@@ -20,8 +20,10 @@ const configFichierAvec = (patch) => ({ ...(CLOUD_CONFIG_FICHIER && typeof CLOUD
 const cloudRetourUrl = () => `${window.location.origin}${window.location.pathname}`;
 // page ouverte dans claude.ai (cadre intégré) : pas de connexion directe possible aux services
 const cloudIntegre = () => { try { return window.self !== window.top; } catch (e) { return true; } };
-const jetonsLire = (f) => { try { return (JSON.parse(window.localStorage.getItem(CLOUD_JETONS_KEY) || '{}') || {})[f] || null; } catch (e) { return null; } };
-const jetonsEcrire = (f, j) => { try { const all = JSON.parse(window.localStorage.getItem(CLOUD_JETONS_KEY) || '{}') || {}; if (j) all[f] = j; else delete all[f]; window.localStorage.setItem(CLOUD_JETONS_KEY, JSON.stringify(all)); } catch (e) { /* ignoré */ } };
+// jetons des services (0.38.0-alpha.1 : dans le coffre de l'appareil, secret « cloudJetons », chiffré ; plus en clair dans le navigateur)
+const jetonsTous = () => { if (typeof coffrePret === 'function' && coffrePret()) { if (window.localStorage.getItem(CLOUD_JETONS_KEY)) coffreMigrerSecrets(); return { ...(coffreSecret('cloudJetons') || {}) }; } try { return JSON.parse(window.localStorage.getItem(CLOUD_JETONS_KEY) || '{}') || {}; } catch (e) { return {}; } };
+const jetonsLire = (f) => jetonsTous()[f] || null;
+const jetonsEcrire = (f, j) => { try { const all = jetonsTous(); if (j) all[f] = j; else delete all[f]; if (typeof coffrePret === 'function' && coffrePret()) { coffreSecretEcrire('cloudJetons', Object.keys(all).length ? all : null); window.localStorage.removeItem(CLOUD_JETONS_KEY); } else window.localStorage.setItem(CLOUD_JETONS_KEY, JSON.stringify(all)); } catch (e) { /* ignoré */ } };
 const b64url = (bytes) => btoa(String.fromCharCode.apply(null, Array.from(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const pkceVerifier = () => { const a = new Uint8Array(48); crypto.getRandomValues(a); return b64url(a); };
 const pkceChallenge = async (v) => b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v))));
