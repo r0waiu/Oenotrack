@@ -539,7 +539,7 @@ function ReglagesPressoirView({ annee }) {
   const PR = pressoirsDe(db); const BA = balancesDe(db);
   return (
     <div className="space-y-6">
-      <Sec title="Région viticole"><RegionChoix /></Sec>
+      <Sec title="Région viticole"><RegionChoix /><p className="help mt-1">Région précise et types de vins produits : Paramètres › 🍇 Région & types de vins.</p></Sec>
       <Sec title="Profil de pressurage">
         <div className="flex flex-wrap gap-2">{Object.keys(PRESSOIR_PROFILS).filter((k) => reg === 'champagne' || k !== 'champagne').map((k) => <Btn key={k} kind={P.id === k ? 'primary' : undefined} aria-pressed={P.id === k} disabled={!droits.params} onClick={() => act((d) => pressoirParamsSet(d, { profil: k }), `Profil : ${PRESSOIR_PROFILS[k].nom}.`)} data-profil={k}>{PRESSOIR_PROFILS[k].nom}</Btn>)}</div>
         <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))' }}>
