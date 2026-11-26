@@ -188,7 +188,7 @@ function DrmProduitForm({ id, onClose }) {
   const fr = fracList(db);
   return (
     <FormSheet title={id ? 'Modifier le produit' : 'Nouveau produit de la DRM'} onClose={onClose} onSave={save}>
-      <Field label="Libellé personnalisé" help="Exactement comme dans votre compte CIEL : c’est l’identifiant du produit."><TI value={f.libelle} onChange={(v) => set('libelle', v)} maxLength={100} autoFocus /></Field>
+      <Field label="Libellé personnalisé" help="Exactement comme dans votre compte CIEL : c’est l’identifiant du produit."><TI value={f.libelle} onChange={(v) => set('libelle', v)} maxLength={100} autoFocus list="drm-appellations" /><datalist id="drm-appellations">{((db.lists || {}).appellations || []).map((x) => <option key={x.id} value={x.label} />)}</datalist></Field>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
         <Field label="Code INAO" help="6 à 8 caractères, celui du produit dans CIEL"><TI value={f.codeInao} onChange={(v) => set('codeInao', v.toUpperCase())} maxLength={8} /></Field>
         <Field label="Libellé fiscal (sans code INAO)"><SI value={f.libelleFiscal} onChange={(v) => set('libelleFiscal', v)} plain options={[{ value: '', label: '—' }, ...DRM_LIBELLES_FISCAUX.map(([k, l]) => ({ value: k, label: l }))]} /></Field>

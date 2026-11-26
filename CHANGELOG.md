@@ -2,6 +2,12 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.33.0-alpha.1 — 26/11/2026
+
+- Région et types de vins (Paramètres › 🍇 Région & types de vins) : 12 bassins viticoles français et 8 pays, types de vins produits (tranquilles blancs, rosés, rouges, effervescents, méthode ancestrale, moelleux et liquoreux) ; raccourcis : Champagne, Crémant + vins tranquilles, vins tranquilles, vins rouges
+- Aperçu à cocher avant d’appliquer : onglets Tirages, Cave et Dégorgement selon les effervescents, opérations des rouges et des rosés (macération, délestage, écoulage, saignée), stade « En macération », cépages et appellations de la région, fractions goutte et presse, profil de pressurage, spécificités champenoises, échelle de classement, enrichissement maximal (exemple à vérifier)
+- Personnalisations jamais écrasées : rien n’est supprimé ni renommé, les réglages faits à la main restent ; nouvelle liste « Appellations » (Paramètres › Revendications, stades & listes), proposée pour le libellé des produits de la DRM
+
 ## 0.32.0-alpha.1 — 26/11/2026
 
 - DRM (Registres › 📮 DRM) : déclaration récapitulative des entrées et sorties de vins, mensuelle (DRM) ou annuelle (DRA) au choix, calculée d’après les opérations — stocks de début et de fin (vrac, bouteilles sur lattes, bouteilles finies), récolte, achats, transferts entre produits au tirage et à l’assemblage, pertes, sorties — avec ses contrôles (n° d’accise, codes, stock négatif, écarts, continuité avec la DRM déposée précédente)
