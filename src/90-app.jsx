@@ -17,7 +17,9 @@ const MODULE_DEFS = {
   registres: { label: 'Registres', icone: '📑', desc: 'Registres à exporter (CSV / Excel) et bilan matière.' },
   params: { label: 'Paramètres', icone: '⚙', desc: 'Société & opérateurs, modules, sauvegarde & Drive, campagnes, listes et réglages.' },
 };
-const moduleNom = (id) => (MODULE_DEFS[id] ? MODULE_DEFS[id].label : id);
+// onglets regroupés (0.34.0-alpha.1, ONGLETS_GROUPES : 31-crud.js) : « Vinification » réunit trois modules en sous-onglets
+const ONGLET_GROUPE_DEFS = { vinification: { label: 'Vinification', icone: '🍷', desc: 'Cuverie & Lots, Opérations & Assemblages, À réaliser & fiches : réunis dans un seul onglet.' } };
+const moduleNom = (id) => (MODULE_DEFS[id] ? MODULE_DEFS[id].label : ONGLET_GROUPE_DEFS[id] ? ONGLET_GROUPE_DEFS[id].label : id);
 // anciens liens : les réglages étaient dans l'onglet « Registres & Paramètres »
 const SOUS_PARAMS = ['entreprise', 'utilisateurs', 'modules', 'sauvegarde', 'campagnes', 'sites', 'contenants', 'crus', 'apporteurs', 'operations', 'listes', 'base'];
 const THEME_KEY = 'oenotrack-theme';
@@ -41,7 +43,8 @@ function App() {
   const dbRef = useRef(db); dbRef.current = db;
   const [storeOK, setStoreOK] = useState(true);
   const [showMig, setShowMig] = useState(first.current.migrated);
-  const [nav, setNav] = useState(() => ({ tab: moduleAccueil(first.current.db), sub: null })); // premier module actif
+  const [nav, setNav] = useState(() => ({ tab: ongletOuverture(first.current.db), sub: null })); // onglet d'ouverture (réglage) ou premier onglet
+  const groupeMemo = useRef({}); // dernier sous-onglet ouvert de chaque onglet regroupé (Vinification)
   const [toastMsg, setToastMsg] = useState(null);
   const [cfm, setCfm] = useState(null);
   // identifiants (0.15.0-alpha.1) : session de cet appareil { uid, garder, t, verrou } — sécurité inactive tant qu'aucun compte n'est activé
@@ -112,8 +115,8 @@ function App() {
   const sync = useDriveSync({ db, dbRef, applyDb, toast });
   const cloud = useCloud({ db, dbRef, applyDb, toast }); // stockage dans un dossier Google Drive / OneDrive / Dropbox / de l'ordinateur
 
-  const R = useMemo(() => getR(db), [db]);
   const camp = db.campagnes.find((c) => c.id === db.settings.campagneActive) || db.campagnes[0];
+  const R = useMemo(() => campEtatR(db, camp), [db, camp && camp.id, campEtatDate(camp)]); // campagne antérieure : état à sa fin (0.34.0-alpha.1)
   const defaultDate = (() => { const t = todayISO(); return t >= camp.debut && t <= camp.fin ? t : (t < camp.debut ? camp.debut : camp.fin); })();
   const setTab = useCallback((tab0, sub0) => {
     let tab = tab0 === 'registres' && SOUS_PARAMS.includes(sub0) ? 'params' : tab0; let sub = sub0;
@@ -128,7 +131,10 @@ function App() {
   }, [toast]);
   // module ouvert désactivé (ici ou sur un autre appareil) : retour au premier module actif
   const visibles = modulesVisibles(db).filter((m) => moduleAutorise(db, uid, m));
-  useEffect(() => { if (!visibles.includes(nav.tab)) setNav({ tab: visibles[0] || MODULE_FIXE, sub: null }); }, [visibles.join(), nav.tab]);
+  useEffect(() => { if (!visibles.includes(nav.tab)) setNav({ tab: ongletOuverture(db, visibles), sub: null }); }, [visibles.join(), nav.tab]);
+  useEffect(() => { const g = ongletDe(nav.tab); if (ONGLETS_GROUPES[g]) groupeMemo.current[g] = nav.tab; }, [nav.tab]);
+  const onglets = ongletsBarre(visibles);
+  const ouvrirOnglet = (o) => { const M = ongletMembres(o, visibles); const m = groupeMemo.current[o]; setTab(M.includes(m) ? m : M[0] || o); };
   const push = useCallback((k, id) => setStack((s) => { const top = s[s.length - 1]; if (top && top.k === k && top.id === id) return s; return [...s.filter((x) => !(x.k === k && x.id === id)), { k, id }]; }), []);
   const showLot = useCallback((id) => push('lot', id), [push]); const showCont = useCallback((id) => push('cont', id), [push]); const showFini = useCallback((id) => push('fini', id), [push]);
   // lien direct vers la fiche d'une cuve (étiquette QR : …#cuve=identifiant, 0.29.0-alpha.1) : ouverte dès que l'application est prête (après connexion)
@@ -149,7 +155,17 @@ function App() {
 
   // connexion, verrouillage (manuel ou après inactivité), déconnexion
   const derniereActivite = useRef(Date.now());
-  const connecter = useCallback((id, garder) => { derniereActivite.current = Date.now(); setSession({ uid: id, garder: !!garder, t: Date.now(), verrou: false }); }, [setSession]);
+  // connexion (0.34.0-alpha.1) : ouverture sur l'onglet choisi (Paramètres › Modules) ou le premier de la barre — plus sur « Société &
+  // opérateurs » (l'écran de connexion, sans droits, retombait sur Paramètres). Déverrouillage de la même session : la page reste telle
+  // quelle (formulaire en cours intact) si elle est toujours accessible.
+  const sessionEtat = useRef(session); sessionEtat.current = session; const navRef = useRef(nav); navRef.current = nav;
+  const connecter = useCallback((id, garder, opts) => {
+    const s0 = sessionEtat.current; const d = dbRef.current; const L = modulesVisibles(d).filter((m) => moduleAutorise(d, id, m));
+    derniereActivite.current = Date.now(); setSession({ uid: id, garder: !!garder, t: Date.now(), verrou: false });
+    if (opts && opts.rester) return; // activation des identifiants depuis Paramètres : on y reste (code de secours affiché)
+    if (s0 && s0.verrou && s0.uid === id && L.includes(navRef.current.tab)) return;
+    setNav({ tab: ongletOuverture(d, L), sub: null });
+  }, [setSession]);
   const verrouiller = useCallback((auto) => { const id = sessionRef.current; if (!id) return; act((d) => auditAjouter(d, { uid: id, action: 'verrouillage', resume: auto ? 'Verrouillage automatique (inactivité)' : 'Session verrouillée', appareil: appareilNom() }), null, { systeme: true }); setSession({ uid: id, garder: !!(session && session.garder), t: Date.now(), verrou: true }); }, [act, session, setSession]);
   const deconnecter = useCallback(() => { const id = sessionRef.current || (session && session.uid); if (id && utilisateurDe(dbRef.current, id)) act((d) => auditAjouter(d, { uid: id, action: 'deconnexion', resume: 'Déconnexion', appareil: appareilNom() }), null, { systeme: true }); setSession(null); setStack([]); setOpDlg(null); setMisc(null); setMenu(null); setContEdit(null); setReport(null); setDocsDlg(null); setToastMsg(null); }, [act, session, setSession]);
   useEffect(() => { // verrouillage automatique
@@ -220,6 +236,8 @@ function App() {
   const hygT = hygTachesBadge; // plans de nettoyage et de maintenance (0.26.0-alpha.1)
   const badge = { hygiene: hygT.n ? { n: hygT.n, tone: hygT.nc ? 'bad' : 'warn' } : null, previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, ops: pendingAlerts && moduleActif(db, 'declass') && moduleAutorise(db, uid, 'declass') ? { n: pendingAlerts, tone: 'bad' } : toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null, equipements: equipBadge };
   const Cmp = TABS_REG[nav.tab];
+  const groupe = ONGLETS_GROUPES[ongletDe(nav.tab)] ? ongletDe(nav.tab) : null; const sousOnglets = groupe ? ongletMembres(groupe, visibles) : [];
+  const badgeDe = (o) => { const B = ongletMembres(o, visibles).map((m) => badge[m]).filter(Boolean); return !B.length ? null : { n: sum(B, (b) => b.n), tone: B.some((b) => b.tone === 'bad') ? 'bad' : 'warn' }; };
   const sheetLabel = (sh) => (sh.k === 'cont' ? contName(db, sh.id) : sh.k === 'lot' ? lotCode(db, R, sh.id) : sh.k === 'opr' ? operateurNom(db, sh.id) || 'opérateur' : ((db.lotsFinis || []).find((f) => f.id === sh.id) || {}).code || 'lot fini');
 
   if (accueil) {
@@ -274,11 +292,12 @@ function App() {
         {db.meta.exemple ? <div className="wrap pb-3"><Notice tone="info" title="Jeu de données d’exemple chargé"><span className="hidden sm:inline">Vous pouvez tout tester librement (plan de cave, clic droit, entrée de moûts, traçabilité, rapports…). Quand vous voulez repartir de zéro : </span><span className="sm:hidden">Testez librement, puis repartez de zéro : </span><button type="button" className="linkish" onClick={resetEmpty}>Réinitialiser à vide</button>.</Notice></div> : null}
       </header>
       <nav className="navbar" aria-label="Onglets principaux"><div className="wrap"><div className="navtabs" role="tablist">
-        {visibles.map((id) => (<button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={nav.tab === id} className="tab" onClick={() => setTab(id)}>{moduleNom(id)}{badge[id] ? <span className={`chip chip-${badge[id].tone}`}>{badge[id].n}</span> : null}</button>))}
+        {onglets.map((id) => { const b = badgeDe(id); return (<button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={ongletDe(nav.tab) === id} className="tab" onClick={() => ouvrirOnglet(id)}>{moduleNom(id)}{b ? <span className={`chip chip-${b.tone}`}>{b.n}</span> : null}</button>); })}
       </div></div></nav>
-      <main className="wrap py-5" role="tabpanel" aria-labelledby={`tab-${nav.tab}`}>
+      <main className="wrap py-5" role="tabpanel" aria-labelledby={`tab-${nav.tab}`} data-onglet={ongletDe(nav.tab)}>
         {camp.figee ? <div className="mb-4"><Notice tone="warn" title={`Campagne ${camp.nom} figée`}>Les opérations du {fmtDate(camp.debut)} au {fmtDate(camp.fin)} sont verrouillées. Rouvrez la campagne pour les modifier.</Notice></div> : null}
         {secu && uid && !visibles.length ? <Notice tone="warn" title="Aucun module accessible">Votre profil « {profilNom(db, uid)} » ne donne accès à aucun module : adressez-vous à un administrateur.</Notice> : <>
+          {groupe ? <div className="sous-onglets mb-4 flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label={moduleNom(groupe)} data-onglet-groupe={groupe}>{sousOnglets.map((m) => <button key={m} type="button" role="tab" id={`tab-${m}`} aria-selected={nav.tab === m} className={cx('btn shrink-0', nav.tab === m && 'btn-primary')} onClick={() => setTab(m)}><span aria-hidden="true">{(MODULE_DEFS[m] || {}).icone} </span>{moduleNom(m)}{badge[m] ? <span className={`chip chip-${badge[m].tone}`}>{badge[m].n}</span> : null}</button>)}</div> : null}
           {nav.tab !== 'params' ? <LectureSeuleBandeau mod={nav.tab} /> : null}
           {Cmp ? <Cmp key={nav.tab} /> : <Placeholder name={nav.tab} />}</>}
       </main>

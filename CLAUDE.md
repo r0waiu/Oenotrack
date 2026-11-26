@@ -18,10 +18,12 @@ Mémoire du projet pour Claude et pour le vigneron. Œnotrack sert à la traçab
     - `oenotrack-config` ;
     - jetons cloud ;
     - clé de chiffrement **sur l'appareil seulement**.
-  - IndexedDB : documents joints (`45-docs`), instantanés de synchronisation (`68f-drive`), points de restauration (`44c-garde`).
+  - IndexedDB : documents joints (`45-docs`), instantanés de synchronisation et liens vers les dossiers choisis (`68f-drive` : clés `dossier`, `reseau`), points de restauration (`44c-garde`).
 - **Moteur rejoué.** La base stocke des *opérations*. `replay()` / `getR(db, date)` (`20-engine.js`) recalcule les lots, les portions, les volumes, les bouteilles sur lattes, les flux et les doses cumulées. On ne stocke jamais d'état dérivé.
-- **Synchronisation** (`32-sync.js`, `33-cloud.js`, `34-cloud-fournisseurs.js`, `68f-drive.jsx`) :
-  - fournisseurs : Google Drive, OneDrive, Dropbox ou un dossier local ; OAuth dans le navigateur (GIS pour Google, PKCE pour les autres) ; identifiants publics dans `config.json` ;
+  - L'interface affiche `campEtatR(db, camp)` (`30-store.js`) : état complet, sauf pour une campagne **antérieure** (`anterieure: true`, posé par `campCreate` quand elle finit avant toutes les autres), rejouée jusqu'à sa fin — elle démarre vide.
+- **Synchronisation** (`32-sync.js`, `33-cloud.js`, `33c-dossier-reseau.js`, `34-cloud-fournisseurs.js`, `68f-drive.jsx`, `68g-stockage.jsx`, `68p-dossier-reseau.jsx`) :
+  - fournisseurs : Google Drive, OneDrive, Dropbox, dossier de l'ordinateur (`dossier`) ou **dossier réseau de l'entreprise** (`reseau` : serveur interne, NAS, lecteur réseau, sans cloud externe) ; OAuth dans le navigateur (GIS pour Google, PKCE pour les autres) ; identifiants publics dans `config.json` ;
+  - dossiers locaux et réseau : API File System Access (Chrome, Edge), connecteurs créés par `dossierFournisseur()` ; le connecteur `reseau` pose un jeton d'écriture `oenotrack-verrou.json` (expire après 30 s) ; le chemin commun (`settings.dossierReseau = { chemin, consigne, par, le }`, droit « Sauvegardes et Drive ») n'est qu'un repère : un navigateur ne peut pas ouvrir seul un chemin tapé ;
   - le dossier contient `oenotrack-base.json`, `documents/` et `historique/` ;
   - fusion à 3 voies élément par élément (`syncFusion`) : en cas de conflit, la version la plus récente est gardée et l'autre est journalisée ;
   - chiffrement optionnel AES-256-GCM avec PBKDF2 (`33b-chiffrement.js`, réglage commun).
@@ -60,10 +62,16 @@ dist/       sortie (non versionnée)
 | Schémas de vinification | `16m-schemas` | `61e-schemas` |
 | DRM / DRA (XML DTI+ CIEL, CIVC) | `16n-drm` | `67b-drm` |
 | Traçabilité, audits | `25*`, `27-audits` | `69*` |
-| Stockage, CRUD, synchronisation, droits | `30-store`, `31-crud`, `32-sync`, `34-acces` | `68d`, `68f`, `48-acces` |
+| Stockage, CRUD, campagnes, droits | `30-store`, `31-crud`, `34-acces` | `68d`, `68-params` (campagnes), `48-acces` |
 | Langues (6) | `17b-langues`, tables `17c…17t-trad-*` | `40c-langue` (traducteur DOM) |
 | Impression, PDF | `49-pdf` | `70-report`, `61d-visuel`, `46-fiches` |
-| Navigation, onglets, modules | `31-crud` (`MODULES_DEFAUT`) | `90-app` (`TABS_REG`), `68h-modules` |
+| Navigation, onglets, modules, onglet d'ouverture | `31-crud` (`MODULES_DEFAUT`, `MODULES_DANS`, `ONGLETS_GROUPES`, `ongletOuverture`) | `90-app` (`TABS_REG`, `ONGLET_GROUPE_DEFS`), `68h-modules` |
+| Synchronisation, dossier réseau de l'entreprise | `32-sync`, `33-cloud`, `33c-dossier-reseau`, `34-cloud-fournisseurs` | `68f-drive`, `68g-stockage`, `68p-dossier-reseau` |
+
+### Navigation (0.34.0-alpha.1)
+
+- **Onglets regroupés** : `ONGLETS_GROUPES = { vinification: ['cuverie', 'ops', 'previsions'] }`. L'onglet « Vinification » prend la place du premier de ses modules affichés ; ses modules deviennent des sous-onglets (ids `#tab-cuverie`, `#tab-ops`, `#tab-previsions` gardés, barre `[data-onglet-groupe]`). Chaque module garde son identifiant, son activation, ses droits et sa place dans `modulesOrdre` : `nav.tab` reste un identifiant de **module** (`setTab('ops')` marche toujours) ; le dernier sous-onglet ouvert est retenu. Une version antérieure affiche simplement les trois onglets.
+- **Onglet d'ouverture** : `settings.ongletDefaut` (onglet ou groupe ; absent = premier onglet de la barre), réglé dans Paramètres › Modules, indépendant de l'ordre. Appliqué au démarrage et à chaque connexion ; un déverrouillage de la même session garde la page en cours (formulaire intact) ; l'activation des identifiants reste dans Paramètres (`connecter(id, garder, { rester: true })`).
 
 ## 3. Règles métier et contraintes strictes
 
@@ -72,6 +80,7 @@ dist/       sortie (non versionnée)
   - `normalizeDb` ne supprime jamais un champ ni une clé inconnus ;
   - une nouveauté = de nouveaux champs ou de nouvelles collections, jamais une rupture ;
   - les campagnes figées ne sont pas modifiées ; les pesées et marcs validés ne changent qu'avec un motif tracé ;
+  - une campagne créée avant les campagnes existantes démarre vide (`anterieure: true`) : jamais de lots ni de volumes repris des campagnes suivantes, et leur état ne change pas ;
   - à chaque version : une fixture `test/fixtures/base-X.json`, le moteur précédent gelé dans `test/anciennes/`, et un bloc de compatibilité dans `engine.test.js` (ouvrir, modifier et synchroniser dans les deux sens).
 - **Synchronisation** : rien n'est jamais perdu. Un conflit se résout en gardant la version la plus récente et en journalisant l'autre. Toute nouvelle collection est déclarée dans `SYNC_NOMS`, et dans `GARDE_CLES` ou `GARDE_PARAMS`.
 - **Vocabulaire champenois exact** (ne pas traduire ni « simplifier » en français) :
@@ -98,7 +107,7 @@ node test/engine.test.js                     # moteur (OENOTRACK_XSD_DTI=chemin.
 OENOTRACK_TESTS=/tmp/x node test/tNN.mjs     # un test d'interface (relancer toute la suite tNN avant publication)
 node tools/textes-a-traduire.cjs [fichiers]  # textes non traduits (comparer avec la version précédente)
 node tools/changelog.mjs                     # CHANGELOG.md depuis CHANGELOG de 10-core.js
-python3 tools/paquet-web.py                  # site + zip (dist/web)
+python3 tools/paquet-web.py                  # site + zip (dist/web) ; à la livraison, recopier index.html, sw.js, licence.html à la racine
 python3 tools/depot-github.py <dépôt>        # copie publique (sans fichiers privés)
 ```
 
@@ -115,7 +124,8 @@ python3 tools/depot-github.py <dépôt>        # copie publique (sans fichiers p
   - un fichier ajouté conserve l'ordre alphabétique de concaténation.
 - **Tests** :
   - tout nouveau comportement du moteur a son bloc dans `engine.test.js` (exposer les fonctions dans la liste `return {…}` et ajouter le fichier à `files`) ;
-  - toute nouvelle interface a un `tNN.mjs` (le CSS met en capitales `th`, `.lbl` et les pastilles : utiliser des regex `/i`) ;
+  - toute nouvelle interface a un `tNN.mjs` (le CSS met en capitales `th`, `.lbl` et les pastilles : utiliser des regex `/i`) ; le harnais `ui.mjs` passe par « Vinification » quand un test clique `#tab-cuverie` / `#tab-ops` / `#tab-previsions` depuis un autre onglet ;
+  - outils de test attendus dans `/opt/npm-tools/node_modules` : esbuild, pdf-lib, jszip, pdfjs-dist, typescript, playwright (lien vers l'installation globale) ;
   - vérifier aussi l'absence de « ✗ » dans les journaux.
 - **Collaboration** :
   - carte blanche sur la technique ;

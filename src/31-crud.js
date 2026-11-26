@@ -173,6 +173,29 @@ const MODULES_DANS = { declass: 'ops' };
 const modulesConnus = (db) => modulesOrdre(db).filter((id) => estModule(id) && !MODULES_DANS[id]);
 const modulesVisibles = (db) => modulesConnus(db).filter((id) => moduleActif(db, id));
 const moduleAccueil = (db) => modulesVisibles(db)[0] || MODULE_FIXE;
+/* ---------- onglets regroupés (0.34.0-alpha.1) : un onglet principal réunit plusieurs modules en sous-onglets ----------
+   « Vinification » = Cuverie & Lots, Opérations & Assemblages, À réaliser & fiches. Chaque module garde son identifiant, son activation,
+   ses droits et sa place dans l'ordre : l'onglet du groupe prend la place du premier de ses modules affichés (une version antérieure,
+   qui ne connaît pas les groupes, affiche toujours les trois onglets séparés). */
+const ONGLETS_GROUPES = { vinification: ['cuverie', 'ops', 'previsions'] };
+const ongletDe = (id) => Object.keys(ONGLETS_GROUPES).find((g) => ONGLETS_GROUPES[g].includes(id)) || id;
+// modules affichés (déjà filtrés : actifs, autorisés) → onglets de la barre, dans l'ordre ; un groupe apparaît une seule fois
+const ongletsBarre = (mods) => (Array.isArray(mods) ? mods : []).map(ongletDe).filter((x, i, a) => a.indexOf(x) === i);
+const ongletMembres = (onglet, mods) => (ONGLETS_GROUPES[onglet] ? (Array.isArray(mods) ? mods : []).filter((m) => ONGLETS_GROUPES[onglet].includes(m)) : [onglet]);
+/* onglet ouvert au démarrage, à la connexion et au déverrouillage : settings.ongletDefaut (identifiant d'onglet ou de groupe ; '' = le
+   premier onglet de la barre), réglage commun de la base ; ignoré s'il n'est pas affiché (module désactivé, profil sans accès).
+   Renvoie le module à ouvrir (pour un groupe : son premier module affiché). */
+function ongletOuverture(db, mods) {
+  const L = Array.isArray(mods) ? mods : modulesVisibles(db); const pref = String(((db && db.settings) || {}).ongletDefaut || '');
+  const m = pref ? ongletMembres(pref, L).filter((x) => L.includes(x)) : [];
+  return m[0] || L[0] || MODULE_FIXE;
+}
+function ongletDefautSet(db, id) {
+  const v = String(id || '');
+  if (v && !ONGLETS_GROUPES[v] && !estModule(v)) return fail('Onglet inconnu.');
+  if (v && MODULES_DANS[v]) return fail('Ce module n’a pas d’onglet propre.');
+  if (v) db.settings.ongletDefaut = v; else delete db.settings.ongletDefaut; return okr();
+}
 // nouvel ordre des modules connus ; les ids inconnus restent à leur place
 function modulesOrdonner(db, ids) {
   const full = modulesOrdre(db); const nv = (Array.isArray(ids) ? ids : []).filter((x, i, a) => estModule(x) && a.indexOf(x) === i);
