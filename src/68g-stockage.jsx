@@ -17,7 +17,7 @@ function useCloud({ db, dbRef, applyDb, toast }) {
   const setEtat = useCallback((p) => { const n = typeof p === 'function' ? p(etatRef.current) : { ...etatRef.current, ...p }; etatRef.current = n; cloudEtatEcrire(n); setEtat0(n); }, []);
   const [statut, setStatut] = useState(''); const [message, setMessage] = useState(''); const [config, setConfig] = useState(cloudConfig);
   const [choix, setChoix] = useState(null); const enCours = useRef(false); const encore = useRef(null);
-  const empreinte = useMemo(() => syncEmpreinte(db), [db]); const integre = cloudIntegre();
+  const empreinte = useMemo(() => empreinteUI(db), [db]); const integre = cloudIntegre();
   const F = etat.fournisseur ? CLOUD_FOURNISSEURS[etat.fournisseur] : null; const lie = !!(F && etat.dossier) && !integre;
   // 0.38.0-alpha.3 : une synchronisation en cours ne rétablit plus l'état d'avant (pause posée par une restauration, dossier changé ou
   // délié pendant l'envoi) : seuls ses champs de suivi sont reportés, et rien n'est envoyé si la synchronisation a été mise en pause

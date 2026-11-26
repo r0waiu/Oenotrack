@@ -239,14 +239,14 @@ function jaugeMeta(texte) {
   meta.immat = im ? `${im[1]}-${im[2]}-${im[3]}`.toUpperCase() : '';
   meta.certificat = pris(/certificat de jaugeage\s*(?:n\s*(?:umero|°|o|\*|")?\.?\s*)?:?\s*([a-z0-9][a-z0-9.\-/]{5,})/, 1) || '';
   // « N° R . I3 . 18 . 00151 » (scan : espaces autour des points) → R.I3.18.00151 (0.37.0-alpha.1)
-  if (!meta.certificat || meta.certificat.length < 6) meta.certificat = pris(/certificat de jaugeage\s*n\s*[°o"*]?\s*:?\s*([a-z0-9]{1,6}(?:\s{0,2}[.\-/]\s{0,2}[a-z0-9]{1,8}){2,6})/, 1, (v) => v.replace(/\s+/g, '').toUpperCase()) || meta.certificat;
+  if (!meta.certificat || meta.certificat.length < 6) meta.certificat = pris(/certificat de jaugeage\s{0,40}n\s{0,40}[°o"*]?\s{0,40}:?\s{0,40}([a-z0-9]{1,6}(?:\s{0,2}[.\-/]\s{0,2}[a-z0-9]{1,8}){2,6})/, 1, (v) => v.replace(/\s+/g, '').toUpperCase()) || meta.certificat;
   meta.date = pris(/(?:date de la\s*verification|date)\s*:?\s*(\d{1,2}[/.]\d{1,2}[/.]\d{4})/, 1, dateIso) || null;
   meta.validite = pris(/limite de\s*validite\s*:?\s*(\d{1,2}[/.]\d{1,2}[/.]\d{4})/, 1, dateIso) || null;
   meta.constructeur = pris(/constructeur\s*:?\s*([^\n]+)/, 1, champ) || '';
   meta.numeroSerie = pris(/n\s*[°o]\s*de\s*serie\s*:?\s*([a-z0-9][a-z0-9\-/.]*\d[a-z0-9\-/.]*)/, 1) || '';
   meta.forme = pris(/forme\s*:\s*([^\n]+)/, 1, champ) || pris(/description du reservoir\s+([^\n]+)/, 1, champ) || '';
   meta.materiau = pris(/materiau\s*:\s*([^\n]+)/, 1, champ) || '';
-  const cap = /capacite\s*:?\s*([\d\s.,]+?)\s*(litres?|l\b|hl|m3)/.exec(F); if (cap) { const n = nombreJauge(cap[1].replace(/\s/g, '')); if (Number.isFinite(n)) meta.capacite = Math.round(n * (JAUGE_V[cap[2].startsWith('l') ? 'l' : cap[2]] || 1) * 1000) / 1000; }
+  const cap = /capacite\s{0,40}:?\s{0,40}(\d[\d\s.,]{0,24}?)\s{0,40}(litres?|l\b|hl|m3)/.exec(F); /* 0.38.0-alpha.3 : quantificateurs bornés (plus de temps cubique sur une longue suite d'espaces) */ if (cap) { const n = nombreJauge(cap[1].replace(/\s/g, '')); if (Number.isFinite(n)) meta.capacite = Math.round(n * (JAUGE_V[cap[2].startsWith('l') ? 'l' : cap[2]] || 1) * 1000) / 1000; }
   const vol = (re) => { const m = re.exec(F); if (!m) return undefined; const n = nombreJauge(m[1]); if (!Number.isFinite(n)) return undefined; const u = m[2] && /^l/.test(m[2]) ? 1 : m[2] === 'hl' ? 100 : n < 100 ? 1000 : 1; return Math.round(n * u * 1000) / 1000; };
   const lon = (re) => { const m = re.exec(F); if (!m) return undefined; const n = nombreJauge(m[1]); if (!Number.isFinite(n)) return undefined; return Math.round(n * (m[2] === 'mm' ? 0.1 : m[2] === 'cm' ? 1 : 100) * 100) / 100; };
   meta.hauteurTotale = lon(/hauteur\s*totale\s*(?:temoin)?\s*:?\s*(\d[\d.,]*)\s*(mm|cm|m)/);

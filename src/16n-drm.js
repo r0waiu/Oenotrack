@@ -257,7 +257,7 @@ function drmRouvrir(db, key) { const n = (db.drmDeclarations || []).length; db.d
 
 /* ---------- fichier DTI+ (CIEL) et variante CIVC ; CSV ---------- */
 const drmHl = (L) => { const v = Math.round((L / 100) * 100000) / 100000; return Object.is(v, -0) ? '0' : String(v); };
-const xmlEsc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+const xmlEsc = (s) => String(s == null ? '' : s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 function drmXml(db, calc, o) {
   const civc = !!(o && o.civc); const r = drmReglage(db); const per = calc.periode; const T = '  ';
   const el = (n, v, ind) => `${T.repeat(ind)}<${n}>${v}</${n}>`;

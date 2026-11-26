@@ -45,13 +45,14 @@ function plafondValider(db, id, uid) { const p = plafondsMaterialiser(db).find((
 function plafondSupprimer(db, id) { const L = plafondsMaterialiser(db); const i = L.findIndex((x) => x.id === id); if (i < 0) return fail('Plafond introuvable.'); L.splice(i, 1); return okr(); }
 // type de vin d'un lot pour le plafond de SO₂ : effervescent (Champagne, ou vin tiré), sinon selon la couleur
 function lotTypeVin(db, R, lotId) {
+  const fini = !(R && R.lots && R.lots[lotId]) && (db.lotsFinis || []).some((x) => x.id === lotId); if (fini) return 'effervescent'; // lot fini : dégorgé
   const l = (R && R.lots && R.lots[lotId]) || (db.lots || []).find((x) => x.id === lotId) || {};
   const st = stadeList(db).find((s) => s.id === l.stade); if ((st && st.phase === 'bout') || champenois(db)) return 'effervescent';
   return l.couleur === 'rouge' ? 'rouge' : 'blanc_rose';
 }
 // plafond de SO₂ total qui s'applique au lot (revendication + type de vin ; « tous les vins » à défaut) : le plus bas s'il y en a plusieurs
 function plafondSo2Lot(db, R, lotId) {
-  const l = (R && R.lots && R.lots[lotId]) || (db.lots || []).find((x) => x.id === lotId); if (!l) return null;
+  const l = (R && R.lots && R.lots[lotId]) || (db.lots || []).find((x) => x.id === lotId) || (db.lotsFinis || []).find((x) => x.id === lotId); if (!l) return null; // lot fini (0.38.0-alpha.3)
   const t = lotTypeVin(db, R, lotId); const L = plafondsDe(db).filter((p) => p.objet === 'so2t' && p.qualifId === l.qualif);
   const c = L.filter((p) => p.vin === t); const m = (c.length ? c : L.filter((p) => p.vin === 'tous')).sort((a, b) => a.valeur - b.valeur);
   return m[0] ? { ...m[0], typeVin: t } : null;
@@ -69,7 +70,7 @@ function regleEffective(db, p, qualifId) {
 // teneur en SO₂ d'un produit (champ « so2 » : « 150 g/L », « 0,5 g/g », « 5 g/u »…) ramenée à son unité : grammes de SO₂ par unité saisie
 function so2Teneur(p) {
   const m = /^(\d+(?:[.,]\d+)?)\s*(g|mg)\s*\/\s*(L|mL|kg|g|u)$/i.exec(String((p && p.so2) || '').trim()); if (!m) return null;
-  let g = num(m[1]); if (m[2].toLowerCase() === 'mg') g /= 1000; const par = m[3] === 'l' ? 'L' : m[3];
+  let g = num(m[1]); if (m[2].toLowerCase() === 'mg') g /= 1000; const par = { l: 'L', ml: 'mL', kg: 'kg', g: 'g', u: 'u' }[m[3].toLowerCase()]; // 0.38.0-alpha.3 : « mg/ml », « g/KG »… reconnus
   const f = { L: { L: 1, mL: 1000 }, mL: { L: 0.001, mL: 1 }, kg: { kg: 1, g: 1000 }, g: { kg: 0.001, g: 1 }, u: { u: 1 } }[par]; const k = f && f[p.unite];
   return k ? g / k : null;
 }
@@ -88,6 +89,13 @@ function lotIntrantsCumul(db, R, lotId) {
   }).sort((a, b) => a.p.nom.localeCompare(b.p.nom, 'fr'));
 }
 // SO₂ total estimé d'un lot : dernière analyse (SO₂ total) + ajouts depuis ; sans analyse, cumul des ajouts depuis l'origine (héritage compris)
+// SO₂ total d'un lot à une date, pendant le rejeu (0.38.0-alpha.3, lot fini issu d'un dégorgement) : dernière analyse jusqu'à cette date et
+// ajouts depuis, sinon ajouts cumulés
+function so2Herite(db, R, lotId, date) {
+  const an = (db.analyses || []).filter((a) => a && a.lotId === lotId && a.valeurs && hasNum(a.valeurs.so2t) && a.date <= date).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).pop();
+  const ev = ((R.so2Ev || {})[lotId] || []).filter((x) => x.date <= date);
+  return an ? num(an.valeurs.so2t) + sum(ev.filter((x) => x.date >= an.date), (x) => x.mgL) : (((R.conc || {})[lotId] || {})['@so2'] || 0) * 10;
+}
 function so2TotalEstime(db, R, lotId) {
   const an = (db.analyses || []).filter((a) => a && a.lotId === lotId && a.valeurs && hasNum(a.valeurs.so2t) && (!R.upTo || a.date <= R.upTo)).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).pop() || null;
   const ev = (R.so2Ev || {})[lotId] || []; const cumul = (((R.conc || {})[lotId] || {})['@so2'] || 0) * 10; // g/hL de SO₂ → mg/L

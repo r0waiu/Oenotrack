@@ -19,6 +19,13 @@ export async function open(opts = {}) {
   const n0 = ctx.newPage.bind(ctx); ctx.newPage = async () => vinification(await n0());
   const page = await ctx.newPage();
   const errors = [];
+  await preparer(page, opts, errors);
+  await page.goto(opts.https ? 'https://app.test/' : 'http://app.test/'); await page.waitForTimeout(1200);
+  // 0.38.0-alpha.3 : autre onglet de la même session (même stockage), préparé comme le premier (onglet unique)
+  ctx.autreOnglet = async (errs) => { const p = await ctx.newPage(); await preparer(p, opts, errs || errors); return p; };
+  return { browser, page, errors, ctx };
+}
+async function preparer(page, opts, errors) {
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   const BASE = opts.https ? 'https://app.test/' : 'http://app.test/';
@@ -47,8 +54,6 @@ export async function open(opts = {}) {
     Storage.prototype.getItem = function (k) { const v = g.call(this, k); if (this === window.localStorage && typeof v === 'string' && v.indexOf('"oenotrack-coffre"') >= 0 && v.indexOf('"oenotrack-coffre"') < 600 && typeof window.__coffreClair === 'function') { const c = window.__coffreClair(k); if (c != null) return c; } return v; };
   });
   if (opts.init) await page.addInitScript(opts.init);
-  await page.goto(BASE); await page.waitForTimeout(1200);
-  return { browser, page, errors, ctx };
 }
 export function vinification(page) {
   if (page.__vinif) return page; page.__vinif = true; const c0 = page.click.bind(page);

@@ -46,6 +46,20 @@ const gardeNomPropre = (nom) => String(nom || 'fichier').replace(/[\u0000-\u001f
 const gardeOct = (b, i, sig) => { if (i + sig.length > b.length) return false; for (let k = 0; k < sig.length; k += 1) if (b[i + k] !== sig[k]) return false; return true; };
 const gardeAscii = (b, i, n) => { let s = ''; const f = Math.min(b.length, i + n); for (let k = i; k < f; k += 1) s += String.fromCharCode(b[k]); return s; };
 function gardeLatin1(b, max) { const n = Math.min(b.length, max || b.length); let s = ''; for (let i = 0; i < n; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, Math.min(n, i + 0x8000))); return s; }
+// texte d'un fichier quelconque (0.38.0-alpha.3) : UTF-8 (avec ou sans BOM), UTF-16 (« Texte Unicode » d'Excel : BOM ou octets nuls
+// alternés), sinon Windows-1252 (CSV d'Excel en français) — les accents (« Acidité ») ne deviennent plus « Acidit� »
+function texteDeOctets(b) {
+  b = b instanceof Uint8Array ? b : new Uint8Array(b || []); if (!b.length) return '';
+  const dec = (enc, x, fatal) => new TextDecoder(enc, { fatal: !!fatal }).decode(x);
+  try {
+    if (b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf) return dec('utf-8', b.subarray(3));
+    if (b[0] === 0xff && b[1] === 0xfe) return dec('utf-16le', b.subarray(2));
+    if (b[0] === 0xfe && b[1] === 0xff) return dec('utf-16be', b.subarray(2));
+    const n = Math.min(b.length, 4000); let z0 = 0, z1 = 0; for (let i = 0; i < n; i += 1) if (!b[i]) { if (i % 2) z1 += 1; else z0 += 1; }
+    if (z1 > n / 4 && z0 < n / 50) return dec('utf-16le', b); if (z0 > n / 4 && z1 < n / 50) return dec('utf-16be', b);
+    try { return dec('utf-8', b, true); } catch (e) { return dec('windows-1252', b); }
+  } catch (e) { return gardeLatin1(b); }
+}
 function gardeDecoder(b, utf16) {
   try { if (typeof TextDecoder === 'function') return new TextDecoder(utf16 ? (b[0] === 0xfe ? 'utf-16be' : 'utf-16le') : 'utf-8', { fatal: false }).decode(b); } catch (e) { /* plus bas */ }
   return gardeLatin1(b);

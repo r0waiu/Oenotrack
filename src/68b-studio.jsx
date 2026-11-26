@@ -179,7 +179,9 @@ function SitesView() {
 
 /* ---------- fractions de moût (liste personnalisable) ---------- */
 function FractionsEditor() {
-  const { db, act } = useApp(); const L = fracList(db); const [nv, setNv] = useState({ label: '', suffix: '', pressurage: true });
+  const { db, act } = useApp(); const L = fracList(db); const [nv, setNv] = useState({ label: '', suffix: '', pressurage: true, role: 'autre', roleManuel: false });
+  // rôle (0.38.0-alpha.3) : proposé d'après le nom saisi tant qu'il n'a pas été choisi à la main
+  const roleOpts = FRAC_ROLES.map(([value, label]) => ({ value, label }));
   const ed = (id, patch, msg) => act((d) => fractionCont(d, 'edit', id, patch), msg);
   return (
     <div className="space-y-2">
@@ -188,15 +190,17 @@ function FractionsEditor() {
           <input className="inp" style={{ flex: '1 1 200px', width: 'auto', minWidth: 150 }} defaultValue={x.label} aria-label="Libellé de la fraction" onBlur={(e) => { if (e.target.value.trim() !== x.label) ed(x.id, { label: e.target.value }, 'Fraction renommée.'); }} />
           <input className="inp num" style={{ width: 74 }} defaultValue={x.suffix} maxLength={4} aria-label={`Suffixe du code lot (${x.label})`} title="Suffixe ajouté au code lot (ex. P26-01-C)" onBlur={(e) => { if (e.target.value.trim().toUpperCase() !== (x.suffix || '')) ed(x.id, { suffix: e.target.value }, 'Suffixe enregistré.'); }} />
           <Check checked={x.pressurage !== false} onChange={(v) => ed(x.id, { pressurage: v })} label="au pressurage" />
+          <label className="flex items-center gap-1 text-sm"><span className="text-ink2">Rôle</span><SI plain value={fracRole(db, x.id)} options={roleOpts} onChange={(v) => ed(x.id, { role: v }, 'Rôle de la fraction enregistré.')} aria-label={`Rôle de la fraction (${x.label})`} /></label>
           <div className="flex gap-1"><Btn size="sm" disabled={i === 0} aria-label="Monter" onClick={() => act((d) => fractionCont(d, 'up', x.id))}>↑</Btn><Btn size="sm" disabled={i === L.length - 1} aria-label="Descendre" onClick={() => act((d) => fractionCont(d, 'down', x.id))}>↓</Btn><Btn size="sm" kind="danger" aria-label={`Supprimer ${x.label}`} onClick={() => act((d) => fractionCont(d, 'del', x.id), 'Fraction supprimée.')}>✕</Btn></div>
         </div>))}
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-2">
-        <input className="inp" style={{ flex: '1 1 200px', width: 'auto', minWidth: 150 }} value={nv.label} onChange={(e) => setNv({ ...nv, label: e.target.value })} placeholder="Nouvelle fraction (ex. Vin de presse)" aria-label="Nouvelle fraction" />
+        <input className="inp" style={{ flex: '1 1 200px', width: 'auto', minWidth: 150 }} value={nv.label} onChange={(e) => { const label = e.target.value; setNv({ ...nv, label, role: nv.roleManuel ? nv.role : fracRoleDevine(label) }); }} placeholder="Nouvelle fraction (ex. Vin de presse)" aria-label="Nouvelle fraction" />
         <input className="inp" style={{ width: 90 }} value={nv.suffix} onChange={(e) => setNv({ ...nv, suffix: e.target.value })} placeholder="Suffixe" maxLength={4} aria-label="Suffixe" />
         <Check checked={nv.pressurage} onChange={(v) => setNv({ ...nv, pressurage: v })} label="au pressurage" />
-        <Btn kind="primary" size="sm" onClick={() => { const r = act((d) => fractionCont(d, 'add', null, nv), 'Fraction ajoutée.'); if (r.ok) setNv({ label: '', suffix: '', pressurage: true }); }}>+ Ajouter</Btn>
+        <label className="flex items-center gap-1 text-sm"><span className="text-ink2">Rôle</span><SI plain value={nv.role} options={roleOpts} onChange={(v) => setNv({ ...nv, role: v, roleManuel: true })} aria-label="Rôle de la nouvelle fraction" /></label>
+        <Btn kind="primary" size="sm" onClick={() => { const r = act((d) => fractionCont(d, 'add', null, { label: nv.label, suffix: nv.suffix, pressurage: nv.pressurage, role: nv.role }), 'Fraction ajoutée.'); if (r.ok) setNv({ label: '', suffix: '', pressurage: true, role: 'autre', roleManuel: false }); }}>+ Ajouter</Btn>
       </div>
-      <p className="help">Toutes les fractions sont proposées à l’entrée de moûts ; celles cochées « au pressurage » apparaissent aussi dans le formulaire de pressurage. Le suffixe complète le code lot (P26-01-<b>C</b>, M26-02-<b>T1</b>). Une fraction déjà utilisée peut être renommée mais pas supprimée.</p>
+      <p className="help">Toutes les fractions sont proposées à l’entrée de moûts ; celles cochées « au pressurage » apparaissent aussi dans le formulaire de pressurage. Le suffixe complète le code lot (P26-01-<b>C</b>, M26-02-<b>T1</b>). Le rôle (cuvée, taille, rebêche ou autre) compte la fraction dans les marcs, les plafonds et les rendements : il est proposé d’après le nom, vérifiez-le. Une fraction déjà utilisée peut être renommée mais pas supprimée.</p>
       <Btn size="sm" onClick={() => act((d) => fractionCont(d, 'reset'), 'Fractions par défaut réajoutées.')}>Réajouter les fractions par défaut manquantes</Btn>
     </div>
   );

@@ -19,6 +19,9 @@ async function gardeInflate(octets, brut, max) {
 const GARDE_OUTILS = { inflate: gardeInflate, chargerPdfLib: () => loadPdfLib() };
 // un fichier → { file (éventuellement désarmé ou retypé), v (verdict) } ; file absent si refusé
 async function gardeFichier(file, usage) {
+  // 0.38.0-alpha.3 : taille contrôlée AVANT la lecture (une vidéo de plusieurs Go n'est plus chargée en mémoire pour rien)
+  const U0 = GARDE_USAGES[usage] || GARDE_USAGES.document; const t0 = Number(file && file.size) || 0;
+  if (t0 > U0.max) return { v: { statut: 'refuse', usage, raisons: [`trop volumineux (${gardeTaille(t0)}, au plus ${gardeTaille(U0.max)} ici)`], avertissements: [], famille: '', taille: t0 } };
   let b; try { b = new Uint8Array(await file.arrayBuffer()); } catch (e) { return { v: { statut: 'refuse', usage, raisons: ['lecture du fichier impossible'], avertissements: [], famille: '', taille: file.size || 0 } }; }
   let v; try { v = await gardeAnalyser(b, file.name, usage, GARDE_OUTILS); } catch (e) { console.error(e); v = { statut: 'refuse', usage, raisons: ['vérification impossible (fichier illisible)'], avertissements: [], famille: '', taille: b.length }; }
   if (v.statut === 'refuse') return { v };

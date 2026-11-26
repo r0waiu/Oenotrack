@@ -13,7 +13,7 @@ function CoffrePorte({ children }) {
     try { const x = await coffreDeverrouiller(mdp); setMdp(''); setEtat(x); } catch (er) { setErr((er && er.message) || 'Mot de passe incorrect.'); }
     setBusy(false);
   };
-  const repartir = async () => { setBusy(true); const x = await coffreRepartir(); setBusy(false); setConfirmer(false); setEtat(x); };
+  const repartir = async () => { setBusy(true); setErr(''); try { const x = await coffreRepartir(); setConfirmer(false); setEtat(x); } catch (er) { setErr((er && er.message) || 'Impossible de repartir.'); } setBusy(false); };
   return (
     <div className="login-wrap" data-coffre={etat}>
       <form className="login-card card" onSubmit={deverrouiller} aria-label="Coffre de l’appareil">
@@ -28,6 +28,7 @@ function CoffrePorte({ children }) {
           <div><h1 className="login-titre">Données de cet appareil illisibles</h1><p className="text-sm text-ink2">La base de cet appareil est chiffrée, mais sa clé n’est plus là : données du navigateur effacées en partie, ou autre profil de navigateur.</p>{_coffre.erreur ? <p className="help">{_coffre.erreur}</p> : null}</div>
           <Notice tone="info" title="Rien n’est effacé">Repartez sur cet appareil puis reprenez vos données depuis le Drive, le dossier partagé ou une sauvegarde (Paramètres › Sauvegarde &amp; Drive). La copie chiffrée est gardée à part dans ce navigateur.</Notice>
           <Btn kind="primary" className="w-full" onClick={() => setConfirmer(true)}>Repartir sur cet appareil…</Btn>
+          {err ? <div className="login-err" role="alert">{err}</div> : null}
         </>}
         {confirmer ? <div className="space-y-2" data-coffre-repartir=""><Notice tone="warn" title="Repartir sur cet appareil ?">Œnotrack s’ouvrira sur une base vide ; la copie chiffrée est mise de côté. Reprenez ensuite vos données depuis le Drive ou une sauvegarde.</Notice><div className="flex flex-wrap gap-2"><Btn onClick={() => setConfirmer(false)}>Annuler</Btn><Btn kind="danger" disabled={busy} onClick={repartir}>Repartir</Btn></div></div> : null}
         <p className="login-pied">🔐 Chiffrement AES-256 sur l’appareil : le mot de passe n’est enregistré nulle part.</p>

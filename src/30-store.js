@@ -164,7 +164,7 @@ function loadDb() {
   return { db: null, fromStorage: false };
 }
 function saveDb(db) {
-  if (_loadIllisible) return false; // base de l'appareil illisible : gardée telle quelle (voir loadDb)
+  if (_loadIllisible || ongletBloque()) return false; // base de l'appareil illisible : gardée telle quelle (voir loadDb) ; autre onglet actif (33e)
   try { return coffreEcrire(STORAGE_KEY, JSON.stringify(db)); } catch (e) { return false; }
 }
 function exportJSON(db) { return JSON.stringify(db, null, 2); }

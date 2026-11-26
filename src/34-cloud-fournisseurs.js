@@ -281,7 +281,8 @@ function dossierFournisseur(o) {
       const jeton = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
       for (let essai = 0; essai < 6; essai += 1) {
         let cur = null; try { cur = JSON.parse(await (await (await this.fichier(DOSSIER_VERROU)).getFile()).text()); } catch (e) { if (e && e.auth) throw e; cur = null; }
-        if (cur && cur.jeton && Date.now() - (Number(cur.t) || 0) < DOSSIER_VERROU_MS) { await dossierPause(400 + Math.round(Math.random() * 600)); continue; }
+        const age = Date.now() - (Number(cur && cur.t) || 0); // 0.38.0-alpha.3 : jeton daté « dans le futur » (horloge d'un poste en avance) : périmé, il ne bloque plus les autres
+        if (cur && cur.jeton && age < DOSSIER_VERROU_MS && age > -DOSSIER_VERROU_MS) { await dossierPause(400 + Math.round(Math.random() * 600)); continue; }
         await this.ecrire(await this.fichier(DOSSIER_VERROU, null, true), JSON.stringify({ jeton, t: Date.now(), appareil: (typeof appareilNom === 'function' ? appareilNom() : '') }));
         await dossierPause(o.delaiVerrou != null ? o.delaiVerrou : 250);
         let relu = null; try { relu = JSON.parse(await (await (await this.fichier(DOSSIER_VERROU)).getFile()).text()); } catch (e) { relu = null; }

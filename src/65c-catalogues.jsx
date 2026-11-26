@@ -103,7 +103,7 @@ async function lireTextePdf(file, { onEtape, maxPages } = {}) {
   });
 }
 // texte d'un fichier CSV : UTF-8, sinon Windows-1252 (exports d'Excel en français)
-async function texteCsv(file) { const b = new Uint8Array(await file.arrayBuffer()); try { return new TextDecoder('utf-8', { fatal: true }).decode(b); } catch (e) { return new TextDecoder('windows-1252').decode(b); } }
+const texteCsv = (file) => lectureFichier(file); // UTF-8, UTF-16 ou Windows-1252 (68f-drive)
 // découpe d'un long texte pour l'assistant IA (morceaux de lignes entières)
 const texteMorceaux = (t, n) => { const out = []; let cur = ''; String(t || '').split('\n').forEach((l) => { if ((cur + l).length > n && cur) { out.push(cur); cur = ''; } cur += `${l}\n`; }); if (cur.trim()) out.push(cur); return out; };
 function CatalogueImportSheet({ onClose, onFait }) {

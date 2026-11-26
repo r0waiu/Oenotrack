@@ -62,7 +62,9 @@ function bulletinNombre(s0) {
 // valeur dans l'unité du paramètre de la cave (acidités, densité, sucres, SO₂)
 function bulletinConvertir(v, uniteTexte, unitePar, nomPar) {
   const u = bulNorm(uniteTexte); const up = bulNorm(unitePar);
-  if (/h2so4/.test(up)) { if (/meq/.test(u)) return v * 0.049; if (/tartrique|h2t\b|\bth2\b/.test(u)) return v / 1.531; if (/acetique/.test(u)) return v * 0.8167; }
+  // 0.38.0-alpha.3 : valeur déjà en H₂SO₄ (son unité vient avant toute mention de l'acide tartrique, p. ex. « 3,43 g/L H2SO4 5,25 g/L
+  // acide tartrique ») : gardée telle quelle — elle était divisée une seconde fois par 1,531
+  if (/h2so4/.test(up)) { const ih = u.search(/h2so4/); const it = u.search(/tartrique|h2t\b|\bth2\b|meq|acetique/); if (ih >= 0 && (it < 0 || ih < it)) return v; if (/meq/.test(u)) return v * 0.049; if (/tartrique|h2t\b|\bth2\b/.test(u)) return v / 1.531; if (/acetique/.test(u)) return v * 0.8167; }
   if (/densite|masse volumique/.test(bulNorm(nomPar)) && v > 100 && v < 2000) return v / 1000;
   if (/^g l$/.test(up) && /\bmg l\b/.test(u)) return v / 1000;
   if (/^mg l$/.test(up) && /\bg l\b/.test(u) && !/\bmg l\b/.test(u) && v < 5) return v * 1000;
@@ -139,7 +141,7 @@ function bulletinEntete(texte) {
   const phrase = (x) => { const n = norm(x).replace(/[^a-z ]/g, '').trim(); return /[.;]$/.test(x) || x.split(/\s+/).length > 9 || /^(?:par|analyste|oenologue|valide|approuve)\b/.test(n) || /^laboratoire$/.test(n) || /habilite|accredit/.test(n); };
   const lab0 = cases.find((x) => BUL_LABOS.test(x) && !phrase(x)) || cases.find((x) => /laboratoire|labo\b|oenolog|œnolog|analyses? (?:oenolog|œnolog)/i.test(x) && !phrase(x)) || '';
   const labo = lab0.replace(/^(?:s\.?\s?a\.?\s?s\.?\s?u?\.?|s\.?\s?a\.?\s?r\.?\s?l\.?|e\.?u\.?r\.?l\.?|s\.?\s?a\.?|scop)\s+/i, '').slice(0, 80);
-  const m = /(?:bulletin|rapport|certificat|dossier)(?:\s+d['’]analyses?)?\s*(?:n[°º]|no|num[ée]ro)\s*[:.]?\s*([A-Z0-9][A-Z0-9/._-]{2,30})/i.exec(T);
+  const m = /(?:bulletin|rapport|certificat|dossier)(?:\s+d['’]analyses?)?\s*(?:n[°º]|no\b\.?|num[ée]ro)\s*[:.]?\s*((?=[A-Z0-9/._-]*\d)[A-Z0-9][A-Z0-9/._-]{2,30})/i.exec(T); // 0.38.0-alpha.3 : « no » mot entier, au moins un chiffre (« Rapport normal » ne donne plus « rmal »)
   return { labo, numero: m ? m[1] : '' };
 }
 

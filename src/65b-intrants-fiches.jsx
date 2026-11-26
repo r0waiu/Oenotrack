@@ -81,7 +81,7 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
   const texteDe = (r) => String((r.lu && (r.lu.texte || r.lu.extrait)) || '');
   const completer = async (keys) => {
     const A1 = iaActive(); if (!A1.pret) { toast('Configurez d’abord l’assistant IA : Paramètres › 🤖 Assistant IA.', 'bad'); return; }
-    setIaBusy(true);
+    setIaBusy('completer'); // 0.38.0-alpha.3 : quelle lecture IA est en cours (les deux boutons affichaient « … en cours »)
     for (const k of keys) {
       if (!vivant.current) break; let r = rowsR.current.find((x) => x.k === k);
       for (let i = 0; i < 20 && r && r.etat !== 'pret'; i += 1) { await new Promise((res) => setTimeout(res, 50)); r = rowsR.current.find((x) => x.k === k); } // lecture encore en cours d'affichage
@@ -113,7 +113,7 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
   const aJoindre = pretes.filter((r) => r.cle && r.action !== 'ignorer' && (r.cle !== 'nouveau' || String(r.nom || '').trim()));
   const identifier = async (liste) => {
     if (!A.pret) { toast('Configurez d’abord l’assistant IA : Paramètres › 🤖 Assistant IA.', 'bad'); return; }
-    setIaBusy(true);
+    setIaBusy('identifier');
     for (const r of liste) {
       if (!vivant.current) break; maj(r.k, { ia: 'enCours' });
       try {
@@ -162,7 +162,7 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
   const titreFixe = fixe ? (ficheCibleObj(db, fixe) || {}).nom : '';
   return (
     <Sheet wide title={fixe ? `Documents de « ${titreFixe} »` : 'Dépôt de fiches techniques et FDS'} sub={`${rows.length} fichier${rows.length > 1 ? 's' : ''} · ${pretes.length} lu${pretes.length > 1 ? 's' : ''}${enCours ? '…' : ''} — vérifiez le produit, le type et la date de révision avant de joindre`} onClose={onClose}
-      footer={<><Btn className="mr-auto" onClick={onClose}>Annuler</Btn>{aIdentifier.length ? <Btn disabled={iaBusy || enCours || busy} onClick={() => identifier(aIdentifier)} title={A.pret ? `Envoie le début du texte des documents non reconnus et la liste de vos produits à ${A.nom}` : 'Assistant IA à configurer (Paramètres › 🤖 Assistant IA)'}>{iaBusy ? '🤖 Identification…' : `🤖 Identifier avec l’IA (${aIdentifier.length})`}</Btn> : null}{A.pret && aCompleter.length ? <Btn disabled={iaBusy || enCours || busy} onClick={() => completer(aCompleter.map((r) => r.k))} title={`Envoie le texte des documents et le nom des produits à ${A.nom}`} data-completer-ia="">{iaBusy ? '🤖 Lecture en cours…' : `🤖 Compléter les fiches avec l’IA (${aCompleter.length})`}</Btn> : null}<Btn kind="primary" disabled={busy || enCours || (!aJoindre.length && !rows.some((r) => r.etat === 'pret' && nInfos(r)))} onClick={joindre}>{busy ? 'Enregistrement…' : !aJoindre.length && rows.some((r) => r.etat === 'pret' && nInfos(r)) ? 'Reprendre les informations' : `Joindre ${aJoindre.length} document${aJoindre.length > 1 ? 's' : ''}`}</Btn></>}>
+      footer={<><Btn className="mr-auto" onClick={onClose}>Annuler</Btn>{aIdentifier.length ? <Btn disabled={iaBusy || enCours || busy} onClick={() => identifier(aIdentifier)} title={A.pret ? `Envoie le début du texte des documents non reconnus et la liste de vos produits à ${A.nom}` : 'Assistant IA à configurer (Paramètres › 🤖 Assistant IA)'}>{iaBusy === 'identifier' ? '🤖 Identification…' : `🤖 Identifier avec l’IA (${aIdentifier.length})`}</Btn> : null}{A.pret && aCompleter.length ? <Btn disabled={iaBusy || enCours || busy} onClick={() => completer(aCompleter.map((r) => r.k))} title={`Envoie le texte des documents et le nom des produits à ${A.nom}`} data-completer-ia="">{iaBusy === 'completer' ? '🤖 Lecture en cours…' : `🤖 Compléter les fiches avec l’IA (${aCompleter.length})`}</Btn> : null}<Btn kind="primary" disabled={busy || enCours || (!aJoindre.length && !rows.some((r) => r.etat === 'pret' && nInfos(r)))} onClick={joindre}>{busy ? 'Enregistrement…' : !aJoindre.length && rows.some((r) => r.etat === 'pret' && nInfos(r)) ? 'Reprendre les informations' : `Joindre ${aJoindre.length} document${aJoindre.length > 1 ? 's' : ''}`}</Btn></>}>
       {aIdentifier.length && !A.pret && !enCours ? <div className="mb-3"><Notice tone="info" title={`${aIdentifier.length} document${aIdentifier.length > 1 ? 's' : ''} sans produit ou sans date reconnus`}>Choisissez-les à la main, ou laissez une IA les identifier avec votre propre compte (Claude, ChatGPT, Gemini, Mistral…). <button type="button" className="linkish" onClick={() => { onClose(); setTab('params', 'ia'); }}>Configurer l’assistant IA…</button></Notice></div> : null}
       <div className="space-y-2" data-fiches-depot="">
         {rows.map((r) => (

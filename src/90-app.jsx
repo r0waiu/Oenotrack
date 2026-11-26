@@ -353,4 +353,4 @@ class Boundary extends React.Component {
 }
 
 // 0.38.0-alpha.1 : le coffre de l'appareil s'ouvre avant l'application (base et secrets déchiffrés en mémoire)
-ReactDOM.createRoot(document.getElementById('root')).render(<CoffrePorte><Boundary><App /></Boundary></CoffrePorte>);
+ReactDOM.createRoot(document.getElementById('root')).render(<OngletPorte><CoffrePorte><Boundary><App /></Boundary></CoffrePorte></OngletPorte>); // un seul onglet actif (0.38.0-alpha.3)
