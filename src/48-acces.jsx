@@ -210,13 +210,13 @@ function ActivationView({ onCode }) {
       const u = utilisateurParIdentifiant(db, f.identifiant); setBusy(true); const ok = !!u && u.actif !== false && estAdmin(db, u.id) && await mdpVerifier(f.mdp, u.mdp); setBusy(false);
       if (!ok) { setErr('Identifiant ou mot de passe d’administrateur incorrect.'); return; }
       const r = act((d) => { d.settings.securite = { ...(d.settings.securite || {}), actif: true }; auditAjouter(d, [{ uid: u.id, action: 'securite', resume: 'Identifiants réactivés' }, { uid: u.id, action: 'connexion', resume: 'Connexion', appareil: appareilNom() }]); return okr(); }, null, { systeme: true });
-      if (r && r.ok) { connecter(u.id, false); toast('Identifiants réactivés : vous êtes connecté.'); } return;
+      if (r && r.ok) { connecter(u.id, false, { rester: true }); toast('Identifiants réactivés : vous êtes connecté.'); } return;
     }
     if (!f.identifiant.trim()) { setErr('Choisissez votre identifiant.'); return; }
     const pb = mdpErreur(db, f.mdp, f.mdp2); if (pb) { setErr(pb); return; }
     setBusy(true); const h = await mdpEmpreinte(f.mdp); const c = codeSecoursNouveau(); const hs = await mdpEmpreinte(codeSecoursNorm(c)); setBusy(false);
     const r = act((d) => { const r1 = securiteActiver(d, { identifiant: f.identifiant, nom: f.nom, operateurId: f.operateurId, mdp: h, secours: hs }); if (r1.ok) auditAjouter(d, [{ uid: r1.id, action: 'securite', resume: 'Identifiants activés' }, { uid: r1.id, action: 'connexion', resume: 'Connexion', appareil: appareilNom() }]); return r1; }, null, { systeme: true });
-    if (r && r.ok) { dernierIdentEcrire(f.identifiant.trim()); onCode(c); connecter(r.id, false); }
+    if (r && r.ok) { dernierIdentEcrire(f.identifiant.trim()); onCode(c); connecter(r.id, false, { rester: true }); }
   };
   return (
     <div className="space-y-5" data-activation="">

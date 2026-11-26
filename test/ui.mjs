@@ -10,6 +10,9 @@ export async function open(opts = {}) {
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 900 }, colorScheme: opts.dark ? 'dark' : 'light', deviceScaleFactor: 1, isMobile: !!opts.mobile, hasTouch: !!opts.mobile, locale: opts.locale || 'fr-FR' });
   // opts.date : date et heure figées (Date, todayISO) pour les tests qui en dépendent (plans d'hygiène), les minuteries tournent normalement
   if (opts.date) await ctx.clock.setFixedTime(new Date(opts.date));
+  // 0.34.0-alpha.1 : Cuverie, Opérations et À réaliser sont des sous-onglets de « Vinification » ; un clic sur l'un d'eux depuis un autre
+  // onglet passe d'abord par « Vinification » (les tests écrits avant restent valables)
+  const n0 = ctx.newPage.bind(ctx); ctx.newPage = async () => vinification(await n0());
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -34,6 +37,14 @@ export async function open(opts = {}) {
   if (opts.init) await page.addInitScript(opts.init);
   await page.goto(BASE); await page.waitForTimeout(1200);
   return { browser, page, errors, ctx };
+}
+export function vinification(page) {
+  if (page.__vinif) return page; page.__vinif = true; const c0 = page.click.bind(page);
+  page.click = async (sel, o) => {
+    if (typeof sel === 'string' && /^#tab-(cuverie|ops|previsions)$/.test(sel) && !(await page.locator(sel).isVisible().catch(() => false)) && (await page.locator('#tab-vinification').count())) { await c0('#tab-vinification'); await page.waitForTimeout(150); }
+    return c0(sel, o);
+  };
+  return page;
 }
 // Saisie avec autocomplétion : écrit le texte puis clique la proposition correspondante
 export async function pick(page, input, text, choice) {

@@ -7,6 +7,7 @@ const CLOUD_INFOS = {
   onedrive: { ic: '☁', aide: 'Compte Microsoft personnel ou professionnel (Microsoft 365)' },
   dropbox: { ic: '◆', aide: 'Compte Dropbox' },
   dossier: { ic: '📁', aide: 'iCloud Drive, kDrive, pCloud… : le dossier que l’application du Drive crée sur l’ordinateur (Chrome ou Edge)' },
+  reseau: { ic: '🖧', aide: 'Serveur interne, NAS, lecteur réseau ou dossier partagé de l’entreprise, sans cloud externe (Chrome ou Edge)' }, // 0.34.0-alpha.1
 };
 
 function useCloud({ db, dbRef, applyDb, toast }) {
@@ -63,7 +64,7 @@ function useCloud({ db, dbRef, applyDb, toast }) {
   const connecter = async (fid) => {
     const P = CLOUD_FOURNISSEURS[fid];
     try {
-      if (fid === 'dossier') { const d = await P.connecter(); setChoix({ fournisseur: fid, local: d }); return; }
+      if (P.local) { const d = await P.connecter(); setChoix({ fournisseur: fid, local: d }); return; } // dossier de l'ordinateur ou réseau
       await P.connecter();
       if (fid === 'google') { let c = null; try { c = await P.compte(); } catch (e) { c = null; } const e0 = etatRef.current; if (e0.fournisseur === fid && e0.dossier) { setStatut(''); synchroRef.current(); toast('Google Drive reconnecté.'); } else { setEtat({ compteAttente: c }); setChoix({ fournisseur: fid }); } }
     } catch (er) { if (er && er.annule) toast(er.message || 'Connexion annulée.'); else toast((er && er.message) || 'Connexion impossible.', 'bad'); }
@@ -134,7 +135,7 @@ function DossierChoix() {
   const pied = courant ? (info && !vide ? <><Btn onClick={cloud.fermerChoix}>Annuler</Btn><Btn kind="danger" disabled={busy} onClick={() => utiliser('adopter')}>Utiliser seulement les données du dossier</Btn><Btn kind="primary" disabled={busy} onClick={() => utiliser('reunir')}>Réunir avec cet appareil</Btn></>
     : <><Btn onClick={cloud.fermerChoix}>Annuler</Btn><Btn kind="primary" disabled={busy || info === undefined} onClick={() => utiliser(info ? 'adopter' : 'reunir')}>{busy ? 'Liaison…' : `Utiliser « ${courant.nom} »`}</Btn></>) : <Btn onClick={cloud.fermerChoix}>Annuler</Btn>;
   return (
-    <Sheet title={`Choisir le dossier ${P.id === 'dossier' ? 'de l’ordinateur' : `sur ${P.nom}`}`} sub={compte ? `Connecté : ${compte.nom || ''}${compte.email ? ` (${compte.email})` : ''}` : P.nom} onClose={cloud.fermerChoix} footer={pied}>
+    <Sheet title={`Choisir le dossier ${P.id === 'reseau' ? 'réseau de l’entreprise' : P.local ? 'de l’ordinateur' : `sur ${P.nom}`}`} sub={compte ? `Connecté : ${compte.nom || ''}${compte.email ? ` (${compte.email})` : ''}` : P.nom} onClose={cloud.fermerChoix} footer={pied}>
       <div className="space-y-3" data-dossier-choix="">
         {ch.local ? null : (<>
           {P.partages ? <div className="flex flex-wrap gap-1.5" role="group" aria-label="Emplacement"><Btn size="sm" kind={vue === 'mon' ? 'primary' : undefined} aria-pressed={vue === 'mon'} onClick={() => { setVue('mon'); setChemin([]); }}>{P.id === 'google' ? 'Mon Drive' : 'Mes fichiers'}</Btn><Btn size="sm" kind={vue === 'partages' ? 'primary' : undefined} aria-pressed={vue === 'partages'} onClick={() => { setVue('partages'); setChemin([]); }}>Partagés avec moi</Btn></div> : null}
@@ -143,6 +144,7 @@ function DossierChoix() {
           {err && liste && liste.length ? <Notice tone="bad">{err}</Notice> : null}
           {vue !== 'partages' || chemin.length ? <div className="flex flex-wrap items-center gap-2"><input className="inp" style={{ maxWidth: 280 }} value={nouveau} onChange={(e) => setNouveau(e.target.value)} placeholder="Nouveau dossier (ex. Œnotrack – Domaine)" aria-label="Nom du nouveau dossier" onKeyDown={(e) => { if (e.key === 'Enter') creer(); }} /><Btn size="sm" disabled={busy || !nouveau.trim()} onClick={creer}>＋ Créer ici</Btn></div> : null}
         </>)}
+        {P.id === 'reseau' && courant && reseauCorrespond(dossierReseau(db).chemin, courant.nom) === false ? <div data-reseau-ecart=""><Notice tone="warn" title="Ce n’est peut-être pas le dossier de l’entreprise">{`Le dossier choisi s’appelle « ${courant.nom} » ; le dossier réseau de l’entreprise est « ${dossierReseau(db).chemin} ». Vérifiez avant de valider, sinon vos données ne seront pas partagées avec les autres postes.`}</Notice></div> : null}
         {courant ? (info === undefined ? <p className="help">Vérification du dossier « {courant.nom} »…</p>
           : info ? <Notice tone="info" title={`« ${courant.nom} » contient déjà des données Œnotrack`}>{vide ? 'Cet appareil est vide ou contient le jeu d’exemple : il reprend les données du dossier.' : 'Choisissez : réunir les données de cet appareil avec celles du dossier (rien n’est supprimé), ou utiliser seulement celles du dossier (les données de cet appareil sont remplacées).'}</Notice>
             : info === null ? <Notice tone="bad">Ce dossier n’est pas accessible : choisissez-en un autre.</Notice>
@@ -182,26 +184,27 @@ function CloudMdpBouton() {
   return <Btn kind="primary" size="sm" disabled={busy} onClick={go} data-cloud-mdp="">🔑 Saisir le mot de passe de chiffrement</Btn>;
 }
 function CloudCard() {
-  const { cloud, confirm } = useApp(); const c = cloud; const e = c.etat; const cfg = c.config;
+  const { cloud, confirm, db } = useApp(); const c = cloud; const e = c.etat; const cfg = c.config; const reseau = dossierReseau(db);
   const [ids, setIds] = useState({ google: cfg.google.clientId, microsoft: cfg.microsoft.clientId, dropbox: cfg.dropbox.appKey });
   useEffect(() => { setIds({ google: cfg.google.clientId, microsoft: cfg.microsoft.clientId, dropbox: cfg.dropbox.appKey }); }, [cfg.google.clientId, cfg.microsoft.clientId, cfg.dropbox.appKey]);
   useEffect(() => { if (!c.integre) GD.precharger(); }, [cfg.google.clientId]);
   const adresse = c.integre ? `${OENOTRACK_SITE}/` : cloudRetourUrl(); const fichierConfig = configFichierAvec({ google: { clientId: ids.google.trim() }, microsoft: { clientId: ids.microsoft.trim() }, dropbox: { appKey: ids.dropbox.trim() } }); // le reste du config.json du site (mentions légales…) est gardé
   const tuile = (fid) => { const P = CLOUD_FOURNISSEURS[fid]; const ok = P.pret(); return (
     <div key={fid} className={cx('cloud-tuile', !ok && 'off')} data-fournisseur={fid}><div className="flex items-center gap-2"><span className="cloud-ic" aria-hidden="true">{CLOUD_INFOS[fid].ic}</span><b>{P.nom}</b></div><div className="text-xs text-ink2">{CLOUD_INFOS[fid].aide}</div>
-      <Btn kind={ok ? 'primary' : undefined} size="sm" disabled={!ok || c.integre} onClick={() => c.connecter(fid)}>{fid === 'dossier' ? 'Choisir le dossier' : 'Se connecter'}</Btn>
-      {!ok ? <div className="text-xs text-ink2">{fid === 'dossier' ? 'Chrome ou Edge sur ordinateur' : 'Identifiant à renseigner ci-dessous'}</div> : null}</div>); };
+      {fid === 'reseau' && reseau.chemin ? <div className="text-xs" data-reseau-tuile=""><span className="text-ink2">Dossier de l’entreprise : </span><code translate="no">{reseau.chemin}</code></div> : null}
+      <Btn kind={ok ? 'primary' : undefined} size="sm" disabled={!ok || c.integre} onClick={() => c.connecter(fid)}>{P.local ? 'Choisir le dossier' : 'Se connecter'}</Btn>
+      {!ok ? <div className="text-xs text-ink2">{P.local ? (fid === 'reseau' ? 'Chrome ou Edge sur ordinateur ; sinon, synchronisation par fichier ci-dessous' : 'Chrome ou Edge sur ordinateur') : 'Identifiant à renseigner ci-dessous'}</div> : null}</div>); };
   const statut = c.lie ? (
     <div className={cx('sync-etat', c.statut === 'ok' || (!c.statut && !c.aEnvoyer) ? 'ok' : 'warn')} data-cloud={c.statut || 'attente'}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><b>{CLOUD_INFOS[c.F.id].ic} {c.F.nom}</b>{e.compte && (e.compte.email || e.compte.nom) ? <span className="text-sm">{e.compte.email || e.compte.nom}</span> : null}<Chip>📁 {e.dossier.nom}</Chip></div>
       <div className="text-sm">{e.suspendu ? 'Synchronisation en pause : la base de cet appareil a été remplacée (restauration, exemple ou remise à zéro).'
         : c.statut === 'reconnecter' ? (c.message || 'Connexion à renouveler.') : c.statut === 'hors-ligne' || c.statut === 'erreur' || c.statut === 'chiffre' ? c.message
-          : c.statut === 'synchro' ? 'Synchronisation en cours…' : c.aEnvoyer ? 'Modifications en attente d’envoi…' : 'Données enregistrées sur votre Drive et à jour sur cet appareil.'}</div>
+          : c.statut === 'synchro' ? 'Synchronisation en cours…' : c.aEnvoyer ? 'Modifications en attente d’envoi…' : c.F.id === 'reseau' ? 'Données enregistrées dans le dossier réseau de l’entreprise et à jour sur cet appareil.' : 'Données enregistrées sur votre Drive et à jour sur cet appareil.'}</div>
       <div className="text-xs text-ink2">{e.derniereSync ? `Dernière synchronisation le ${fmtQuand(e.derniereSync)}` : 'Pas encore synchronisé'}{e.ecritPar ? ` · dernière écriture par « ${e.ecritPar} »${e.ecritLe ? ` le ${fmtQuand(e.ecritLe)}` : ''}` : ''}</div>
       <div className="mt-1 flex flex-wrap gap-2">
         {e.suspendu ? <><Btn kind="primary" size="sm" onClick={() => c.reprendre('adopter')}>Reprendre les données du dossier</Btn><Btn size="sm" onClick={() => c.reprendre('reunir')}>Réunir avec cet appareil</Btn></>
           : c.statut === 'reconnecter' ? <Btn kind="primary" size="sm" data-cloud-reco="" onClick={c.reconnecter}>Se reconnecter à {c.F.nom}</Btn> : c.statut === 'chiffre' ? <CloudMdpBouton /> : <Btn size="sm" onClick={c.synchroniser} disabled={c.statut === 'synchro'}>⇅ Synchroniser maintenant</Btn>}
-        {c.F.id !== 'dossier' ? <Btn size="sm" onClick={c.changerDossier}>Changer de dossier</Btn> : <Btn size="sm" onClick={() => c.connecter('dossier')}>Changer de dossier</Btn>}
+        {!c.F.local ? <Btn size="sm" onClick={c.changerDossier}>Changer de dossier</Btn> : <Btn size="sm" onClick={() => c.connecter(c.F.id)}>Changer de dossier</Btn>}
         <Btn size="sm" kind="ghost" onClick={async () => { if (await confirm({ title: `Ne plus utiliser ${c.F.nom} ?`, body: `Les données restent sur cet appareil et dans le dossier « ${e.dossier.nom} ». Les autres appareils reliés continuent de l’utiliser.`, ok: 'Se déconnecter' })) c.deconnecter(); }}>Se déconnecter</Btn>
       </div>
     </div>) : null;
@@ -211,7 +214,8 @@ function CloudCard() {
       {c.integre ? <Notice tone="info" title="À utiliser dans Œnotrack en ligne">Ici, dans claude.ai, la page ne peut pas se connecter à Google Drive, OneDrive ou Dropbox. Mettez Œnotrack en ligne à sa propre adresse (guide ci-dessous) : la connexion s’y fait en un clic et le dossier choisi devient le stockage de vos données, partagé entre vos appareils et vos collaborateurs. En attendant, la synchronisation par fichier (plus bas) fonctionne ici.</Notice>
         : !c.lie ? <p className="text-sm">Reliez Œnotrack à votre Drive et choisissez un dossier : les données y sont enregistrées automatiquement et partagées entre vos appareils. Chaque personne se connecte avec son propre compte au même dossier partagé ; les saisies faites en même temps sont réunies.</p> : null}
       {statut}
-      {!c.lie && !c.integre ? <div className="cloud-tuiles">{['google', 'onedrive', 'dropbox', 'dossier'].map(tuile)}</div> : null}
+      {!c.lie && !c.integre ? <div className="cloud-tuiles">{['google', 'onedrive', 'dropbox', 'dossier', 'reseau'].map(tuile)}</div> : null}
+      <DossierReseauReglage />
       <details className="sync-guide" open={c.integre ? undefined : !c.lie && !cfg.google.clientId && !cfg.microsoft.clientId && !cfg.dropbox.appKey}><summary>Identifiants des services (à faire une fois)</summary>
         <div className="space-y-3">
           <p className="text-sm">Google, Microsoft et Dropbox demandent de déclarer Œnotrack une fois. Chaque service vous donne un identifiant public à coller ici. {c.integre ? <>Adresse à déclarer : celle d’Œnotrack en ligne, par exemple <code className="cloud-code" data-adresse="">{adresse}</code> pour le site officiel.</> : <>Adresse d’Œnotrack à déclarer : <code className="cloud-code" data-adresse="">{adresse}</code> <Btn size="sm" kind="ghost" onClick={() => { try { navigator.clipboard.writeText(adresse); } catch (er) { /* ignoré */ } }}>Copier</Btn></>}</p>

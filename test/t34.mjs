@@ -78,7 +78,7 @@ await sheet().locator('input[aria-label="Nouveau mot de passe"]').fill(MDP_THOMA
 await sheet().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(800);
 ok('mot de passe changé', /Mot de passe changé/.test(await toast()) && (await page.locator('[data-utilisateur]').innerText()).includes('Thomas Girard · Opérateur de chai'));
 const oT = await onglets();
-ok('onglets de l’opérateur : pas de Paramètres', !oT.includes('params') && oT.includes('ops') && oT.includes('cuverie'), oT.join());
+ok('onglets de l’opérateur : pas de Paramètres', !oT.includes('params') && oT.includes('vinification'), oT.join()); // Cuverie et Opérations : dans Vinification (0.34.0-alpha.1)
 ok('pas de « Figer la campagne »', (await page.locator('header button', { hasText: /Figer la campagne|Rouvrir la campagne/ }).count()) === 0);
 await page.click('#tab-cuverie'); await page.waitForTimeout(300);
 ok('Cuverie en consultation : bandeau', (await page.locator('main').innerText()).includes('permet de consulter ce module'));

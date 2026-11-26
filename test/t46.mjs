@@ -21,7 +21,7 @@ const onglets = (pg) => pg.locator('[role=tab][id^="tab-"]').allInnerTexts();
   await page.screenshot({ path: SC + '/shots/t46-accueil-es.png' });
   await page.locator('[data-accueil-ouvrir]').first().click(); await page.waitForTimeout(600);
   const o = await onglets(page);
-  ok('application en espagnol : onglets traduits', o.includes('Prensa') && o.includes('Depósitos y lotes') && o.includes('Configuración'), o);
+  ok('application en espagnol : onglets traduits', o.includes('Prensa') && o.some((x) => /Vinificación/.test(x)) && o.some((x) => /Depósitos y lotes/.test(x)) && o.includes('Configuración'), o);
   await page.click('#tab-pressoir'); await page.waitForTimeout(400);
   await page.locator('[aria-label="Année des vendanges"], [aria-label="Annee des vendanges"]').first().selectOption('2026').catch(() => {});
   await page.locator('select').filter({ has: page.locator('option[value="2026"]') }).first().selectOption('2026').catch(() => {}); await page.waitForTimeout(300);

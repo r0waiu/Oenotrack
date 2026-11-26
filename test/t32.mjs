@@ -10,7 +10,7 @@ const allerModules = async () => { await page.click('#tab-params'); await page.c
 
 // 1. onglets par défaut
 const o0 = await onglets();
-ok('14 onglets dans l’ordre d’origine (Pressoir après Cuverie ; Déclassements dans Opérations depuis 0.27.0-alpha.2 ; Équipements après Hygiène depuis 0.28.0-alpha.1), Paramètres en dernier', o0.join() === 'cuverie,pressoir,ops,previsions,tirage,cave,degorgement,analyses,intrants,hygiene,equipements,trace,registres,params', o0.join());
+ok('12 onglets dans l’ordre d’origine (Cuverie, Opérations et À réaliser réunis dans Vinification depuis 0.34.0-alpha.1 ; Pressoir après ; Déclassements dans Opérations depuis 0.27.0-alpha.2 ; Équipements après Hygiène depuis 0.28.0-alpha.1), Paramètres en dernier', o0.join() === 'vinification,pressoir,tirage,cave,degorgement,analyses,intrants,hygiene,equipements,trace,registres,params', o0.join());
 ok('démarrage sur le premier module (Cuverie)', (await page.locator('#tab-cuverie').getAttribute('aria-selected')) === 'true');
 // 2. Tirages / Cave / Dégorgement et Registres / Paramètres
 await page.click('#tab-tirage'); await page.waitForTimeout(300); const tTir = await page.locator('main').innerText();
@@ -76,7 +76,7 @@ ok('tout désactivé : seul Paramètres reste', (await onglets()).join() === 'pa
 ok('pas de bouton « Exporter les registres » dans l’en-tête', (await page.locator('header button', { hasText: 'Exporter les registres' }).count()) === 0);
 await page.screenshot({ path: SH + '/t32-tout-off.png' });
 await page.locator('main button', { hasText: 'Réactiver tous les modules' }).click(); await page.waitForTimeout(300);
-ok('tout réactivé (14 onglets, Déclassements de nouveau dans Opérations)', (await onglets()).length === 14 && (await page.locator('main [data-module-dans="declass"] [role=switch]').getAttribute('aria-checked')) === 'true');
+ok('tout réactivé (12 onglets, Déclassements de nouveau dans Opérations)', (await onglets()).length === 12 && (await page.locator('main [data-module-dans="declass"] [role=switch]').getAttribute('aria-checked')) === 'true');
 await page.locator('main button', { hasText: 'Rétablir l’ordre d’origine' }).click(); await page.waitForTimeout(300);
 ok('ordre d’origine rétabli', (await onglets()).join() === o0.join());
 // 6. module ouvert puis désactivé (comme depuis un autre appareil) : retour au premier module actif
@@ -89,7 +89,7 @@ await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeo
 const ov = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 ok('téléphone : écran Modules sans débordement', ov <= 1, ov);
 await ligne('cuverie').locator('[role=switch]').click(); await page.waitForTimeout(300);
-ok('téléphone : réactivation au doigt', (await onglets()).includes('cuverie'));
+ok('téléphone : réactivation au doigt', (await ligne('cuverie').locator('[role=switch]').getAttribute('aria-checked')) === 'true' && (await onglets()).includes('vinification'));
 await page.screenshot({ path: SH + '/t32-mobile.png' });
 console.log('ERREURS:', errors.join(' | ') || 'aucune'); if (errors.length) ko++;
 await browser.close();

@@ -2,6 +2,13 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.34.0-alpha.1 — 26/11/2026
+
+- Onglet « Vinification » : Cuverie & Lots, Opérations & Assemblages et À réaliser & fiches réunis en sous-onglets d’un seul onglet ; le dernier sous-onglet ouvert est retrouvé ; activation, droits et ordre de chaque module inchangés.
+- Onglet ouvert à la connexion et au déverrouillage : le premier onglet de la barre, ou celui choisi dans Paramètres › Modules (indépendant de l’ordre des onglets) — plus « Société & opérateurs » ; un déverrouillage garde la page en cours.
+- Campagne antérieure : créée avant les campagnes existantes, elle démarre complètement vide (aucun lot ni volume en cuve) ; les campagnes suivantes ne changent pas.
+- Dossier réseau de l’entreprise (Paramètres › Sauvegarde & Drive) : synchronisation sur un serveur interne, un NAS ou un lecteur réseau, sans cloud externe ; chemin commun à tous les postes, écritures protégées par un jeton, saisies de plusieurs postes réunies.
+
 ## 0.33.0-alpha.1 — 26/11/2026
 
 - Région et types de vins (Paramètres › 🍇 Région & types de vins) : 12 bassins viticoles français et 8 pays, types de vins produits (tranquilles blancs, rosés, rouges, effervescents, méthode ancestrale, moelleux et liquoreux) ; raccourcis : Champagne, Crémant + vins tranquilles, vins tranquilles, vins rouges

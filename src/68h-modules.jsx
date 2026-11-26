@@ -37,14 +37,15 @@ function ModulesView() {
   const move = (e) => { if (!drag) return; const over = indexSous(e.clientY); if (over !== drag.over) setDrag({ ...drag, over }); };
   const up = () => { if (!drag) return; const from = ids.indexOf(drag.id); const to = drag.over; const id = drag.id; setDrag(null); if (to !== from && to >= 0) act((d) => moduleDeplacer(d, id, to - from), `« ${moduleNom(id)} » déplacé en position ${to + 1}.`); };
   const vue = drag ? (() => { const v = ids.filter((x) => x !== drag.id); v.splice(drag.over, 0, drag.id); return v; })() : ids;
-  const accueil = vue.find((x) => moduleActif(db, x));
+  const accueil = ongletOuverture(db, vue.filter((x) => moduleActif(db, x))); // onglet d'ouverture (0.34.0-alpha.1) : réglage ou premier onglet
   return (
     <div className="space-y-5">
       <Notice tone="info" title="Modules de l’application">
         Faites glisser la poignée <b>⋮⋮</b> (ou utilisez les flèches) pour changer l’ordre des onglets, et désactivez les modules dont vous n’avez pas besoin.
         Un module désactivé disparaît des onglets et de ses raccourcis, mais <b>aucune donnée n’est supprimée</b> : il revient tel quel dès qu’on le réactive.
-        <b> Paramètres</b> reste toujours actif. Le premier module actif s’ouvre au démarrage. Ce réglage suit la base sur tous les appareils (synchronisation Drive comprise).
+        <b> Paramètres</b> reste toujours actif. Cuverie & Lots, Opérations & Assemblages et À réaliser & fiches sont réunis dans l’onglet <b>Vinification</b>, à la place du premier des trois. Ce réglage suit la base sur tous les appareils (synchronisation Drive comprise).
       </Notice>
+      <OngletDefautChoix />
       <ol className={cx('mod-liste', drag && 'drag-en-cours')} ref={listRef} onPointerMove={move} onPointerUp={up} onPointerCancel={() => setDrag(null)} aria-label="Ordre des modules">
         {vue.map((id, i) => {
           const D = MODULE_DEFS[id] || { label: id }; const on = moduleActif(db, id); const c = moduleContenu(db, R, id); const fixe = id === MODULE_FIXE;
@@ -54,7 +55,7 @@ function ModulesView() {
               <span className="mod-n num" aria-hidden="true">{i + 1}</span>
               <span className="mod-ic" aria-hidden="true">{D.icone}</span>
               <div className="mod-txt">
-                <div className="mod-nom">{D.label}{id === accueil ? <Chip tone="info">s’ouvre au démarrage</Chip> : null}{!on ? <Chip>désactivé</Chip> : null}</div>
+                <div className="mod-nom">{D.label}{ongletDe(id) !== id ? <Chip>{`dans « ${moduleNom(ongletDe(id))} »`}</Chip> : null}{id === accueil ? <Chip tone="info">s’ouvre au démarrage</Chip> : null}{!on ? <Chip>désactivé</Chip> : null}</div>
                 <div className="mod-desc">{D.desc}</div>
                 <div className="mod-info">{c.txt}{!on && c.attente ? <span className="text-warn"> · ⚠ {c.attente}</span> : null}</div>
               </div>
@@ -83,6 +84,26 @@ function ModulesView() {
         <Btn disabled={!perso} onClick={() => act((d) => modulesReinitialiser(d, 'ordre'), 'Ordre d’origine des modules rétabli.')}>Rétablir l’ordre d’origine</Btn>
         {nOff ? <Btn onClick={() => act((d) => modulesReinitialiser(d, 'activation'), 'Tous les modules sont actifs.')}>Réactiver tous les modules ({nOff})</Btn> : null}
       </div>
+    </div>
+  );
+}
+
+/* onglet ouvert au démarrage, à la connexion et au déverrouillage (0.34.0-alpha.1) : indépendant de l'ordre des onglets ; réglage commun
+   de la base (settings.ongletDefaut) ; « Premier onglet de la barre » par défaut */
+function OngletDefautChoix() {
+  const { db, act } = useApp(); const L = modulesVisibles(db); const barre = ongletsBarre(L); const v = String(db.settings.ongletDefaut || '');
+  const premier = barre[0] || MODULE_FIXE; const absent = v && !barre.includes(v) && !L.includes(v);
+  const choisir = (x) => act((d) => ongletDefautSet(d, x), x ? `« ${moduleNom(x)} » s’ouvrira à la connexion et au déverrouillage.` : 'Le premier onglet de la barre s’ouvrira à la connexion et au déverrouillage.');
+  return (
+    <div className="card p-3" data-onglet-defaut="">
+      <Field label="Onglet ouvert au démarrage, à la connexion et au déverrouillage">
+        <select className="inp" style={{ maxWidth: 420 }} value={v} onChange={(e) => choisir(e.target.value)} aria-label="Onglet ouvert au démarrage">
+          <option value="">{`Premier onglet de la barre (actuellement « ${moduleNom(premier)} »)`}</option>
+          {barre.map((o) => <option key={o} value={o}>{moduleNom(o)}</option>)}
+          {absent ? <option value={v}>{`${moduleNom(v)} (désactivé)`}</option> : null}
+        </select>
+      </Field>
+      <p className="help mt-1">Indépendant de l’ordre des onglets. Si l’onglet choisi est désactivé ou n’est pas accessible avec le profil de la personne connectée, le premier onglet de la barre s’ouvre.</p>
     </div>
   );
 }

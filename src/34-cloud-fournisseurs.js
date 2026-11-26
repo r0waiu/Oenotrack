@@ -1,4 +1,4 @@
-/* ============ STOCKAGE DRIVE : connecteurs Google Drive, OneDrive, Dropbox et dossier de l'ordinateur ============ */
+/* ============ STOCKAGE DRIVE : connecteurs Google Drive, OneDrive, Dropbox, dossier de l'ordinateur et dossier réseau (0.34.0-alpha.1) ============ */
 // Connexion dans le navigateur, sans serveur : Google (Google Identity Services, jeton d'une heure), Microsoft et Dropbox
 // (OAuth 2 « code + PKCE », jeton renouvelé seul). Les identifiants publics de l'application (client ID, app key) viennent de
 // config.json, posé à côté d'index.html, ou de Paramètres › Sauvegarde & Drive › Identifiants des services.
@@ -242,40 +242,66 @@ const DBX = {
   deconnecter() { jetonsEcrire('dropbox', null); },
 };
 
-/* ---------- dossier de l'ordinateur (iCloud Drive, kDrive, pCloud, Google Drive pour ordinateur…) : Chrome / Edge ---------- */
-const LOC = {
-  id: 'dossier', nom: 'Dossier de l’ordinateur', partages: false, h: null,
-  pret: () => typeof window.showDirectoryPicker === 'function', precharger() {},
-  async connecter() {
-    if (typeof window.showDirectoryPicker !== 'function') throw { config: true, message: 'Ce navigateur ne permet pas de choisir un dossier (utilisez Chrome ou Edge sur ordinateur).' };
-    let h; try { h = await window.showDirectoryPicker({ id: 'oenotrack', mode: 'readwrite' }); } catch (e) { throw { annule: true, message: 'Choix du dossier annulé.' }; }
-    this.h = h; try { await sdbRun('lien', 'readwrite', (s) => s.put(h, 'dossier')); } catch (e) { /* lien gardé pour cette visite seulement */ }
-    return { id: 'local', nom: h.name };
-  },
-  async poignee(demander) {
-    if (!this.h) { try { this.h = (await sdbRun('lien', 'readonly', (s) => s.get('dossier'))) || null; } catch (e) { this.h = null; } }
-    if (!this.h) throw { auth: true, message: 'Choisissez à nouveau le dossier.' };
-    let p = 'prompt'; try { p = await this.h.queryPermission({ mode: 'readwrite' }); } catch (e) { p = 'prompt'; }
-    if (p !== 'granted' && demander) { try { p = await this.h.requestPermission({ mode: 'readwrite' }); } catch (e) { p = 'denied'; } }
-    if (p !== 'granted') throw { auth: true, renouveler: true, message: 'Autorisez à nouveau l’accès au dossier (1 clic).' };
-    return this.h;
-  },
-  async renouveler() { await this.poignee(true); return true; },
-  async compte() { const h = await this.poignee(false); return { nom: h.name, email: '' }; },
-  async dossiers() { return []; }, async creerDossier() { throw { autre: true, message: 'Créez le dossier depuis l’explorateur de fichiers.' }; },
-  async fichier(nom, sous, creer) { let d = await this.poignee(false); if (sous) d = await d.getDirectoryHandle(sous, { create: !!creer }); return d.getFileHandle(nom, { create: !!creer }); },
-  rev: (f) => `${f.lastModified}:${f.size}`,
-  async infoBase() { try { const f = await (await this.fichier(CLOUD_BASE)).getFile(); return { rev: this.rev(f) }; } catch (e) { if (e && e.name === 'NotFoundError') return null; throw e && e.auth ? e : { autre: true, message: (e && e.message) || 'Lecture impossible' }; } },
-  async lireBase() { try { const f = await (await this.fichier(CLOUD_BASE)).getFile(); return { texte: await f.text(), rev: this.rev(f) }; } catch (e) { if (e && e.name === 'NotFoundError') return null; throw e && e.auth ? e : { autre: true, message: (e && e.message) || 'Lecture impossible' }; } },
-  async ecrire(fh, contenu) { const w = await fh.createWritable(); await w.write(contenu); await w.close(); return fh.getFile(); },
-  async ecrireBase(d, texte, rev) {
-    const cur = await this.infoBase(); if (cur && (rev === null || cur.rev !== rev)) throw { conflit: true };
-    const f = await this.ecrire(await this.fichier(CLOUD_BASE, null, true), texte); return { rev: this.rev(f) };
-  },
-  async listerDocs() { const o = {}; try { const d = await (await this.poignee(false)).getDirectoryHandle('documents', { create: true }); for await (const [n, h] of d.entries()) if (h.kind === 'file') o[n] = n; } catch (e) { if (e && e.auth) throw e; } return o; },
-  async lireDoc(d, ref) { return (await this.fichier(ref, 'documents')).getFile(); },
-  async ecrireDoc(d, nom, blob) { await this.ecrire(await this.fichier(nom, 'documents', true), blob); return nom; },
-  async ecrireHistorique(d, nom, texte) { await this.ecrire(await this.fichier(nom, 'historique', true), texte); },
-  async deconnecter() { this.h = null; try { await sdbRun('lien', 'readwrite', (s) => s.delete('dossier')); } catch (e) { /* ignoré */ } },
-};
-const CLOUD_FOURNISSEURS = { google: GD, onedrive: MS, dropbox: DBX, dossier: LOC };
+/* ---------- dossier de l'ordinateur (iCloud Drive, kDrive, pCloud, Google Drive pour ordinateur…) et dossier réseau de l'entreprise
+   (serveur interne, NAS, lecteur réseau : 0.34.0-alpha.1) : API File System Access, Chrome / Edge sur ordinateur ----------
+   o = { id, nom, cle : clé du lien gardé dans IndexedDB, fenetre : identifiant de la fenêtre de choix (le système y rouvre le dernier
+   dossier), verrou : jeton d'écriture (plusieurs postes écrivent dans le même dossier partagé) }. */
+const DOSSIER_VERROU = 'oenotrack-verrou.json'; const DOSSIER_VERROU_MS = 30000; // un verrou plus vieux (poste éteint en cours d'écriture) est ignoré
+const dossierPause = (ms) => new Promise((res) => setTimeout(res, ms));
+function dossierFournisseur(o) {
+  return {
+    id: o.id, nom: o.nom, partages: false, local: true, h: null,
+    pret: () => typeof window.showDirectoryPicker === 'function', precharger() {},
+    async connecter() {
+      if (typeof window.showDirectoryPicker !== 'function') throw { config: true, message: 'Ce navigateur ne permet pas de choisir un dossier (utilisez Chrome ou Edge sur ordinateur).' };
+      let h; try { h = await window.showDirectoryPicker({ id: o.fenetre, mode: 'readwrite' }); } catch (e) { throw { annule: true, message: 'Choix du dossier annulé.' }; }
+      this.h = h; try { await sdbRun('lien', 'readwrite', (s) => s.put(h, o.cle)); } catch (e) { /* lien gardé pour cette visite seulement */ }
+      return { id: 'local', nom: h.name };
+    },
+    async poignee(demander) {
+      if (!this.h) { try { this.h = (await sdbRun('lien', 'readonly', (s) => s.get(o.cle))) || null; } catch (e) { this.h = null; } }
+      if (!this.h) throw { auth: true, message: 'Choisissez à nouveau le dossier.' };
+      let p = 'prompt'; try { p = await this.h.queryPermission({ mode: 'readwrite' }); } catch (e) { p = 'prompt'; }
+      if (p !== 'granted' && demander) { try { p = await this.h.requestPermission({ mode: 'readwrite' }); } catch (e) { p = 'denied'; } }
+      if (p !== 'granted') throw { auth: true, renouveler: true, message: 'Autorisez à nouveau l’accès au dossier (1 clic).' };
+      return this.h;
+    },
+    async renouveler() { await this.poignee(true); return true; },
+    async compte() { const h = await this.poignee(false); return { nom: h.name, email: '' }; },
+    async dossiers() { return []; }, async creerDossier() { throw { autre: true, message: 'Créez le dossier depuis l’explorateur de fichiers.' }; },
+    async fichier(nom, sous, creer) { let d = await this.poignee(false); if (sous) d = await d.getDirectoryHandle(sous, { create: !!creer }); return d.getFileHandle(nom, { create: !!creer }); },
+    rev: (f) => `${f.lastModified}:${f.size}`,
+    async infoBase() { try { const f = await (await this.fichier(CLOUD_BASE)).getFile(); return { rev: this.rev(f) }; } catch (e) { if (e && e.name === 'NotFoundError') return null; throw e && e.auth ? e : { autre: true, message: (e && e.message) || 'Lecture impossible' }; } },
+    async lireBase() { try { const f = await (await this.fichier(CLOUD_BASE)).getFile(); return { texte: await f.text(), rev: this.rev(f) }; } catch (e) { if (e && e.name === 'NotFoundError') return null; throw e && e.auth ? e : { autre: true, message: (e && e.message) || 'Lecture impossible' }; } },
+    async ecrire(fh, contenu) { const w = await fh.createWritable(); await w.write(contenu); await w.close(); return fh.getFile(); },
+    // jeton d'écriture : posé, relu après un court délai (un autre poste qui écrit au même moment l'aurait remplacé), retiré après l'écriture
+    async verrouPrendre() {
+      const jeton = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      for (let essai = 0; essai < 6; essai += 1) {
+        let cur = null; try { cur = JSON.parse(await (await (await this.fichier(DOSSIER_VERROU)).getFile()).text()); } catch (e) { if (e && e.auth) throw e; cur = null; }
+        if (cur && cur.jeton && Date.now() - (Number(cur.t) || 0) < DOSSIER_VERROU_MS) { await dossierPause(400 + Math.round(Math.random() * 600)); continue; }
+        await this.ecrire(await this.fichier(DOSSIER_VERROU, null, true), JSON.stringify({ jeton, t: Date.now(), appareil: (typeof appareilNom === 'function' ? appareilNom() : '') }));
+        await dossierPause(o.delaiVerrou != null ? o.delaiVerrou : 250);
+        let relu = null; try { relu = JSON.parse(await (await (await this.fichier(DOSSIER_VERROU)).getFile()).text()); } catch (e) { relu = null; }
+        if (relu && relu.jeton === jeton) return jeton;
+      }
+      throw { conflit: true }; // dossier occupé : la synchronisation relit puis réessaie
+    },
+    async verrouRendre(jeton) { try { const f = await (await this.fichier(DOSSIER_VERROU)).getFile(); const cur = JSON.parse(await f.text()); if (cur && cur.jeton === jeton) await (await this.poignee(false)).removeEntry(DOSSIER_VERROU); } catch (e) { /* déjà retiré ou expiré */ } },
+    async ecrireBase(d, texte, rev) {
+      const jeton = o.verrou ? await this.verrouPrendre() : null;
+      try {
+        const cur = await this.infoBase(); if (cur && (rev === null || cur.rev !== rev)) throw { conflit: true };
+        const f = await this.ecrire(await this.fichier(CLOUD_BASE, null, true), texte); return { rev: this.rev(f) };
+      } finally { if (jeton) await this.verrouRendre(jeton); }
+    },
+    async listerDocs() { const r = {}; try { const d = await (await this.poignee(false)).getDirectoryHandle('documents', { create: true }); for await (const [n, h] of d.entries()) if (h.kind === 'file') r[n] = n; } catch (e) { if (e && e.auth) throw e; } return r; },
+    async lireDoc(d, ref) { return (await this.fichier(ref, 'documents')).getFile(); },
+    async ecrireDoc(d, nom, blob) { await this.ecrire(await this.fichier(nom, 'documents', true), blob); return nom; },
+    async ecrireHistorique(d, nom, texte) { await this.ecrire(await this.fichier(nom, 'historique', true), texte); },
+    async deconnecter() { this.h = null; try { await sdbRun('lien', 'readwrite', (s) => s.delete(o.cle)); } catch (e) { /* ignoré */ } },
+  };
+}
+const LOC = dossierFournisseur({ id: 'dossier', nom: 'Dossier de l’ordinateur', cle: 'dossier', fenetre: 'oenotrack' });
+const RES = dossierFournisseur({ id: 'reseau', nom: 'Dossier réseau de l’entreprise', cle: 'reseau', fenetre: 'oenotrack-reseau', verrou: true });
+const CLOUD_FOURNISSEURS = { google: GD, onedrive: MS, dropbox: DBX, dossier: LOC, reseau: RES };
