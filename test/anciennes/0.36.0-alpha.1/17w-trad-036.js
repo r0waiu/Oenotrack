@@ -64,7 +64,7 @@ TRAD_TABLE.push(...[
   ['Allergènes :', 'Allergens:', 'Alérgenos:', 'Allergeni:', 'Allergene:', 'Alergénios:'],
   ['Allergènes (liste)', 'Allergens (list)', 'Alérgenos (lista)', 'Allergeni (elenco)', 'Allergene (Liste)', 'Alergénios (lista)'],
   ['Aucun allergène déclaré', 'No allergen declared', 'Ningún alérgeno declarado', 'Nessun allergene dichiarato', 'Kein Allergen erklärt', 'Nenhum alergénio declarado'],
-  ['Utilisation en bio : précisions', 'Organic use: details', 'Uso en ecológico: precisiones', 'Uso in biologico: precisazioni', 'Bio-Verwendung: Angaben', 'Utilização em biológico: precisões'],
+  ['Utilisation en bio : précisions', 'Use in organic production: details', 'Uso en ecológico: precisiones', 'Uso in biologico: precisazioni', 'Einsatz im Bio-Anbau: Angaben', 'Utilização em biológico: precisões'],
   ['Le choix Oui / Non se fait dans « Allergènes & revendications ».', 'The Yes / No choice is made in “Allergens & designations”.', 'La elección Sí / No se hace en «Alérgenos y reivindicaciones».', 'La scelta Sì / No si fa in «Allergeni e rivendicazioni».', 'Die Wahl Ja / Nein erfolgt unter „Allergene & Bezeichnungen“.', 'A escolha Sim / Não faz-se em «Alergénios e reivindicações».'],
   ['ex. lysozyme issu de l’œuf…', 'e.g. lysozyme from egg…', 'p. ej. lisozima procedente del huevo…', 'es. lisozima derivato dall’uovo…', 'z. B. Lysozym aus Ei…', 'ex. lisozima proveniente do ovo…'],
   ['ex. règlement (UE) 2018/848', 'e.g. Regulation (EU) 2018/848', 'p. ej. Reglamento (UE) 2018/848', 'es. regolamento (UE) 2018/848', 'z. B. Verordnung (EU) 2018/848', 'ex. Regulamento (UE) 2018/848'],
