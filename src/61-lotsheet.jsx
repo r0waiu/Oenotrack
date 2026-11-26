@@ -101,6 +101,7 @@ function LotSheet({ id, onClose }) {
   const preps = R.prepUse.filter((u) => u.lotId === id);
   const blocs = {
     so2: <Sec title="SO₂ total estimé (analyse + ajouts depuis)" className="mb-5"><So2EstimeBloc lotId={id} /></Sec>,
+    schema: <Sec title="Schéma de vinification" className="mb-5"><SchemaLotBloc lotId={id} /></Sec>,
     stades: <StadesFrise lotId={id} onEtape={(preset) => setOpForm({ type: preset && preset.newStade ? opEtapePour(db, preset.newStade) : 'etape', preset })} />,
     fermentation: <FermentationSection lotId={id} />,
     composition: <Sec title="Composition calculée" className="mb-5">

@@ -26,7 +26,7 @@ let e = ov(); t = await txt(e);
 ok('éditeur du formulaire de pesée ouvert', /Formulaire — Pesée \(onglet Pressoir\)/.test(t) && /Champs de la pesée/i.test(t), t.slice(0, 200));
 const verrou = async (k) => (await e.locator(`[data-fe-champ="${k}"] [role=radio]`).evaluateAll((L) => L.every((b) => b.disabled)));
 ok('mentions obligatoires du registre et du ticket : jamais masquables (date, heure, cépage, poids net, apporteur, revendication particulière)', (await verrou('date')) && (await verrou('heure')) && (await verrou('cepageId')) && (await verrou('kg')) && (await verrou('apporteurId')) && (await verrou('mention')));
-ok('… repérées « obligatoire au registre » ou « ticket »', (await e.locator('[data-fe-champ="heure"]').innerText()).includes('obligatoire au registre') && (await e.locator('[data-fe-champ="mention"]').innerText()).includes('ticket'));
+ok('… repérées « obligatoire au registre » ou « ticket »', /obligatoire au registre/i.test(await e.locator('[data-fe-champ="heure"]').innerText()) && /ticket|bon de pesée/i.test(await e.locator('[data-fe-champ="mention"]').innerText()), [await e.locator('[data-fe-champ="heure"]').innerText(), await e.locator('[data-fe-champ="mention"]').innerText()]); // libellés des pastilles en capitales (CSS)
 ok('… les autres champs restent masquables (caisses, TAP, pourriture acide)', !(await verrou('caisses')) && !(await verrou('tap')) && !(await verrou('pourritureAcide')));
 await e.locator('[data-fe-champ="caisses"] [role=radio][aria-label="Masqué"]').click();
 await e.locator('[data-fe-champ="tap"] input[type=checkbox]').check();

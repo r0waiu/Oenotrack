@@ -289,7 +289,7 @@ function PeseesView({ annee }) {
 
 /* ---------- marc : chargement, volumes, validation ---------- */
 function MarcForm({ id, onClose, preset }) {
-  const { db, act, defaultDate, moi, uid, toast } = useApp(); const o = id ? db.ops.find((x) => x.id === id) : null; const m0 = (o && o.marc) || {};
+  const { db, act, defaultDate, moi, uid, toast, openSchema } = useApp(); const o = id ? db.ops.find((x) => x.id === id) : null; const m0 = (o && o.marc) || {};
   const droits = usePressoirDroits(); const P = pressoirParams(db); const PR = pressoirsDe(db);
   const valide = !!m0.valide; const lecture = !droits.ecrit || (valide && !droits.corriger) || (o && isLocked(db, o.date));
   const fracs = fracPress(db, ((o && o.fractions) || []).map((x) => x.fractionId));
@@ -313,9 +313,9 @@ function MarcForm({ id, onClose, preset }) {
   const apercu = useMemo(() => { const r = marcSpec(db, f, o); if (!r.ok) return { err: r.msg, ctl: [] }; const op = { ...r.spec, id: id || '_nouveau', marc: { ...(o && o.marc), ...r.spec.marc, saisiLe: m0.saisiLe || pMaintenant() } };
     const d = { ...db, ops: id ? db.ops.map((x) => (x.id === id ? op : x)) : [...db.ops, op] }; return { err: '', ctl: marcControles(d, op), vol: marcVolumes(d, op), spec: op }; }, [f, db]);
   const save = (val) => {
-    const r = act((d) => { const s = marcSave(d, f, id || null, { motif: f.motif, par: uid, maintenant: pMaintenant() }); if (!s.ok || !val) return s; return marcValider(d, s.op.id, { par: uid, maintenant: pMaintenant() }); },
+    let opId = null; const r = act((d) => { const s = marcSave(d, f, id || null, { motif: f.motif, par: uid, maintenant: pMaintenant() }); if (s.ok) opId = s.op.id; if (!s.ok || !val) return s; return marcValider(d, s.op.id, { par: uid, maintenant: pMaintenant() }); },
       val ? 'Marc validé au carnet de pressoir.' : id ? 'Marc enregistré.' : 'Marc chargé : complétez les volumes à la fin du pressurage.');
-    if (r && r.ok) onClose();
+    if (r && r.ok) { onClose(); if (val && !valide && opId && openSchema && schemasReglage(db).proposer) openSchema({ opId, auto: true }); } // marc validé : schéma de vinification proposé aux lots créés (0.31.0-alpha.1)
   };
   const plafond = P.ratioKg > 0 && P.ratioL > 0 && totKg > 0 ? (totKg * P.ratioL) / P.ratioKg : 0;
   const bloquants = apercu.ctl.filter((c) => c.niveau === 'bloquant'); const alertes = apercu.ctl.filter((c) => c.niveau === 'alerte');
@@ -371,10 +371,11 @@ function MarcForm({ id, onClose, preset }) {
 
 /* ---------- carnet de pressoir ---------- */
 function MarcsView({ annee }) {
-  const { db, act, camp, uid, showLot } = useApp(); const droits = usePressoirDroits();
+  const { db, act, camp, uid, showLot, openSchema } = useApp(); const droits = usePressoirDroits();
   const [form, setForm] = useState(null); const [annul, setAnnul] = useState(null); const [imp, setImp] = useState(false); const [bon, setBon] = useState(null);
   const L = marcsDe(db, annee).slice().reverse(); const P = pressoirParams(db);
-  const valider = (o) => act((d) => marcValider(d, o.id, { par: uid, maintenant: pMaintenant() }), `Marc n° ${(o.marc || {}).num || ''} validé.`);
+  // marc validé depuis le carnet : schéma de vinification proposé aux lots créés (0.31.0-alpha.1)
+  const valider = (o) => { const r = act((d) => marcValider(d, o.id, { par: uid, maintenant: pMaintenant() }), `Marc n° ${(o.marc || {}).num || ''} validé.`); if (r && r.ok && openSchema && schemasReglage(db).proposer) openSchema({ opId: o.id, auto: true }); };
   const annuler = (motif) => { const o = annul; setAnnul(null); if (motif) act((d) => registreAnnuler(d, o.id, { motif, par: uid, maintenant: pMaintenant() }), 'Marc annulé : gardé au journal du pressoir.'); };
   const ce = (o) => { const m = marcCepages(db, o); return Object.keys(m).map((k) => `${lbl(db, 'cepages', k)} ${fmt(m[k])} kg`).join(' · '); };
   const enCours = L.filter((o) => o.marc && o.marc.enCours).length; const aValider = L.filter((o) => !(o.marc && o.marc.valide)).length;

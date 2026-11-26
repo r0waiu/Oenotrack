@@ -73,7 +73,7 @@ function OpForm(props) {
   return <OpFormSaisie {...props} />;
 }
 function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, fromPrev }) {
-  const { db, act, toast, defaultDate, openFiche, moi, uid, secu } = useApp();
+  const { db, act, toast, defaultDate, openFiche, moi, uid, secu, openSchema } = useApp();
   const prevId = prevId0 || fromPrev || null; const plan0 = prevId ? (db.previsions || []).find((p) => p.id === prevId) : null;
   const old = editId ? db.ops.find((o) => o.id === editId) : null;
   // t0 peut être une variante du catalogue (collage, levurage…) : le formulaire et le moteur suivent son comportement (base)
@@ -87,6 +87,8 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
     if (!old && type === 'etape' && cat.stadeAuto && cat.stadeAuto.actif && stadeDef(db, cat.stadeAuto.stade)) s.newStade = cat.stadeAuto.stade;
     if (!old && type === 'etape' && cat.nature) s.newType = cat.nature;
     if (!old && preset) Object.assign(s, preset);
+    // étape d'un schéma (0.31.0-alpha.1) : la portion prévue a pu changer depuis (débourbage, soutirage) → portion actuelle du lot
+    if (!old && plan0 && plan0.schema && s.portionId !== undefined) { const Rp = getR(db, s.date || defaultDate); if (!Rp.portions[s.portionId]) { const pp = Object.values(Rp.portions).filter((x) => x.lotId === plan0.schema.lotId && x.vol > 0.5).sort((a, b) => b.vol - a.vol)[0]; if (pp) s.portionId = pp.id; } }
     if (!old && !prevId) formulaireDefauts(db, cat.id, type, s, preset || {}); // valeurs par défaut réglées pour ce formulaire
     if (!old && !(Array.isArray(s.operateurs) && s.operateurs.length) && moi) s.operateurs = [moi]; // opérateur de cet appareil, sauf opérateurs déjà prévus
     if (!old && !(preset && preset.code)) {
@@ -130,10 +132,12 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
     if (built.error) { toast(built.error, 'bad'); return; }
     if (!old && champEffectif(fcfg, type, 'docs').obligatoire && !piecesRef.current.length && !(prevId && docsOf(db, 'prev', prevId).length)) { toast(`Joignez au moins un document : « ${champEffectif(fcfg, type, 'docs').libelle || 'Documents joints'} » est obligatoire pour cette opération.`, 'bad'); return; }
     if (deps.length && !String(motifDep || '').trim()) { toast('Dépassement d’un plafond : indiquez le motif (il est tracé avec l’opération).', 'bad'); return; }
-    const spec0 = plan0 && plan0.groupe && !old ? { ...built.spec, groupe: plan0.groupe } : built.spec; // validée seule, une opération d'un groupe planifié y reste (0.29.0-alpha.1)
+    const spec00 = plan0 && plan0.groupe && !old ? { ...built.spec, groupe: plan0.groupe } : built.spec; // validée seule, une opération d'un groupe planifié y reste (0.29.0-alpha.1)
+    const spec0 = plan0 && plan0.schema && !old ? { ...spec00, schema: plan0.schema } : spec00; // étape d'un schéma de vinification (0.31.0-alpha.1)
     const spec = deps.length ? { ...spec0, depassement: depassementSpec(deps, motifDep, uid) } : old && old.depassement ? { ...spec0, depassement: null } : spec0;
     const r = act((d) => { const r1 = opSave(d, spec, editId, { motif: f.motifRegistre, par: uid, maintenant: new Date().toISOString() }); if (r1 && r1.ok && prevId) previsionStatut(d, prevId, 'realisee', r1.op.id); if (r1 && r1.ok && !old) docsJoindre(d, piecesRef.current, { type: 'op', id: r1.op.id }); return r1; });
-    if (r && r.ok) { engage.current = true; toast(`${pv && (pv.warnings.length || pv.alerts.length) ? 'Opération validée — des avertissements sont à vérifier dans le journal.' : prevId ? 'Opération validée : retirée de la liste « À réaliser ».' : old ? 'Opération modifiée.' : 'Opération validée.'}${old ? '' : nDocs()}`); onClose(); }
+    if (r && r.ok) { engage.current = true; toast(`${pv && (pv.warnings.length || pv.alerts.length) ? 'Opération validée — des avertissements sont à vérifier dans le journal.' : prevId ? 'Opération validée : retirée de la liste « À réaliser ».' : old ? 'Opération modifiée.' : 'Opération validée.'}${old ? '' : nDocs()}`); onClose();
+      if (!old && ['pressurage', 'entree_mout'].includes(type) && r.op && schemasReglage(db).proposer && lotsCreesPar(r.op).length && openSchema) openSchema({ opId: r.op.id, auto: true }); } // schéma de vinification proposé (0.31.0-alpha.1)
   };
   const sourcesQ = (srcs, preps) => { const qs = [...srcs.map((s) => lotQ(s.portionId)), ...(preps || []).map((u) => (Rd.preps[u.prepId] || {}).qualif)].filter(Boolean); return qs.length ? minQualif(qs) : 'conv'; };
   const mixed = (srcs, preps) => { const qs = uniq([...srcs.map((s) => lotQ(s.portionId)), ...(preps || []).map((u) => (Rd.preps[u.prepId] || {}).qualif)].filter(Boolean)); return qs.length > 1 ? qs : null; };

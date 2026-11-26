@@ -2,6 +2,13 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.31.0-alpha.1 — 26/11/2026
+
+- Schémas de vinification (Paramètres › Schémas de vinification) : suites d’étapes types — jour après la création du lot, opération, famille de produit, dose par hL de produit ou de SO₂ apporté, consigne — choisies selon le cépage majoritaire, la fraction et l’état sanitaire des raisins ; quatre exemples non officiels « à vérifier » (cuvée de Chardonnay, cuvée de noirs avec FML, tailles, raisins altérés), à dupliquer et adapter
+- Proposés à la création d’un lot (marc validé au pressoir ou depuis le carnet, entrée de moûts) : le schéma le plus proche est présélectionné, avec les produits en stock et les quantités calculées sur le volume du lot ; « ✓ Créer les opérations à réaliser » les ajoute en un clic à « À réaliser », où chacune se valide avec les quantités réelles
+- Fiche du lot : rubrique « Schéma de vinification » (étapes prévues et validées, impression, retrait des étapes à réaliser) ; « 📋 Appliquer un schéma… » pour un lot déjà créé ; pastille « 📋 schéma » dans « À réaliser » et dans le journal
+- Impressions au choix : logigramme vertical, frise ou tableau — pour un schéma, les opérations prévues d’un lot (dates, quantités, colonne visa), le plan de nettoyage et de désinfection (frise par moment de l’année) et le plan de maintenance (frise des échéances sur douze mois) ; la forme choisie est gardée pour la prochaine impression
+
 ## 0.30.0-alpha.1 — 26/11/2026
 
 - Catalogues de produits œnologiques préinstallés : Laffort, IOC et Sofralab (Oenofrance, SOEC, Martin Vialatte) — 906 produits, avec leur famille, la dose conseillée, les conditionnements, les mentions bio et vegan et leur source (catalogue, page) ; à vérifier sur la fiche technique avant usage
