@@ -17,7 +17,8 @@ Mémoire du projet pour Claude et pour le vigneron. Œnotrack sert à la traçab
     - `oenotrack-langue` ;
     - `oenotrack-config` ;
     - jetons cloud ;
-    - clé de chiffrement **sur l'appareil seulement**.
+    - clé de chiffrement **sur l'appareil seulement** ;
+    - commodités de cet appareil : `oenotrack-recap-intrants` / `oenotrack-recap-maintenance` (colonnes des fiches récapitulatives), `oenotrack-maint-vue`.
   - IndexedDB : documents joints (`45-docs`), instantanés de synchronisation et liens vers les dossiers choisis (`68f-drive` : clés `dossier`, `reseau`), points de restauration (`44c-garde`).
 - **Moteur rejoué.** La base stocke des *opérations*. `replay()` / `getR(db, date)` (`20-engine.js`) recalcule les lots, les portions, les volumes, les bouteilles sur lattes, les flux et les doses cumulées. On ne stocke jamais d'état dérivé.
   - L'interface affiche `campEtatR(db, camp)` (`30-store.js`) : état complet, sauf pour une campagne **antérieure** (`anterieure: true`, posé par `campCreate` quand elle finit avant toutes les autres), rejouée jusqu'à sa fin — elle démarre vide.
@@ -39,6 +40,13 @@ Mémoire du projet pour Claude et pour le vigneron. Œnotrack sert à la traçab
   - documents d'un partenaire : `doc.partId` (cible inchangée `{ type: 'op' }`) ; `DocsPanel` / `DocsAttente` acceptent `filtre`, `extra`, `inputLabel`, `catDefaut` ; bulletin déposé dans un onglet → `bulletinPourMouts` (`16f`) ;
   - analyses imposées : `moutModeleImpose` (« Moût · Débourbage », `m_mout`), plus de choix de modèle ;
   - volume à l'épalement : `jaugeEntreeCuve` (`15-baremes`), composant `HauteurCuve` (`57-jauge`), mesures gardées dans `op.jaugesCuves = [{ cle, contenantId, mesure, apres, volAvant, volL, baremeId }]`.
+- **Intrants et stocks** (0.36, `16p-intrants-stocks.js`, `65e-intrants-stocks.jsx`) :
+  - régularisations manuelles : `db.regulStocks = [{ id, arrivageId, produitId, date, qty (signée), motif (REGUL_MOTIFS : inventaire, casse, perte, peremption, ecart, echantillon, retour, autre), compte?, restantAvant, notes, par, le }]` ; le rejeu les ajoute au restant du lot (`R.arrRegul`, `arrivalRest`) ; `intrantMouvements` = historique (réceptions, utilisations, régularisations, solde) ; « Autre » exige une note, les motifs de sortie sont toujours retirés ;
+  - allergènes : `p.allergenesListe` (ids d'`ALLERGENES`, liste « à vérifier »), `p.allergenesAucun` ; `p.allergenes` devient « précisions » ; `allergenesTexte(p)` alimente la traçabilité et les fiches ;
+  - revendications Oui / Non (bio, Demeter, personnalisées) : **même donnée que `db.regles`** (`autorise`), donc synchronisée d'office avec « Produits & règles par revendication » ; `produitSave(s.revendications)` → `revendicationsAppliquer` ; `p.usageBio` devient « précisions » ;
+  - détection à l'import d'une FT / FDS (`ficheDetections` → clés `allergenesListe`, `rev:<id>`, `contactAlimentaire`) : propositions cochées dans la revue du dépôt (`detectionPropositions`), décochées si elles changeraient un choix vérifié ; reprise par `produitInfosAppliquer` (allergènes ajoutés, jamais retirés ; règle marquée « lu dans une FT / FDS déposée », à vérifier) ;
+  - fiches récapitulatives à colonnes choisies (`RECAP_INTRANTS_COLS`, `recapIntrants`, `RecapSheet` : impression, PDF, HTML, CSV via `recapCsv`).
+- **Produits de maintenance** (0.36, `16q-produits-maintenance.js`, `66f-produits-maintenance.jsx`, Équipements › Maintenance › Produits de maintenance) : `db.produitsMaintenance = [{ id, nom, fournisseur, fabricant, reference, usage, contactAlimentaire, caveVinif ('oui' | 'non' | ''), composition, stockage, unite, suiviStock, seuil, champs [{ label, valeur }], fdsNonRequise, actif, notes }]` ; stock recalculé depuis `db.mouvementsMaintenance = [{ id, produitId, date, type (entree | sortie | regul), qty, motif, numLot, compte?, notes, par, le }]`, jamais négatif ; documents `cible { type: 'produitMaintenance' }` (FDS, FT, attestation contact alimentaire), même dépôt groupé que les intrants ; fiche récapitulative `recapMaintenance`. Droits : module `equipements` ; régularisations d'intrants : module `intrants`.
 - **IA optionnelle** (`17-ia.js`, `68k-ia.jsx`) : Claude, OpenAI, Gemini ou Mistral avec **la clé de l'utilisateur**, gardée en localStorage et jamais placée dans la base, la synchronisation ou les sauvegardes.
 
 ## 2. Structure
@@ -62,14 +70,16 @@ dist/       sortie (non versionnée)
 | Pressoir (pesées, marcs, carnet), profil régional | `19-pressoir`, `16o-profils` | `60b-pressoir`, `68o-profil` |
 | Rejeu, assemblages, tirage, dégorgement | `20-engine` | `60-cuverie`, `61-lotsheet`, `63-tirage` |
 | Intrants, catalogues, plafonds, SO₂, cumuls | `16b`, `16k`, `16l` | `65*`, `61c-cumul` |
+| Régularisations de stock, allergènes, revendications Oui / Non, fiches récapitulatives | `16p-intrants-stocks` | `65e-intrants-stocks` |
 | Analyses et bulletins | `16f-bulletins` | `64*` |
 | Hygiène (HACCP), équipements | `16`, `16c`, `16h`, `16i` | `66*` |
+| Produits de maintenance (catalogue, stock, FT / FDS) | `16q-produits-maintenance` | `66f-produits-maintenance` |
 | Cave au quotidien (fiches, fermentation, QR) | `16j`, `10b-qr` | `60c`, `60d`, `60e` |
 | Schémas de vinification | `16m-schemas` | `61e-schemas` |
 | DRM / DRA (XML DTI+ CIEL, CIVC) | `16n-drm` | `67b-drm` |
 | Traçabilité, audits | `25*`, `27-audits` | `69*` |
 | Stockage, CRUD, campagnes, droits | `30-store`, `31-crud`, `34-acces` | `68d`, `68-params` (campagnes), `48-acces` |
-| Langues (6) | `17b-langues`, tables `17c…17t-trad-*` | `40c-langue` (traducteur DOM) |
+| Langues (6) | `17b-langues`, tables `17c…17w-trad-*` | `40c-langue` (traducteur DOM) |
 | Impression, PDF | `49-pdf` | `70-report`, `61d-visuel`, `46-fiches` |
 | Navigation, onglets, modules, onglet d'ouverture | `31-crud` (`MODULES_DEFAUT`, `MODULES_DANS`, `ONGLETS_GROUPES`, `ongletOuverture`) | `90-app` (`TABS_REG`, `ONGLET_GROUPE_DEFS`), `68h-modules` |
 | Synchronisation, dossier réseau de l'entreprise | `32-sync`, `33-cloud`, `33c-dossier-reseau`, `34-cloud-fournisseurs` | `68f-drive`, `68g-stockage`, `68p-dossier-reseau` |

@@ -46,7 +46,7 @@ function FicheInfos({ r, props: P, coche, onCoche, ia }) {
       <div className="flex flex-wrap items-center gap-2 text-xs"><b>Pour la fiche du produit</b>{r.iaInfos === 'enCours' ? <span className="text-accent">{`🤖 ${ia} complète la lecture…`}</span> : r.iaInfos && r.iaInfos.err ? <span className="text-bad">🤖 {r.iaInfos.err}</span> : r.iaInfos ? <span className="text-accent">{`🤖 complété par ${ia}`}</span> : null}</div>
       {P.length ? <ul className="mt-1 space-y-1">{P.map((x) => (
         <li key={x.k}><label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" style={{ accentColor: 'var(--accent)' }} checked={coche(x)} onChange={(e) => onCoche(x, e.target.checked)} data-info={x.k} />
-          <span className="min-w-0"><span className="text-xs text-ink2">{x.src === 'ia' ? <span title="Lu par l’assistant IA : à vérifier">🤖 </span> : null}{x.lab}{x.actuel ? ' (remplace la valeur actuelle)' : ''}</span><span className="block break-words" translate="no">{x.v}</span></span></label></li>))}</ul>
+          <span className="min-w-0"><span className="text-xs text-ink2">{x.src === 'ia' ? <span title="Lu par l’assistant IA : à vérifier">🤖 </span> : null}{x.lab}{x.actuel ? (x.ajout ? ' (ajouté à la liste)' : ' (remplace la valeur actuelle)') : ''}</span>{x.aff ? <span className="block break-words">{x.aff}</span> : <span className="block break-words" translate="no">{x.v}</span>}</span></label></li>))}</ul>
         : r.iaInfos !== 'enCours' ? <div className="help">Rien de nouveau pour la fiche.</div> : null}
     </div>
   );
@@ -74,7 +74,7 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
       try { lu = await lireFicheProduit(r0.file, { onEtape: (t) => { if (vivant.current) maj(r0.k, { etape: t }); } }); } catch (e) { err = lectureEchec(r0.file, e); lu = { fichier: r0.file.name, taille: r0.file.size, mime: r0.file.type, ...ficheAnalyser('', { fichier: r0.file.name }) }; }
       if (!vivant.current) return;
       const cands = fixe ? [] : ficheCorrespondances(dbR.current, lu); const rec = fixe || ficheReconnu(cands);
-      maj(r0.k, (r) => avecAction({ ...r, etat: 'pret', etape: '', err, lu, cands, genre: lu.genre || 'autre', date: lu.date || '', version: lu.version || '', nom: nomProduitCasse(lu.nom || r.file.name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ')), cle: rec ? ficheCibleCle(rec) : '', infosScript: ficheInfosScript(lu.texte || lu.extrait, lu.genre) }));
+      maj(r0.k, (r) => avecAction({ ...r, etat: 'pret', etape: '', err, lu, cands, genre: lu.genre || 'autre', date: lu.date || '', version: lu.version || '', nom: nomProduitCasse(lu.nom || r.file.name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ')), cle: rec ? ficheCibleCle(rec) : '', infosScript: { ...ficheInfosScript(lu.texte || lu.extrait, lu.genre), ...ficheDetections(dbR.current, lu.texte || lu.extrait) } })); // allergènes, revendications, contact alimentaire (0.36.0-alpha.1)
     }
     // informations de la fiche complétées par l'assistant IA (s'il est configuré) : d'office jusqu'à 10 documents, sinon sur demande
     const A1 = iaActive(); if (vivant.current && A1.pret && A1.completer && rows.length <= 10) { await new Promise((res) => setTimeout(res, 60)); completer(rows.map((r) => r.k)); } // après l'affichage des lectures
@@ -105,8 +105,9 @@ function FichesDepot({ fichiers, cible, onClose, onFini }) {
   const choisir = (k, champ, v) => maj(k, (r) => avecAction({ ...r, [champ]: v, manuel: champ === 'action' ? true : champ === 'cle' ? false : r.manuel, ...(champ === 'action' ? { raison: v === 'ignorer' ? '' : r.raison } : {}) }));
   // listes de produits : les candidats reconnus d'abord (avec leur score), puis tous les intrants et produits d'hygiène
   const tous = useMemo(() => [...(db.produits || []).slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr')).map((p) => ({ value: `produit:${p.id}`, label: `${p.nom}${p.actif === false ? ' (inactif)' : ''}` })),
-    ...hygListe(db).filter((p) => !p.archive).slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr')).map((p) => ({ value: `produitHygiene:${p.id}`, label: `${p.nom} (produit d’hygiène)` }))], [db.produits, db.produitsHygiene]);
-  const optionsDe = (r) => { const cs = r.cands.map((c) => ({ value: `${c.type}:${c.id}`, label: `${c.nom}${c.type === 'produitHygiene' ? ' (hygiène)' : ''} — reconnu à ${Math.round(c.score * 100)} %` })); const vus = new Set(cs.map((x) => x.value)); return [...cs, ...tous.filter((x) => !vus.has(x.value)), { value: 'nouveau', label: `➕ Nouveau produit : « ${r.nom || 'à nommer'} »` }]; };
+    ...hygListe(db).filter((p) => !p.archive).slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr')).map((p) => ({ value: `produitHygiene:${p.id}`, label: `${p.nom} (produit d’hygiène)` })),
+    ...produitsMaint(db).slice().sort((a, b) => a.nom.localeCompare(b.nom, 'fr')).map((p) => ({ value: `produitMaintenance:${p.id}`, label: `${p.nom} (produit de maintenance)` }))], [db.produits, db.produitsHygiene, db.produitsMaintenance]);
+  const optionsDe = (r) => { const cs = r.cands.map((c) => ({ value: `${c.type}:${c.id}`, label: `${c.nom}${c.type === 'produitHygiene' ? ' (hygiène)' : c.type === 'produitMaintenance' ? ' (maintenance)' : ''} — reconnu à ${Math.round(c.score * 100)} %` })); const vus = new Set(cs.map((x) => x.value)); return [...cs, ...tous.filter((x) => !vus.has(x.value)), { value: 'nouveau', label: `➕ Nouveau produit : « ${r.nom || 'à nommer'} »` }]; };
   const A = iaActive(); const pretes = rows.filter((r) => r.etat === 'pret'); const enCours = rows.some((r) => r.etat !== 'pret');
   const aIdentifier = pretes.filter((r) => !r.ia && (!r.cle || !r.date || r.genre === 'autre') && r.lu && String(r.lu.extrait || '').trim().length > 40);
   const aCompleter = pretes.filter((r) => !r.iaVals && r.iaInfos !== 'enCours' && texteDe(r).replace(/\s+/g, '').length >= 80);

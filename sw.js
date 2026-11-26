@@ -1,5 +1,5 @@
 // Œnotrack — service worker : l'application s'ouvre même sans réseau (cave, vignes) ; nouvelle version prise dès que le réseau est là
-const VERSION = 'oenotrack-0.34.0-alpha.1-69e0ef9d';
+const VERSION = 'oenotrack-0.36.0-alpha.1-ee59c06b';
 const COEUR = ['./', './index.html', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 const CDN = /^https:\/\/(cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|unpkg\.com|cdn\.tailwindcss\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//;
 // bibliothèques chargées à la demande (Excel, PDF) : mises en cache dès l'installation pour fonctionner aussi hors connexion

@@ -2,6 +2,13 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.36.0-alpha.1 — 26/11/2026
+
+- Intrants › Stocks & arrivages : régularisation manuelle du stock d’un lot fournisseur — inventaire (quantité comptée), casse, perte, péremption, écart, échantillon, retour, avec motif et notes — tracée dans le nouvel historique des mouvements (réceptions, utilisations, régularisations, solde)
+- Fiche des produits œnologiques : allergènes à cocher (œuf, lait, gluten, sulfites, enzymes, poisson…) et choix Oui / Non par revendication (bio, Demeter, revendications personnalisées), le même que dans « Produits & règles par revendication » ; repérés d’office dans les FT et FDS déposées, à vérifier
+- Fiches récapitulatives des produits œnologiques et des produits de maintenance : colonnes au choix (fournisseur, stock actuel, revendications compatibles, allergènes…), à imprimer ou à télécharger en PDF, HTML ou CSV
+- Équipements › Maintenance › Produits de maintenance : catalogue avec fournisseur, usage, agrément contact alimentaire, utilisation en cave de vinification, composition et champs personnalisés ; suivi du stock activable par produit (entrées, sorties, régularisations) ; FT, FDS et attestations jointes
+
 ## 0.35.0-alpha.1 — 26/11/2026
 
 - Entrée de moûts : plusieurs partenaires dans une même citerne — en-tête commun (date, immatriculation, millésime par défaut), puis un onglet par partenaire avec son n° de bon / DAE et ses moûts (Moût 1, Moût 2…) ; ajout et retrait d’onglets ; les lots créés en cuve, les registres, la fiche de réception et la traçabilité reprennent le partenaire et le n° de bon de chaque moût
