@@ -78,9 +78,10 @@ function RptCont({ id, S, brk }) {
 // Sorties d'un rapport (0.28.0-alpha.1) : « 🖨 Imprimer » (boîte d'impression de l'appareil ; à défaut le PDF), « ⬇ PDF », « ⬇ HTML »
 function useReportOutput(ref, filename, opts = {}) {
   const { toast, db } = useApp();
-  const meta = () => ({ units: [{ el: ref.current, orientation: opts.orientation || 'portrait', fit: 'width' }], root: ref.current, filename: `${filename}.pdf`, title: filename, author: (db.entreprise || {}).nom, toast });
+  // opts : { orientation, format (zone d'impression : 'etiq-a4', 'etiq-a6'…), units(racine) → pages du PDF (0.29.0-alpha.1 : étiquettes) }
+  const meta = () => ({ units: opts.units ? opts.units(ref.current) : [{ el: ref.current, orientation: opts.orientation || 'portrait', fit: 'width' }], root: ref.current, filename: `${filename}.pdf`, title: filename, author: (db.entreprise || {}).nom, toast });
   const pdf = async () => { if (!ref.current) return; await printPdf(meta()); };
-  const print = async () => { if (!ref.current) return; const r = await imprimerZone(ref.current, { titre: filename, orientation: opts.orientation }); if (r === 'bloque') await pdfRepli(meta()); };
+  const print = async () => { if (!ref.current) return; const r = await imprimerZone(ref.current, { titre: filename, orientation: opts.orientation, format: opts.format }); if (r === 'bloque') await pdfRepli(meta()); };
   const direct = print;
   const download = async () => {
     const css = Array.from(document.querySelectorAll('style')).map((s) => s.textContent).join('\n').split('/* rapports imprimables */')[1] || '';

@@ -44,7 +44,9 @@ sw = """// Œnotrack — service worker : l'application s'ouvre même sans rése
 const VERSION = 'oenotrack-__VERSION__';
 const COEUR = ['./', './index.html', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 const CDN = /^https:\\/\\/(cdnjs\\.cloudflare\\.com|cdn\\.jsdelivr\\.net|unpkg\\.com|cdn\\.tailwindcss\\.com|fonts\\.googleapis\\.com|fonts\\.gstatic\\.com)\\//;
-self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COEUR)).catch(() => null).then(() => self.skipWaiting())); });
+// bibliothèques chargées à la demande (Excel, PDF) : mises en cache dès l'installation pour fonctionner aussi hors connexion
+const LIBS = ['https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js'];
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COEUR).catch(() => null).then(() => Promise.all(LIBS.map((u) => c.add(new Request(u, { mode: 'cors' })).catch(() => null))))).catch(() => null).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('oenotrack-') && k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 const garder = (r, rep) => { if (rep && (rep.ok || rep.type === 'opaque')) { const cp = rep.clone(); caches.open(VERSION).then((c) => c.put(r, cp)).catch(() => null); } return rep; };
 self.addEventListener('fetch', (e) => {

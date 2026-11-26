@@ -24,7 +24,7 @@ async function bulletinLireFichier(file, { onEtape } = {}) {
   }
   if (estImage(file)) { et('Photo : reconnaissance du texte (la première fois, le module de lecture se télécharge)…'); const c = nettoyerScan(await imageCanvas(file)); const p = await ocrCanvas(c, 1, 1); const lignes = bulletinLignesDePages([p]); return { lignes, texte: lignes.map((l) => l.texte).join('\n'), ocr: true }; }
   if (estTableur(file)) {
-    et('Lecture du tableur…'); if (!window.XLSX || !window.XLSX.read) throw new Error('lecture Excel indisponible (bibliothèque non chargée, hors ligne ?) : enregistrez le tableau en CSV');
+    et('Lecture du tableur…'); try { await loadXlsx(); } catch (e) { /* message ci-dessous */ } if (!window.XLSX || !window.XLSX.read) throw new Error('lecture Excel indisponible (bibliothèque non chargée, hors ligne ?) : enregistrez le tableau en CSV');
     const ab = await file.arrayBuffer(); const rows = gardeSurveiller(() => { const wb = window.XLSX.read(ab, { type: 'array' }); return wb.SheetNames.slice(0, 4).flatMap((sn) => window.XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: '' })); });
     const lignes = bulletinLignesDeTableau(rows.slice(0, 3000)); return { lignes, texte: lignes.map((l) => l.texte).join('\n'), ocr: false };
   }

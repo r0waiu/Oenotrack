@@ -55,6 +55,7 @@ function App() {
   const [stack, setStack] = useState([]); // fiches ouvertes : { k: 'lot' | 'cont' | 'fini', id } — la dernière ouverte est au premier plan
   const [traceDlg, setTraceDlg] = useState(null); // fichier de traçabilité : export d'une expédition, traçabilité amont d'une entrée (0.27.0-alpha.1)
   const [opDlg, setOpDlg] = useState(null); const [misc, setMisc] = useState(null); const [menu, setMenu] = useState(null); const [contEdit, setContEdit] = useState(null); const [report, setReport] = useState(null); const [docsDlg, setDocsDlg] = useState(null); const [ficheDlg, setFicheDlg] = useState(null);
+  const [groupeDlg, setGroupeDlg] = useState(null); const [mdpDlg, setMdpDlg] = useState(null); // saisie groupée, mot de passe de chiffrement (0.29.0-alpha.1)
   const [theme, setTheme] = useState(() => { try { return window.localStorage.getItem(THEME_KEY) || window.localStorage.getItem('cuverie-champenoise-theme') || 'auto'; } catch (e) { return 'auto'; } });
 
   useEffect(() => { setStoreOK(saveDb(db)); }, [db]);
@@ -90,6 +91,8 @@ function App() {
   useEffect(() => { if (!toastMsg) return undefined; const t = setTimeout(() => setToastMsg(null), toastMsg.kind === 'bad' ? 8000 : 4500); return () => clearTimeout(t); }, [toastMsg]);
 
   const toast = useCallback((msg, kind) => setToastMsg({ msg, kind, id: Date.now() }), []);
+  // mot de passe de chiffrement demandé au besoin (sauvegarde, restauration, Drive chiffré) : (en-tête, raison) → clé ou null (0.29.0-alpha.1)
+  useEffect(() => { CHIFFRE_DEMANDER = (entete, raison) => new Promise((res) => setMdpDlg({ mode: 'saisir', entete: entete || {}, raison, res })); return () => { CHIFFRE_DEMANDER = null; }; }, []);
   const confirm = useCallback((o) => new Promise((res) => setCfm({ ...o, res })), []);
   const act = useCallback((fn, okMsg, opts) => {
     const avant = dbRef.current; const d = clone(avant); let r;
@@ -127,6 +130,15 @@ function App() {
   useEffect(() => { if (!visibles.includes(nav.tab)) setNav({ tab: visibles[0] || MODULE_FIXE, sub: null }); }, [visibles.join(), nav.tab]);
   const push = useCallback((k, id) => setStack((s) => { const top = s[s.length - 1]; if (top && top.k === k && top.id === id) return s; return [...s.filter((x) => !(x.k === k && x.id === id)), { k, id }]; }), []);
   const showLot = useCallback((id) => push('lot', id), [push]); const showCont = useCallback((id) => push('cont', id), [push]); const showFini = useCallback((id) => push('fini', id), [push]);
+  // lien direct vers la fiche d'une cuve (étiquette QR : …#cuve=identifiant, 0.29.0-alpha.1) : ouverte dès que l'application est prête (après connexion)
+  const lienAttente = useRef(null);
+  useEffect(() => { const lire = () => { const x = lienCuveLire(window.location.hash, window.location.search); if (x) { lienAttente.current = x.cuve; setLienN((n) => n + 1); } }; lire(); window.addEventListener('hashchange', lire); return () => window.removeEventListener('hashchange', lire); }, []);
+  const [lienN, setLienN] = useState(0);
+  useEffect(() => {
+    const id = lienAttente.current; if (!id || accueil || (secu && (!uid || verrouille))) return;
+    lienAttente.current = null; try { const u = window.location; const h = String(u.hash || '').replace(/(^#|&)cuve=[^&]*/, '').replace(/^#?&?/, ''); window.history.replaceState(null, '', u.pathname + u.search.replace(/([?&])cuve=[^&#]*&?/, '$1').replace(/[?&]$/, '') + (h ? `#${h}` : '')); } catch (e) { /* ignoré */ }
+    if (dbRef.current.contenants.some((c) => c.id === id)) showCont(id); else toast('Cette étiquette ne correspond à aucun contenant de cette base (autre exploitation, ou contenant pas encore synchronisé sur cet appareil).', 'bad');
+  }, [lienN, accueil, secu, uid, verrouille]);
   const showOperateur = useCallback((id) => push('opr', id), [push]);
   // opérateur de cet appareil : proposé d'office dans les nouvelles opérations (mémorisé dans ce navigateur seulement)
   const [moi0, setMoi0] = useState(moiLire); const oMoi = operateurDe(db, moi0);
@@ -161,6 +173,7 @@ function App() {
     openOp: (type, preset, editId, opts) => { setMenu(null); setOpDlg({ type, preset, editId, ...(opts || {}) }); },
     openDocs: (cible, kind, title) => { setMenu(null); setDocsDlg({ cible, kind, title, k: Date.now() }); }, openTrace: (x) => { setMenu(null); setTraceDlg(x ? { ...x, n: Date.now() } : null); }, openLegal: (o) => { setMenu(null); setLegal(o || 'mentions'); }, openFiche: (sources) => { setMenu(null); setFicheDlg({ sources, k: Date.now() }); },
     openAnalyse: (preset) => { setMenu(null); setMisc({ kind: 'analyse', preset }); }, openHyg: (preset) => { setMenu(null); setMisc({ kind: 'hyg', preset }); },
+    openGroupe: (x) => { setMenu(null); setGroupeDlg(x ? { ...x, k: Date.now() } : null); },
     openMenu: (cid, x, y) => setMenu({ cid, x, y, k: Date.now() }), editCont: (id) => { setMenu(null); setContEdit(id); }, openReport: (init) => { setMenu(null); setReport(init || { kind: 'lot', ids: [] }); },
   };
 
@@ -254,6 +267,7 @@ function App() {
           </span>
         </div>
         {!storeOK ? <div className="wrap pb-3"><Notice tone="bad" title="Les données ne sont pas conservées entre deux visites">Le stockage local du navigateur est indisponible (navigation privée ou blocage). Exportez régulièrement la base complète (Paramètres › Sauvegarde & Drive) pour ne rien perdre.</Notice></div> : null}
+        <RappelSauvegarde />
         {showMig ? <div className="wrap pb-3"><Notice tone="ok" title="Bienvenue dans Œnotrack">Vos données de « Cuverie champenoise » ont été reprises automatiquement (revendications, sites, liste des crus et apporteurs ajoutés). <button type="button" className="linkish" onClick={() => setShowMig(false)}>Masquer</button></Notice></div> : null}
         {db.meta.exemple ? <div className="wrap pb-3"><Notice tone="info" title="Jeu de données d’exemple chargé"><span className="hidden sm:inline">Vous pouvez tout tester librement (plan de cave, clic droit, entrée de moûts, traçabilité, rapports…). Quand vous voulez repartir de zéro : </span><span className="sm:hidden">Testez librement, puis repartez de zéro : </span><button type="button" className="linkish" onClick={resetEmpty}>Réinitialiser à vide</button>.</Notice></div> : null}
       </header>
@@ -286,6 +300,9 @@ function App() {
       {apparence ? <ApparenceSheet onClose={() => setApparence(false)} /> : null}
       {docsDlg ? <DocsSheet key={docsDlg.k} cible={docsDlg.cible} kind={docsDlg.kind} title={docsDlg.title} onClose={() => setDocsDlg(null)} /> : null}
       {ficheDlg ? <FicheDialog key={ficheDlg.k} sources={ficheDlg.sources} onClose={() => setFicheDlg(null)} /> : null}
+      {groupeDlg && groupeDlg.gid ? <GroupeSheet key={groupeDlg.k} gid={groupeDlg.gid} onClose={() => setGroupeDlg(null)} /> : null}
+      {groupeDlg && groupeDlg.form ? <GroupeForm key={groupeDlg.k} gid={groupeDlg.form.gid} prevGid={groupeDlg.form.prevGid} onClose={() => setGroupeDlg(null)} /> : null}
+      {mdpDlg ? <MdpChiffrementDialog d={mdpDlg} onFin={(k) => { const r = mdpDlg.res; setMdpDlg(null); r(k); }} /> : null}
       <VeilleAuto />
       <GardeExistants />
       {traceDlg && traceDlg.opId ? (traceDlg.k === 'amont' ? <TraceAmontSheet key={traceDlg.n} opId={traceDlg.opId} onClose={() => setTraceDlg(null)} /> : <TraceExportSheet key={traceDlg.n} opId={traceDlg.opId} onClose={() => setTraceDlg(null)} />) : null}

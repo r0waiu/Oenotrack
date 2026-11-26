@@ -245,8 +245,8 @@ function gardeDroits(avant, apres, uid) {
   for (const k of ch) {
     if (k === 'ops') continue;
     if (k === 'utilisateurs' || k === 'profils') {
-      if (k === 'utilisateurs' && !sp('utilisateurs')) { // seuls changements permis : son propre mot de passe, ses propres clés d'accès (0.28.0-alpha.1)
-        const d = diffParId(avant.utilisateurs, apres.utilisateurs); const soi = d.n === 1 && d.modif.length === 1 && d.modif[0].apres.id === uid && JSON.stringify(sansCles(d.modif[0].avant, ['mdp', 'doitChanger', 'cles'])) === JSON.stringify(sansCles(d.modif[0].apres, ['mdp', 'doitChanger', 'cles']));
+      if (k === 'utilisateurs' && !sp('utilisateurs')) { // seuls changements permis : son propre mot de passe, ses propres clés d'accès (0.28.0-alpha.1), la disposition de ses fiches (0.29.0-alpha.1)
+        const d = diffParId(avant.utilisateurs, apres.utilisateurs); const soi = d.n === 1 && d.modif.length === 1 && d.modif[0].apres.id === uid && JSON.stringify(sansCles(d.modif[0].avant, ['mdp', 'doitChanger', 'cles', 'fichesRubriques'])) === JSON.stringify(sansCles(d.modif[0].apres, ['mdp', 'doitChanger', 'cles', 'fichesRubriques']));
         if (!soi) return refus(`le profil ${nomP} ne permet pas de gérer les utilisateurs`);
         const ka = d.modif[0].avant.cles || []; const kb = d.modif[0].apres.cles || [];
         if (typeof clesReglages === 'function' && clesReglages(db).validation !== 'libre' && kb.some((x) => x && x.acceptee !== false && !ka.some((y) => y && y.id === x.id && y.acceptee !== false))) return refus('un nouvel appareil doit être accepté par un administrateur');
@@ -275,7 +275,9 @@ function gardeDroits(avant, apres, uid) {
       const sk = uniq([...Object.keys(A), ...Object.keys(B)]).filter((x) => !libres.includes(x) && JSON.stringify(A[x]) !== JSON.stringify(B[x]));
       if (!sk.length) continue;
       if (sk.includes('securite')) { if (!sp('utilisateurs')) return refus(`le profil ${nomP} ne permet pas de régler la sécurité`); audit.push({ uid, action: 'securite', type: 'reglage', resume: (B.securite || {}).actif === false && (A.securite || {}).actif ? 'Identifiants désactivés' : 'Réglages de sécurité modifiés' }); }
-      if (sk.some((x) => x !== 'securite')) { if (!ecr('params')) return refus(`le profil ${nomP} ne permet pas de modifier les paramètres`); audit.push({ uid, action: 'modification', type: 'parametres', resume: `${GARDE_NOMS[k]} : ${sk.filter((x) => x !== 'securite').slice(0, 6).join(', ')}` }); }
+      // chiffrement des sauvegardes et du Drive (0.29.0-alpha.1) : droit « Sauvegardes et Drive »
+      if (sk.includes('chiffrement')) { if (!sp('sauvegarde')) return refus(`le profil ${nomP} ne permet pas de régler le chiffrement des sauvegardes`); const a0 = (A.chiffrement || {}), b0 = (B.chiffrement || {}); audit.push({ uid, action: 'securite', type: 'reglage', resume: b0.actif && !a0.actif ? 'Chiffrement des sauvegardes activé' : !b0.actif && a0.actif ? 'Chiffrement des sauvegardes désactivé' : 'Mot de passe de chiffrement changé' }); }
+      if (sk.some((x) => x !== 'securite' && x !== 'chiffrement')) { if (!ecr('params')) return refus(`le profil ${nomP} ne permet pas de modifier les paramètres`); audit.push({ uid, action: 'modification', type: 'parametres', resume: `${GARDE_NOMS[k]} : ${sk.filter((x) => x !== 'securite' && x !== 'chiffrement').slice(0, 6).join(', ')}` }); }
       continue;
     }
     if (k === 'campagnes') { if (!sp('campagnes')) return refus(`le profil ${nomP} ne permet pas de gérer les campagnes`); const d = diffParId(avant.campagnes, apres.campagnes); [...d.cree, ...d.modif.map((x) => x.apres)].forEach((c) => audit.push({ uid, action: d.cree.includes(c) ? 'creation' : 'modification', type: 'campagne', cibleId: c.id, resume: `Campagne ${c.nom}${c.figee ? ' (figée)' : ''}` })); if (d.suppr.length && !sp('supprimer')) return refus(`le profil ${nomP} ne permet pas de supprimer`); continue; }

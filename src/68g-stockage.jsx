@@ -18,8 +18,12 @@ function useCloud({ db, dbRef, applyDb, toast }) {
   const F = etat.fournisseur ? CLOUD_FOURNISSEURS[etat.fournisseur] : null; const lie = !!(F && etat.dossier) && !integre;
   const hote = () => ({
     lireLocale: () => dbRef.current, appliquer: (nd) => applyDb(nd), vide: (L) => baseVide(L), snapLire, snapEcrire,
-    construire: (L, sync) => JSON.stringify({ format: SAUV_FORMAT, formatVersion: SAUV_VERSION, app: APP_ID, appVersion: APP_VERSION, schema: L.schema, exporteLe: nowISO(), contenu: { contenants: L.contenants.length, lots: L.lots.length, operations: L.ops.length, documents: (L.docs || []).length }, sync, documentsSepares: true, db: L, fichiers: [] }),
-    lire: (texte) => { const s = lireSauvegarde(texte); return { db: s.db, sync: (s.head && s.head.sync) || null }; },
+    // chiffrement (0.29.0-alpha.1) : la base, ses copies du jour et les documents envoyés au Drive sont chiffrés si le réglage commun l'exige
+    construire: (L, sync) => sauvTexteSortie(L, JSON.stringify({ format: SAUV_FORMAT, formatVersion: SAUV_VERSION, app: APP_ID, appVersion: APP_VERSION, schema: L.schema, exporteLe: nowISO(), contenu: { contenants: L.contenants.length, lots: L.lots.length, operations: L.ops.length, documents: (L.docs || []).length }, sync, documentsSepares: true, db: L, fichiers: [] }), false),
+    lire: async (texte) => { const s = lireSauvegarde(await sauvTexteEntree(texte, false)); return { db: s.db, sync: (s.head && s.head.sync) || null }; },
+    docNom: (d) => (chiffrementActif(dbRef.current) ? `${d.id}.chiffre` : docNomDistant(d)),
+    docEnvoi: async (b) => { const reg = chiffrementReglage(dbRef.current); if (!reg) return b; const k = await chiffrementCleAppareil(reg.cleId); if (!k) throw { chiffre: true, sansCle: true, message: 'Chiffrement activé : saisissez le mot de passe de l’équipe sur cet appareil (Paramètres › Sauvegarde & Drive › Chiffrement).' }; return fichierChiffre(b, k); },
+    docRecu: async (b) => { const u = new Uint8Array(await b.arrayBuffer()); if (!octetsChiffres(u)) return b; const k = await chiffrementCleAppareil(null); return new Blob([await dechiffrerOctets(k, u)]); },
     docLocal: async (id) => { try { return !!(await docGet(id)); } catch (e) { return false; } }, docLire: async (id) => { try { return (await docGet(id)) || null; } catch (e) { return null; } }, docEcrire: (id, b) => docPut(id, b),
     appareil: appareilInfo(), nouvelId: nouvelIdSync, maintenant: nowISO, aujourdhui: todayISO,
   });
@@ -28,6 +32,7 @@ function useCloud({ db, dbRef, applyDb, toast }) {
     if (!P || !e0.dossier || integre || e0.suspendu) return null;
     if (enCours.current) { encore.current = opts || {}; return null; }
     enCours.current = true; setStatut('synchro'); const e = { ...e0, docsDistants: { ...(e0.docsDistants || {}) }, lignee: [...(e0.lignee || [])] }; let r = null;
+    const cleNow = (chiffrementReglage(dbRef.current) || {}).cleId || ''; if ((e.docsCle || '') !== cleNow) { e.docsDistants = {}; e.docsCle = cleNow; } // chiffrement activé ou mot de passe changé : documents renvoyés chiffrés
     try {
       r = await cloudSynchroniser(P, e.dossier, e, hote(), opts);
       setEtat({ ...e, derniereSync: nowISO() }); setStatut('ok'); setMessage('');
@@ -36,7 +41,8 @@ function useCloud({ db, dbRef, applyDb, toast }) {
       if (r.recu && r.recu.doublons && r.recu.doublons.length) toast(`Deux lots portent le même code (${r.recu.doublons.join(', ')}) : renommez l’un d’eux.`, 'bad');
     } catch (er0) {
       const er = cloudErreur(er0); setEtat({ ...e });
-      if (er.auth) { setStatut('reconnecter'); setMessage(er.message || 'Connexion à renouveler.'); }
+      if (er0 && er0.chiffre) { setStatut('chiffre'); setMessage(er0.message || 'Fichier chiffré : mot de passe de l’équipe nécessaire.'); }
+      else if (er.auth) { setStatut('reconnecter'); setMessage(er.message || 'Connexion à renouveler.'); }
       else if (er.reseau) { setStatut('hors-ligne'); setMessage('Pas de réseau ou service indisponible : vos saisies restent ici et partiront dès son retour.'); }
       else if (er.introuvable) { setStatut('erreur'); setMessage('Dossier introuvable (supprimé, déplacé ou plus partagé) : choisissez-en un autre.'); }
       else { setStatut('erreur'); setMessage(er.message || 'Synchronisation impossible.'); }
@@ -157,11 +163,24 @@ function StockageLocalChip() {
 }
 function CloudChip() {
   const { cloud, setTab } = useApp(); if (!cloud || !cloud.lie) return null; const s = cloud.statut; const e = cloud.etat;
-  const txt = e.suspendu ? 'en pause' : s === 'reconnecter' ? 'se reconnecter' : s === 'hors-ligne' ? 'hors ligne' : s === 'erreur' ? 'à vérifier' : s === 'synchro' || cloud.aEnvoyer ? 'envoi…' : 'à jour';
-  const ton = s === 'erreur' ? 'chip-bad' : e.suspendu || s === 'reconnecter' || s === 'hors-ligne' ? 'chip-warn' : 'chip-ok';
+  const txt = e.suspendu ? 'en pause' : s === 'reconnecter' ? 'se reconnecter' : s === 'hors-ligne' ? 'hors ligne' : s === 'erreur' ? 'à vérifier' : s === 'chiffre' ? 'mot de passe' : s === 'synchro' || cloud.aEnvoyer ? 'envoi…' : 'à jour';
+  const ton = s === 'erreur' || s === 'chiffre' ? 'chip-bad' : e.suspendu || s === 'reconnecter' || s === 'hors-ligne' ? 'chip-warn' : 'chip-ok';
   return <button type="button" className={cx('chip', ton)} style={{ cursor: 'pointer' }} data-cloud-etat={e.suspendu ? 'suspendu' : s || 'attente'} title={`${cloud.F.nom} · dossier « ${e.dossier.nom} »`} onClick={() => (s === 'reconnecter' ? cloud.reconnecter() : setTab('params', 'sauvegarde'))}>☁ {cloud.F.nom} · {txt}</button>;
 }
 
+// Drive chiffré, clé absente de cet appareil : mot de passe demandé (en-tête du fichier du Drive), puis synchronisation
+function CloudMdpBouton() {
+  const { cloud } = useApp(); const [busy, setBusy] = useState(false);
+  const go = async () => {
+    setBusy(true);
+    try { const P = CLOUD_FOURNISSEURS[cloud.etat.fournisseur]; const r = P && cloud.etat.dossier ? await P.lireBase(cloud.etat.dossier) : null; const env = r ? enveloppeChiffree(r.texte) : null;
+      const k = CHIFFRE_DEMANDER ? await CHIFFRE_DEMANDER(env ? env.chiffrement : chiffrementReglage(cloud.dbRef ? cloud.dbRef.current : null) || {}, 'Le fichier de votre Drive est chiffré : saisissez le mot de passe de chiffrement de l’équipe.') : null;
+      if (k) cloud.synchroniser();
+    } catch (e) { /* message de la synchronisation */ }
+    setBusy(false);
+  };
+  return <Btn kind="primary" size="sm" disabled={busy} onClick={go} data-cloud-mdp="">🔑 Saisir le mot de passe de chiffrement</Btn>;
+}
 function CloudCard() {
   const { cloud, confirm } = useApp(); const c = cloud; const e = c.etat; const cfg = c.config;
   const [ids, setIds] = useState({ google: cfg.google.clientId, microsoft: cfg.microsoft.clientId, dropbox: cfg.dropbox.appKey });
@@ -176,12 +195,12 @@ function CloudCard() {
     <div className={cx('sync-etat', c.statut === 'ok' || (!c.statut && !c.aEnvoyer) ? 'ok' : 'warn')} data-cloud={c.statut || 'attente'}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><b>{CLOUD_INFOS[c.F.id].ic} {c.F.nom}</b>{e.compte && (e.compte.email || e.compte.nom) ? <span className="text-sm">{e.compte.email || e.compte.nom}</span> : null}<Chip>📁 {e.dossier.nom}</Chip></div>
       <div className="text-sm">{e.suspendu ? 'Synchronisation en pause : la base de cet appareil a été remplacée (restauration, exemple ou remise à zéro).'
-        : c.statut === 'reconnecter' ? (c.message || 'Connexion à renouveler.') : c.statut === 'hors-ligne' || c.statut === 'erreur' ? c.message
+        : c.statut === 'reconnecter' ? (c.message || 'Connexion à renouveler.') : c.statut === 'hors-ligne' || c.statut === 'erreur' || c.statut === 'chiffre' ? c.message
           : c.statut === 'synchro' ? 'Synchronisation en cours…' : c.aEnvoyer ? 'Modifications en attente d’envoi…' : 'Données enregistrées sur votre Drive et à jour sur cet appareil.'}</div>
       <div className="text-xs text-ink2">{e.derniereSync ? `Dernière synchronisation le ${fmtQuand(e.derniereSync)}` : 'Pas encore synchronisé'}{e.ecritPar ? ` · dernière écriture par « ${e.ecritPar} »${e.ecritLe ? ` le ${fmtQuand(e.ecritLe)}` : ''}` : ''}</div>
       <div className="mt-1 flex flex-wrap gap-2">
         {e.suspendu ? <><Btn kind="primary" size="sm" onClick={() => c.reprendre('adopter')}>Reprendre les données du dossier</Btn><Btn size="sm" onClick={() => c.reprendre('reunir')}>Réunir avec cet appareil</Btn></>
-          : c.statut === 'reconnecter' ? <Btn kind="primary" size="sm" data-cloud-reco="" onClick={c.reconnecter}>Se reconnecter à {c.F.nom}</Btn> : <Btn size="sm" onClick={c.synchroniser} disabled={c.statut === 'synchro'}>⇅ Synchroniser maintenant</Btn>}
+          : c.statut === 'reconnecter' ? <Btn kind="primary" size="sm" data-cloud-reco="" onClick={c.reconnecter}>Se reconnecter à {c.F.nom}</Btn> : c.statut === 'chiffre' ? <CloudMdpBouton /> : <Btn size="sm" onClick={c.synchroniser} disabled={c.statut === 'synchro'}>⇅ Synchroniser maintenant</Btn>}
         {c.F.id !== 'dossier' ? <Btn size="sm" onClick={c.changerDossier}>Changer de dossier</Btn> : <Btn size="sm" onClick={() => c.connecter('dossier')}>Changer de dossier</Btn>}
         <Btn size="sm" kind="ghost" onClick={async () => { if (await confirm({ title: `Ne plus utiliser ${c.F.nom} ?`, body: `Les données restent sur cet appareil et dans le dossier « ${e.dossier.nom} ». Les autres appareils reliés continuent de l’utiliser.`, ok: 'Se déconnecter' })) c.deconnecter(); }}>Se déconnecter</Btn>
       </div>

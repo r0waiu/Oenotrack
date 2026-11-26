@@ -72,7 +72,8 @@ const derniereSauvegarde = (db) => [db.meta.derniereExport, db.meta.derniereEnLi
 // Restauration commune (fichier, Drive) : confirmation détaillée, fichiers d'abord, puis la base
 function useRestaurer() {
   const { db, confirm, toast, replaceDb, act } = useApp();
-  return async (text, source) => {
+  return async (text0, source) => {
+    let text = text0; try { text = await sauvTexteEntree(text0, true); } catch (er) { toast((er && er.message) || 'Fichier chiffré illisible.', 'bad'); return false; } // sauvegarde chiffrée (0.29.0-alpha.1)
     let s; try { s = lireSauvegarde(text); } catch (er) { toast(er.message, 'bad'); return false; }
     if (s.kind === 'documents') {
       if (!(await confirm({ title: 'Ajouter ces documents ?', body: `${s.fichiers.length} document(s) d’une ancienne sauvegarde de documents seront ajoutés à la base actuelle (rien n’est remplacé).`, ok: 'Ajouter' }))) return false;
@@ -89,19 +90,11 @@ function useRestaurer() {
 }
 
 function SauvegardeView() {
-  const { db, act, toast, resetEmpty, loadSample, cloud } = useApp(); const fileRef = useRef(null); const restaurer = useRestaurer();
-  const [busy, setBusy] = useState(''); const [drive, setDrive] = useState(() => { try { return window.localStorage.getItem('oenotrack-drive') || 'gdrive'; } catch (e) { return 'gdrive'; } });
+  const { db, act, toast, resetEmpty, loadSample, cloud, confirm } = useApp(); const fileRef = useRef(null); const restaurer = useRestaurer();
+  const [drive, setDrive] = useState(() => { try { return window.localStorage.getItem('oenotrack-drive') || 'gdrive'; } catch (e) { return 'gdrive'; } });
   const docs = db.docs || []; const tailleDocs = sum(docs, (d) => d.taille); const der = derniereSauvegarde(db); const rappel = num(db.settings.rappelSauvegardeJours) || 7;
-  const exporter = async () => {
-    setBusy('export');
-    try {
-      const b = await buildSauvegarde(db); const name = `oenotrack-sauvegarde-${todayISO()}.json`;
-      const r = await saveFile(name, new Blob([b.text], { type: 'application/json' }), 'application/json');
-      if (r.ok) act((d) => { d.meta.derniereExport = todayISO(); return okr(); }, `Sauvegarde complète enregistrée : ${name} (${fmtSize(b.text.length)}, ${b.head.contenu.documents} document(s))${b.manquants.length ? ` — ${b.manquants.length} fichier(s) introuvable(s) dans ce navigateur` : ''}.`);
-      else if (r.declined) toast('Sauvegarde annulée.'); else toast(failMsg(r), 'bad');
-    } catch (er) { toast('Sauvegarde impossible (stockage des documents indisponible ?).', 'bad'); }
-    setBusy('');
-  };
+  const { exporter: exporter0, busy: busyE } = useExportComplet(); const busy = busyE ? 'export' : ''; const exporter = () => exporter0(); const chiffre = chiffrementActif(db);
+  const exporterClair = async () => { if (await confirm({ title: 'Exporter sans chiffrement ?', body: 'Le fichier sera lisible par toute personne qui l’obtient. À réserver à un transfert immédiat vers un support sûr.', ok: 'Exporter en clair', danger: true })) exporter0({ clair: true }); };
   const verifier = useGarde(); // fichier de sauvegarde vérifié (type réel, taille) avant d'être lu
   const onFile = async (e) => { const f0 = e.target.files && e.target.files[0]; e.target.value = ''; if (!f0) return; const [f] = await verifier([f0], 'sauvegarde'); if (!f) return; let t; try { t = await lectureFichier(f); } catch (er) { toast('Lecture du fichier impossible.', 'bad'); return; } restaurer(t, `« ${f.name} »`); };
   const pickDrive = (id) => { setDrive(id); try { window.localStorage.setItem('oenotrack-drive', id); } catch (e) { /* ignoré */ } };
@@ -116,13 +109,14 @@ function SauvegardeView() {
       </div>
 
       <CloudCard />
+      <ChiffrementCard />
       {cloud.lie ? <details className="card sync-guide p-4"><summary>Synchroniser par fichier (sans connexion au Drive)</summary><div className="mt-3"><DriveSyncCard drive={drive} setDrive={pickDrive} /></div></details> : <DriveSyncCard drive={drive} setDrive={pickDrive} />}
 
       <div className="sauv-grid">
         <section className="card sauv-card p-4" aria-labelledby="sv1">
           <div className="sauv-ic" aria-hidden="true">💾</div><h3 id="sv1" className="text-lg font-semibold">Fichier complet</h3>
           <p className="text-sm">Un seul fichier contient <b>tout</b> : la base, les documents joints (certificats, FDS, fiches remplies, photos) et le logo.</p>
-          <div className="flex flex-wrap gap-2"><Btn kind="primary" disabled={!!busy} onClick={exporter}>{busy === 'export' ? 'Préparation…' : '⬇ Exporter la base complète'}</Btn><Btn onClick={() => fileRef.current && fileRef.current.click()}>⬆ Importer une sauvegarde</Btn></div>
+          <div className="flex flex-wrap gap-2"><Btn kind="primary" disabled={!!busy} onClick={exporter}>{busy === 'export' ? 'Préparation…' : chiffre ? '⬇ Exporter la base complète (chiffrée)' : '⬇ Exporter la base complète'}</Btn><Btn onClick={() => fileRef.current && fileRef.current.click()}>⬆ Importer une sauvegarde</Btn>{chiffre ? <Btn kind="ghost" size="sm" disabled={!!busy} onClick={exporterClair}>Exporter sans chiffrement…</Btn> : null}</div>
           <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onFile} aria-label="Fichier de sauvegarde à importer" />
           <p className="help">Compatible avec toutes les versions d’Œnotrack : les sauvegardes des versions précédentes (et de « Cuverie champenoise ») s’importent telles quelles.</p>
         </section>

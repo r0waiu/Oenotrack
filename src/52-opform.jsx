@@ -127,7 +127,8 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   const valider = () => {
     if (built.error) { toast(built.error, 'bad'); return; }
     if (!old && champEffectif(fcfg, type, 'docs').obligatoire && !piecesRef.current.length && !(prevId && docsOf(db, 'prev', prevId).length)) { toast(`Joignez au moins un document : « ${champEffectif(fcfg, type, 'docs').libelle || 'Documents joints'} » est obligatoire pour cette opération.`, 'bad'); return; }
-    const r = act((d) => { const r1 = opSave(d, built.spec, editId, { motif: f.motifRegistre, par: uid, maintenant: new Date().toISOString() }); if (r1 && r1.ok && prevId) previsionStatut(d, prevId, 'realisee', r1.op.id); if (r1 && r1.ok && !old) docsJoindre(d, piecesRef.current, { type: 'op', id: r1.op.id }); return r1; });
+    const spec = plan0 && plan0.groupe && !old ? { ...built.spec, groupe: plan0.groupe } : built.spec; // validée seule, une opération d'un groupe planifié y reste (0.29.0-alpha.1)
+    const r = act((d) => { const r1 = opSave(d, spec, editId, { motif: f.motifRegistre, par: uid, maintenant: new Date().toISOString() }); if (r1 && r1.ok && prevId) previsionStatut(d, prevId, 'realisee', r1.op.id); if (r1 && r1.ok && !old) docsJoindre(d, piecesRef.current, { type: 'op', id: r1.op.id }); return r1; });
     if (r && r.ok) { engage.current = true; toast(`${pv && (pv.warnings.length || pv.alerts.length) ? 'Opération validée — des avertissements sont à vérifier dans le journal.' : prevId ? 'Opération validée : retirée de la liste « À réaliser ».' : old ? 'Opération modifiée.' : 'Opération validée.'}${old ? '' : nDocs()}`); onClose(); }
   };
   const sourcesQ = (srcs, preps) => { const qs = [...srcs.map((s) => lotQ(s.portionId)), ...(preps || []).map((u) => (Rd.preps[u.prepId] || {}).qualif)].filter(Boolean); return qs.length ? minQualif(qs) : 'conv'; };

@@ -98,6 +98,7 @@ async function exportRegister(reg, fmtType, tag, toast) {
   return exportWorkbook([reg], `${base}.xlsx`, toast);
 }
 async function exportWorkbook(regs, filename, toast) {
+  try { await loadXlsx(); } catch (e) { /* message ci-dessous */ }
   if (!window.XLSX) { toast('Export Excel indisponible (bibliothèque non chargée, hors ligne ?). Utilisez l’export CSV, qui s’ouvre dans Excel.', 'bad'); return; }
   const wb = window.XLSX.utils.book_new(); const used = new Set();
   regs.forEach((r) => { let n = r.title.replace(/[:\\/?*[\]]/g, ' ').slice(0, 28).trim() || r.id; while (used.has(n)) n += '_'; used.add(n); const ws = window.XLSX.utils.aoa_to_sheet([r.headers, ...r.rows]); ws['!cols'] = r.headers.map((h, i) => ({ wch: clamp(Math.max(String(h).length, ...r.rows.slice(0, 60).map((x) => String(x[i] ?? '').length)) + 2, 10, 50) })); window.XLSX.utils.book_append_sheet(wb, ws, n); });

@@ -33,7 +33,8 @@ function moutPlan(db, f) {
 }
 function opInit(type, old, db, date) {
   const o = old || {}; const base = { date: o.date || date, notes: o.notes || '', operateurs: Array.isArray(o.operateurs) ? [...o.operateurs] : [], champs: champsEtat(o), jauges: Array.isArray(o.jauges) ? o.jauges.filter((j) => j && j.champ) : [], sousType: o.sousType || '', stade: o.stade || '', couleur: o.couleur || '', stadeManuel: !!(old && o.stade), couleurManuel: !!(old && o.couleur),
-    amont: Array.isArray(o.amont) ? o.amont : [], traceExports: Array.isArray(o.traceExports) ? o.traceExports : [] }; // 0.27.0-alpha.1 : traçabilité amont reçue, fichiers de traçabilité exportés
+    amont: Array.isArray(o.amont) ? o.amont : [], traceExports: Array.isArray(o.traceExports) ? o.traceExports : [], // 0.27.0-alpha.1 : traçabilité amont reçue, fichiers de traçabilité exportés
+    enrichissement: o.enrichissement && typeof o.enrichissement === 'object' ? o.enrichissement : null }; // 0.29.0-alpha.1 : calcul de l'enrichissement (simulateur)
   switch (type) {
     case 'apport': return { ...base, cepageId: o.cepageId || (db.lists.cepages[0] || {}).id, kg: S_(o.kg), qualifId: o.qualifId || 'conv', apporteurId: o.apporteurId || '', cruId: o.cruId || '', parcelleId: o.parcelleId || '', ref: o.ref || '', heurePesee: (o.pesee || {}).heure || '' };
     case 'entree_mout': { const codes = {}; (o.lots || []).forEach((l) => { codes[l.contenantId] = { code: l.code || '', designation: l.designation || '' }; });
@@ -123,6 +124,7 @@ function buildSpec(type, f, db, Rd, old) {
   // traçabilité amont (fichier de l'expéditeur) et fichiers de traçabilité exportés : gardés avec l'opération (0.27.0-alpha.1)
   if (Array.isArray(f.amont) && f.amont.length) r.spec.amont = f.amont;
   if (Array.isArray(f.traceExports) && f.traceExports.length) r.spec.traceExports = f.traceExports;
+  if (type === 'intrant' && f.enrichissement && typeof f.enrichissement === 'object') r.spec.enrichissement = f.enrichissement; // TAP, TAV visé, méthode (simulateur, 0.29.0-alpha.1)
   // qui a réalisé l'opération (liste des opérateurs de la société) ; obligatoire si le réglage est activé (nouvelles opérations)
   const qui = operateursValides(db, f.operateurs);
   if (qui.length) r.spec.operateurs = qui;
