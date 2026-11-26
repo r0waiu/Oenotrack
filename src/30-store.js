@@ -367,9 +367,16 @@ function campCreate(db, nom, debut, fin) {
   if (nameTaken(db.campagnes, nom, null, 'nom')) return fail('Une campagne porte déjà ce nom.');
   if (!isoOK(debut) || !isoOK(fin) || fin < debut) return fail('Dates de campagne invalides.');
   if (db.campagnes.some((c) => debut <= c.fin && fin >= c.debut)) return fail('Les dates chevauchent une campagne existante.');
-  db.campagnes.push({ id: nom.trim(), nom: nom.trim(), debut, fin, figee: false, snapshot: null, ouverture: null });
-  db.campagnes.sort((a, b) => (a.debut < b.debut ? -1 : 1)); return okr();
+  // campagne antérieure (0.34.0-alpha.1) : avant toutes les campagnes existantes, elle démarre vide (aucun lot ni volume en cuve) — voir campEtatR
+  const anterieure = db.campagnes.length > 0 && db.campagnes.every((c) => fin < c.debut);
+  db.campagnes.push({ id: nom.trim(), nom: nom.trim(), debut, fin, figee: false, snapshot: null, ouverture: null, ...(anterieure ? { anterieure: true } : {}) });
+  db.campagnes.sort((a, b) => (a.debut < b.debut ? -1 : 1)); return okr({ anterieure });
 }
+/* état affiché pour la campagne active (0.34.0-alpha.1) : une campagne antérieure montre l'état rejoué jusqu'à sa fin — seules ses propres
+   opérations (et celles d'avant) comptent, jamais les lots et volumes des campagnes suivantes ; les autres campagnes : état complet, comme avant.
+   Rien n'est stocké : les opérations saisies dans la campagne antérieure se répercutent ensuite normalement dans les suivantes. */
+const campEtatDate = (c) => (c && c.anterieure && isoOK(c.fin) ? c.fin : undefined);
+const campEtatR = (db, c) => getR(db, campEtatDate(c));
 function campFreeze(db, id) {
   const c = db.campagnes.find((x) => x.id === id); if (!c) return fail('Campagne introuvable.');
   c.ouverture = snapshotAt(db, addDays(c.debut, -1), { repriseOn: c.debut }); // stocks d'ouverture (reprises de stock du 1er jour incluses)

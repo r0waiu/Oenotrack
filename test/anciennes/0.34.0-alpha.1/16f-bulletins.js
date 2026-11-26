@@ -276,21 +276,3 @@ function bulletinEnregistrer(db, plan) {
 }
 // bulletin d'une analyse (fiche du document)
 const analyseBulletin = (db, a) => (a ? (db.docs || []).find((d) => d && ((a.bulletinDocId && d.id === a.bulletinDocId) || (Array.isArray(d.analyseIds) && d.analyseIds.includes(a.id)))) || null : null);
-
-/* ---------- bulletin d'un partenaire, dans l'entrée de moûts (0.34.0-alpha.1) ----------
-   res : résultat de bulletinAnalyser ; mouts : [{ i (index du moût dans l'entrée), numLot, compartiment }] (moûts de l'onglet du partenaire).
-   Rapprochement : n° de lot, puis compartiment cités dans l'échantillon ; puis, dans l'ordre, les échantillons restants aux moûts restants ;
-   un seul échantillon sans rapprochement : il vaut pour tous les moûts du partenaire. → [{ i, valeurs: { paramId: nombre }, ref }] */
-function bulletinPourMouts(res, mouts) {
-  const E = ((res && res.echantillons) || []).filter((e) => e && Object.keys(e.valeurs || {}).length); const M = (mouts || []).filter(Boolean);
-  if (!E.length || !M.length) return [];
-  const vals = (e) => { const v = {}; Object.keys(e.valeurs).forEach((k) => { const x = e.valeurs[k]; const n = x && typeof x === 'object' ? x.v : x; if (Number.isFinite(+n)) v[k] = +n; }); return v; };
-  const contient = (ref, s) => { const t = bulNorm(s); if (!t) return false; const r = ` ${bulNorm(ref)} `; return r.includes(` ${t} `) || (t.replace(/ /g, '').length >= 4 && r.replace(/ /g, '').includes(t.replace(/ /g, ''))); };
-  const out = []; const prisE = new Set(); const prisM = new Set();
-  const lier = (test) => E.forEach((e, k) => { if (prisE.has(k)) return; const m = M.find((x) => !prisM.has(x.i) && test(e, x)); if (m) { prisE.add(k); prisM.add(m.i); out.push({ i: m.i, valeurs: vals(e), ref: e.ref || '' }); } });
-  lier((e, m) => String(m.numLot || '').trim() && contient(e.ref, m.numLot));
-  lier((e, m) => String(m.compartiment || '').trim() && contient(e.ref, m.compartiment));
-  if (E.length === 1 && !out.length) return M.map((m) => ({ i: m.i, valeurs: vals(E[0]), ref: E[0].ref || '' }));
-  E.forEach((e, k) => { if (prisE.has(k)) return; const m = M.find((x) => !prisM.has(x.i)); if (m) { prisE.add(k); prisM.add(m.i); out.push({ i: m.i, valeurs: vals(e), ref: e.ref || '' }); } });
-  return out.sort((a, b) => a.i - b.i);
-}

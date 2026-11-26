@@ -173,6 +173,29 @@ const MODULES_DANS = { declass: 'ops' };
 const modulesConnus = (db) => modulesOrdre(db).filter((id) => estModule(id) && !MODULES_DANS[id]);
 const modulesVisibles = (db) => modulesConnus(db).filter((id) => moduleActif(db, id));
 const moduleAccueil = (db) => modulesVisibles(db)[0] || MODULE_FIXE;
+/* ---------- onglets regroupés (0.34.0-alpha.1) : un onglet principal réunit plusieurs modules en sous-onglets ----------
+   « Vinification » = Cuverie & Lots, Opérations & Assemblages, À réaliser & fiches. Chaque module garde son identifiant, son activation,
+   ses droits et sa place dans l'ordre : l'onglet du groupe prend la place du premier de ses modules affichés (une version antérieure,
+   qui ne connaît pas les groupes, affiche toujours les trois onglets séparés). */
+const ONGLETS_GROUPES = { vinification: ['cuverie', 'ops', 'previsions'] };
+const ongletDe = (id) => Object.keys(ONGLETS_GROUPES).find((g) => ONGLETS_GROUPES[g].includes(id)) || id;
+// modules affichés (déjà filtrés : actifs, autorisés) → onglets de la barre, dans l'ordre ; un groupe apparaît une seule fois
+const ongletsBarre = (mods) => (Array.isArray(mods) ? mods : []).map(ongletDe).filter((x, i, a) => a.indexOf(x) === i);
+const ongletMembres = (onglet, mods) => (ONGLETS_GROUPES[onglet] ? (Array.isArray(mods) ? mods : []).filter((m) => ONGLETS_GROUPES[onglet].includes(m)) : [onglet]);
+/* onglet ouvert au démarrage, à la connexion et au déverrouillage : settings.ongletDefaut (identifiant d'onglet ou de groupe ; '' = le
+   premier onglet de la barre), réglage commun de la base ; ignoré s'il n'est pas affiché (module désactivé, profil sans accès).
+   Renvoie le module à ouvrir (pour un groupe : son premier module affiché). */
+function ongletOuverture(db, mods) {
+  const L = Array.isArray(mods) ? mods : modulesVisibles(db); const pref = String(((db && db.settings) || {}).ongletDefaut || '');
+  const m = pref ? ongletMembres(pref, L).filter((x) => L.includes(x)) : [];
+  return m[0] || L[0] || MODULE_FIXE;
+}
+function ongletDefautSet(db, id) {
+  const v = String(id || '');
+  if (v && !ONGLETS_GROUPES[v] && !estModule(v)) return fail('Onglet inconnu.');
+  if (v && MODULES_DANS[v]) return fail('Ce module n’a pas d’onglet propre.');
+  if (v) db.settings.ongletDefaut = v; else delete db.settings.ongletDefaut; return okr();
+}
 // nouvel ordre des modules connus ; les ids inconnus restent à leur place
 function modulesOrdonner(db, ids) {
   const full = modulesOrdre(db); const nv = (Array.isArray(ids) ? ids : []).filter((x, i, a) => estModule(x) && a.indexOf(x) === i);
@@ -584,8 +607,7 @@ function docMetaAdd(db, m) {
   if (!db.docs) db.docs = [];
   db.docs.push({ id: m.id, nom: String(m.nom || 'document'), mime: m.mime || '', taille: num(m.taille), cat: m.cat || 'autre', cible: { type: m.cible.type, id: m.cible.id }, date: m.date || todayISO(),
     ...(isoOK(m.revision) ? { revision: m.revision } : {}), ...(m.version ? { version: String(m.version).slice(0, 30) } : {}), ...(m.archive ? { archive: m.archive } : {}), // 0.20.0-alpha.1 : révision, version, archivage
-    ...(m.garde && typeof m.garde === 'object' ? { garde: m.garde } : {}), ...(Array.isArray(m.analyseIds) && m.analyseIds.length ? { analyseIds: m.analyseIds.map(String).slice(0, 200) } : {}), // 0.27.0-alpha.1 : verdict de la garde, analyses d'un bulletin
-    ...(m.partId ? { partId: String(m.partId).slice(0, 40) } : {}) }); // 0.34.0-alpha.1 : partenaire (onglet) d'une entrée de moûts
+    ...(m.garde && typeof m.garde === 'object' ? { garde: m.garde } : {}), ...(Array.isArray(m.analyseIds) && m.analyseIds.length ? { analyseIds: m.analyseIds.map(String).slice(0, 200) } : {}) }); // 0.27.0-alpha.1 : verdict de la garde, analyses d'un bulletin
   return okr();
 }
 function docMetaEdit(db, id, patch) { const x = (db.docs || []).find((y) => y.id === id); if (!x) return fail('Document introuvable.'); if (patch.cat) x.cat = patch.cat; if (patch.nom != null && String(patch.nom).trim()) x.nom = String(patch.nom).trim(); return okr(); }
@@ -593,7 +615,7 @@ function docMetaDel(db, id) { db.docs = (db.docs || []).filter((x) => x.id !== i
 // documents joints avant validation (opération à réaliser) : rattachés à l'opération quand elle est validée (0.14.0-alpha.1)
 function docsDeplacer(db, de, vers) { let n = 0; (db.docs || []).forEach((x) => { if (x.cible && x.cible.type === de.type && x.cible.id === de.id) { x.cible = { type: vers.type, id: vers.id }; n += 1; } }); return n; }
 // plusieurs documents déjà rangés dans ce navigateur (choisis pendant la saisie) → métadonnées rattachées à l'enregistrement créé
-function docsJoindre(db, pieces, cible) { (pieces || []).forEach((x) => { if (x && x.id && !(db.docs || []).some((y) => y.id === x.id)) docMetaAdd(db, { id: x.id, nom: x.nom, mime: x.mime, taille: x.taille, cat: x.cat, cible, garde: x.garde, partId: x.partId }); }); return okr(); }
+function docsJoindre(db, pieces, cible) { (pieces || []).forEach((x) => { if (x && x.id && !(db.docs || []).some((y) => y.id === x.id)) docMetaAdd(db, { id: x.id, nom: x.nom, mime: x.mime, taille: x.taille, cat: x.cat, cible, garde: x.garde }); }); return okr(); }
 
 /* ---------- identité de l'entreprise (en-tête des fiches et rapports) ---------- */
 function entrepriseSet(db, patch) { db.entreprise = { ...(db.entreprise || {}), ...patch }; return okr(); }

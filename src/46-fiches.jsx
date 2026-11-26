@@ -207,7 +207,7 @@ function ficheRows0(db, st, fill) {
     if (['soutirage', 'transfert'].includes(type) && fill === 'filtration') rows.push(mv(OP_LABELS[f.sousType || type] || OP_LABELS[type], P(f.portionId), hasNum(f.volL) ? num(f.volL) : null, f.destId));
   }
   if (fill === 'reception' && type === 'entree_mout') {
-    const plan = moutPlan(db, f); const cur = {}; const PO = moutOnglets(f); const ong = (e) => { const k = PO.findIndex((p) => p.id === ongletDe(PO, e)); return k === 0 ? { apporteurId: f.apporteurId, ref: f.ref } : PO[k]; }; // partenaire et n° de bon de l'onglet (0.34.0-alpha.1)
+    const plan = moutPlan(db, f); const cur = {}; const PO = moutOnglets(f); const ong = (e) => { const k = PO.findIndex((p) => p.id === moutOngletDe(PO, e)); return k === 0 ? { apporteurId: f.apporteurId, ref: f.ref } : PO[k]; }; // partenaire et n° de bon de l'onglet (0.34.0-alpha.1)
     (f.entrees || []).forEach((e, i) => (e.dests || []).filter((d) => d.contenantId || num(d.volL) > 0).forEach((d) => {
       const t = plan.find((x) => x.contenantId === d.contenantId); const av = d.contenantId ? (cur[d.contenantId] != null ? cur[d.contenantId] : volIn(Rd, d.contenantId)) : 0; const v = num(d.volL);
       if (d.contenantId) cur[d.contenantId] = av + v;

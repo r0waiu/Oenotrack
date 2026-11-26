@@ -2,13 +2,20 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
-## 0.34.0-alpha.1 — 26/11/2026
+## 0.35.0-alpha.1 — 26/11/2026
 
 - Entrée de moûts : plusieurs partenaires dans une même citerne — en-tête commun (date, immatriculation, millésime par défaut), puis un onglet par partenaire avec son n° de bon / DAE et ses moûts (Moût 1, Moût 2…) ; ajout et retrait d’onglets ; les lots créés en cuve, les registres, la fiche de réception et la traçabilité reprennent le partenaire et le n° de bon de chaque moût
 - Documents et bulletins d’analyses par partenaire : chaque onglet a ses documents joints, et un bulletin d’analyses déposé dans l’onglet est lu et reporté sur les moûts de ce partenaire (n° de lot, compartiment, sinon dans l’ordre), puis joint à l’onglet
 - Analyses des lots reçus : le modèle « Moût · Débourbage » est imposé (plus de liste à choisir) et ses champs sont affichés directement pour chaque moût ; les analyses déjà saisies avec un autre modèle sont gardées
 - Volume en centimètres : quand la cuve de destination a une table d’épalement, la hauteur (ou le creux) mesurée après réception calcule le volume reçu (contenu mesuré moins le contenu d’avant, y compris les moûts déjà versés dans la même entrée) ; le volume reste modifiable à la main et la mesure est gardée avec l’opération
 - Compatibilité : une entrée à un seul partenaire est enregistrée comme avant ; les versions antérieures ouvrent et modifient les entrées à plusieurs partenaires sans rien perdre (partenaire et n° de bon écrits dans chaque moût, onglets retrouvés ensuite)
+
+## 0.34.0-alpha.1 — 26/11/2026
+
+- Onglet « Vinification » : Cuverie & Lots, Opérations & Assemblages et À réaliser & fiches réunis en sous-onglets d’un seul onglet ; le dernier sous-onglet ouvert est retrouvé ; activation, droits et ordre de chaque module inchangés.
+- Onglet ouvert à la connexion et au déverrouillage : le premier onglet de la barre, ou celui choisi dans Paramètres › Modules (indépendant de l’ordre des onglets) — plus « Société & opérateurs » ; un déverrouillage garde la page en cours.
+- Campagne antérieure : créée avant les campagnes existantes, elle démarre complètement vide (aucun lot ni volume en cuve) ; les campagnes suivantes ne changent pas.
+- Dossier réseau de l’entreprise (Paramètres › Sauvegarde & Drive) : synchronisation sur un serveur interne, un NAS ou un lecteur réseau, sans cloud externe ; chemin commun à tous les postes, écritures protégées par un jeton, saisies de plusieurs postes réunies.
 
 ## 0.33.0-alpha.1 — 26/11/2026
 

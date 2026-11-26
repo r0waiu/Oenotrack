@@ -17,7 +17,7 @@ const reSuffix = (code, from, to) => { let c = String(code || ''); if (from && c
 const moutLine = (db, cid, e) => { e = e || {}; return { numLot: e.numLot || '', apporteurs: Array.isArray(e.apporteurs) && e.apporteurs.length ? e.apporteurs.map((a) => ({ id: a.id, pct: S_(a.pct) })) : (e.apporteurId ? [{ id: e.apporteurId, pct: '' }] : []), analyses: Object.fromEntries(Object.entries(e.analyses || {}).map(([k, v]) => [k, S_(v)])), couleur: e.couleur || couleurDefaut(db), parcelleId: e.parcelleId || '', compartiment: e.compartiment || '', cepageId: e.cepageId || (db.lists.cepages[0] || {}).id || '', fractionId: e.fractionId || (fracList(db)[0] || {}).id || '', cruId: e.cruId || '', qualifId: e.qualifId || 'conv', millesime: e.millesime || '', dests: (e.dests && e.dests.length ? e.dests : [{ contenantId: cid || '', volL: '' }]).map((d) => ({ contenantId: d.contenantId || '', volL: S_(d.volL) })) }; };
 // onglets partenaires du formulaire (0.34.0-alpha.1) : f.partenaires [{ id, apporteurId, ref }] ; sans liste, le partenaire et le n° de bon de l'en-tête
 const moutOnglets = (f) => { const L = Array.isArray(f && f.partenaires) ? f.partenaires.filter((p) => p && p.id) : []; return L.length ? L : [{ id: 'pa1', apporteurId: (f && f.apporteurId) || '', ref: (f && f.ref) || '' }]; };
-const ongletDe = (P, e) => (e && e.partId && P.some((p) => p.id === e.partId) ? e.partId : P[0].id);
+const moutOngletDe = (P, e) => (e && e.partId && P.some((p) => p.id === e.partId) ? e.partId : P[0].id);
 const moutStockCuve = (Rd, cid) => sum(Object.values((Rd && Rd.portions) || {}).filter((p) => p.contenantId === cid), (p) => p.vol);
 // contenu d'une cuve avant la destination j du moût i : stock à la date + volumes des moûts précédents de la même entrée vers cette cuve
 function moutVolAvant(Rd, f, i, j) { const cid = (((f.entrees || [])[i] || {}).dests || [])[j] ? f.entrees[i].dests[j].contenantId : ''; if (!cid) return 0; let v = moutStockCuve(Rd, cid); (f.entrees || []).forEach((e, k) => (e.dests || []).forEach((d, l) => { if ((k < i || (k === i && l < j)) && d.contenantId === cid) v += num(d.volL); })); return v; }
@@ -32,7 +32,7 @@ function moutPlan(db, f) {
   tanks.forEach((t) => {
     const ov = (f.lotCodes || {})[t.contenantId] || {};
     t.code = String(ov.code || '').trim() || t.auto;
-    const PF = moutOnglets(f); const apIds = PF.length > 1 ? uniq(t.parts.map((p) => ((p.e.apporteurs || [])[0] || {}).id || (PF.find((x) => x.id === ongletDe(PF, p.e)) || {}).apporteurId).filter(Boolean)) : (f.apporteurId ? [f.apporteurId] : []); // plusieurs partenaires (0.34.0-alpha.1)
+    const PF = moutOnglets(f); const apIds = PF.length > 1 ? uniq(t.parts.map((p) => ((p.e.apporteurs || [])[0] || {}).id || (PF.find((x) => x.id === moutOngletDe(PF, p.e)) || {}).apporteurId).filter(Boolean)) : (f.apporteurId ? [f.apporteurId] : []); // plusieurs partenaires (0.34.0-alpha.1)
     t.designationAuto = `Moût ${t.fractions.map((x) => fracLabel(db, x).toLowerCase()).join(' + ')}${apIds.length ? ` – ${apIds.map((id) => apporteurName(db, id)).join(' + ')}` : ''}`;
     t.designation = String(ov.designation || '').trim() || t.designationAuto; t.qualif = minQualif(t.qualifs);
   });
@@ -169,7 +169,7 @@ function buildSpec0(type, f, db, Rd, old) {
         const pcts = aps.map((a) => (hasNum(a.pct) ? num(a.pct) : null));
         if (pcts.some((p) => p != null) && (pcts.some((p) => p == null || p <= 0) || Math.abs(sum(pcts) - 100) > 0.5)) return err(`Moût ${n} : les parts des partenaires doivent être toutes renseignées et totaliser 100 % (ou laissez-les vides : parts égales).`);
         const an = {}; Object.keys(e.analyses || {}).forEach((k) => { if (hasNum(e.analyses[k])) an[k] = num(e.analyses[k]); });
-        const numLot = String(e.numLot || '').trim(); const tab = PF.find((p) => p.id === ongletDe(PF, e)) || PF[0];
+        const numLot = String(e.numLot || '').trim(); const tab = PF.find((p) => p.id === moutOngletDe(PF, e)) || PF[0];
         if (!aps.length && tab.apporteurId && multi) aps.push({ id: tab.apporteurId, pct: '' }); // partenaire de l'onglet, écrit dans le moût (lu aussi par les versions antérieures)
         lines.push({ couleur: e.couleur || couleurDefaut(db), parcelleId: e.parcelleId || '', compartiment: String(e.compartiment || '').trim(), cepageId: e.cepageId, fractionId: e.fractionId, cruId: e.cruId || '', qualifId: e.qualifId || 'conv', millesime: String(e.millesime || '').trim() || String(f.millesime || '').trim() || String(yearOf(f.date)),
           apporteurId: (aps[0] || {}).id || tab.apporteurId || f.apporteurId || '', ...(aps.length ? { apporteurs: aps.map((a, k) => ({ id: a.id, ...(pcts[k] != null ? { pct: pcts[k] } : {}) })) } : {}), ...(numLot ? { numLot } : {}), ...(Object.keys(an).length ? { analyses: an } : {}), volL: r2(sum(dests, (d) => d.volL)), dests, ...(multi ? { partId: tab.id } : {}) });

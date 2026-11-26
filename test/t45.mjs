@@ -11,7 +11,7 @@ const db = () => page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-
 const sub = async (t) => { await page.locator('[data-pressoir] [role=tab]', { hasText: t }).first().click(); await page.waitForTimeout(250); };
 
 // 1. onglet et registre du jeu d'exemple
-ok('onglet Pressoir présent, juste après Cuverie', await page.locator('#tab-pressoir').count() === 1 && (await page.locator('[role=tab][id^="tab-"]').evaluateAll((e) => e.map((x) => x.id))).join().includes('tab-cuverie,tab-pressoir'));
+ok('onglet Pressoir présent, juste après Vinification (Cuverie, 0.34.0-alpha.1)', await page.locator('#tab-pressoir').count() === 1 && (await page.locator('.navtabs [role=tab][id^="tab-"]').evaluateAll((e) => e.map((x) => x.id))).join().includes('tab-vinification,tab-pressoir'));
 await page.click('#tab-pressoir'); await page.waitForTimeout(400);
 await page.locator('[aria-label="Année des vendanges"]').selectOption('2026'); await page.waitForTimeout(250);
 const t1 = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
