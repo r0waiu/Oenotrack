@@ -36,7 +36,7 @@ ok('application affichée', (await page.locator('header').count()) > 0 && (await
 await ctx.setOffline(true); srv.close();
 await page.reload(); await page.waitForTimeout(2000);
 ok('sans réseau : Œnotrack s’ouvre quand même', (await page.locator('#tab-params').count()) > 0, await page.title());
-await page.click('#tab-params'); await page.waitForTimeout(300); await page.locator('main button', { hasText: 'Données & paramètres' }).first().click(); await page.waitForTimeout(300);
+await page.click('#tab-params'); await page.waitForTimeout(300); await page.locator('main button', { hasText: 'Affichage & application' }).first().click(); await page.waitForTimeout(300);
 log('carte application :', (await page.locator('[data-installer]').innerText()).replace(/\s+/g, ' ').slice(0, 200));
 ok('carte « Application » : consignes Android / iPhone', /Android/.test(await page.locator('[data-installer]').innerText()) && /Sur l’écran d’accueil/.test(await page.locator('[data-installer]').innerText()));
 await page.screenshot({ path: (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + '/shots/t38-installer.png' });

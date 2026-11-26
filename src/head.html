@@ -491,6 +491,8 @@ details>summary{cursor:pointer;font-weight:600}
 .combo-new{color:var(--accent);font-weight:600;border-top:1px solid var(--line)}
 .combo mark{background:var(--goldSoft);color:inherit;border-radius:2px;padding:0}
 @media (max-width:760px){.combo-o{padding:10px 12px;font-size:15px}.combo-list{max-height:45vh}}
+/* Paramètres (0.39.0-alpha.1) : menu latéral des rubriques, libellés alignés à gauche sur ordinateur */
+@media (min-width:768px){.params-menu .btn{justify-content:flex-start;text-align:left}}
 /* rapports imprimables */
 .report{background:#fff;color:#111;font-family:var(--font-body);padding:22px 26px;border:1px solid var(--line);border-radius:6px}
 .report h1{font-family:var(--font-serif);font-size:26px;margin:0 0 2px}
@@ -528,6 +530,19 @@ details>summary{cursor:pointer;font-weight:600}
 .report .vis-fs{text-align:center;font-size:10px;color:#555;margin-bottom:4px;min-height:12px}
 .report .vis-fcol .vis-boite{margin-bottom:5px;font-size:10.5px;padding:4px 6px}
 .report .vis-fcol .vis-boite .vis-t{font-size:11px}
+.report table.planv{font-size:10.5px;table-layout:auto}
+.report .planv th,.report .planv td{text-align:center;vertical-align:middle;padding:3px 5px}
+.report .planv th.planv-coin{background:#fff;border-color:#d9d2bd;text-transform:none;letter-spacing:0;font-weight:400;text-align:left;vertical-align:bottom}
+.report .planv .planv-st{font-size:10px;font-style:italic;color:#555}
+.report .planv th.planv-g{background:#17493A;color:#fff;font-size:11.5px;text-align:center}
+.report .planv th.planv-r{background:#E6DDC4;text-align:center}
+.report .planv th.planv-f{background:#F3EEE0;text-align:center;text-transform:none;letter-spacing:0;font-size:10.5px}
+.report .planv td.planv-e{text-align:left;font-weight:700;background:#FBF8EF;min-width:120px}
+.report .planv td.planv-p{text-align:left;min-width:120px}
+.report .planv tr.planv-section td{background:#B8892B;color:#fff;font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:left}
+.report .planv tr.planv-note td{font-style:italic;text-align:left;background:#FBF8EF}
+.report .planv td.planv-vide{background:#FAFAF7}
+.report .planv .planv-lot{box-shadow:inset 0 0 0 2px #B8892B;background:#FFF4D6}
 @media (max-width:560px){.report.bon .bon-tete{flex-direction:column}}
 .ech-chip{display:inline-flex;align-items:center;gap:5px;border-width:1px;border-style:solid}.ech-chip i{display:inline-block;width:8px;height:8px;border-radius:8px}
 /* fiches d’enregistrement */

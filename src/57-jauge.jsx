@@ -199,7 +199,7 @@ function JaugeDialog({ contIds, onUse, onClose, sortieDe }) {
     <Sheet title="📏 Calcul par jaugeage" sub="Volume calculé avec le barème de jaugeage du contenant" onClose={onClose} footer={<><Btn onClick={onClose}>Annuler</Btn><Btn kind="primary" disabled={!vol} onClick={use}>{vol ? `Utiliser ${fmtL(vol)}` : 'Utiliser'}</Btn></>}>
       <div className="space-y-3" data-jauge-dialog="">
         <Field label="Contenant jaugé"><SI value={cid} onChange={(v) => { setCid(v); setH1(''); setH2(''); }} options={avec.map((c) => ({ value: c.id, label: `${c.nom}${(contIds || []).includes(c.id) ? ' ★' : ''}` }))} aria-label="Contenant jaugé" /></Field>
-        {!b ? <Notice tone="info">Aucun contenant n’a encore de barème : importez les tables d’épalement dans Paramètres › 📏 Barèmes de jaugeage.</Notice> : <>
+        {!b ? <Notice tone="info">Aucun contenant n’a encore de barème : importez les tables d’épalement dans Vinification › Cuverie & Lots › 📏 Barèmes de jaugeage.</Notice> : <>
           <div className="flex flex-wrap gap-1" role="tablist" aria-label="Méthode">{[['ecart', `${M} avant et après`], ['niveau', `Une seule mesure (volume contenu)`]].map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={mode === k} className={cx('opr-tog', mode === k && 'on')} onClick={() => setMode(k)}>{l}</button>)}</div>
           <div className="grid2">
             {mode === 'ecart' ? <Field label={`${M} avant (cm)`} help={att ? `Contenu actuel ${fmtL(volActuel)} ≈ ${cmTxt(att.h)} (laissez vide pour l’utiliser)` : volActuel <= 0 ? 'Contenant vide : laissez vide.' : ''}><NI value={h1} onChange={setH1} placeholder={att ? fmt(att.h, 1) : volActuel <= 0 ? 'vide' : ''} aria-label={`${M} avant`} /></Field> : null}
@@ -455,7 +455,7 @@ function ContBareme({ contId, nomCont, val, onVal, onReprise, lecture }) {
           {val.baremes.length > 1 ? <BaremeFusionChoix liste={val.baremes} i={val.i} onFusion={(i, j) => { const L = baremesListeFusion(val.baremes, i, j); if (!L) return; const ni = i < j ? i : i - 1; onVal({ ...val, baremes: L, i: ni, mesure: L[ni].mesure || val.mesure }); onReprise(L[ni]); }} /> : null}
           {ouvert ? <div className="mt-2 space-y-2"><BaremeCourbe b={bm} /><BaremeTableau b={b} onChange={majB} /></div> : null}
           {val.fichier ? <Check checked={val.garderDoc} onChange={(v) => onVal({ ...val, garderDoc: v })} label="Garder le document d’origine avec le barème" /> : null}
-          <p className="help">Enregistré avec le contenant{actuel ? ' ; le barème actuel est archivé (consultable dans Paramètres › 📏 Barèmes de jaugeage)' : ''}.</p>
+          <p className="help">{actuel ? 'Enregistré avec le contenant ; le barème actuel est archivé (consultable dans Vinification › Cuverie & Lots › 📏 Barèmes de jaugeage).' : 'Enregistré avec le contenant.'}</p>
         </div>) : null}
       {voir && actuel ? <BaremeSheet id={actuel.id} onClose={() => setVoir(false)} /> : null}
     </div>
@@ -469,7 +469,7 @@ function contBaremeEnregistrer(d, val, contId, doc) {
   return rb;
 }
 
-/* ---------- Paramètres › Barèmes de jaugeage ---------- */
+/* ---------- Barèmes de jaugeage (0.39.0-alpha.1 : Vinification › Cuverie & Lots ; Paramètres si le module est désactivé) ---------- */
 function BaremesView() {
   const { db, act, toast, confirm } = useApp(); const [imp, setImp] = useState(false); const [vue, setVue] = useState(null); const [arch, setArch] = useState(false);
   const L = (db.baremes || []).filter((b) => arch || !b.archive); const cuves = L.filter((b) => b.cible !== 'citerne'); const cits = L.filter((b) => b.cible === 'citerne');

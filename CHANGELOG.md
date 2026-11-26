@@ -2,6 +2,14 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.39.0-alpha.1 — 26/11/2026
+
+- Paramètres réorganisés en quatre rubriques — Exploitation, Vin & cuverie, Équipe & sécurité, Données & application — dans un menu latéral (rangées sur téléphone) ; les calculs œnologiques (tirage, enrichissement, fermentation) ont leur page « 🧪 Calculs œnologiques », la charte et le mode d’affichage la page « 🖥 Affichage & application ».
+- Réglages métier rangés dans l’onglet Vinification : le catalogue des opérations dans Opérations & Assemblages (« ⚙ Catalogue des opérations »), les barèmes de jaugeage dans Cuverie & Lots, les schémas de vinification dans le Plan de vinification ; les liens de Paramètres y mènent, et le réglage reste dans Paramètres si le module est désactivé.
+- Clés d’accès rattachées à un seul compte : l’appareil confirme le compte à chaque connexion ; l’administrateur gère les appareils utilisateur par utilisateur — accepter, retirer l’accès (l’appareil reste listé), rétablir, supprimer, dernière utilisation —, décide qui peut enregistrer ses propres appareils et peut enregistrer cet appareil pour un autre compte.
+- Préparations et mixtions se saisissent dans l’onglet Tirages, le remuage dans la Cave, le dégorgement dans l’onglet Dégorgement ; « Opérations & Assemblages » reste dédié à la vinification en cuve ou en fût et garde le journal complet. Vins de base affichés en cave et au dégorgement, suite de chaque tirage (bouteilles en cave, dégorgées).
+- Plan de vinification (Vinification › Plan de vinification) : instruction de travail de la cave — étapes, produits et doses par groupe de cépages, revendication et fraction — à modifier, vérifier, imprimer en A4 paysage, ou à importer depuis votre tableur (Excel, LibreOffice, CSV) ; « Appliquer à un lot » donne la colonne du lot et les quantités pour son volume.
+
 ## 0.38.0-alpha.3 — 26/11/2026
 
 - Un seul onglet actif à la fois : un second onglet d’Œnotrack affiche « Œnotrack est déjà ouvert dans un autre onglet » et n’enregistre rien ; « Reprendre la main ici » bloque l’autre onglet (ses enregistrements se terminent) et recharge celui-ci avec la base à jour — deux onglets ne s’effacent plus leurs saisies.

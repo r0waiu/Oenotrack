@@ -70,7 +70,17 @@ function BaseView() {
         <div className="flex flex-wrap items-center gap-2"><Btn kind="primary" onClick={() => setTab('params', 'sauvegarde')}>💾 Sauvegarde, import et Drive…</Btn><span className="help">Export / import de la base complète (documents compris), Google Drive, OneDrive, Dropbox, iCloud, sauvegarde en ligne.</span></div>
       </div></Sec>
       <InstallerCard />
-      <Sec title="Paramètres de calcul"><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
+      <Sec title="Charte graphique"><ChartePicker /></Sec>
+      <Sec title="Mode d’affichage"><ModePicker /></Sec>
+    </div>
+  );
+}
+// Paramètres › Calculs œnologiques (0.39.0-alpha.1 : séparés de « Données & paramètres ») : tirage, enrichissement, fermentation
+function CalculsView() {
+  const { db, setTab, uid } = useApp();
+  return (
+    <div className="space-y-6" data-params-calculs="">
+      <Sec title="Paramètres de calcul" right={moduleActif(db, 'tirage') && moduleAutorise(db, uid, 'tirage') ? <Btn size="sm" kind="ghost" onClick={() => setTab('tirage')}>🍾 Onglet Tirages</Btn> : null}><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
         <Setting label="Sucre : g/L par point de densité" k="coefSucre" help="Sucre mixtion = (densité mixtion − densité base) × 1000 × ce coefficient (≈ 2,6)." /><Setting label="Objectif de sucre au tirage (g/L)" k="objectifTirageGL" /><Setting label="Volume d’une bouteille (L)" k="volBouteilleL" /></div></div></Sec>
       <Sec title="Enrichissement des moûts (chaptalisation)"><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
         <Setting label="TAV visé après enrichissement (% vol)" k="chaptalTAV" defaut={10.5} help="Valeur proposée par défaut (10,5) ; modifiable sur chaque fiche de cuve." />
@@ -78,8 +88,6 @@ function BaseView() {
         <Setting label="Enrichissement maximal (% vol)" k="chaptalMax" defaut={2} zero help="Avertissement au-delà ; 0 = pas de contrôle. À adapter à la réglementation de la campagne." /></div>
         <p className="help mt-2">Le calcul part de la moyenne pondérée des analyses saisies à l’entrée des moûts (TAP, ou sucres en g/L) : sucre à ajouter = (TAV visé − TAP) × g/L par % vol × volume. <span>Simulateur (sucre ou MCR) : bouton « 🧪 Calculs » des fiches de cuve et de lot.</span></p></div></Sec>
       <FermReglagesCard />
-      <Sec title="Charte graphique"><ChartePicker /></Sec>
-      <Sec title="Mode d’affichage"><ModePicker /></Sec>
     </div>
   );
 }
@@ -98,14 +106,54 @@ function TabRegistres() {
 }
 TABS_REG.registres = TabRegistres;
 // Module « Paramètres » : toujours actif (c'est là qu'on réactive les modules)
-const PARAMS_ITEMS = [{ id: 'entreprise', label: 'Société & opérateurs' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Région & types de vins' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: 'Campagnes' }, { id: 'sites', label: 'Sites' }, { id: 'contenants', label: 'Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: 'Crus & parcelles' }, { id: 'apporteurs', label: 'Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '📋 Schémas de vinification' }, { id: 'listes', label: 'Revendications, stades & listes' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: 'Données & paramètres' }];
+/* 0.39.0-alpha.1 : rubriques regroupées (menu latéral sur ordinateur, rangées sur téléphone). Les réglages métier qui ont leur place
+   ailleurs y sont déplacés (PARAMS_DEPLACES) : le lien de Paramètres y mène, et le réglage s'affiche ici si le module d'arrivée est
+   désactivé ou interdit (rien n'est perdu). Les identifiants de rubriques sont inchangés : setTab('params', 'operations') marche toujours. */
+const PARAMS_ITEMS = [{ id: 'entreprise', label: 'Société & opérateurs' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Région & types de vins' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: 'Campagnes' }, { id: 'sites', label: 'Sites' }, { id: 'contenants', label: 'Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: 'Crus & parcelles' }, { id: 'apporteurs', label: 'Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '📋 Schémas de vinification' }, { id: 'listes', label: 'Revendications, stades & listes' }, { id: 'calculs', label: '🧪 Calculs œnologiques' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: '🖥 Affichage & application' }];
+const PARAMS_GROUPES = [
+  { id: 'exploitation', label: 'Exploitation', items: ['entreprise', 'sites', 'apporteurs', 'crus', 'campagnes'] },
+  { id: 'vin', label: 'Vin & cuverie', items: ['profil', 'listes', 'contenants', 'calculs', 'operations', 'schemas', 'jaugeage'] },
+  { id: 'equipe', label: 'Équipe & sécurité', items: ['utilisateurs', 'garde', 'ia'] },
+  { id: 'donnees', label: 'Données & application', items: ['sauvegarde', 'modules', 'base'] },
+];
+// réglages métier rangés dans un autre onglet (module, sous-onglet)
+const PARAMS_DEPLACES = { operations: { tab: 'ops', sub: 'catalogue', ou: 'Vinification › Opérations & Assemblages' }, schemas: { tab: 'plan', sub: 'schemas', ou: 'Vinification › Plan de vinification' }, jaugeage: { tab: 'cuverie', sub: 'jaugeage', ou: 'Vinification › Cuverie & Lots' } };
+const paramsDeplaceOk = (db, uid, id) => { const v = PARAMS_DEPLACES[id]; return !!v && moduleActif(db, v.tab) && moduleAutorise(db, uid, v.tab); };
+// consultation seulement (droits des paramètres en lecture) : rappel en tête des réglages déplacés dans un autre onglet
+function ParamsLecture() {
+  const { db, uid, secu } = useApp(); if (!secu || niveauModule(db, uid, 'params') !== 'lecture') return null;
+  return <div className="mb-4"><Notice tone="info" title="Consultation des paramètres">Votre profil « {profilNom(db, uid)} » permet de consulter ces réglages, pas de les modifier.</Notice></div>;
+}
+const PARAMS_VUES = { utilisateurs: UtilisateursView, modules: ModulesView, profil: ProfilViticoleView, sauvegarde: SauvegardeView, garde: GardeView, campagnes: CampagnesView, listes: ListesView, operations: OperationsView, schemas: SchemasView, crus: CrusEtParcelles, apporteurs: ApporteursView, sites: SitesView, contenants: StudioView, jaugeage: BaremesView, base: BaseView, calculs: CalculsView, ia: IaView, entreprise: EntrepriseView };
 function TabParams() {
-  const { db, uid, secu } = useApp();
+  const { db, uid, secu, setTab } = useApp();
   // identifiants activés : paramètres selon le profil (sauvegarde et utilisateurs : droits particuliers ; « Utilisateurs & droits » montre au moins son compte)
   const niv = secu ? niveauModule(db, uid, 'params') : 'ecriture';
   const items = PARAMS_ITEMS.filter((i) => !secu || i.id === 'utilisateurs' || i.id === 'ia' || i.id === 'garde' || (i.id === 'sauvegarde' ? peut(db, uid, 'sauvegarde') : niv !== 'aucun')); // assistant IA : réglage personnel, sur l'appareil
   const [sub, setSub] = useSousOnglet(items, items[0].id);
   const lectureP = secu && niv === 'lecture' && !['utilisateurs', 'sauvegarde', 'ia', 'garde'].includes(sub);
-  return (<div><SubNav value={sub} onChange={setSub} items={items} />{lectureP ? <div className="mb-4"><Notice tone="info" title="Consultation des paramètres">Votre profil « {profilNom(db, uid)} » permet de consulter les paramètres, pas de les modifier.</Notice></div> : null}{sub === 'utilisateurs' ? <UtilisateursView /> : sub === 'modules' ? <ModulesView /> : sub === 'profil' ? <ProfilViticoleView /> : sub === 'sauvegarde' ? <SauvegardeView /> : sub === 'garde' ? <GardeView /> : sub === 'campagnes' ? <CampagnesView /> : sub === 'listes' ? <ListesView /> : sub === 'operations' ? <OperationsView /> : sub === 'schemas' ? <SchemasView /> : sub === 'crus' ? <CrusEtParcelles /> : sub === 'apporteurs' ? <ApporteursView /> : sub === 'sites' ? <SitesView /> : sub === 'contenants' ? <StudioView /> : sub === 'jaugeage' ? <BaremesView /> : sub === 'base' ? <BaseView /> : sub === 'ia' ? <IaView /> : <EntrepriseView />}</div>);
+  const choisir = (id) => { if (paramsDeplaceOk(db, uid, id)) setTab(PARAMS_DEPLACES[id].tab, PARAMS_DEPLACES[id].sub); else setSub(id); };
+  const groupes = PARAMS_GROUPES.map((g) => ({ ...g, L: g.items.map((id) => items.find((x) => x.id === id)).filter(Boolean) })).filter((g) => g.L.length);
+  const V = PARAMS_VUES[sub] || EntrepriseView; const dep = PARAMS_DEPLACES[sub];
+  return (
+    <div className="md:flex md:items-start md:gap-5" data-params="">
+      <nav className="params-menu no-print mb-4 space-y-2 md:mb-0 md:w-60 md:shrink-0" aria-label="Rubriques des paramètres" data-params-menu="">
+        {groupes.map((g) => (
+          <div key={g.id} data-params-groupe={g.id}>
+            <div className="lbl mb-1">{g.label}</div>
+            <div className="flex gap-1 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0" role="tablist" aria-label={g.label}>
+              {g.L.map((it) => { const ail = paramsDeplaceOk(db, uid, it.id); return (
+                <button key={it.id} type="button" role="tab" aria-selected={sub === it.id} onClick={() => choisir(it.id)} data-params-item={it.id} title={ail ? `Réglage rangé dans ${PARAMS_DEPLACES[it.id].ou}` : undefined}
+                  className={cx('btn shrink-0 md:w-full md:justify-start md:text-left', sub === it.id && 'btn-primary')}>{it.label}{ail ? <span className="ml-auto pl-1 text-xs opacity-70" aria-hidden="true">↗</span> : null}</button>); })}
+            </div>
+          </div>))}
+      </nav>
+      <div className="min-w-0 flex-1" data-params-rubrique={sub}>
+        {lectureP ? <div className="mb-4"><Notice tone="info" title="Consultation des paramètres">Votre profil « {profilNom(db, uid)} » permet de consulter les paramètres, pas de les modifier.</Notice></div> : null}
+        {dep ? <div className="mb-4"><Notice tone="info" title={`Réglage rangé dans ${dep.ou}`}>Il s’affiche ici parce que ce module est désactivé ou non accessible avec votre profil.</Notice></div> : null}
+        <V />
+      </div>
+    </div>
+  );
 }
 TABS_REG.params = TabParams;

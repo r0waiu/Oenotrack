@@ -2,7 +2,7 @@ import { open } from './ui.mjs';
 const SH = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + '/shots';
 for (const [nm, o] of [['pc', {}], ['mobile', { viewport: { width: 390, height: 844 }, mobile: true }], ['sombre', { dark: true }]]) {
   const { browser, page, errors } = await open(o);
-  await page.click('#tab-params'); await page.click('main button:has-text("Données & paramètres")'); await page.waitForTimeout(300);
+  await page.click('#tab-params'); await page.click('main button:has-text("Affichage & application")'); await page.waitForTimeout(300);
   await page.locator('main .charte-card .charte-pick', { hasText: 'Terroirs' }).click(); await page.waitForTimeout(400);
   await page.click('#tab-cuverie'); await page.waitForTimeout(400);
   await page.screenshot({ path: `${SH}/terroirs-${nm}.png` });

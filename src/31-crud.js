@@ -152,7 +152,7 @@ function operateurDelete(db, id) {
    settings.modulesOrdre = [ids] : ordre des onglets (un id inconnu — module d'une version plus récente — garde sa place) ;
    settings.modulesOff = [ids] : modules désactivés (onglet masqué, aucune donnée supprimée). « Paramètres » reste toujours actif.
    Un module ajouté par une version plus récente et absent de l'ordre enregistré se place après son voisin de l'ordre d'origine. */
-const MODULES_DEFAUT = ['cuverie', 'pressoir', 'ops', 'previsions', 'declass', 'tirage', 'cave', 'degorgement', 'analyses', 'intrants', 'hygiene', 'equipements', 'trace', 'registres', 'params'];
+const MODULES_DEFAUT = ['cuverie', 'pressoir', 'ops', 'previsions', 'plan', 'declass', 'tirage', 'cave', 'degorgement', 'analyses', 'intrants', 'hygiene', 'equipements', 'trace', 'registres', 'params'];
 const MODULE_FIXE = 'params';
 const estModule = (id) => MODULES_DEFAUT.includes(id);
 function modulesOrdre(db) {
@@ -173,10 +173,10 @@ const modulesConnus = (db) => modulesOrdre(db).filter((id) => estModule(id) && !
 const modulesVisibles = (db) => modulesConnus(db).filter((id) => moduleActif(db, id));
 const moduleAccueil = (db) => modulesVisibles(db)[0] || MODULE_FIXE;
 /* ---------- onglets regroupés (0.34.0-alpha.1) : un onglet principal réunit plusieurs modules en sous-onglets ----------
-   « Vinification » = Cuverie & Lots, Opérations & Assemblages, À réaliser & fiches. Chaque module garde son identifiant, son activation,
+   « Vinification » = Cuverie & Lots, Opérations & Assemblages, À réaliser & fiches, Plan de vinification (0.39.0-alpha.1, module « plan »). Chaque module garde son identifiant, son activation,
    ses droits et sa place dans l'ordre : l'onglet du groupe prend la place du premier de ses modules affichés (une version antérieure,
    qui ne connaît pas les groupes, affiche toujours les trois onglets séparés). */
-const ONGLETS_GROUPES = { vinification: ['cuverie', 'ops', 'previsions'] };
+const ONGLETS_GROUPES = { vinification: ['cuverie', 'ops', 'previsions', 'plan'] };
 const ongletDe = (id) => Object.keys(ONGLETS_GROUPES).find((g) => ONGLETS_GROUPES[g].includes(id)) || id;
 // modules affichés (déjà filtrés : actifs, autorisés) → onglets de la barre, dans l'ordre ; un groupe apparaît une seule fois
 const ongletsBarre = (mods) => (Array.isArray(mods) ? mods : []).map(ongletDe).filter((x, i, a) => a.indexOf(x) === i);
@@ -655,7 +655,7 @@ function moutAnalysesCuve(db, R, cid) {
   const out = []; contParts(R, cid).forEach((p) => { const sub = moutAnalysesLot(db, p.lotId); const tot = sum(sub, (x) => x.vol); if (tot > 0) sub.forEach((x) => out.push({ ...x, vol: (x.vol * p.vol) / tot, lotId: p.lotId })); });
   return out;
 }
-// enrichissement (chaptalisation) pour atteindre le TAV visé : réglages Paramètres › Données & paramètres
+// enrichissement (chaptalisation) pour atteindre le TAV visé : réglages Paramètres › 🧪 Calculs œnologiques
 const chaptalReglages = (db) => { const s = (db && db.settings) || {}; return { tav: hasNum(s.chaptalTAV) ? num(s.chaptalTAV) : 10.5, coef: num(s.chaptalCoef) > 0 ? num(s.chaptalCoef) : 17, max: hasNum(s.chaptalMax) ? num(s.chaptalMax) : 2 }; };
 const tapMoyen = (db, moy) => (moy && moy.tap ? moy.tap.moy : moy && moy.sucres ? moy.sucres.moy / chaptalReglages(db).coef : null);
 function enrichissement(db, tap, volL, tavVise) {

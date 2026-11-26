@@ -78,8 +78,8 @@ ok('catalogue : fiche « Tanisage » créée', (await row.innerText()).includes(
 await page.locator('main [data-op="soutirage"] button', { hasText: 'Modifier' }).click(); await page.waitForTimeout(300);
 await top().locator('label', { hasText: 'Le lot traité passe au stade' }).locator('input').uncheck(); await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(300);
 ok('catalogue : soutirage sans stade auto', (await page.locator('main [data-op="soutirage"]').innerText()).includes('pas de changement de stade'));
-// 9. la nouvelle opération dans le panneau + son formulaire + sa fiche
-await page.click('#tab-ops'); await page.waitForTimeout(300);
+// 9. la nouvelle opération dans le panneau + son formulaire + sa fiche (0.39 : le catalogue est un sous-onglet d'Opérations & Assemblages)
+await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: /^Opérations$/ }).click(); await page.waitForTimeout(300);
 await page.locator('main [data-groupe] button', { hasText: 'Tanisage' }).click(); await page.waitForTimeout(400);
 ok('nouvelle opération : formulaire', (await top().locator('h2').innerText()).includes('Tanisage'));
 await pick(page, top().locator('input[role=combobox]').first(), 'Cuve 06', 'P25-02-T1'); await page.waitForTimeout(200);

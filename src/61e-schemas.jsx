@@ -123,7 +123,7 @@ function SchemaLotBloc({ lotId }) {
 // pastille dans « À réaliser » et dans le journal : étape d'un schéma
 function SchemaChip({ x }) { if (!x || !x.schema || !x.schema.nom) return null; return <Chip title={x.schema.nom} data-schema-chip=""><span>📋 schéma</span></Chip>; }
 
-/* ---------- Paramètres › Schémas de vinification ---------- */
+/* ---------- Schémas de vinification (0.39.0-alpha.1 : Vinification › Plan de vinification › Schémas par lot) ---------- */
 function SchemasView() {
   const { db, act, uid } = useApp(); const lect = useLectureSeule('params'); const ask = useRetirer(); const [form, setForm] = useState(null); const [imp, setImp] = useState(null);
   const L = schemasDe(db); const reg = schemasReglage(db); const nv = L.filter((s) => s.aVerifier).length;

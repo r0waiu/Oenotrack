@@ -3,12 +3,13 @@
 const MODULE_DEFS = {
   cuverie: { label: 'Cuverie & Lots', icone: '🛢', desc: 'Plan de cave, contenants, lots et composition des cuves.' },
   pressoir: { label: 'Pressoir', icone: '🍇', desc: 'Registre des pesées et bons de pesée, carnet de pressoir et bons de pressoir (marcs, cuvée, tailles, rebêches), relevés par apporteur, bilan et contrôles de la campagne.' },
-  ops: { label: 'Opérations & Assemblages', icone: '⚗', desc: 'Saisie des opérations (vendange, vinification, élevage, assemblages…) et journal.' },
+  ops: { label: 'Opérations & Assemblages', icone: '⚗', desc: 'Saisie des opérations de vinification en cuve ou en fût (vendange, vinification, élevage, assemblages…), journal complet et catalogue des opérations.' },
   previsions: { label: 'À réaliser & fiches', icone: '📋', desc: 'Opérations planifiées, fiches à imprimer pour l’équipe.' },
+  plan: { label: 'Plan de vinification', icone: '🗂', desc: 'Instruction de travail : doses par étape, groupe de cépages, revendication et fraction ; application à un lot, impression ; schémas de vinification par lot.' },
   declass: { label: 'Déclassements', icone: '⚠', desc: 'Alertes de déclassement (intrant non autorisé…) à valider ou refuser, dans l’onglet « Opérations & Assemblages ».' },
-  tirage: { label: 'Tirages', icone: '🍾', desc: 'Préparations (levain, pied de cuve, liqueur de tirage) et tirages (mixtions).' },
-  cave: { label: 'Cave', icone: '🕯', desc: 'Bouteilles sur lattes : stock par lot, âge, remuage et mise sur pointes.' },
-  degorgement: { label: 'Dégorgement', icone: '🥂', desc: 'Liqueurs d’expédition, dégorgements et lots finis.' },
+  tirage: { label: 'Tirages', icone: '🍾', desc: 'Préparations (levain, pied de cuve, liqueur de tirage) et tirages (mixtions) : saisis ici, plus dans « Opérations & Assemblages ».' },
+  cave: { label: 'Cave', icone: '🕯', desc: 'Bouteilles sur lattes : stock par lot, âge, remuage et mise sur pointes (saisis ici).' },
+  degorgement: { label: 'Dégorgement', icone: '🥂', desc: 'Liqueurs d’expédition, dégorgements (saisis ici) et lots finis.' },
   analyses: { label: 'Analyses', icone: '🔬', desc: 'Analyses et paramètres personnalisables.' },
   intrants: { label: 'Intrants & Stocks', icone: '📦', desc: 'Produits œnologiques, arrivages, lots fournisseurs, DLUO et stocks.' },
   hygiene: { label: 'Hygiène', icone: '🧽', desc: 'Journal des nettoyages, rinçages et désinfections.' },
@@ -18,7 +19,7 @@ const MODULE_DEFS = {
   params: { label: 'Paramètres', icone: '⚙', desc: 'Société & opérateurs, modules, sauvegarde & Drive, campagnes, listes et réglages.' },
 };
 // onglets regroupés (0.34.0-alpha.1, ONGLETS_GROUPES : 31-crud.js) : « Vinification » réunit trois modules en sous-onglets
-const ONGLET_GROUPE_DEFS = { vinification: { label: 'Vinification', icone: '🍷', desc: 'Cuverie & Lots, Opérations & Assemblages, À réaliser & fiches : réunis dans un seul onglet.' } };
+const ONGLET_GROUPE_DEFS = { vinification: { label: 'Vinification', icone: '🍷', desc: 'Cuverie & Lots, Opérations & Assemblages, À réaliser & fiches, Plan de vinification : réunis dans un seul onglet.' } };
 const moduleNom = (id) => (MODULE_DEFS[id] ? MODULE_DEFS[id].label : ONGLET_GROUPE_DEFS[id] ? ONGLET_GROUPE_DEFS[id].label : id);
 // anciens liens : les réglages étaient dans l'onglet « Registres & Paramètres »
 const SOUS_PARAMS = ['entreprise', 'utilisateurs', 'modules', 'sauvegarde', 'campagnes', 'sites', 'contenants', 'crus', 'apporteurs', 'operations', 'listes', 'base'];
@@ -129,6 +130,8 @@ function App() {
       if (!moduleAutorise(dbRef.current, sessionRef.current, tab)) { toast(`Votre profil ne donne pas accès au module « ${moduleNom(tab)} ».`, 'bad'); return; }
       sub = tab; tab = MODULES_DANS[tab];
     }
+    // réglage de Paramètres rangé dans un autre onglet (0.39.0-alpha.1 : opérations, schémas, barèmes) : ouvert là-bas s'il est affiché
+    if (tab === 'params' && typeof paramsDeplaceOk === 'function' && paramsDeplaceOk(dbRef.current, sessionRef.current, sub)) { const v = PARAMS_DEPLACES[sub]; tab = v.tab; sub = v.sub; }
     if (!moduleActif(dbRef.current, tab)) { toast(`Le module « ${moduleNom(tab)} » est désactivé : réactivez-le dans Paramètres › Modules.`, 'bad'); return; }
     if (!moduleAutorise(dbRef.current, sessionRef.current, tab)) { toast(`Votre profil ne donne pas accès au module « ${moduleNom(tab)} ».`, 'bad'); return; }
     setNav({ tab, sub: sub || null }); setStack([]); window.scrollTo({ top: 0 });
