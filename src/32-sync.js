@@ -26,6 +26,7 @@ const SYNC_NOMS = {
   sites: ['site', 'sites'], campagnes: ['campagne', 'campagnes'], operateurs: ['opérateur', 'opérateurs'], utilisateurs: ['utilisateur', 'utilisateurs'], profils: ['profil de droits', 'profils de droits'], audit: ['entrée du journal des accès', 'entrées du journal des accès'], formulaires: ['formulaire d’opération', 'formulaires d’opérations'], analysesParams: ['paramètre d’analyse', 'paramètres d’analyse'], analysesModeles: ['modèle d’analyse', 'modèles d’analyse'],
   catalogues: ['catalogue importé', 'catalogues importés'], catalogueReglage: ['réglage des catalogues', 'réglages des catalogues'], plafonds: ['plafond de revendication', 'plafonds des revendications'], // 0.30.0-alpha.1
   schemas: ['schéma de vinification', 'schémas de vinification'], // 0.31.0-alpha.1
+  drmProduits: ['produit de la DRM', 'produits de la DRM'], drmRattachements: ['rattachement à la DRM', 'rattachements à la DRM'], drmSorties: ['saisie de la DRM', 'saisies de la DRM'], drmDeclarations: ['DRM déposée', 'DRM déposées'], // 0.32.0-alpha.1
   baremes: ['barème de jaugeage', 'barèmes de jaugeage'], produitsHygiene: ['produit d’hygiène', 'produits d’hygiène'], lists: ['élément de liste', 'éléments de listes'], settings: ['réglage', 'réglages'], entreprise: ['information de l’entreprise', 'informations de l’entreprise'], apparence: ['réglage d’apparence', 'réglages d’apparence'],
 };
 const syncNom = (cle, n) => { const x = SYNC_NOMS[cle.split('.')[0]] || ['élément', 'éléments']; return `${n} ${n > 1 ? x[1] : x[0]}`; };

@@ -90,9 +90,9 @@ function useSousOnglet(items, defaut) {
 }
 // Module « Registres » : exports et bilan matière
 function TabRegistres() {
-  const items = [{ id: 'registres', label: 'Registres (CSV / Excel)' }, { id: 'bilan', label: 'Bilan matière' }];
+  const items = [{ id: 'registres', label: 'Registres (CSV / Excel)' }, { id: 'bilan', label: 'Bilan matière' }, { id: 'drm', label: '📮 DRM (douane)' }];
   const [sub, setSub] = useSousOnglet(items, 'registres');
-  return (<div><SubNav value={sub} onChange={setSub} items={items} />{sub === 'bilan' ? <BilanView /> : <RegistresView />}</div>);
+  return (<div><SubNav value={sub} onChange={setSub} items={items} />{sub === 'bilan' ? <BilanView /> : sub === 'drm' ? <DrmView /> : <RegistresView />}</div>);
 }
 TABS_REG.registres = TabRegistres;
 // Module « Paramètres » : toujours actif (c'est là qu'on réactive les modules)
