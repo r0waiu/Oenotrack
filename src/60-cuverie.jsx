@@ -339,6 +339,7 @@ function ContSheet({ id, onClose, onBack, backLabel, onCloseAll }) {
   // doses de chaque application, par produit et lot fournisseur (lots présents et lots d'origine) : dans l'unité du produit
   const dosesDe = (r) => R.apps.filter((a) => a.produitId === r.produitId && (a.arrivageId || '') === (r.arrivageId || '') && a.lotId && r.lots.has(a.lotId) && a.dose != null).map((a) => a.dose);
   const blocs = {
+    so2: ps.length ? <Sec title="SO₂ total estimé (analyse + ajouts depuis)" className="mb-5">{ps.map((p) => <div key={p.lotId} className="mb-2"><div className="text-sm font-semibold"><LotLink id={p.lotId} /></div><So2EstimeBloc lotId={p.lotId} /></div>)}</Sec> : null,
     fermentation: <FermentationSection contId={id} />,
     jauge: <JaugeSection contId={id} />,
     lots: <Sec title={`Lots présents (${ps.length})`} className="mb-5">
@@ -350,9 +351,10 @@ function ContSheet({ id, onClose, onBack, backLabel, onCloseAll }) {
     </Sec>,
     composition: <Sec title="Composition du contenu" right={ps.length > 1 ? <span className="text-xs text-ink2">mélange de {ps.length} lots, au prorata des volumes</span> : null} className="mb-5"><CompBlock comp={comp} empty="Contenant vide : aucune composition." /></Sec>,
     intrants: <Sec title="Intrants du contenu (cumulés, lots d’origine inclus)" className="mb-5">
+      {ps.map((p) => <DosesCumuleesTable key={p.lotId} lotId={p.lotId} titre={<><span>Doses cumulées du lot</span> <span translate="no">{(R.lots[p.lotId] || {}).code}</span> <span>(dose du produit par hL, lots d’origine au prorata)</span></>} />)}
       <Tbl rows={cumul.map((r, i) => ({ ...r, id: `${r.produitId}|${r.arrivageId}|${i}` }))} empty={ps.length ? 'Aucun intrant enregistré sur ces lots ni sur leurs lots d’origine.' : 'Contenant vide.'} cols={[
         { h: 'Produit', r: (r) => <b>{prodOf(db, r.produitId).nom}</b> }, { h: 'Lot fournisseur', r: (r) => r.numLot || '—' }, { h: 'Quantité cumulée', cls: 'r', r: (r) => <span className="num">{fmt(r.qty, 2)} {r.unite}</span> },
-        { h: 'Doses à l’application', cls: 'r', r: (r) => { const t = dosesTexte(dosesDe(r), r.unite); return t ? <span className="num" title="Dose de chaque ajout, dans l’unité du produit, au volume traité ce jour-là">{t}</span> : '—'; } },
+        { h: 'Doses à l’application', cls: 'r', r: (r) => { const t = dosesTexte(dosesDe(r), r.unite, [...r.lots].length > 1); return t ? <span className="num" title="Dose de chaque ajout, dans l’unité du produit, au volume traité ce jour-là">{t}</span> : '—'; } },
         { h: 'Lots concernés', r: (r) => <div className="flex flex-wrap gap-x-2">{[...r.lots].map((l) => <LotLink key={l} id={l} />)}</div> }, { h: 'Origine', cls: 'hm', r: (r) => (r.direct ? <Chip tone="info">appliqué sur le lot présent</Chip> : <Chip>lot d’origine</Chip>) },
         { h: '', r: (r) => (r.unauth ? <Chip tone="bad">non autorisé</Chip> : null) },
       ]} />

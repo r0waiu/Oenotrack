@@ -70,6 +70,10 @@ function sampleDb0() {
     must(produitSave(db, { nom, categorie, unite, fournisseurId: K.fo[fo] })); const id = db.produits[db.produits.length - 1].id; K.pr[k] = id;
     ['conv', 'bio', 'dem'].forEach((q, i) => regleSet(db, id, q, { autorise: !!rules[i][0], doseMax: rules[i][1] != null ? rules[i][1] : null }));
   });
+  // familles (catalogues) et teneur en SO₂ du métabisulfite (0,5 g de SO₂ par g) pour l'estimation du SO₂ total (0.30.0-alpha.1)
+  const FAM = { so2: 'sulfitage', enz: 'enzyme', levp: 'levure', levm: 'levure', act: 'nutriment', tan: 'tanin', lys: 'stabilisant microbiologique', gel: 'colle', ben: 'bentonite', dia: 'filtration', plq: 'filtration', bac: 'bactérie', suc: 'sucre / MCR', mcr: 'sucre / MCR' };
+  Object.keys(FAM).forEach((k) => { db.produits.find((x) => x.id === K.pr[k]).famille = FAM[k]; });
+  db.produits.find((x) => x.id === K.pr.so2).so2 = '0,5 g/g';
   // arrivages : [clé, produit, n° lot fournisseur, DLUO, date, quantité]
   const AR = [
     ['so2a', 'so2', 'SK-2501', '2027-06-30', '2025-08-20', 25000], ['enza', 'enz', 'ENZ-25-114', '2026-11-30', '2025-08-28', 500], ['levpa', 'levp', 'LP-0925', '2027-03-31', '2025-09-01', 2000],

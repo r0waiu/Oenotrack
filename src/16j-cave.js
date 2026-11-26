@@ -7,12 +7,12 @@
 const FICHE_RUBRIQUES = {
   cont: [
     ['fermentation', 'Fermentation (courbes densité et température, alerte)'], ['jauge', 'Jaugeage'], ['lots', 'Lots présents'],
-    ['composition', 'Composition du contenu'], ['intrants', 'Intrants du contenu (cumulés)'], ['ajouts', 'Ajouts d’intrants réalisés dans ce contenant'],
+    ['composition', 'Composition du contenu'], ['intrants', 'Intrants du contenu (cumulés)'], ['so2', 'SO₂ total estimé (analyse + ajouts depuis)'], ['ajouts', 'Ajouts d’intrants réalisés dans ce contenant'],
     ['hygiene', 'Hygiène'], ['analyses', 'Analyses prélevées ici'], ['mouts', 'Moûts reçus'], ['historique', 'Historique des opérations'],
   ],
   lot: [
     ['stades', 'Stade du vin'], ['fermentation', 'Fermentation (courbes densité et température, alerte)'], ['composition', 'Composition calculée'],
-    ['portions', 'Portions (lot + contenant + volume)'], ['intrants', 'Intrants cumulés par portion'], ['amont', 'Traçabilité amont (avant réception)'],
+    ['portions', 'Portions (lot + contenant + volume)'], ['intrants', 'Intrants cumulés par portion'], ['so2', 'SO₂ total estimé (analyse + ajouts depuis)'], ['amont', 'Traçabilité amont (avant réception)'],
     ['genealogie', 'Généalogie'], ['pertes', 'Pertes et écarts'], ['bilan', 'Bilan matière du lot'], ['hygiene', 'Journal d’hygiène'],
     ['mouts', 'Moûts reçus'], ['analyses', 'Analyses'], ['operations', 'Opérations du lot'],
   ],
@@ -62,9 +62,11 @@ function doseTexte(dose, unite) {
 // quantité (unité du produit) pour une dose en g/hL ou mL/hL et un volume en litres
 const qteDeDose = (dose, unite, volL) => { if (!hasNum(dose) || !(num(volL) > 0) || unite === 'u' || !doseUnit(unite)) return null; const b = (num(dose) * num(volL)) / 100; return unite === 'kg' || unite === 'L' ? b / 1000 : b; };
 // doses successives d'une même ligne (« 3,0 + 2,0 = 5,0 g/hL ») : même unité seulement
-function dosesTexte(doses, unite) {
+// sansTotal (0.30.0-alpha.1) : doses appliquées à des lots différents — leur somme ne serait pas la dose d'un lot (voir les doses cumulées)
+function dosesTexte(doses, unite, sansTotal) {
   const L = (doses || []).filter((d) => d != null && Number.isFinite(Number(d))); if (!L.length) return '';
   if (L.length === 1) return doseTexte(L[0], unite);
+  if (sansTotal) return L.map((d) => doseTexte(d, unite)).join(' · ');
   const u = doseUnit(unite); const t = sum(L, (d) => num(d));
   return `${L.map((d) => doseTexte(d, unite).replace(` ${u}`, '').replace(/ (kg|L)\/hL$/, '')).join(' + ')} = ${doseTexte(t, unite)}`;
 }

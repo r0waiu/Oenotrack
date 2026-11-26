@@ -24,9 +24,9 @@ const init = () => { window.__imp = []; window.print = () => { window.dispatchEv
   ok('récapitulatif des intrants : « Doses à l’application » (doses de chaque ajout et total)', /Doses à l’application/i.test(recap) && /g\/hL/.test(recap), recap.slice(0, 400));
   // 2. personnaliser pour moi : masquer la composition, monter l'historique
   await ov().locator('button', { hasText: '⚙ Personnaliser la fiche' }).click(); await page.waitForTimeout(300);
-  ok('personnaliser : « Pour moi » choisi, rubriques à cocher et à déplacer', /Pour moi/.test(await txt(ov())) && (await ov().locator('[data-rub]').count()) === 10);
+  ok('personnaliser : « Pour moi » choisi, rubriques à cocher et à déplacer', /Pour moi/.test(await txt(ov())) && (await ov().locator('[data-rub]').count()) === 11); // 0.30.0-alpha.1 : rubrique « SO₂ total estimé »
   await ov().locator('[data-rub=composition] input[type=checkbox]').uncheck();
-  for (let k = 0; k < 9; k++) await ov().locator('[data-rub=historique] button[aria-label^="Monter"]').click();
+  for (let k = 0; k < 10; k++) await ov().locator('[data-rub=historique] button[aria-label^="Monter"]').click();
   await ov().locator('button', { hasText: 'Enregistrer pour moi' }).click(); await page.waitForTimeout(400);
   r = await rub();
   ok('… enregistré sur cet appareil : historique en tête, composition masquée', r[0] === 'historique' && !r.includes('composition'), r);
@@ -53,6 +53,9 @@ const init = () => { window.__imp = []; window.print = () => { window.dispatchEv
   ok('formulaire groupé : une ligne par cuve, rien d’enregistrable sans produit', (await ov().locator('[data-groupe-lignes] tbody tr').count()) === 3);
   await ov().locator('button', { hasText: '✓ Valider' }).click(); await page.waitForTimeout(300);
   ok('… « Choisissez le produit. »', /Choisissez le produit/.test(await txt(ov())));
+  // 0.30.0-alpha.1 : le fournisseur (ou « En stock ») se choisit d'abord
+  const fo = ov().locator('input[aria-label="Fournisseur"], select[aria-label="Fournisseur"]').first();
+  if ((await fo.evaluate((e) => e.tagName)) === 'SELECT') await fo.selectOption({ label: 'En stock' }); else await pick(page, fo, 'En stock', 'En stock');
   await pick(page, ov().locator('input[placeholder="Produit…"]'), 'Métabisulfite', 'Métabisulfite de potassium');
   await ov().locator('input[placeholder="ex. 3"]').fill('5'); await page.waitForTimeout(300);
   const qs = await ov().locator('[data-groupe-lignes] tbody tr').evaluateAll((trs) => trs.map((tr) => tr.querySelectorAll('input')[2].value));
