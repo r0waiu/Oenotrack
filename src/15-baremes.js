@@ -46,6 +46,12 @@ function baremeHauteur(b, v) {
   }
   return { h: Q[Q.length - 1][0], hors: null, vMin, vMax };
 }
+// entrée en cuve mesurée à l'épalement (0.34.0-alpha.1) : hauteur (ou creux) après réception → volume contenu, moins le contenu d'avant
+// (stock de la cuve à la date et moûts déjà comptés dans la même entrée) ; null sans barème ni mesure
+function jaugeEntreeCuve(b, h, volAvant) {
+  const r = b ? baremeVolume(b, h) : null; if (!r) return null; const av = Math.max(0, num(volAvant));
+  return { v: Math.max(0, r.v - av), total: r.v, avant: av, hors: r.hors, negatif: r.v < av - 0.5 };
+}
 // volume entre deux mesures (avant → après) : positif = volume entré
 function baremeEcart(b, avant, apres) { const a = baremeVolume(b, avant), c = baremeVolume(b, apres); if (!a || !c) return null; return { v: c.v - a.v, avant: a, apres: c, hors: a.hors || c.hors }; }
 
@@ -505,9 +511,10 @@ function baremePourNom(baremes, nom) {
 const baremeCapacite = (b) => Math.round(Math.max(num(((b && b.meta) || {}).capacite) || 0, ...baremePts(b || {}).map((x) => x[1]), 0));
 // matière / type proposés pour un contenant créé depuis un barème
 function matierePourBareme(db, materiau) { const m = norm(materiau); if (!m) return null; const L = db.lists.matieres || []; const k = /inox/.test(m) ? 'inox' : /beton/.test(m) ? 'beton' : /bois|chene/.test(m) ? 'bois' : /resine|polyester|fibre/.test(m) ? 'resine' : /email|acier/.test(m) ? 'acier' : m; return (L.find((x) => norm(x.label || x.nom || '').includes(k)) || L.find((x) => norm(x.id).includes(k)) || null); }
-// mesures de jaugeage enregistrées avec une opération : op.jauges [{ contenantId | compartiment, avant, apres, mesure, volL, baremeId }], op.hauteurMesure (jaugeage)
+// mesures de jaugeage enregistrées avec une opération : op.jauges [{ contenantId | compartiment, avant, apres, mesure, volL, baremeId }], op.hauteurMesure (jaugeage),
+// op.jaugesCuves (entrée de moûts, 0.34.0-alpha.1) [{ cle, contenantId, mesure, apres, volAvant, volL, baremeId }]
 function jaugesTexte(db, op) {
-  const J = Array.isArray(op && op.jauges) ? op.jauges.filter((j) => j && hasNum(j.apres)) : [];
+  const J = [...(Array.isArray(op && op.jauges) ? op.jauges : []), ...(Array.isArray(op && op.jaugesCuves) ? op.jaugesCuves : [])].filter((j) => j && hasNum(j.apres)); // jaugesCuves : entrée de moûts mesurée en cuve (0.34.0-alpha.1)
   const L = J.map((j) => { const qui = j.contenantId ? ((db.contenants || []).find((c) => c.id === j.contenantId) || {}).nom || '?' : j.compartiment ? `compartiment ${j.compartiment}` : ''; return `${qui} ${j.mesure === 'creux' ? 'creux ' : ''}${hasNum(j.avant) ? `${fmt(j.avant, 1)} → ` : ''}${fmt(j.apres, 1)} cm${hasNum(j.volL) ? ` (${fmtL(j.volL)})` : ''}`.trim(); });
   if (op && op.type === 'jaugeage' && hasNum(op.hauteurMesure)) L.unshift(`${op.mesureJauge === 'creux' ? 'creux mesuré' : 'hauteur mesurée'} ${fmt(op.hauteurMesure, 1)} cm`);
   return L.length ? `📏 ${L.join(' ; ')}` : '';

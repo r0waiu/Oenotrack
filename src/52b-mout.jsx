@@ -1,6 +1,5 @@
 /* ============ ENTRÉES DE MOÛTS : partenaires par compartiment, n° de lot, analyses, moyennes et enrichissement (0.14.0-alpha.1) ============ */
-// paramètres d'analyse proposés pour les lots reçus : modèle choisi dans l'opération, sinon réglage, sinon modèle « Moût »
-const modeleEntree = (db, id) => db.analysesModeles.find((m) => m.id === (id || db.settings.analyseEntreeModele || 'm_mout')) || db.analysesModeles.find((m) => m.id === 'm_mout') || db.analysesModeles[0] || { id: '', nom: 'Libre', paramIds: db.analysesParams.map((p) => p.id) };
+// paramètres d'analyse des lots reçus : modèle imposé « Moût · Débourbage » (moutModeleImpose, 0.34.0-alpha.1)
 const paramDe = (db, pid) => db.analysesParams.find((p) => p.id === pid) || { id: pid, nom: pid, unite: '', dec: 1 };
 const valeurAnalyse = (db, pid, v) => { const p = paramDe(db, pid); return `${p.nom} ${fmt(v, p.dec)}${p.unite ? ` ${p.unite}` : ''}`; };
 const analysesTexte = (db, an) => Object.keys(an || {}).filter((k) => hasNum(an[k])).map((k) => valeurAnalyse(db, k, num(an[k]))).join(' · ');

@@ -33,6 +33,12 @@ Mémoire du projet pour Claude et pour le vigneron. Œnotrack sert à la traçab
   - `gardeDroits(avant, après, uid)` contrôle **toute** modification et alimente le journal d'audit.
 - **Hors-ligne** : `sw.js` (précache) et `manifest.webmanifest` sont générés par `tools/paquet-web.py` et enregistrés dans `68j-installation.jsx` (PWA installable).
 - **Imports protégés** (`16e-garde.js`) : le type réel du fichier est vérifié, les PDF sont désarmés, les macros refusées et les formules CSV neutralisées (`csvSansFormule`).
+- **Entrée de moûts** (`entree_mout`, 0.35) :
+  - plusieurs partenaires par citerne : `op.partenaires = [{ id, apporteurId, ref, lignes: [cleLigne…] }]` (seulement à partir de 2 partenaires) et `e.partId` sur chaque moût ; `op.apporteurId` (1er partenaire) et `op.ref` (n° de bon joints par « / ») restent remplis, et le partenaire est écrit dans chaque moût pour les versions antérieures ;
+  - lecture : `moutPartenaires`, `lignePartId` (partId → clé de ligne → partenaire), `ligneRef`, `moutRefs` (`11-crus`) ; dans le formulaire, le 1er onglet garde ses valeurs dans `f.apporteurId` / `f.ref` (`moutOnglets`, `ongletDe`, `51-opspec`) ;
+  - documents d'un partenaire : `doc.partId` (cible inchangée `{ type: 'op' }`) ; `DocsPanel` / `DocsAttente` acceptent `filtre`, `extra`, `inputLabel`, `catDefaut` ; bulletin déposé dans un onglet → `bulletinPourMouts` (`16f`) ;
+  - analyses imposées : `moutModeleImpose` (« Moût · Débourbage », `m_mout`), plus de choix de modèle ;
+  - volume à l'épalement : `jaugeEntreeCuve` (`15-baremes`), composant `HauteurCuve` (`57-jauge`), mesures gardées dans `op.jaugesCuves = [{ cle, contenantId, mesure, apres, volAvant, volL, baremeId }]`.
 - **IA optionnelle** (`17-ia.js`, `68k-ia.jsx`) : Claude, OpenAI, Gemini ou Mistral avec **la clé de l'utilisateur**, gardée en localStorage et jamais placée dans la base, la synchronisation ou les sauvegardes.
 
 ## 2. Structure
