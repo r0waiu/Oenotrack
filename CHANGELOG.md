@@ -2,6 +2,12 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.37.0-alpha.1 — 26/11/2026
+
+- Entrée de moûts : un bulletin d’analyses (PDF, scan, tableur ou CSV) se glisse directement dans l’opération ou dans l’onglet d’un partenaire ; chaque échantillon d’un bulletin à plusieurs échantillons est reporté sur son moût (n° de lot, compartiment, mêmes nombres), avec une affectation guidée en cas de doute
+- Onglet Analyses : lecture des rapports d’analyses à plusieurs échantillons (n° d’échantillon du laboratoire et référence du client, en-têtes de colonnes sur plusieurs lignes, valeurs suivies de leur incertitude) et des exports de laboratoire en tableur à une ligne par résultat ; l’IA distingue aussi chaque échantillon
+- Tables d’épalement : les pages d’une même cuve lues séparément sont réunies en une seule table (hauteurs à la suite, même certificat, volumes dans le prolongement) ; deux tables peuvent aussi être fusionnées à la main, à l’import ou depuis la fiche du barème (Paramètres › 📏 Barèmes de jaugeage), l’autre étant archivée
+
 ## 0.36.0-alpha.1 — 26/11/2026
 
 - Intrants › Stocks & arrivages : régularisation manuelle du stock d’un lot fournisseur — inventaire (quantité comptée), casse, perte, péremption, écart, échantillon, retour, avec motif et notes — tracée dans le nouvel historique des mouvements (réceptions, utilisations, régularisations, solde)

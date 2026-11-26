@@ -4,7 +4,10 @@
                    points: [[cm, litres], …] triés par hauteur croissante,
                    meta: { organisme, certificat, date, validite, constructeur, numeroSerie, forme, materiau, capacite (L), hauteurTotale (cm),
                            volumeDebordement, volumeNominal, volumeMinimal (L), creuxNominal, creuxMinimal (cm), fichier, pages },
-                   corrections: [{ h, lu, v, mode: 'chiffre' | 'interpole' | 'douteux' | 'manuel' }], controle, archive, docId, creeLe, modifLe }]
+                   corrections: [{ h, lu, v, mode: 'chiffre' | 'interpole' | 'douteux' | 'manuel' }], controle, archive, docId, creeLe, modifLe,
+                   fusions: [{ id, nom, plage, le }] (tables réunies à celle-ci), fusionneDans (id : table réunie à une autre, archivée) — 0.37.0-alpha.1 }]
+   0.37.0-alpha.1 : pages d'une même cuve lues séparément réunies en une seule table à l'import (baremeGroupesContinus) ; fusion manuelle
+   de deux tables (baremeFusionApercu, baremeFusionner, baremesListeFusion).
    Unités internes : centimètres et litres (affichage : cm et hL). Entre deux lignes du barème : interpolation linéaire.
    Toutes les versions précédentes conservent cette collection telle quelle (collection inconnue = gardée). */
 const BAREME_FORMAT = 'oenotrack-baremes';
@@ -119,6 +122,50 @@ function baremeSave(db, s, id) {
 function baremeLier(db, id, contId) { const b = (db.baremes || []).find((x) => x.id === id); if (!b) return fail('Barème introuvable.'); if (contId && !db.contenants.some((c) => c.id === contId)) return fail('Contenant introuvable.'); b.cible = 'contenant'; b.contenantId = contId || ''; b.archive = false; b.modifLe = new Date().toISOString(); (db.baremes || []).forEach((x) => { if (x.id !== id && contId && !x.archive && x.cible !== 'citerne' && x.contenantId === contId) x.archive = true; }); return okr(); }
 function baremeDelete(db, id) { const b = (db.baremes || []).find((x) => x.id === id); if (!b) return fail('Barème introuvable.'); db.baremes = db.baremes.filter((x) => x.id !== id); return okr({ docId: b.docId || null }); }
 function baremeArchiver(db, id, archive = true) { const b = (db.baremes || []).find((x) => x.id === id); if (!b) return fail('Barème introuvable.'); b.archive = !!archive; b.modifLe = new Date().toISOString(); return okr(); }
+// ---------- fusion de deux tables de jaugeage en une seule (0.37.0-alpha.1) ----------
+// a garde ses valeurs aux hauteurs communes ; b complète les hauteurs que a n'a pas. → aperçu sans rien modifier
+function baremeFusionApercu(a, b) {
+  if (!a || !b) return { refus: 'Barème introuvable.' };
+  if ((a.cible === 'citerne') !== (b.cible === 'citerne')) return { refus: 'Un barème de citerne ne se fusionne qu’avec un compartiment de citerne.' };
+  if (a.cible === 'citerne' && immatNorm(a.immat) !== immatNorm(b.immat)) return { refus: 'Ces compartiments n’appartiennent pas à la même citerne.' };
+  const A = baremePts(a), B = baremePts(b); if (A.length < 2 || B.length < 2) return { refus: 'Chaque barème doit avoir au moins deux lignes.' };
+  const cle = (h) => (Math.round(h * 1000) / 1000).toFixed(3); const mA = new Map(A.map((p) => [cle(p[0]), p[1]]));
+  const ajout = B.filter((p) => !mA.has(cle(p[0]))); const communs = B.filter((p) => mA.has(cle(p[0])));
+  const conflits = communs.filter((p) => { const v = mA.get(cle(p[0])); return Math.abs(v - p[1]) > Math.max(1, Math.abs(v) * 0.005); }).map((p) => ({ h: p[0], va: mA.get(cle(p[0])), vb: p[1] }));
+  const points = baremeNettoyer({ points: [...A, ...ajout] }); const fus = { ...a, points };
+  const [x0, x1] = [A[0][0], A[A.length - 1][0]]; const [y0, y1] = [B[0][0], B[B.length - 1][0]];
+  const pas = mediane(points.slice(1).map((p, k) => p[0] - points[k][0]).filter((x) => x > 0)) || 1; const ecart = y0 > x1 ? y0 - x1 : x0 > y1 ? x0 - y1 : 0; const trou = ecart > pas * 1.5 ? ecart : 0; // tables à la suite : pas de trou
+  const s = baremeSens(fus); const P = baremePts(fus); const e = baremeExtremum(P, s); let inv = 0; for (let k = 1; k < P.length; k += 1) if ((s > 0 ? k <= e : k - 1 >= e) && (P[k][1] - P[k - 1][1]) * s < 0) inv += 1;
+  const alertes = [];
+  if ((a.mesure === 'creux') !== (b.mesure === 'creux')) alertes.push('Les deux barèmes ne mesurent pas la même chose (hauteur de liquide / creux) : vérifiez avant de fusionner.');
+  if (trou) alertes.push(`Trou de ${fmt(trou, trou % 1 ? 1 : 0)} cm entre les deux tableaux : les volumes y seront calculés par interpolation.`);
+  if (conflits.length) alertes.push(`${conflits.length} hauteur(s) en commun avec des volumes différents : les valeurs du premier barème sont gardées.`);
+  if (inv) alertes.push(`${inv} volume(s) en sens inverse après la fusion : vérifiez le tableau.`);
+  return { points, ajout: ajout.length, communs: communs.length, conflits, trou, alertes, plage: baremePlage(fus) };
+}
+// fusion enregistrée : a reçoit les lignes de b (contenant, document et renseignements manquants compris) ; b est archivé, jamais supprimé
+function baremeFusionner(db, idA, idB) {
+  const L = db.baremes || []; const a = L.find((x) => x.id === idA); const b = L.find((x) => x.id === idB);
+  if (!a || !b) return fail('Barème introuvable.'); if (a.id === b.id) return fail('Choisissez deux barèmes différents.');
+  const ap = baremeFusionApercu(a, b); if (ap.refus) return fail(ap.refus);
+  const garde = new Set(ap.points.map((p) => (Math.round(p[0] * 1000) / 1000).toFixed(3))); const deA = new Set(baremePts(a).map((p) => (Math.round(p[0] * 1000) / 1000).toFixed(3)));
+  a.points = ap.points; a.corrections = [...(a.corrections || []), ...(b.corrections || []).filter((c) => { const k = (Math.round(num(c.h) * 1000) / 1000).toFixed(3); return garde.has(k) && !deA.has(k); })];
+  const ma = { ...(a.meta || {}) }; Object.keys(b.meta || {}).forEach((k) => { if (k !== 'pages' && (ma[k] == null || ma[k] === '')) ma[k] = b.meta[k]; });
+  if ((b.meta || {}).pages && (!ma.fichier || ma.fichier === b.meta.fichier)) ma.pages = uniq([...(ma.pages || []), ...b.meta.pages]).sort((x, y) => x - y);
+  a.meta = ma; if (!a.docId && b.docId) a.docId = b.docId; if (a.cible !== 'citerne' && !a.contenantId && b.contenantId) a.contenantId = b.contenantId;
+  if (b.fiabilite === 'faible' || (b.fiabilite === 'moyenne' && a.fiabilite === 'bonne')) a.fiabilite = b.fiabilite;
+  const le = new Date().toISOString(); a.fusions = [...(Array.isArray(a.fusions) ? a.fusions : []), { id: b.id, nom: b.nom || '', plage: baremePlage(b), le }]; a.archive = false; a.modifLe = le;
+  b.archive = true; b.fusionneDans = a.id; b.modifLe = le;
+  return okr({ id: a.id, ajout: ap.ajout, conflits: ap.conflits.length });
+}
+// fusion dans une liste lue (import, avant enregistrement) : le tableau j est réuni au tableau i → nouvelle liste
+function baremesListeFusion(L, i, j) {
+  const a = L[i], b = L[j]; const ap = baremeFusionApercu(a, b); if (ap.refus) return null;
+  const m = { ...(a.meta || {}) }; Object.keys(b.meta || {}).forEach((k) => { if (k !== 'pages' && (m[k] == null || m[k] === '')) m[k] = b.meta[k]; }); m.pages = uniq([...((a.meta || {}).pages || []), ...((b.meta || {}).pages || [])]).sort((x, y) => x - y);
+  const garde = new Set(baremePts(a).map((p) => (Math.round(p[0] * 1000) / 1000).toFixed(3)));
+  const c = { ...a, points: ap.points, meta: m, corrections: [...(a.corrections || []), ...(b.corrections || []).filter((x) => !garde.has((Math.round(num(x.h) * 1000) / 1000).toFixed(3)))], fiabilite: [a.fiabilite, b.fiabilite].includes('faible') ? 'faible' : [a.fiabilite, b.fiabilite].includes('moyenne') ? 'moyenne' : a.fiabilite };
+  return L.map((x, k) => (k === i ? c : x)).filter((x, k) => k !== j);
+}
 
 /* ---------- lecture des cahiers d'épalement ----------
    Une page = { n, w, h, items: [{ s, x, y, w, h }] } : texte positionné (x bord gauche, y ligne de base, origine en haut à gauche),
@@ -194,6 +241,8 @@ function jaugeMeta(texte) {
   const im = /immatriculation[^\n]{0,60}?\b([a-z]{2})\s*-?\s*(\d{3})\s*-?\s*([a-z]{2})\b/.exec(F) || /\b([a-z]{2})-(\d{3})-([a-z]{2})\b/.exec(F);
   meta.immat = im ? `${im[1]}-${im[2]}-${im[3]}`.toUpperCase() : '';
   meta.certificat = pris(/certificat de jaugeage\s*(?:n\s*(?:umero|°|o|\*|")?\.?\s*)?:?\s*([a-z0-9][a-z0-9.\-/]{5,})/, 1) || '';
+  // « N° R . I3 . 18 . 00151 » (scan : espaces autour des points) → R.I3.18.00151 (0.37.0-alpha.1)
+  if (!meta.certificat || meta.certificat.length < 6) meta.certificat = pris(/certificat de jaugeage\s*n\s*[°o"*]?\s*:?\s*([a-z0-9]{1,6}(?:\s{0,2}[.\-/]\s{0,2}[a-z0-9]{1,8}){2,6})/, 1, (v) => v.replace(/\s+/g, '').toUpperCase()) || meta.certificat;
   meta.date = pris(/(?:date de la\s*verification|date)\s*:?\s*(\d{1,2}[/.]\d{1,2}[/.]\d{4})/, 1, dateIso) || null;
   meta.validite = pris(/limite de\s*validite\s*:?\s*(\d{1,2}[/.]\d{1,2}[/.]\d{4})/, 1, dateIso) || null;
   meta.constructeur = pris(/constructeur\s*:?\s*([^\n]+)/, 1, champ) || '';
@@ -204,6 +253,9 @@ function jaugeMeta(texte) {
   const vol = (re) => { const m = re.exec(F); if (!m) return undefined; const n = nombreJauge(m[1]); if (!Number.isFinite(n)) return undefined; const u = m[2] && /^l/.test(m[2]) ? 1 : m[2] === 'hl' ? 100 : n < 100 ? 1000 : 1; return Math.round(n * u * 1000) / 1000; };
   const lon = (re) => { const m = re.exec(F); if (!m) return undefined; const n = nombreJauge(m[1]); if (!Number.isFinite(n)) return undefined; return Math.round(n * (m[2] === 'mm' ? 0.1 : m[2] === 'cm' ? 1 : 100) * 100) / 100; };
   meta.hauteurTotale = lon(/hauteur\s*totale\s*(?:temoin)?\s*:?\s*(\d[\d.,]*)\s*(mm|cm|m)/);
+  // plage de la page (« Hauteurs de 1,600 m à 3,190 m ») et volume total du réservoir : relient les pages d'une même table (0.37.0-alpha.1)
+  { const m = /hauteurs?\s*de\s*(\d[\d.,]*)\s*(mm|cm|m)\s*a\s*(\d[\d.,]*)\s*(mm|cm|m)\b/.exec(F); if (m) { const k = (u) => (u === 'mm' ? 0.1 : u === 'cm' ? 1 : 100); const a = nombreJauge(m[1]), b = nombreJauge(m[3]); if (Number.isFinite(a) && Number.isFinite(b) && b > a) { meta.plageMin = Math.round(a * k(m[2]) * 100) / 100; meta.plageMax = Math.round(b * k(m[4]) * 100) / 100; } } }
+  meta.volumeTotal = vol(/volume\s*total\s*:?\s*(\d[\d.,]*)\s*(m3|m|l|hl)?/);
   meta.volumeDebordement = vol(/volume\s*total\s*au\s*debordement\s*:?\s*(\d[\d.,]*)\s*(m3|m|l|hl)?/);
   meta.volumeNominal = vol(/(?<!au\s{0,3})volume\s*no\w{0,2}in\w{1,2}l\s*:?\s*(\d[\d.,]*)\s*(m3|m|l|hl)?/);
   meta.volumeMinimal = vol(/(?<!au\s{0,3})volume\s*min\w{1,3}l\s*:?\s*(\d[\d.,]*)\s*(m3|m|l|hl)?/);
@@ -211,8 +263,9 @@ function jaugeMeta(texte) {
   meta.creuxMinimal = lon(/creux\s*corres?p\w*\s*au\s*volume\s*minimal\s*:?\s*(\d[\d.,]*)\s*(mm|cm|m)/);
   // organisme : première ligne de l'en-tête (« … PESAGE METROLOGIE », « JCR Maintenance »…)
   const lignes = T.split('\n').map((x) => x.trim()).filter(Boolean);
-  const org = lignes.slice(0, 4).find((l) => /pesage|metrologie|jaugeage|maintenance|verification/i.test(plier(l)) && !/^(organisme de verification|annexe|certificat)/i.test(plier(l)));
-  const org2 = lignes.slice(0, 4).find((l) => /maintenance|metrologie|pesage/i.test(plier(l)) && !/^(annexe|certificat)/i.test(plier(l)));
+  const debut = (l) => plier(l).replace(/^[^a-z0-9]+/, ''); // « ' . ANNEXE AU CERTIFICAT… » (scan) : pas un organisme
+  const org = lignes.slice(0, 4).find((l) => /pesage|metrologie|jaugeage|maintenance|verification/i.test(plier(l)) && !/^(organisme de verification|annexe|certificat)/i.test(debut(l)));
+  const org2 = lignes.slice(0, 4).find((l) => /maintenance|metrologie|pesage/i.test(plier(l)) && !/^(annexe|certificat)/i.test(debut(l)));
   const orgL = (org2 || org || '').replace(/\s+\d+\s*[I|/]?\s*\d+\s*$/, ''); const orgP = orgL.split(/\s{2,}/).find((x) => /pesage|metrologie|maintenance|jaugeage|verification/i.test(plier(x)));
   meta.organisme = champ(orgP || orgL) || '';
   meta.creux = /mesures? par le creux|\bcreux\b/.test(F) && /bareme/.test(F);
@@ -306,7 +359,8 @@ function jaugeTableau(page) {
 // axe régulier (hauteurs de 1 cm en 1 cm, volumes de 0,5 hL en 0,5 hL…) : valeurs mal lues recalculées depuis la position
 function jaugeAxe(rangs, paires, ocr = true) {
   const val = rangs.filter((r) => r.ax && Number.isFinite(r.ax.n));
-  if (!ocr && val.length === rangs.length) { rangs.forEach((r) => { r.axe = r.ax.n; }); return { regulier: false, dec: modeDe(val.map((r) => decimalesDe(r.ax.s)), 1).v || 0, res: 1, exact: true }; }
+  // texte exact (PDF d'un logiciel) : résolution d'après les décimales (hauteurs en mètres « 0,010 » : 0,001), sinon les lignes se confondaient (0.37.0-alpha.1)
+  if (!ocr && val.length === rangs.length) { rangs.forEach((r) => { r.axe = r.ax.n; }); const d0 = modeDe(val.map((r) => decimalesDe(r.ax.s)), 1).v || 0; return { regulier: false, dec: d0, res: Math.pow(10, -d0), exact: true }; }
   const dec = modeDe(val.map((r) => decimalesDe(r.ax.s)), 1).v || 0; const res = Math.pow(10, -dec);
   const diffs = []; for (let p = 0; p < paires; p += 1) { const L = val.filter((r) => r.paire === p); for (let i = 1; i < L.length; i += 1) diffs.push(L[i].ax.n - L[i - 1].ax.n); }
   const md = modeDe(diffs.filter((d) => d > 0), res); const step = md.v; if (!step || md.n < Math.max(3, diffs.length * 0.35)) return { regulier: false, dec, res };
@@ -436,6 +490,20 @@ function jaugeAnalyser(pages, opts = {}) {
     L.forEach((t) => { const h0 = t.points[0][0], h1 = t.points[t.points.length - 1][0]; const rec = gardes.find((x) => { const x0 = x.points[0][0], x1 = x.points[x.points.length - 1][0]; return Math.min(h1, x1) - Math.max(h0, x0) > Math.min(h1 - h0, x1 - x0) * 0.3; }); if (rec) journal.push({ page: t.page, msg: 'tableau en double ou illisible : ignoré' }); else gardes.push(t); });
     g[k] = gardes.sort((a, b) => a.page - b.page);
   }); });
+  // tables continues d'un même réservoir lues séparément (nom lu sur une seule page, page mal reconnue…) : réunies en une seule (0.37.0-alpha.1)
+  if (!citerne) {
+    const tri = () => groupes.sort((a, b) => ((baremeGroupePts(a)[0] || [0])[0]) - ((baremeGroupePts(b)[0] || [0])[0]));
+    let fait = true; tri();
+    while (fait) {
+      fait = false;
+      for (let i = 0; i < groupes.length && !fait; i += 1) for (let j = i + 1; j < groupes.length && !fait; j += 1) {
+        if (!baremeGroupesContinus(groupes[i], groupes[j])) continue;
+        const a = groupes[i]; const b = groupes[j]; a.cent.push(...b.cent); a.vol.push(...b.vol); a.pages.push(...b.pages);
+        Object.keys(b.meta).forEach((k) => { if (a.meta[k] == null || a.meta[k] === '') a.meta[k] = b.meta[k]; }); Object.keys(b.tous || {}).forEach((k) => { (a.tous = a.tous || {})[k] = [...(a.tous[k] || []), ...b.tous[k]]; });
+        journal.push({ page: Math.min(...b.pages), msg: 'suite du même tableau : réunie' }); groupes.splice(j, 1); fait = true; tri();
+      }
+    }
+  }
   const baremes = groupes.map((g) => {
     const src = g.cent.length ? g.cent : g.vol; const pts = []; const corr = []; src.forEach((t) => { pts.push(...t.points); corr.push(...t.corrections); });
     const b = { nom: '', cible: citerne ? 'citerne' : 'contenant', immat: citerne ? docImmat : '', compartiment: citerne ? String(g.meta.compartiment || '') : '', mesure: src.some((t) => t.mesure === 'creux') || citerne ? 'creux' : 'hauteur', points: baremeNettoyer({ points: pts }), corrections: corr, meta: {} };
@@ -464,6 +532,26 @@ function jaugeAnalyser(pages, opts = {}) {
     return b;
   });
   return { baremes, tableaux: tabs.filter((t) => !t.vide).map((t) => ({ page: t.page, kind: t.kind, lignes: t.points.length, corrections: t.corrections.length, uH: t.uH, uV: t.uV })), journal, citerne, immat: docImmat || '' };
+}
+// points d'un groupe de pages (table centimétrique, sinon volumétrique), triés par hauteur
+const baremeGroupePts = (g) => (g.cent.length ? g.cent : g.vol).flatMap((t) => t.points || []).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])).sort((a, b) => a[0] - b[0]);
+// deux groupes de pages forment-ils une seule table ? mêmes nom, certificat et volume total (s'ils sont lus), hauteurs à la suite (sans
+// recouvrement, sans trou de plus de quelques lignes) et volumes dans le prolongement l'un de l'autre (0.37.0-alpha.1)
+function baremeGroupesContinus(a, b) {
+  if (!!a.cent.length !== !!b.cent.length) return false; const ma = a.meta || {}; const mb = b.meta || {};
+  if (ma.nom && mb.nom && norm(ma.nom).replace(/[^a-z0-9]/g, '') !== norm(mb.nom).replace(/[^a-z0-9]/g, '')) return false;
+  if (ma.certificat && mb.certificat && levenshtein(immatNorm(ma.certificat), immatNorm(mb.certificat)) > 2) return false; // lecture de scan : un ou deux caractères mal lus
+  if (ma.volumeTotal && mb.volumeTotal && Math.abs(ma.volumeTotal - mb.volumeTotal) > Math.max(ma.volumeTotal, mb.volumeTotal) * 0.01) return false;
+  return baremePtsContinus(baremeGroupePts(a), baremeGroupePts(b));
+}
+function baremePtsContinus(A, B) {
+  if (A.length < 2 || B.length < 2) return false;
+  const q = (P, f) => P[Math.min(P.length - 1, Math.max(0, Math.round((P.length - 1) * f)))][0];
+  if (q(B, 0.1) <= q(A, 0.9)) return false; // tables qui se recouvrent : deux réservoirs
+  const pas = mediane(A.slice(1).map((p, k) => p[0] - A[k][0]).filter((x) => x > 0)) || 1; const fin = A[A.length - 1];
+  const b0 = B.find((p) => p[0] > fin[0]) || B[0]; if (b0[0] - fin[0] > Math.max(pas * 6, 25)) return false; // trou de plus de quelques lignes
+  const a0 = A[Math.max(0, A.length - 8)]; const pente = (fin[1] - a0[1]) / ((fin[0] - a0[0]) || 1); const attendu = fin[1] + pente * (b0[0] - fin[0]);
+  return Math.abs(b0[1] - attendu) <= Math.max(Math.abs(attendu) * 0.06, Math.abs(pente) * pas * 3);
 }
 const immatDeNom = (s) => { const m = /([A-Z]{2})[-_ ]?(\d{3})[-_ ]?([A-Z]{2})/i.exec(String(s || '')); return m ? `${m[1]}-${m[2]}-${m[3]}`.toUpperCase() : ''; };
 

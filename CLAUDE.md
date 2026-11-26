@@ -40,6 +40,11 @@ Mémoire du projet pour Claude et pour le vigneron. Œnotrack sert à la traçab
   - documents d'un partenaire : `doc.partId` (cible inchangée `{ type: 'op' }`) ; `DocsPanel` / `DocsAttente` acceptent `filtre`, `extra`, `inputLabel`, `catDefaut` ; bulletin déposé dans un onglet → `bulletinPourMouts` (`16f`) ;
   - analyses imposées : `moutModeleImpose` (« Moût · Débourbage », `m_mout`), plus de choix de modèle ;
   - volume à l'épalement : `jaugeEntreeCuve` (`15-baremes`), composant `HauteurCuve` (`57-jauge`), mesures gardées dans `op.jaugesCuves = [{ cle, contenantId, mesure, apres, volAvant, volL, baremeId }]`.
+- **Bulletins d'analyses** (`16f-bulletins.js`, lecture commune `bulletinLireAnalyser` dans `64b-bulletins.jsx` : script puis IA si configurée) :
+  - formats : liste, tableau (une colonne par échantillon), export en lignes, **rapport à plusieurs échantillons** (0.37, `bulletinColonnes` : une ligne par échantillon, en-tête de colonnes sur plusieurs lignes, lu d'après la position des mots et des cases du PDF / scan — `l.y`, `l.mots`, `l.elems` posés par `bulletinLignesDePages`), **format long** (0.37, `bulletinFormatLong` : une ligne par résultat, colonnes « Paramètre » / « Résultat ») ;
+  - valeurs « x / incertitude » et « x ± y » lues par `bulletinNombre` ; chaque échantillon garde son n° de laboratoire `e.numero` (aussi demandé à l'IA : `numero_echantillon`, rapprochement `bulletinFusion` par ce n° d'abord) ;
+  - entrée de moûts : bulletin déposé dans l'opération (tous les moûts) ou dans l'onglet d'un partenaire ; `bulletinPourMouts` note le rapprochement (`sur` : `lot`, `compartiment`, `chiffres`, `unique`, `ordre`) ; `bulletinAffectationDouteuse` → affectation guidée `BulletinMoutsGuide` (`52b-mout`) ; document joint au partenaire, ou à l'entrée (`partId` vide) s'il vise plusieurs partenaires.
+- **Barèmes de jaugeage** (`15-baremes.js`, `57-jauge.jsx`) : à l'import, les pages d'une même cuve lues séparément sont réunies (`baremeGroupesContinus` : nom, certificat — `jaugeMeta` lit « N° R . X1 . 26 . 00042 » —, volume total, hauteurs à la suite, volumes dans le prolongement) ; fusion manuelle (`baremeFusionApercu`, `baremeFusionner` : `a.fusions = [{ id, nom, plage, le }]`, l'autre archivé avec `fusionneDans` ; `baremesListeFusion` avant enregistrement, dans l'import et dans la fiche d'un contenant).
 - **Intrants et stocks** (0.36, `16p-intrants-stocks.js`, `65e-intrants-stocks.jsx`) :
   - régularisations manuelles : `db.regulStocks = [{ id, arrivageId, produitId, date, qty (signée), motif (REGUL_MOTIFS : inventaire, casse, perte, peremption, ecart, echantillon, retour, autre), compte?, restantAvant, notes, par, le }]` ; le rejeu les ajoute au restant du lot (`R.arrRegul`, `arrivalRest`) ; `intrantMouvements` = historique (réceptions, utilisations, régularisations, solde) ; « Autre » exige une note, les motifs de sortie sont toujours retirés ;
   - allergènes : `p.allergenesListe` (ids d'`ALLERGENES`, liste « à vérifier »), `p.allergenesAucun` ; `p.allergenes` devient « précisions » ; `allergenesTexte(p)` alimente la traçabilité et les fiches ;
@@ -66,12 +71,12 @@ dist/       sortie (non versionnée)
 | Socle, listes, constantes, `APP_VERSION`, `CHANGELOG` | `10-core` | `40-ui` (composants), `41-forms` |
 | Crus et échelle des crus, vin (stades, couleurs, échelles) | `11-crus`, `12-vin` | `68c-vin-listes` |
 | Catalogue des opérations, formulaires | `13-operations`, `14-formulaires` | `51-opspec`, `52-opform`, `62-ops`, `68e-operations` |
-| Barèmes de jaugeage (épalement) | `15-baremes` | `57-jauge` |
+| Barèmes de jaugeage (épalement, tables réunies et fusionnées) | `15-baremes` | `57-jauge` |
 | Pressoir (pesées, marcs, carnet), profil régional | `19-pressoir`, `16o-profils` | `60b-pressoir`, `68o-profil` |
 | Rejeu, assemblages, tirage, dégorgement | `20-engine` | `60-cuverie`, `61-lotsheet`, `63-tirage` |
 | Intrants, catalogues, plafonds, SO₂, cumuls | `16b`, `16k`, `16l` | `65*`, `61c-cumul` |
 | Régularisations de stock, allergènes, revendications Oui / Non, fiches récapitulatives | `16p-intrants-stocks` | `65e-intrants-stocks` |
-| Analyses et bulletins | `16f-bulletins` | `64*` |
+| Analyses et bulletins (rapports à plusieurs échantillons, format long, affectation aux moûts) | `16f-bulletins` | `64*`, `52b-mout` (`BulletinMoutsGuide`) |
 | Hygiène (HACCP), équipements | `16`, `16c`, `16h`, `16i` | `66*` |
 | Produits de maintenance (catalogue, stock, FT / FDS) | `16q-produits-maintenance` | `66f-produits-maintenance` |
 | Cave au quotidien (fiches, fermentation, QR) | `16j`, `10b-qr` | `60c`, `60d`, `60e` |

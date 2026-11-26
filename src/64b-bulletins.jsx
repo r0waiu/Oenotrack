@@ -1,4 +1,4 @@
-/* ============ ANALYSES › IMPORT DES BULLETINS D'ANALYSES (0.27.0-alpha.1) ============
+/* ============ ANALYSES › IMPORT DES BULLETINS D'ANALYSES (0.27.0-alpha.1 ; rapports multi-échantillons 0.37.0-alpha.1) ============
    Dépôt d'un ou plusieurs bulletins (PDF, scan, photo, tableur, CSV, texte) : vérifiés par la garde des importations, lus (pdf.js,
    reconnaissance de caractères, tableur), reconnus par le script (16f-bulletins.js), complétés par l'IA si elle est configurée
    (réglage « Lire les bulletins d'analyses avec l'IA ») ; puis vérification : lot, contenant, date, modèle, valeurs cochées, nouveaux
@@ -30,22 +30,29 @@ async function bulletinLireFichier(file, { onEtape } = {}) {
   }
   const texte = await lectureFichier(file); const lignes = bulletinLignesDeTexte(String(texte || '').slice(0, 2e6)); return { lignes, texte: lignes.map((l) => l.texte).join('\n'), ocr: false };
 }
+// lecture complète d'un bulletin (0.37.0-alpha.1, commune à l'onglet Analyses et à l'entrée de moûts) : script, puis l'IA si elle est configurée
+// → { res, ocr, ia } ; candidats : lots et contenants à reconnaître (aucun pour les moûts reçus, rapprochés par leur n° de lot)
+async function bulletinLireAnalyser(db, R, f, { onEtape, candidats } = {}) {
+  const et = (t) => { if (onEtape) onEtape(t); };
+  const L = await bulletinLireFichier(f, { onEtape: et }); const cands = candidats || bulletinCandidats(db, R);
+  let res = bulletinAnalyser(db, R, L.lignes, { candidats: cands }); let ia = null; const c = iaActive();
+  if (c.pret && c.bulletins !== false && L.texte.trim()) {
+    et(`${c.nom} complète la lecture…`);
+    try { const p = iaPromptBulletin(db, L.texte, L.ocr); const r = await iaDemander(c, p); const o = iaJson(r.texte); const x = iaLireBulletin(db, o); if (x) { res = bulletinFusion(db, R, res, x, cands); ia = { ok: true, n: x.echantillons.length }; } else ia = { ok: false, msg: 'réponse illisible' }; }
+    catch (e) { ia = { ok: false, msg: (e && e.message) || 'échec' }; }
+  }
+  return { res, ocr: L.ocr, ia };
+}
 const bulValTexte = (v, dec) => { const k = Math.pow(10, Math.min(5, (dec || 0) + 1)); return String(Math.round(v * k) / k).replace('.', ','); };
 
 function BulletinsImport() {
   const { db, R, camp } = useApp(); const [lus, setLus] = useState(null); const [busy, setBusy] = useState('');
   const lire = async (files) => {
-    const out = []; const cands = bulletinCandidats(db, R); const c = iaActive();
+    const out = []; const cands = bulletinCandidats(db, R);
     for (const f of files) {
       try {
-        setBusy(`« ${f.name} » : lecture…`); const L = await bulletinLireFichier(f, { onEtape: (t) => setBusy(`« ${f.name} » : ${t}`) });
-        let res = bulletinAnalyser(db, R, L.lignes, { candidats: cands }); let ia = null;
-        if (c.pret && c.bulletins !== false && L.texte.trim()) {
-          setBusy(`« ${f.name} » : ${c.nom} complète la lecture…`);
-          try { const p = iaPromptBulletin(db, L.texte, L.ocr); const r = await iaDemander(c, p); const o = iaJson(r.texte); const x = iaLireBulletin(db, o); if (x) { res = bulletinFusion(db, R, res, x, cands); ia = { ok: true, n: x.echantillons.length }; } else ia = { ok: false, msg: 'réponse illisible' }; }
-          catch (e) { ia = { ok: false, msg: (e && e.message) || 'échec' }; }
-        }
-        out.push({ file: f, res, ocr: L.ocr, ia });
+        setBusy(`« ${f.name} » : lecture…`); const x = await bulletinLireAnalyser(db, R, f, { candidats: cands, onEtape: (t) => setBusy(`« ${f.name} » : ${t}`) });
+        out.push({ file: f, ...x });
       } catch (e) { out.push({ file: f, erreur: lectureEchec(f, e) }); }
     }
     setBusy(''); setLus(out);
@@ -64,7 +71,7 @@ function BulletinRevue({ lus, onClose }) {
   const par = (id) => (db.analysesParams || []).find((p) => p.id === id) || { nom: id, unite: '', dec: 2 };
   const [rows, setRows] = useState(() => lus.flatMap((x, fi) => (x.res ? x.res.echantillons.map((e, ei) => {
     const r = bulletinRattacher(db, getRd, e, x.res.date); const ids = Object.keys(e.valeurs);
-    return { k: `${fi}-${ei}`, fi, ref: e.ref, ia: e.src === 'ia', on: !!r.lotId, date: r.date, lotId: r.lotId, contenantId: r.contenantId, doute: r.doute, modeleId: bulletinModele(db, ids),
+    return { k: `${fi}-${ei}`, fi, ref: e.ref, numero: e.numero || '', ia: e.src === 'ia', on: !!r.lotId, date: r.date, lotId: r.lotId, contenantId: r.contenantId, doute: r.doute, modeleId: bulletinModele(db, ids),
       vals: Object.fromEntries(ids.map((k) => [k, { v: bulValTexte(e.valeurs[k].v, par(k).dec), op: e.valeurs[k].op || '', on: true, src: e.valeurs[k].src, ia: e.valeurs[k].ia, label: e.valeurs[k].label }])),
       nouveaux: Object.fromEntries(Object.values(e.nouveaux).map((n) => [n.cle, { ...n, v: bulValTexte(n.v, n.dec), on: true }])) };
   }) : [])));
@@ -84,7 +91,7 @@ function BulletinRevue({ lus, onClose }) {
         const valeurs = {}; const notes = [];
         Object.keys(r.vals).forEach((k) => { const v = r.vals[k]; if (!v.on || !hasNum(v.v)) return; valeurs[k] = num(v.v); if (v.op) notes.push(`${par(k).nom} ${v.op} ${v.v}`); });
         Object.values(r.nouveaux).forEach((n) => { if (!n.on || !hasNum(n.v)) return; valeurs[`+${n.cle}`] = num(n.v); if (n.op) notes.push(`${n.nom} ${n.op} ${n.v}`); });
-        return { ref: r.ref, date: r.date, lotId: r.lotId, contenantId: r.contenantId, modeleId: r.modeleId, valeurs, ia: r.ia || Object.values(r.vals).some((v) => v.on && v.src === 'ia'), notes: [`Bulletin${entete ? ` (${entete})` : ''} — ${r.ref}`, ...notes].join(' ; ') };
+        return { ref: r.ref, date: r.date, lotId: r.lotId, contenantId: r.contenantId, modeleId: r.modeleId, valeurs, ia: r.ia || Object.values(r.vals).some((v) => v.on && v.src === 'ia'), notes: [`Bulletin${entete ? ` (${entete})` : ''} — ${r.ref}${r.numero && r.numero !== r.ref ? ` (échantillon ${r.numero})` : ''}`, ...notes].join(' ; ') };
       }) });
     }
     const n = sum(plans, (p) => p.analyses.length);
@@ -96,12 +103,12 @@ function BulletinRevue({ lus, onClose }) {
       <div className="space-y-4" data-bulletin-revue="">
         {lus.map((x, fi) => (
           <div key={fi} className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2"><b className="break-all">📄 {x.file.name}</b>{x.res && x.res.labo ? <Chip>{x.res.labo}</Chip> : null}{x.res && x.res.numero ? <Chip>{`n° ${x.res.numero}`}</Chip> : null}{x.ocr ? <Chip tone="info" title="Texte reconnu sur un scan ou une photo : vérifiez les chiffres">reconnaissance de caractères</Chip> : null}
+            <div className="flex flex-wrap items-center gap-2"><b className="break-all">📄 {x.file.name}</b>{x.res && x.res.labo ? <Chip>{x.res.labo}</Chip> : null}{x.res && x.res.numero ? <Chip>{`n° ${x.res.numero}`}</Chip> : null}{x.res && x.res.echantillons.length > 1 ? <Chip tone="info">{`${x.res.echantillons.length} échantillons`}</Chip> : null}{x.ocr ? <Chip tone="info" title="Texte reconnu sur un scan ou une photo : vérifiez les chiffres">reconnaissance de caractères</Chip> : null}
               {x.ia ? (x.ia.ok ? <Chip tone="ok">🤖 lecture complétée par l’IA</Chip> : <Chip tone="warn" title={x.ia.msg}>🤖 IA indisponible</Chip>) : null}</div>
             {x.erreur ? <Notice tone="bad">{x.erreur}</Notice> : !rows.some((r) => r.fi === fi) ? <Notice tone="warn"><div>Aucun résultat reconnu dans ce bulletin.</div>{iaActive().pret ? null : <div>Configurez l’assistant IA (Paramètres › 🤖 Assistant IA) pour compléter la lecture.</div>}</Notice> : null}
             {rows.filter((r) => r.fi === fi).map((r) => (
               <div key={r.k} className={cx('card space-y-2 p-3', !r.on && 'opacity-70')} data-bulletin-ech={r.ref}>
-                <div className="flex flex-wrap items-center gap-2"><Check checked={r.on} onChange={(v) => maj(r.k, { on: v })} label={<b>{r.ref}</b>} />{r.ia ? <Chip tone="info">🤖 trouvé par l’IA</Chip> : null}{r.doute ? <Chip tone="warn">{r.doute}</Chip> : null}</div>
+                <div className="flex flex-wrap items-center gap-2"><Check checked={r.on} onChange={(v) => maj(r.k, { on: v })} label={<b>{r.ref}</b>} />{r.numero && r.numero !== r.ref ? <Chip title="N° d’échantillon du laboratoire"><span translate="no">{`n° ${r.numero}`}</span></Chip> : null}{r.ia ? <Chip tone="info">🤖 trouvé par l’IA</Chip> : null}{r.doute ? <Chip tone="warn">{r.doute}</Chip> : null}</div>
                 <G n={4}><Field label="Date du prélèvement"><DI value={r.date} onChange={(v) => maj(r.k, { date: v })} /></Field>
                   <Field label="Lot analysé"><SI value={r.lotId} onChange={(v) => maj(r.k, (o) => { const Rd = getRd(o.date); const cs = uniq(Object.values(Rd.portions).filter((p) => p.lotId === v && p.vol > 0.0001).map((p) => p.contenantId)); return { lotId: v, on: !!v, doute: '', contenantId: cs.length === 1 ? cs[0] : o.contenantId }; })} placeholder="Lot…" options={lotOpts} aria-label={`Lot de ${r.ref}`} /></Field>
                   <Field label="Contenant prélevé"><SI value={r.contenantId} onChange={(v) => maj(r.k, { contenantId: v })} placeholder="Contenant (facultatif)" options={contOptions(db, true)} aria-label={`Contenant de ${r.ref}`} /></Field>

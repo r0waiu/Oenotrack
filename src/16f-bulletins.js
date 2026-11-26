@@ -7,16 +7,20 @@
      en liste (un bloc par échantillon), en tableau (une colonne par échantillon) ou en export de laboratoire (une ligne par échantillon) ;
    - la date de prélèvement (sinon de réception, d'analyse, d'édition), le laboratoire et le n° du bulletin.
    L'IA (si configurée, réglage « bulletins ») reçoit le texte du bulletin et la liste des paramètres de la cave ; elle complète ce que le
-   script n'a pas trouvé. Tout est vérifié par l'utilisateur avant l'enregistrement (onglet Analyses). */
+   script n'a pas trouvé. Tout est vérifié par l'utilisateur avant l'enregistrement (onglet Analyses).
+   0.37.0-alpha.1 : rapports à plusieurs échantillons (une ligne par échantillon, en-tête de colonnes sur plusieurs lignes, n° d'échantillon
+   du laboratoire et référence du client, valeurs « x / incertitude » : bulletinColonnes), exports en format long (bulletinFormatLong),
+   n° d'échantillon (e.numero) jusque dans l'IA ; entrée de moûts : rapprochement noté (e.sur) et affectation guidée (bulletinAffectationDouteuse). */
 const BULLETIN_CATALOGUE = [
-  { cle: 'tap', nom: 'TAP', unite: '% vol.', dec: 1, motifs: [/\btap\b/, /titre alcoometrique (?:volumique )?potentiel/, /alcool (?:probable|potentiel)/, /degre (?:probable|potentiel)/] },
+  { cle: 'tap', nom: 'TAP', unite: '% vol.', dec: 1, motifs: [/\btap\b/, /\btavn\b/, /titre alcoometrique (?:volumique )?(?:potentiel|naturel)/, /alcool (?:probable|potentiel)/, /degre (?:probable|potentiel)/] },
   { cle: 'tav', nom: 'TAV acquis', unite: '% vol.', dec: 2, motifs: [/\btava?\b/, /titre alcoometrique/, /alcool (?:acquis|reel)/, /degre alcoolique/, /^alcool\b/] },
-  { cle: 'sucres', nom: 'Sucres (glucose + fructose)', unite: 'g/L', dec: 1, motifs: [/glucose ?\+? ?fructose/, /sucres? (?:residuels?|reducteurs?|fermentescibles|totaux)/, /^sucres?\b/] },
-  { cle: 'av', nom: 'Acidité volatile', unite: 'g/L H₂SO₄', dec: 2, motifs: [/acidite volatile/, /^av\b/] },
+  { cle: 'sucres', nom: 'Sucres (glucose + fructose)', unite: 'g/L', dec: 1, motifs: [/glucose ?\+? ?fructose/, /sucres? ?(?:residuels?|reducteurs?|fermentescibles|totaux)/, /^sucres?\b/] },
+  { cle: 'saccharose', nom: 'Saccharose', unite: 'g/L', dec: 1, motifs: [/^saccharose\b/, /\bsucrose\b/] },
+  { cle: 'av', nom: 'Acidité volatile', unite: 'g/L H₂SO₄', dec: 2, motifs: [/acidite volatile/, /^av\b/, /^acide acetique\b/] },
   { cle: 'at', nom: 'AT', unite: 'g/L H₂SO₄', dec: 2, motifs: [/acidite (?:totale|titrable)/, /^at\b/] },
   { cle: 'ph', nom: 'pH', unite: '', dec: 2, motifs: [/^ph\b/, /\bph\b/] },
-  { cle: 'so2l', nom: 'SO₂ libre', unite: 'mg/L', dec: 0, motifs: [/so2 ?libre/, /(?:anhydride|dioxyde de) ?(?:soufre|sulfureux) libre/, /sulfureux libre/, /\bso2 ?l\b/] },
-  { cle: 'so2t', nom: 'SO₂ total', unite: 'mg/L', dec: 0, motifs: [/so2 ?total/, /(?:anhydride|dioxyde de) ?(?:soufre|sulfureux) total/, /sulfureux total/, /\bso2 ?t\b/] },
+  { cle: 'so2l', nom: 'SO₂ libre', unite: 'mg/L', dec: 0, motifs: [/so2 ?libre/, /^so2l\b/, /(?:anhydride|dioxyde de) ?(?:soufre|sulfureux) libre/, /sulfureux libre/, /\bso2 ?l\b/] },
+  { cle: 'so2t', nom: 'SO₂ total', unite: 'mg/L', dec: 0, motifs: [/so2 ?total/, /^so2t\b/, /(?:anhydride|dioxyde de) ?(?:soufre|sulfureux) total/, /sulfureux total/, /\bso2 ?t\b/] },
   { cle: 'azote', nom: 'Azote assimilable', unite: 'mg/L', dec: 0, motifs: [/azote (?:assimilable|facilement assimilable)/, /\bapa\b/, /\byan\b/] },
   { cle: 'malique', nom: 'Acide malique', unite: 'g/L', dec: 2, motifs: [/acide l? ?malique/, /^malique\b/] },
   { cle: 'lactique', nom: 'Acide lactique', unite: 'g/L', dec: 2, motifs: [/acide l? ?lactique/, /^lactique\b/] },
@@ -50,14 +54,15 @@ function bulletinParam(db, label) {
 // nombre écrit dans une case : « 3,45 », « < 0,1 », « 1 234,5 », « 0.99255 »
 function bulletinNombre(s0) {
   const s = String(s0 == null ? '' : s0).trim().replace(/[  ]/g, ' ');
-  const m = /^([<>≤≥]=?)?\s*([-+]?\d{1,7}(?: \d{3})*(?:[.,]\d+)?)(?:\s*[±]\s*\d+(?:[.,]\d+)?)?$/.exec(s); if (!m) return null;
+  // incertitude écrite après la valeur : « 3,25 ± 0,05 », « 3,25 / », « 12,06 / 0,13 » (rapports multi-échantillons, 0.37.0-alpha.1)
+  const m = /^([<>≤≥]=?)?\s*([-+]?\d{1,7}(?: \d{3})*(?:[.,]\d+)?)(?:\s*[±]\s*\d+(?:[.,]\d+)?|\s+\/(?:\s*\d+(?:[.,]\d+)?\s*%?)?)?$/.exec(s); if (!m) return null;
   const v = parseFloat(m[2].replace(/ /g, '').replace(',', '.')); if (!Number.isFinite(v)) return null;
   return { v, op: m[1] ? m[1].replace('≤', '<').replace('≥', '>').replace('=', '') : '' };
 }
 // valeur dans l'unité du paramètre de la cave (acidités, densité, sucres, SO₂)
 function bulletinConvertir(v, uniteTexte, unitePar, nomPar) {
   const u = bulNorm(uniteTexte); const up = bulNorm(unitePar);
-  if (/h2so4/.test(up)) { if (/meq/.test(u)) return v * 0.049; if (/tartrique|h2t\b/.test(u)) return v / 1.531; if (/acetique/.test(u)) return v * 0.8167; }
+  if (/h2so4/.test(up)) { if (/meq/.test(u)) return v * 0.049; if (/tartrique|h2t\b|\bth2\b/.test(u)) return v / 1.531; if (/acetique/.test(u)) return v * 0.8167; }
   if (/densite|masse volumique/.test(bulNorm(nomPar)) && v > 100 && v < 2000) return v / 1000;
   if (/^g l$/.test(up) && /\bmg l\b/.test(u)) return v / 1000;
   if (/^mg l$/.test(up) && /\bg l\b/.test(u) && !/\bmg l\b/.test(u) && v < 5) return v * 1000;
@@ -74,7 +79,9 @@ function bulletinLignesDePages(pages) {
       const cells = []; let cur = null;
       lg.mots.forEach((m) => { if (cur && m.x - cur.x2 <= hm * 1.2) { cur.s += ` ${m.s}`; cur.x2 = m.x + m.w; } else { cur = { s: m.s, x: m.x, x2: m.x + m.w }; cells.push(cur); } });
       cells.forEach((c) => { c.xc = (c.x + c.x2) / 2; });
-      if (cells.length) out.push({ cells, texte: cells.map((c) => c.s).join('   '), page: p.n || 1 });
+      // mots et éléments d'origine (une case d'en-tête du PDF) placés : colonnes des rapports à plusieurs échantillons (0.37.0-alpha.1)
+      const elems = (p.items || []).filter((it) => it && String(it.s == null ? '' : it.s).trim() && Math.abs(num(it.y) - lg.y) <= hm * 0.45).map((it) => ({ s: String(it.s).trim(), x: num(it.x), w: Math.max(1, num(it.w)), xc: num(it.x) + Math.max(1, num(it.w)) / 2 }));
+      if (cells.length) out.push({ cells, texte: cells.map((c) => c.s).join('   '), page: p.n || 1, y: lg.y, h: hm, mots: lg.mots.map((m) => ({ s: m.s, xc: m.x + m.w / 2 })), elems });
     });
   });
   return out;
@@ -123,9 +130,15 @@ function bulletinDates(texte) {
 }
 const bulletinDateRole = (avant) => { const a = bulNorm(avant); return /prel[e]?v|preleve/.test(a) ? 1 : /recu|recept|arrivee/.test(a) ? 2 : /analys|debut|fin d analyse/.test(a) ? 3 : /edit|rapport|bulletin|emis|imprime|date/.test(a) ? 4 : 5; };
 function bulletinDate(texte) { const D = bulletinDates(texte); if (!D.length) return ''; return D.map((d) => ({ ...d, r: bulletinDateRole(d.avant) })).sort((a, b) => a.r - b.r || a.i - b.i)[0].iso; }
+// laboratoires œnologiques courants (lecture du nom seulement ; tout autre laboratoire est reconnu par le mot « laboratoire »)
+const BUL_LABOS = /\b(?:sofralab|oenoalliance|œnoalliance|natoli|dubernet|oenofrance|œnofrance|oenolab|œnolab|excell|inovalys|eurofins|vinlab|oenoconseil|œnoconseil|laboratoire [a-z])/i;
 function bulletinEntete(texte) {
   const T = String(texte || ''); const L = T.split('\n').map((x) => x.trim()).filter(Boolean);
-  const labo = (L.find((x) => /laboratoire|labo\b|oenolog|œnolog|analyses? (?:oenolog|œnolog)/i.test(x) && x.length <= 90) || '').replace(/\s{2,}.*/, '').slice(0, 80);
+  // laboratoire : nom connu, sinon case citant un laboratoire (pas une phrase du rapport : « … autorisation du laboratoire. ») ; forme juridique retirée
+  const cases = L.slice(0, 40).flatMap((x) => x.split(/\s{2,}/)).map((x) => x.trim()).filter((x) => x.length >= 3 && x.length <= 90);
+  const phrase = (x) => /[.;]$/.test(x) || x.split(/\s+/).length > 9 || /^(?:par|analyste|oenologue|œnologue|laboratoire|valide|approuve)\b/i.test(norm(x).replace(/[^a-z ]/g, ''));
+  const lab0 = cases.find((x) => BUL_LABOS.test(x) && !phrase(x)) || cases.find((x) => /laboratoire|labo\b|oenolog|œnolog|analyses? (?:oenolog|œnolog)/i.test(x) && !phrase(x)) || '';
+  const labo = lab0.replace(/^(?:s\.?\s?a\.?\s?s\.?\s?u?\.?|s\.?\s?a\.?\s?r\.?\s?l\.?|e\.?u\.?r\.?l\.?|s\.?\s?a\.?|scop)\s+/i, '').slice(0, 80);
   const m = /(?:bulletin|rapport|certificat|dossier)(?:\s+d['’]analyses?)?\s*(?:n[°º]|no|num[ée]ro)\s*[:.]?\s*([A-Z0-9][A-Z0-9/._-]{2,30})/i.exec(T);
   return { labo, numero: m ? m[1] : '' };
 }
@@ -160,6 +173,73 @@ function bulletinValeursColonnes(db, cells, cols) {
   const unite = `${cells.slice(k + 1).filter((c) => !bulletinNombre(c.s)).map((c) => c.s).join(' ')} ${lab}`;
   return { ...P, label: lab, unite, valeurs: out };
 }
+/* ---------- rapport multi-échantillons (0.37.0-alpha.1) : une ligne par échantillon, une colonne par paramètre ----------
+   Libellé, méthode et unité de chaque paramètre empilés sur plusieurs lignes au-dessus de sa colonne ; en marge gauche, le n° d'échantillon
+   du laboratoire (« 26LAB000123 ») et la référence du client (« M1 5002 », « Cuve 12 »), avant, sur ou après la ligne des valeurs ;
+   valeurs suivies de leur incertitude (« 3,25 / », « 12,06 / 0,13 »). Lu d'après la position des mots (PDF, scans). */
+const BUL_NUM_ECH = /^(?=[a-z0-9\-/.]*\d{4})[a-z0-9][a-z0-9\-/.]{6,24}$/i; // n° d'échantillon du laboratoire : un seul mot, au moins 4 chiffres de suite
+const bulEstValeur = (c) => !!bulletinNombre(c.s) && !/^\d{1,2}[/.]\d{1,2}[/.]\d{2,4}$/.test(String(c.s).trim());
+const bulMotsDe = (el) => { const L = el.s.length || 1; const out = []; const re = /\S+/g; let m; while ((m = re.exec(el.s))) out.push({ s: m[0], xc: el.x + (el.w * (m.index + m[0].length / 2)) / L }); return out; };
+function bulletinColonnes(db, lignes, cands) {
+  const pos = (lignes || []).filter((l) => Array.isArray(l.mots) && Number.isFinite(l.y)); if (pos.length < 3) return null;
+  const out = [];
+  uniq(pos.map((l) => l.page || 1)).forEach((pg) => {
+    const LP = pos.filter((l) => (l.page || 1) === pg).sort((a, b) => a.y - b.y); const hm = mediane(LP.map((l) => l.h || 8)) || 8;
+    const rows = LP.map((l, i) => (l.cells.filter(bulEstValeur).length >= 2 ? i : -1)).filter((i) => i >= 0); if (!rows.length) return;
+    // colonnes : abscisses des valeurs, regroupées
+    const xs = rows.flatMap((i) => LP[i].cells.filter(bulEstValeur).map((c) => c.xc)).sort((a, b) => a - b); const tol = Math.max(hm * 2.2, 10); const grp = [];
+    xs.forEach((x) => { const g = grp[grp.length - 1]; if (g && x - g[g.length - 1] <= tol) g.push(x); else grp.push([x]); });
+    const cols = grp.filter((g) => g.length >= Math.max(1, rows.length * 0.4)).map((g) => ({ xc: mediane(g) })); if (cols.length < 2) return;
+    const pas = Math.min(...cols.slice(1).map((c, k) => c.xc - cols[k].xc));
+    cols.forEach((c, k) => { c.g = k ? (c.xc + cols[k - 1].xc) / 2 : c.xc - pas / 2; c.d = k < cols.length - 1 ? (c.xc + cols[k + 1].xc) / 2 : c.xc + pas / 2; });
+    const gauche = cols[0].g; const colDe = (x) => cols.findIndex((c) => x >= c.g && x < c.d); const dansCols = (l) => l.mots.some((m) => colDe(m.xc) >= 0);
+    // en-tête : de la ligne « Paramètre » (ou équivalent) à la première ligne de valeurs ; sinon les lignes alignées sur les colonnes juste au-dessus
+    const r0 = rows[0]; let h0 = -1;
+    for (let i = r0 - 1; i >= Math.max(0, r0 - 14); i -= 1) if (/^(?:parametres?|analyses?|determinations?|criteres?)\b/.test(bulNorm(LP[i].cells[0].s))) { h0 = i; break; }
+    if (h0 < 0) { h0 = r0; for (let i = r0 - 1; i >= Math.max(0, r0 - 7); i -= 1) { if (LP[i].cells.some(bulEstValeur)) break; if (dansCols(LP[i])) h0 = i; else if (h0 < r0) break; } }
+    const labels = cols.map(() => []); const unites = cols.map(() => []);
+    // une case d'en-tête du PDF va à la colonne de son centre ; trop large (plusieurs colonnes réunies), elle est répartie mot par mot
+    const morceaux = (l) => (Array.isArray(l.elems) && l.elems.length ? l.elems.flatMap((el) => (el.w <= pas * 1.3 ? [el] : bulMotsDe(el))) : l.mots);
+    LP.slice(h0, r0).filter((l) => !l.cells.some(bulEstValeur)).forEach((l) => { const u = /^unites?\b/.test(bulNorm(l.cells[0].s)); morceaux(l).forEach((m) => { const k = colDe(m.xc); if (k >= 0) (u ? unites : labels)[k].push(m.s); }); });
+    cols.forEach((c, k) => { c.label = labels[k].join(' '); c.unite = unites[k].join(' '); const w = labels[k]; for (let i = 0; i < w.length && !c.p; i += 1) c.p = bulletinParam(db, w.slice(i).join(' ')); });
+    if (uniq(cols.filter((c) => c.p).map((c) => c.p.paramId || c.p.cat.cle)).length < 2) return; // pas un tableau de paramètres (une colonne par échantillon, liste…)
+    // marge gauche : n° d'échantillon et référence de chaque ligne de valeurs
+    const r1 = rows[rows.length - 1]; let fin = r1; for (let i = r1 + 1; i < Math.min(LP.length, r1 + 4); i += 1) { if (dansCols(LP[i]) || LP[i].y - LP[i - 1].y > hm * 4) break; fin = i; }
+    let debut = r0; for (let i = r0 - 1; i >= Math.max(h0, r0 - 3); i -= 1) { if (dansCols(LP[i])) break; debut = i; }
+    const T = []; for (let i = debut; i <= fin; i += 1) { const t = LP[i].cells.filter((c) => c.xc < gauche && !(rows.includes(i) && bulEstValeur(c))).map((c) => c.s).join(' ').replace(/\s+/g, ' ').trim(); if (t) T.push({ i, t, id: BUL_NUM_ECH.test(t) && !bulletinNombre(t) && !/[/.]\d{2,4}$/.test(t) }); }
+    const blocs = rows.map((i) => ({ i, refs: [], num: '' })); const sig = (t) => t.replace(/\d/g, '9').replace(/[a-z]/gi, 'A'); const parSig = {};
+    T.filter((x) => x.id).forEach((x) => { (parSig[sig(x.t)] = parSig[sig(x.t)] || []).push(x); });
+    const G = Object.values(parSig).find((g) => g.length === rows.length && g.every((x, k) => x.i <= rows[k] && (k === g.length - 1 || rows[k] < g[k + 1].i)));
+    if (G) T.forEach((x) => { let k = 0; G.forEach((g, j) => { if (g.i <= x.i) k = j; }); if (G[k] === x) blocs[k].num = x.t; else blocs[k].refs.push(x.t); });
+    else T.forEach((x) => { let k = 0; let d = Infinity; rows.forEach((ri, j) => { const dd = Math.abs(LP[ri].y - LP[x.i].y); if (dd < d - 1e-6) { d = dd; k = j; } }); blocs[k].refs.push(x.t); });
+    if (blocs.filter((b) => b.refs.some((r) => bulletinParam(db, r))).length > blocs.length / 2) return; // « libellé  valeur  valeur » : une liste, pas ce tableau
+    blocs.forEach((b) => {
+      const l = LP[b.i]; const ref = b.refs.join(' ').trim(); const vals = [];
+      l.cells.filter((c) => c.xc >= gauche && bulEstValeur(c)).forEach((c) => { const k = colDe(c.xc); if (k < 0 || !cols[k].p) return; vals.push({ ...cols[k].p, ...bulletinNombre(c.s), label: cols[k].label, unite: `${cols[k].unite} ${cols[k].label}` }); });
+      if (vals.length) out.push({ ref: ref || b.num, numero: b.num, trouve: bulletinTrouver(`${ref} ${b.num}`, cands)[0] || null, vals, lignes: [l.texte] });
+    });
+  });
+  return out.length ? out : null;
+}
+/* ---------- export de laboratoire en format long (0.37.0-alpha.1) : une ligne par résultat (échantillon, paramètre, résultat, unité) ---------- */
+function bulletinFormatLong(db, lignes) {
+  for (let h = 0; h < Math.min((lignes || []).length, 12); h += 1) {
+    const H = lignes[h].cells.map((c) => ({ x: c.x, t: bulNorm(c.s) })); const col = (re) => { const c = H.find((x) => re.test(x.t)); return c ? c.x : null; };
+    const xP = col(/^(?:parametres?|analyses?|determinations?|criteres?|code parametre)$/); const xR = col(/^(?:resultats?|valeurs?|results?)\b/); if (xP == null || xR == null) continue;
+    const xE = col(/^(?:echantillons?|n echantillon|numero d echantillon|n labo|samples?)\b/); const xU = col(/^unites?\b/); const xDp = col(/prel/); const xDr = col(/^date (?:de )?(?:reception|analyse)/); const xDos = col(/^(?:dossier|rapport|bulletin|n dossier)\b/);
+    const xRefs = H.filter((c) => /^(?:identification|references?|ref client|reference client|designation|cuve|lot|contenant|libelle)\b/.test(c.t) && !/commande/.test(c.t)).map((c) => c.x);
+    const G = new Map(); let date = ''; let numero = '';
+    lignes.slice(h + 1).forEach((l) => {
+      const v = (x) => (x == null ? '' : ((l.cells.find((c) => c.x === x) || {}).s || '')); const n = bulletinNombre(v(xR)); const p = bulletinParam(db, v(xP)); if (!n || !p) return;
+      const ref = uniq(xRefs.map(v).filter(Boolean)).join(' · '); const num = v(xE); const k = num || ref; if (!k) return;
+      if (!G.has(k)) { const dp = bulletinDates(v(xDp))[0]; G.set(k, { ref: ref || num, numero: num, date: dp ? dp.iso : '', vals: [], lignes: [] }); }
+      if (!date) { const dr = bulletinDates(v(xDr))[0]; if (dr) date = dr.iso; } if (!numero && v(xDos)) numero = v(xDos).slice(0, 40);
+      const g = G.get(k); g.vals.push({ ...p, ...n, label: v(xP), unite: `${v(xU)} ${v(xP)}` }); g.lignes.push(l.texte);
+    });
+    if (G.size) return { echantillons: [...G.values()], date, numero };
+  }
+  return null;
+}
 // lignes → { labo, numero, date, echantillons: [{ ref, lot/cont trouvés, date, valeurs: { paramId: { v, op, label } }, nouveaux: { cle: { … } } }] }
 function bulletinAnalyser(db, R, lignes, opts) {
   const o = opts || {}; const cands = o.candidats || bulletinCandidats(db, R); const texte = lignes.map((l) => l.texte).join('\n');
@@ -172,6 +252,13 @@ function bulletinAnalyser(db, R, lignes, opts) {
     if (r.paramId) { if (e.valeurs[r.paramId] == null) e.valeurs[r.paramId] = { v, op: r.op, label: r.label, src: 'script' }; }
     else if (r.cat && !e.nouveaux[r.cat.cle]) e.nouveaux[r.cat.cle] = { cle: r.cat.cle, nom: r.cat.nom, unite: r.cat.unite, dec: r.cat.dec, v: Math.round(bulletinConvertir(v0, r.unite || '', r.cat.unite, r.cat.nom) * 1e5) / 1e5, op: r.op, label: r.label, src: 'script' };
   };
+  // export en format long, puis rapport multi-échantillons placé (0.37.0-alpha.1) : chaque échantillon garde son n° de laboratoire
+  const garde = (e) => Object.keys(e.valeurs).length || Object.keys(e.nouveaux).length;
+  const lg = bulletinFormatLong(db, lignes);
+  if (lg) { lg.echantillons.forEach((x) => { const e = nouvel(x.ref, bulletinTrouver(`${x.ref} ${x.numero}`, cands)[0] || null, { numero: x.numero, lignes: x.lignes.slice(0, 40) }); e.date = x.date || ''; x.vals.forEach((r) => ajouter(e, r)); });
+    return { ...ent, numero: ent.numero || lg.numero, date: dateG || lg.date, format: 'long', echantillons: E.filter(garde) }; }
+  const co = bulletinColonnes(db, lignes, cands);
+  if (co) { co.forEach((x) => { const e = nouvel(x.ref || `Échantillon ${E.length + 1}`, x.trouve, { numero: x.numero, lignes: x.lignes }); x.vals.forEach((r) => ajouter(e, r)); }); return { ...ent, date: dateG, format: 'colonnes', echantillons: E.filter(garde) }; }
   // export en lignes (une ligne par échantillon, une colonne par paramètre)
   const hdr = lignes.findIndex((l) => l.cells.filter((c) => bulletinParam(db, c.s)).length >= 2 && !l.cells.some((c) => bulletinNombre(c.s)));
   if (hdr >= 0 && lignes.slice(hdr + 1).some((l) => l.cells.filter((c) => bulletinNombre(c.s)).length >= 2)) {
@@ -210,20 +297,23 @@ function iaPromptBulletin(db, texte, ocr) {
   const system = 'Tu lis des bulletins d’analyses œnologiques de laboratoire pour une cave. Tu ne reprends que ce qui est écrit, sans rien inventer ni calculer d’autre que les conversions d’unités demandées. Tu réponds uniquement par un objet JSON valide.';
   const P = (db.analysesParams || []).map((p) => `- ${p.id} : ${p.nom}${p.unite ? ` (${p.unite})` : ''}`).join('\n');
   const t = `Paramètres d’analyse de la cave (identifiant : nom (unité attendue)) :\n${P}\n\nBulletin d’analyses${ocr ? ' (texte reconnu sur un scan ou une photo : il peut contenir des erreurs de lecture)' : ''} :\n"""\n${String(texte || '').slice(0, 15000)}\n"""\n\n`
-    + 'Réponds par un objet JSON de la forme : {"laboratoire": "<nom ou null>", "numero": "<n° du bulletin ou null>", "echantillons": [{"reference": "<référence de l’échantillon telle qu’écrite : cuve, lot, désignation, n° d’échantillon>", "date_prelevement": "<AAAA-MM-JJ ou null>", "resultats": {"<identifiant du paramètre>": <nombre dans l’unité attendue>}, "autres": [{"nom": "<paramètre absent de la liste>", "valeur": <nombre>, "unite": "<unité>"}]}]}.\n'
-    + 'Acidités exprimées en acide tartrique → g/L H₂SO₄ : diviser par 1,531 ; en acide acétique → × 0,817. Valeur écrite « < x » : x. Un échantillon par référence ; seulement les résultats présents dans le bulletin.';
-  return { system, texte: t, max: 3000 };
+    + 'Réponds par un objet JSON de la forme : {"laboratoire": "<nom ou null>", "numero": "<n° du bulletin ou null>", "echantillons": [{"numero_echantillon": "<n° d’échantillon donné par le laboratoire, ou null>", "reference": "<référence du client telle qu’écrite : cuve, lot, désignation>", "date_prelevement": "<AAAA-MM-JJ ou null>", "resultats": {"<identifiant du paramètre>": <nombre dans l’unité attendue>}, "autres": [{"nom": "<paramètre absent de la liste>", "valeur": <nombre>, "unite": "<unité>"}]}]}.\n'
+    + 'Un même bulletin contient souvent plusieurs échantillons (une ligne ou une colonne chacun, avec un n° d’échantillon du laboratoire et une référence du client) : renvoie-les tous, séparément, dans l’ordre du bulletin, sans mélanger leurs valeurs. '
+    + 'Valeur suivie de son incertitude (« 3,25 / », « 12,06 / 0,13 », « 3,25 ± 0,05 ») : la valeur seule. Masse volumique en g/dm³ ou g/L → densité : diviser par 1000. Titre alcoométrique volumique naturel (moût) → TAP. Acide acétique → acidité volatile (× 0,817 en g/L H₂SO₄). '
+    + 'Acidités exprimées en acide tartrique (g/L TH2) → g/L H₂SO₄ : diviser par 1,531 ; en acide acétique → × 0,817. Valeur écrite « < x » : x. Date de prélèvement absente : date de réception. Seulement les résultats présents dans le bulletin.';
+  return { system, texte: t, max: 6000 };
 }
 function iaLireBulletin(db, o) {
   if (!o || typeof o !== 'object') return null; const ids = new Set((db.analysesParams || []).map((p) => p.id)); const nb = (v) => { const n = typeof v === 'number' ? { v } : bulletinNombre(v); return n && Number.isFinite(n.v) ? n : null; };
   const E = (Array.isArray(o.echantillons) ? o.echantillons : []).slice(0, 60).map((e) => {
     if (!e || typeof e !== 'object') return null; const valeurs = {}; const nouveaux = {};
-    Object.keys(e.resultats && typeof e.resultats === 'object' ? e.resultats : {}).forEach((k) => { const n = nb(e.resultats[k]); if (n && ids.has(k)) valeurs[k] = { v: n.v, op: n.op || '', label: k, src: 'ia' }; });
+    // clé = identifiant du paramètre ; sinon (réponse moins docile) son nom, reconnu comme un libellé de bulletin (0.37.0-alpha.1)
+    Object.keys(e.resultats && typeof e.resultats === 'object' ? e.resultats : {}).forEach((k) => { const n = nb(e.resultats[k]); if (!n) return; if (ids.has(k)) { valeurs[k] = { v: n.v, op: n.op || '', label: k, src: 'ia' }; return; } const p = bulletinParam(db, k); if (p && p.paramId && !valeurs[p.paramId] && !e.resultats[p.paramId]) valeurs[p.paramId] = { v: n.v, op: n.op || '', label: k, src: 'ia' }; });
     (Array.isArray(e.autres) ? e.autres : []).slice(0, 30).forEach((x) => { if (!x || typeof x !== 'object') return; const n = nb(x.valeur); const lab = iaTexte(x.nom, 80); if (!n || !lab) return; const p = bulletinParam(db, lab);
       if (p && p.paramId) { const par = (db.analysesParams || []).find((y) => y.id === p.paramId) || {}; if (!valeurs[p.paramId]) valeurs[p.paramId] = { v: Math.round(bulletinConvertir(n.v, x.unite || '', par.unite || '', par.nom) * 1e5) / 1e5, op: n.op || '', label: lab, src: 'ia' }; }
       else if (p && p.cat && !nouveaux[p.cat.cle]) nouveaux[p.cat.cle] = { cle: p.cat.cle, nom: p.cat.nom, unite: p.cat.unite, dec: p.cat.dec, v: Math.round(bulletinConvertir(n.v, x.unite || '', p.cat.unite, p.cat.nom) * 1e5) / 1e5, op: n.op || '', label: lab, src: 'ia' }; });
     const d = iaDateDe(e.date_prelevement);
-    return { ref: iaTexte(e.reference, 120) || 'Échantillon', date: isoOK(d) ? d : '', valeurs, nouveaux, notes: [], lignes: [] };
+    const numero = iaTexte(e.numero_echantillon, 40); return { ref: iaTexte(e.reference, 120) || numero || 'Échantillon', numero, date: isoOK(d) ? d : '', valeurs, nouveaux, notes: [], lignes: [] };
   }).filter((e) => e && (Object.keys(e.valeurs).length || Object.keys(e.nouveaux).length));
   return { labo: iaTexte(o.laboratoire, 80), numero: iaTexte(o.numero, 40), echantillons: E };
 }
@@ -233,9 +323,10 @@ function bulletinFusion(db, R, script, ia, cands0) {
   if (!S.labo && ia.labo) S.labo = ia.labo; if (!S.numero && ia.numero) S.numero = ia.numero;
   ia.echantillons.forEach((x) => {
     const tr = bulletinTrouver(x.ref, cands)[0] || null; const nr = bulNorm(x.ref);
-    const e = S.echantillons.find((y) => (tr && y.trouve && y.trouve.kind === tr.kind && y.trouve.id === tr.id) || (nr && bulNorm(y.ref) === nr)) || (S.echantillons.length === 1 && ia.echantillons.length === 1 ? S.echantillons[0] : null);
+    const nn = bulNorm(x.numero); // n° d'échantillon du laboratoire d'abord (0.37.0-alpha.1) : plusieurs échantillons peuvent viser la même cuve
+    const e = (nn && S.echantillons.find((y) => bulNorm(y.numero) === nn)) || S.echantillons.find((y) => (!nn || !y.numero) && ((tr && y.trouve && y.trouve.kind === tr.kind && y.trouve.id === tr.id) || (nr && bulNorm(y.ref) === nr))) || (S.echantillons.length === 1 && ia.echantillons.length === 1 ? S.echantillons[0] : null);
     if (!e) { S.echantillons.push({ ...x, trouve: tr, src: 'ia' }); return; }
-    if (!e.trouve && tr) e.trouve = tr; if (!e.date && x.date) e.date = x.date;
+    if (!e.trouve && tr) e.trouve = tr; if (!e.numero && x.numero) e.numero = x.numero; if (!e.date && x.date) e.date = x.date;
     Object.keys(x.valeurs).forEach((k) => { if (!e.valeurs[k]) e.valeurs[k] = x.valeurs[k]; else if (Math.abs(e.valeurs[k].v - x.valeurs[k].v) > 1e-6) e.valeurs[k] = { ...e.valeurs[k], ia: x.valeurs[k].v }; });
     Object.keys(x.nouveaux).forEach((k) => { if (!e.nouveaux[k] && !Object.keys(e.valeurs).some((p) => p === k)) e.nouveaux[k] = x.nouveaux[k]; });
   });
@@ -282,15 +373,30 @@ const analyseBulletin = (db, a) => (a ? (db.docs || []).find((d) => d && ((a.bul
    Rapprochement : n° de lot, puis compartiment cités dans l'échantillon ; puis, dans l'ordre, les échantillons restants aux moûts restants ;
    un seul échantillon sans rapprochement : il vaut pour tous les moûts du partenaire. → [{ i, valeurs: { paramId: nombre }, ref }] */
 function bulletinPourMouts(res, mouts) {
-  const E = ((res && res.echantillons) || []).filter((e) => e && Object.keys(e.valeurs || {}).length); const M = (mouts || []).filter(Boolean);
+  const E = bulletinEchantillonsValeurs(res); const M = (mouts || []).filter(Boolean);
   if (!E.length || !M.length) return [];
-  const vals = (e) => { const v = {}; Object.keys(e.valeurs).forEach((k) => { const x = e.valeurs[k]; const n = x && typeof x === 'object' ? x.v : x; if (Number.isFinite(+n)) v[k] = +n; }); return v; };
   const contient = (ref, s) => { const t = bulNorm(s); if (!t) return false; const r = ` ${bulNorm(ref)} `; return r.includes(` ${t} `) || (t.replace(/ /g, '').length >= 4 && r.replace(/ /g, '').includes(t.replace(/ /g, ''))); };
+  const chiffres = (s) => (String(s || '').match(/\d+/g) || []).map((x) => String(Number(x)));
+  const refDe = (e) => `${e.ref || ''} ${e.numero || ''}`;
   const out = []; const prisE = new Set(); const prisM = new Set();
-  const lier = (test) => E.forEach((e, k) => { if (prisE.has(k)) return; const m = M.find((x) => !prisM.has(x.i) && test(e, x)); if (m) { prisE.add(k); prisM.add(m.i); out.push({ i: m.i, valeurs: vals(e), ref: e.ref || '' }); } });
-  lier((e, m) => String(m.numLot || '').trim() && contient(e.ref, m.numLot));
-  lier((e, m) => String(m.compartiment || '').trim() && contient(e.ref, m.compartiment));
-  if (E.length === 1 && !out.length) return M.map((m) => ({ i: m.i, valeurs: vals(E[0]), ref: E[0].ref || '' }));
-  E.forEach((e, k) => { if (prisE.has(k)) return; const m = M.find((x) => !prisM.has(x.i)); if (m) { prisE.add(k); prisM.add(m.i); out.push({ i: m.i, valeurs: vals(e), ref: e.ref || '' }); } });
+  const lier = (sur, test) => E.forEach((e) => { if (prisE.has(e.k)) return; const m = M.find((x) => !prisM.has(x.i) && test(e, x)); if (m) { prisE.add(e.k); prisM.add(m.i); out.push({ i: m.i, k: e.k, valeurs: e.valeurs, ref: e.ref, numero: e.numero, sur }); } });
+  lier('lot', (e, m) => String(m.numLot || '').trim() && contient(refDe(e), m.numLot));
+  lier('compartiment', (e, m) => String(m.compartiment || '').trim() && contient(refDe(e), m.compartiment));
+  // mêmes nombres (0.37.0-alpha.1) : lot « M1-5002 » ↔ échantillon « M1TMNC 5002 »
+  lier('chiffres', (e, m) => { const d = chiffres(m.numLot).filter((x) => x.length >= 2); const r = chiffres(refDe(e)); return d.length && d.every((x) => r.includes(x)); });
+  if (E.length === 1 && !out.length) return M.map((m) => ({ i: m.i, k: E[0].k, valeurs: E[0].valeurs, ref: E[0].ref, numero: E[0].numero, sur: 'unique' }));
+  E.forEach((e) => { if (prisE.has(e.k)) return; const m = M.find((x) => !prisM.has(x.i)); if (m) { prisE.add(e.k); prisM.add(m.i); out.push({ i: m.i, k: e.k, valeurs: e.valeurs, ref: e.ref, numero: e.numero, sur: 'ordre' }); } });
   return out.sort((a, b) => a.i - b.i);
+}
+// échantillons d'un bulletin lu, avec leurs valeurs en nombres : [{ k, ref, numero, valeurs: { paramId: nombre } }] (0.37.0-alpha.1)
+function bulletinEchantillonsValeurs(res) {
+  return ((res && res.echantillons) || []).filter((e) => e && Object.keys(e.valeurs || {}).length).map((e, k) => {
+    const v = {}; Object.keys(e.valeurs).forEach((p) => { const x = e.valeurs[p]; const n = x && typeof x === 'object' ? x.v : x; if (Number.isFinite(+n)) v[p] = +n; });
+    return { k, ref: e.ref || '', numero: e.numero || '', valeurs: v };
+  });
+}
+// affectation guidée nécessaire : rapprochement fait dans l'ordre, échantillon laissé de côté, ou un seul échantillon pour des moûts de plusieurs partenaires
+function bulletinAffectationDouteuse(res, aff, plusieursPartenaires) {
+  const E = bulletinEchantillonsValeurs(res); if (!E.length) return false;
+  return (aff || []).some((a) => a.sur === 'ordre' || (plusieursPartenaires && a.sur === 'unique')) || uniq((aff || []).map((a) => a.k)).length < E.length;
 }
