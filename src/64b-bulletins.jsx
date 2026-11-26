@@ -8,9 +8,8 @@ const BULLETIN_ACCEPT = '.pdf,application/pdf,image/*,.csv,.tsv,.txt,.xlsx,.xls,
 async function bulletinLireFichier(file, { onEtape } = {}) {
   const et = (t) => { if (onEtape) onEtape(t); };
   if (estPdf(file)) {
-    et('Ouverture du PDF…'); const L = await chargerPdfjs();
-    const doc = await L.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false, wasmUrl: `${PDFJS_BASE}wasm/`, standardFontDataUrl: `${PDFJS_BASE}standard_fonts/`, cMapUrl: `${PDFJS_BASE}cmaps/`, cMapPacked: true }).promise;
-    try {
+    et('Ouverture du PDF…');
+    return pdfAvecDocument(file, async (doc) => {
       const n = Math.min(doc.numPages, 12); let pages = [];
       for (let i = 1; i <= n; i += 1) { et(`Lecture de la page ${i} / ${n}…`); const pg = await doc.getPage(i); const t = await pdfPageItems(pg); pages.push({ n: i, ...t, pg, vide: t.items.map((it) => it.s).join('').replace(/[^A-Za-zÀ-ÿ]/g, '').length < 40 }); }
       let ocr = false;
@@ -20,7 +19,7 @@ async function bulletinLireFichier(file, { onEtape } = {}) {
         pages = P;
       }
       const lignes = bulletinLignesDePages(pages); return { lignes, texte: lignes.map((l) => l.texte).join('\n'), ocr };
-    } finally { try { doc.destroy(); } catch (e) { /* ignoré */ } }
+    });
   }
   if (estImage(file)) { et('Photo : reconnaissance du texte (la première fois, le module de lecture se télécharge)…'); const c = nettoyerScan(await imageCanvas(file)); const p = await ocrCanvas(c, 1, 1); const lignes = bulletinLignesDePages([p]); return { lignes, texte: lignes.map((l) => l.texte).join('\n'), ocr: true }; }
   if (estTableur(file)) {

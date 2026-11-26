@@ -39,13 +39,14 @@ async function cloudSynchroniser(f, dossier, e, h, opts) {
         const { db: R, sync } = await h.lire(r.texte); const idR = (sync && sync.id) || `r${hash36(String(r.rev))}`;
         const chaine = [idR, ...((sync && sync.ancetres) || [])].filter((x, i, a) => x && a.indexOf(x) === i);
         let base = null; for (const id of chaine) { base = await h.snapLire(id); if (base) break; }
+        if (h.interrompu && h.interrompu()) { res.interrompu = true; return res; } // mis en pause entre-temps (base restaurée…)
         const L = h.lireLocale();
         if (!base && !e.syncId && (h.vide(L) || opts.adopter)) { h.appliquer(normalizeDb(clone(R))); res.adopte = true; }
         else {
           const fu = syncFusion(base, L, R); res.recu = fu; res.premier = !base;
           if (!fu.identique) {
             const nd = normalizeDb(clone(fu.db));
-            if (fu.conflits.length) nd.meta.syncConflits = [...fu.conflits.map((c) => ({ ...c, date: h.maintenant(), fichier: CLOUD_BASE })), ...((L.meta && L.meta.syncConflits) || [])].slice(0, 60);
+            if (fu.conflits.length) nd.meta.syncConflits = syncConflitsGarder([...fu.conflits.map((c) => ({ ...c, date: h.maintenant(), fichier: CLOUD_BASE })), ...((L.meta && L.meta.syncConflits) || [])]);
             h.appliquer(nd);
           }
         }
@@ -61,7 +62,8 @@ async function cloudSynchroniser(f, dossier, e, h, opts) {
         }
       }
     } else if (!info) { e.rev = null; } // dossier vide (ou fichier supprimé) : on (ré)écrit tout
-    // 2. envoyer
+    // 2. envoyer (0.38.0-alpha.3 : jamais après une mise en pause — la base restaurée n'écrase pas le dossier partagé)
+    if (h.interrompu && h.interrompu()) { res.interrompu = true; return res; }
     const L2 = h.lireLocale();
     if (info && syncEmpreinte(L2) === e.empreinteDistante && !opts.forcer) return res;
     for (const d of (L2.docs || [])) {
@@ -74,6 +76,7 @@ async function cloudSynchroniser(f, dossier, e, h, opts) {
     const id = h.nouvelId(); const anc = [e.syncId, ...e.lignee].filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 20);
     const sync = { id, ancetres: anc, appareil: h.appareil.tag, appareilNom: h.appareil.nom, ecritLe: h.maintenant(), documentsSepares: true };
     const texte = await h.construire(L2, sync); // chiffré si le chiffrement est actif (0.29.0-alpha.1)
+    if (h.interrompu && h.interrompu()) { res.interrompu = true; return res; }
     try {
       const w = await f.ecrireBase(dossier, texte, e.rev || null);
       await h.snapEcrire(id, normalizeDb(clone(L2)));

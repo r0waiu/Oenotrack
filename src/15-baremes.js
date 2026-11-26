@@ -13,8 +13,6 @@
 const BAREME_FORMAT = 'oenotrack-baremes';
 const JAUGE_H = { mm: 0.1, cm: 1, dm: 10, m: 100 }; // → cm
 const JAUGE_V = { l: 1, dal: 10, hl: 100, m3: 1000 }; // → litres
-const JAUGE_UNITES_H = [['cm', 'cm'], ['mm', 'mm'], ['m', 'm']];
-const JAUGE_UNITES_V = [['l', 'litres'], ['hl', 'hL'], ['m3', 'm³']];
 
 const baremePts = (b) => (Array.isArray(b && b.points) ? b.points : []).filter((p) => Array.isArray(p) && Number.isFinite(+p[0]) && Number.isFinite(+p[1])).map((p) => [+p[0], +p[1]]).sort((a, c) => a[0] - c[0]);
 // sens du barème : +1 le volume croît avec la mesure (hauteur), −1 il décroît (creux)
@@ -187,7 +185,6 @@ function nombreJauge(s0) {
   const n = Number(s); return Number.isFinite(n) ? n : NaN;
 }
 const decimalesDe = (s) => { const t = String(s || '').trim(); const m = t.match(/[,.](\d+)\s*$/); return m ? m[1].length : 0; };
-const MOT_H = /^(cm|mm|m|dm|hauteurs?|creux|niveaux?|haut\.?|h)$/; const MOT_V = /^(litres?|l|lit\.?|hl|hectolitres?|m3|volumes?|vol\.?|v)$/;
 function levenshtein(a, b) { const m = a.length, n = b.length; if (!m || !n) return m || n; let prev = Array.from({ length: n + 1 }, (_, j) => j); for (let i = 1; i <= m; i += 1) { const cur = [i]; for (let j = 1; j <= n; j += 1) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; } return prev[n]; }
 const procheDe = (t, mots) => t.length >= 5 && mots.some((w) => levenshtein(t, w) <= (t.length >= 7 ? 2 : 1));
 function motCle(s, ligneForte) {

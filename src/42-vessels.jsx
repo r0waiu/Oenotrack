@@ -24,7 +24,6 @@ function compColorInfo(db, comp) {
   return { color: mixHex(ids.map((k) => [cepageColor(db, k), ce[k]])), rule: null, ids };
 }
 const compColor = (db, comp) => compColorInfo(db, comp).color;
-const cepColor = (db, id) => cepageColor(db, id);
 const MILL_COLORS = ['#6E8FB8', '#B8956E', '#8FB86E', '#B86E9A', '#6EB8AE', '#B8B06E'];
 
 /* ---------- vue des contenants : un critère pour le contour, un pour la couleur de l'intérieur, un pour le motif ----------

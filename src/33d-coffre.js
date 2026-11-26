@@ -32,7 +32,9 @@ async function coffreChiffrerAvec(dek, id, nom, texte) {
 }
 // enveloppe du coffre ? → objet lu (avec, s'il y en a, les champs écrits à côté par une version antérieure) ou null
 function coffreEnveloppe(texte) {
-  if (typeof texte !== 'string' || texte.length < 40 || texte.slice(0, 600).indexOf(`"${COFFRE_FORMAT}"`) < 0) return null;
+  // 0.38.0-alpha.3 : marqueur cherché dans tout le texte — une version antérieure qui réécrit l'enveloppe (normalizeDb) place ses
+  // listes par défaut AVANT « format » : l'enveloppe n'était plus reconnue et la base, prise pour vide, était rechiffrée telle quelle
+  if (typeof texte !== 'string' || texte.length < 40 || texte.indexOf(`"${COFFRE_FORMAT}"`) < 0) return null;
   let j; try { j = JSON.parse(texte); } catch (e) { return null; }
   return j && j.format === COFFRE_FORMAT && j.coffre && j.iv && typeof j.donnees === 'string' ? j : null;
 }
@@ -184,7 +186,6 @@ async function coffreBlobChiffrer(blob) {
   out.set(COFFRE_MAGIC, p); p += COFFRE_MAGIC.length; out[p] = h.length >> 8; out[p + 1] = h.length & 0xff; p += 2; out.set(h, p); p += h.length; out.set(iv, p); p += 12; out.set(d, p);
   return new Blob([out], { type: 'application/octet-stream' });
 }
-const coffreOctetsChiffres = (u8) => !!u8 && u8.length > COFFRE_MAGIC.length + 14 && COFFRE_MAGIC.every((b, i) => u8[i] === b);
 async function coffreBlobDechiffrer(blob) {
   if (!blob || typeof blob.arrayBuffer !== 'function' || blob.size < COFFRE_MAGIC.length + 14) return blob;
   const u = new Uint8Array(await blob.slice(0, COFFRE_MAGIC.length).arrayBuffer()); if (!COFFRE_MAGIC.every((b, i) => u[i] === b)) return blob; // document rangé avant 0.38 : en clair

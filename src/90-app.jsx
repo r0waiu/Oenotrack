@@ -218,7 +218,7 @@ function App() {
     if (ok) { pointRetourEcrire(dbRef.current, 'Chargement du jeu d’exemple'); const d = gardeJournalGarder(dbRef.current, garderSecurite(normalizeDb(sampleDb()), 'Jeu d’exemple chargé (comptes gardés)')); dbRef.current = d; setDb(d); setStack([]); sync.suspendre(); cloud.suspendre(); toast('Jeu d’exemple rechargé.'); }
   };
   // point de restauration (0.27.0-alpha.1) : la base de l'appareil est gardée avant d'être remplacée (Paramètres › Sécurité des importations)
-  ctx.replaceDb = (nd0, msg, motif) => { if (!autoriseBase()) return false; pointRetourEcrire(dbRef.current, motif || 'Base remplacée'); const nd = gardeJournalGarder(dbRef.current, garderSecurite(nd0, 'Sauvegarde restaurée')); dbRef.current = nd; setDb(nd); setStack([]); sync.suspendre(); cloud.suspendre(); if (msg) toast(msg); return true; };
+  ctx.replaceDb = (nd0, msg, motif) => { if (!autoriseBase()) return false; loadDbDebloquer(); pointRetourEcrire(dbRef.current, motif || 'Base remplacée'); const nd = gardeJournalGarder(dbRef.current, garderSecurite(nd0, 'Sauvegarde restaurée')); dbRef.current = nd; setDb(nd); setStack([]); sync.suspendre(); cloud.suspendre(); if (msg) toast(msg); return true; };
   ctx.resetEmpty = resetEmpty; ctx.loadSample = loadSample; ctx.theme = theme; ctx.setTheme = setTheme; ctx.mode = mode;
 
   const toggleFreeze = async () => {
@@ -234,7 +234,8 @@ function App() {
   const hygTachesBadge = useMemo(() => { if (!moduleActif(db, 'hygiene')) return { n: 0, nc: 0 }; try { const T = planTaches(db, todayISO()).filter((x) => !(x.origine === 'maintenance' && maintDansEquipements(db, uid))); return { n: T.length, nc: T.filter((x) => x.etat === 'nonconforme').length }; } catch (e) { console.error(e); return { n: 0, nc: 0 }; } }, [db, uid]);
   const equipBadge = useMemo(() => { if (!maintDansEquipements(db, uid)) return null; try { const T = equipTaches(db, todayISO()); return T.length ? { n: T.length, tone: T.some((x) => x.etat === 'retard' || x.interventionId) ? 'bad' : 'warn' } : null; } catch (e) { console.error(e); return null; } }, [db, uid]);
   const pendingAlerts = db.alertes.filter((a) => a.statut === 'attente').length;
-  const toCheck = Object.keys(R.warn).filter((id) => { const o = db.ops.find((x) => x.id === id); return o && !o.verifie && o.date >= camp.debut && o.date <= camp.fin; }).length;
+  // 0.38.0-alpha.3 : un seul parcours des opérations (plus une recherche par avertissement), refait seulement quand la base change
+  const toCheck = useMemo(() => db.ops.filter((o) => (R.warn[o.id] || []).length && !o.verifie && o.date >= camp.debut && o.date <= camp.fin).length, [db, R, camp.debut, camp.fin]);
   const dluoIssues = db.arrivages.filter((a) => { const rest = arrivalRest(R, a); const k = dluoState(a.dluo).k; return rest > 0.0001 && (k === 'expire' || k === 'bientot'); }).length;
   const prevLate = (db.previsions || []).filter((p) => p.statut === 'prevue' && p.date <= todayISO()).length;
   const hygT = hygTachesBadge; // plans de nettoyage et de maintenance (0.26.0-alpha.1)
@@ -290,7 +291,8 @@ function App() {
             <button type="button" className="btn btn-sm" onClick={() => setApparence(true)} title="Choisir la charte graphique et le mode clair / sombre">🎨 Thème : {charte.nom} · {theme === 'auto' ? 'auto' : theme === 'light' ? 'clair' : 'sombre'}</button>
           </span>
         </div>
-        {!storeOK ? <div className="wrap pb-3"><Notice tone="bad" title="Les données ne sont pas conservées entre deux visites">Le stockage local du navigateur est indisponible (navigation privée ou blocage). Exportez régulièrement la base complète (Paramètres › Sauvegarde & Drive) pour ne rien perdre.</Notice></div> : null}
+        {!storeOK && loadDbIllisible() ? <div className="wrap pb-3"><Notice tone="bad" title="Base de cet appareil illisible : rien n’est enregistré par-dessus">La base enregistrée sur cet appareil n’a pas pu être lue. Elle est gardée telle quelle : la base affichée est un exemple, et aucune modification n’est enregistrée. Restaurez une sauvegarde (Paramètres › Sauvegarde & Drive).</Notice></div> : null}
+        {!storeOK && !loadDbIllisible() ? <div className="wrap pb-3"><Notice tone="bad" title="Les données ne sont pas conservées entre deux visites">Le stockage local du navigateur est indisponible (navigation privée ou blocage). Exportez régulièrement la base complète (Paramètres › Sauvegarde & Drive) pour ne rien perdre.</Notice></div> : null}
         <RappelSauvegarde />
         {showMig ? <div className="wrap pb-3"><Notice tone="ok" title="Bienvenue dans Œnotrack">Vos données de « Cuverie champenoise » ont été reprises automatiquement (revendications, sites, liste des crus et apporteurs ajoutés). <button type="button" className="linkish" onClick={() => setShowMig(false)}>Masquer</button></Notice></div> : null}
         {db.meta.exemple ? <div className="wrap pb-3"><Notice tone="info" title="Jeu de données d’exemple chargé"><span className="hidden sm:inline">Vous pouvez tout tester librement (plan de cave, clic droit, entrée de moûts, traçabilité, rapports…). Quand vous voulez repartir de zéro : </span><span className="sm:hidden">Testez librement, puis repartez de zéro : </span><button type="button" className="linkish" onClick={resetEmpty}>Réinitialiser à vide</button>.</Notice></div> : null}

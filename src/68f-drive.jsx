@@ -82,7 +82,7 @@ function useDriveSync({ db, dbRef, applyDb, toast }) {
     const L = dbRef.current; if (choix === 'fusion' && a.fusion && a.L !== L) a.fusion = syncFusion(a.baseDb || null, L, a.remote); // saisie faite entre-temps : on refait la fusion
     const nd = choix === 'fusion' && a.fusion ? normalizeDb(clone(a.fusion.db)) : normalizeDb(clone(a.remote));
     sauvRapportAppliquer(nd, rap, 'sauvegarde'); if (choix !== 'fusion' || !a.fusion) { pointRetourEcrire(L, 'Base remplacée par le fichier du Drive'); gardeJournalGarder(L, nd); }
-    if (choix === 'fusion' && a.fusion && a.fusion.conflits.length) nd.meta.syncConflits = [...a.fusion.conflits.map((c) => ({ ...c, date: nowISO(), fichier: a.fichier })), ...((L.meta && L.meta.syncConflits) || [])].slice(0, 60);
+    if (choix === 'fusion' && a.fusion && a.fusion.conflits.length) nd.meta.syncConflits = syncConflitsGarder([...a.fusion.conflits.map((c) => ({ ...c, date: nowISO(), fichier: a.fichier })), ...((L.meta && L.meta.syncConflits) || [])]);
     else if (L.meta && L.meta.syncConflits && choix === 'fusion') nd.meta.syncConflits = L.meta.syncConflits;
     nd.meta.derniereSync = todayISO();
     setEtat({ fichierNom: a.fichier || etatRef.current.fichierNom, syncId: a.idF, lignee: a.chaine.slice(0, 20), empreinteFichier: syncEmpreinte(a.remote), derniereSync: nowISO(), appareilFichier: (a.sync && a.sync.appareilNom) || '', fichierEcritLe: (a.sync && a.sync.ecritLe) || (a.s.head && a.s.head.exporteLe) || '', suspendu: false, exportEnAttente: false, erreur: '', ...(lm ? { fichierModifie: lm } : {}) });

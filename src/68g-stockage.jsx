@@ -10,6 +10,8 @@ const CLOUD_INFOS = {
   reseau: { ic: '🖧', aide: 'Serveur interne, NAS, lecteur réseau ou dossier partagé de l’entreprise, sans cloud externe (Chrome ou Edge)' }, // 0.34.0-alpha.1
 };
 
+// champs de suivi d'une synchronisation (reportés sur l'état courant, voir reporter)
+const CLOUD_CHAMPS_SUIVI = ['rev', 'syncId', 'lignee', 'empreinteDistante', 'docsDistants', 'docsCle', 'ecritPar', 'ecritLe', 'historiqueJour'];
 function useCloud({ db, dbRef, applyDb, toast }) {
   const [etat, setEtat0] = useState(cloudEtatLire); const etatRef = useRef(etat);
   const setEtat = useCallback((p) => { const n = typeof p === 'function' ? p(etatRef.current) : { ...etatRef.current, ...p }; etatRef.current = n; cloudEtatEcrire(n); setEtat0(n); }, []);
@@ -17,7 +19,12 @@ function useCloud({ db, dbRef, applyDb, toast }) {
   const [choix, setChoix] = useState(null); const enCours = useRef(false); const encore = useRef(null);
   const empreinte = useMemo(() => syncEmpreinte(db), [db]); const integre = cloudIntegre();
   const F = etat.fournisseur ? CLOUD_FOURNISSEURS[etat.fournisseur] : null; const lie = !!(F && etat.dossier) && !integre;
-  const hote = () => ({
+  // 0.38.0-alpha.3 : une synchronisation en cours ne rétablit plus l'état d'avant (pause posée par une restauration, dossier changé ou
+  // délié pendant l'envoi) : seuls ses champs de suivi sont reportés, et rien n'est envoyé si la synchronisation a été mise en pause
+  const memeLien = (a, b) => !!a && !!b && a.fournisseur === b.fournisseur && JSON.stringify(a.dossier || null) === JSON.stringify(b.dossier || null);
+  const reporter = (e0, e, plus) => setEtat((cur) => { if (!memeLien(cur, e0)) return cur; const n = { ...cur }; CLOUD_CHAMPS_SUIVI.forEach((k) => { if (k in e) n[k] = e[k]; }); return { ...n, ...(plus || {}) }; });
+  const hote = (e0) => ({
+    interrompu: () => { const c = etatRef.current; return !!c.suspendu || !memeLien(c, e0); },
     lireLocale: () => dbRef.current, appliquer: (nd) => applyDb(nd), vide: (L) => baseVide(L), snapLire, snapEcrire,
     // chiffrement (0.29.0-alpha.1) : la base, ses copies du jour et les documents envoyés au Drive sont chiffrés si le réglage commun l'exige
     construire: (L, sync) => sauvTexteSortie(L, JSON.stringify({ format: SAUV_FORMAT, formatVersion: SAUV_VERSION, app: APP_ID, appVersion: APP_VERSION, schema: L.schema, exporteLe: nowISO(), contenu: { contenants: L.contenants.length, lots: L.lots.length, operations: L.ops.length, documents: (L.docs || []).length }, sync, documentsSepares: true, db: L, fichiers: [] }), false),
@@ -35,13 +42,13 @@ function useCloud({ db, dbRef, applyDb, toast }) {
     enCours.current = true; setStatut('synchro'); const e = { ...e0, docsDistants: { ...(e0.docsDistants || {}) }, lignee: [...(e0.lignee || [])] }; let r = null;
     const cleNow = (chiffrementReglage(dbRef.current) || {}).cleId || ''; if ((e.docsCle || '') !== cleNow) { e.docsDistants = {}; e.docsCle = cleNow; } // chiffrement activé ou mot de passe changé : documents renvoyés chiffrés
     try {
-      r = await cloudSynchroniser(P, e.dossier, e, hote(), opts);
-      setEtat({ ...e, derniereSync: nowISO() }); setStatut('ok'); setMessage('');
+      r = await cloudSynchroniser(P, e.dossier, e, hote(e0), opts);
+      reporter(e0, e, r && r.interrompu ? {} : { derniereSync: nowISO() }); setStatut('ok'); setMessage('');
       if (r.adopte) toast(`Données du dossier « ${e.dossier.nom} » reprises sur cet appareil.`);
       else if (r.recu && !r.recu.identique && r.recu.nRecus) toast(`☁ ${P.nom} : ${syncResume(r.recu.recus)} reçu${r.recu.nRecus > 1 ? 's' : ''}${e.ecritPar ? ` (${e.ecritPar})` : ''}${r.recu.conflits.length ? ` · ${pl(r.recu.conflits.length, 'conflit')} au journal` : ''}.`);
       if (r.recu && r.recu.doublons && r.recu.doublons.length) toast(`Deux lots portent le même code (${r.recu.doublons.join(', ')}) : renommez l’un d’eux.`, 'bad');
     } catch (er0) {
-      const er = cloudErreur(er0); setEtat({ ...e });
+      const er = cloudErreur(er0); reporter(e0, e);
       if (er0 && er0.chiffre) { setStatut('chiffre'); setMessage(er0.message || 'Fichier chiffré : mot de passe de l’équipe nécessaire.'); }
       else if (er.auth) { setStatut('reconnecter'); setMessage(er.message || 'Connexion à renouveler.'); }
       else if (er.reseau) { setStatut('hors-ligne'); setMessage('Pas de réseau ou service indisponible : vos saisies restent ici et partiront dès son retour.'); }

@@ -36,7 +36,6 @@ const GARDE_EXT_FAMILLE = {
   doc: 'office', docx: 'office', dot: 'office', dotx: 'office', odt: 'office', ott: 'office', rtf: 'office', xls: 'office', xlsx: 'office', xlsb: 'office', xlt: 'office', xltx: 'office', ods: 'office', ots: 'office',
   ppt: 'office', pptx: 'office', pps: 'office', ppsx: 'office', odp: 'office', msg: 'office', csv: 'texte', tsv: 'texte', txt: 'texte', text: 'texte', eml: 'texte', md: 'texte', log: 'texte', json: 'json', xml: 'xml',
 };
-const GARDE_FAMILLE_LIB = { pdf: 'PDF', image: 'image', svg: 'image SVG', office: 'document Office', texte: 'texte', json: 'données JSON', xml: 'XML', programme: 'programme', script: 'script', html: 'page web (HTML)', archive: 'archive', video: 'vidéo', binaire: 'fichier binaire inconnu' };
 const GARDE_FAMILLES_DANGER = ['programme', 'script', 'html', 'archive', 'binaire', 'video'];
 const gardeTaille = (n) => (n >= GARDE_MO ? `${String(Math.round((n / GARDE_MO) * 10) / 10).replace('.', ',')} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`);
 const GARDE_BIDI = /[‪-‮⁦-⁩‎‏؜]/;

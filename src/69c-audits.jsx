@@ -151,7 +151,7 @@ function ModeAudit({ id, onClose }) {
         <div className="min-w-0 flex-1">
           <h3 className="mb-2 text-lg font-semibold">{(chaps.find((x) => x[0] === chap) || chaps[0])[1]}</h3>
           {chap === 'synthese' ? <div className="space-y-2">{m.points.map((p, i) => <AuditPoint key={p.id} a={a} p={p} i={i} />)}{!m.points.length ? <p className="help">Aucun point de contrôle : personnalisez le type d’audit.</p> : null}
-            {!clos ? <Field label="Notes générales de l’audit"><TA value={a.notes || ''} onChange={(v) => act((d) => auditSave(d, a.id, { notes: v }))} rows={3} aria-label="Notes de l’audit" /></Field> : a.notes ? <p className="text-sm">{a.notes}</p> : null}</div>
+            {!clos ? <Field label="Notes générales de l’audit"><TAD value={a.notes || ''} onChange={(v) => act((d) => auditSave(d, a.id, { notes: v }))} rows={3} aria-label="Notes de l’audit" /></Field> : a.notes ? <p className="text-sm">{a.notes}</p> : null}</div>
             : <>{m.points.filter((p) => (p.pieces || []).includes(chap)).length ? <div className="mb-3 space-y-2">{m.points.map((p, i) => ((p.pieces || []).includes(chap) ? <AuditPoint key={p.id} a={a} p={p} i={i} /> : null))}</div> : null}
               <AuditPiece piece={chap} a={a} m={m} regs={regs} /></>}
         </div>

@@ -8,8 +8,6 @@
    veille (dernière vérification en ligne par l'assistant IA : voir 17-ia.js). Les versions précédentes ignorent ces champs et les gardent. */
 const PROD_FDS_ANS = 3; // même règle que les produits d'hygiène : FDS révisée il y a plus de 3 ans → demander la dernière version
 const FICHE_GENRES = [['fds', 'FDS'], ['ft', 'Fiche technique'], ['certificat', 'Certificat / attestation'], ['autre', 'Autre document']];
-const ficheGenreLib = (g) => (FICHE_GENRES.find((x) => x[0] === g) || [g, 'Autre document'])[1];
-const ficheGenreCourt = (g) => ({ fds: 'FDS', ft: 'FT', certificat: 'Certificat' }[g] || 'Document');
 // catégorie du document selon la cible (les produits d'hygiène rangent les attestations sous « certif »)
 const ficheCat = (type, genre) => (type === 'produitHygiene' && genre === 'certificat' ? 'certif' : ['fds', 'ft', 'certificat'].includes(genre) ? genre : 'autre');
 

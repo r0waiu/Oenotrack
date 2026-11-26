@@ -220,4 +220,3 @@ const toCSV = (rows) => '﻿' + rows.map((r) => r.map(csvCell).join(';')).join('
 /* ---------- campagnes ---------- */
 const campOf = (db, date) => db.campagnes.find((c) => date >= c.debut && date <= c.fin) || null;
 const isLocked = (db, date) => { const c = campOf(db, date); return !!(c && c.figee); };
-const campLabel = (c) => (c ? c.nom : '—');

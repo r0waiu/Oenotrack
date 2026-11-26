@@ -1,7 +1,7 @@
 // Compilation : concatène src/*.js(x) → compile le JSX (esbuild) → injecte dans src/head.html → dist/cuverie.html
 // Options (0.29.0-alpha.1) :
-//   --dev              code lisible (non compacté), pour déboguer ; par défaut le code est compacté (espaces et syntaxe), les noms
-//                      restent intacts (les tests et la console appellent les fonctions par leur nom)
+//   --dev              code lisible (non compacté), pour déboguer ; par défaut le code est compacté (espaces, syntaxe, noms locaux), les noms
+//                      globaux restent intacts (les tests et la console appellent les fonctions par leur nom)
 //   --source           joint le code source JSX complet dans la page (bloc <script type="text/plain" id="jsx-source">) ; par défaut
 //                      il n'est plus joint : le code source est publié à part (code-source.zip du paquet web, dépôt GitHub)
 //   --sortie=chemin    fichier produit (défaut : dist/cuverie.html)
@@ -28,7 +28,9 @@ fs.writeFileSync(path.join(distDir, 'app.src.jsx'), jsx);
 let out;
 try {
   out = esbuild.transformSync(jsx, { loader: 'jsx', jsx: 'transform', target: 'es2019', legalComments: 'none', charset: 'utf8',
-    ...(dev ? { minify: false } : { minifyWhitespace: true, minifySyntax: true, minifyIdentifiers: false }) });
+    ...(dev ? { minify: false } : { minifyWhitespace: true, minifySyntax: true, minifyIdentifiers: true }) });
+// 0.38.0-alpha.3 : minifyIdentifiers ne raccourcit que les noms LOCAUX (le code est un script, pas un module : fonctions et constantes
+// globales gardent leur nom, les tests et la console les appellent toujours) — environ 100 Ko de moins
 } catch (e) {
   console.error('ERREUR DE COMPILATION'); console.error(e.errors ? e.errors.map(x => `${x.location ? x.location.line + ':' + x.location.column : ''} ${x.text}`).join('\n') : e);
   process.exit(1);

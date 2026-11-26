@@ -24,7 +24,6 @@ function planAuto(db, siteId, onlyMissing) {
   todo.forEach((c) => { const t = tileSize(db, c); const p = freeSlot(rects, t.w, t.h); c.x = p.x; c.y = p.y; rects.push({ x: p.x, y: p.y, w: t.w, h: t.h }); });
 }
 function contMove(db, id, x, y) { const c = db.contenants.find((k) => k.id === id); if (!c) return fail('Contenant introuvable.'); c.x = Math.max(0, Math.round(num(x) / GRID) * GRID); c.y = Math.max(0, Math.round(num(y) / GRID) * GRID); return okr(); }
-function planReset(db, siteId) { planAuto(db, siteId, false); return okr(); }
 
 /* ---------- sites (stock commun : un site n'isole jamais les stocks) ---------- */
 function siteSave(db, s, id) {
@@ -615,7 +614,6 @@ function docMetaAdd(db, m) {
     ...(m.partId ? { partId: String(m.partId).slice(0, 40) } : {}) }); // 0.34.0-alpha.1 : partenaire (onglet) d'une entrée de moûts
   return okr();
 }
-function docMetaEdit(db, id, patch) { const x = (db.docs || []).find((y) => y.id === id); if (!x) return fail('Document introuvable.'); if (patch.cat) x.cat = patch.cat; if (patch.nom != null && String(patch.nom).trim()) x.nom = String(patch.nom).trim(); return okr(); }
 function docMetaDel(db, id) { db.docs = (db.docs || []).filter((x) => x.id !== id); return okr(); }
 // documents joints avant validation (opération à réaliser) : rattachés à l'opération quand elle est validée (0.14.0-alpha.1)
 function docsDeplacer(db, de, vers) { let n = 0; (db.docs || []).forEach((x) => { if (x.cible && x.cible.type === de.type && x.cible.id === de.id) { x.cible = { type: vers.type, id: vers.id }; n += 1; } }); return n; }

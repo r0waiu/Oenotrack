@@ -141,6 +141,11 @@ const syncMax = (...v) => v.filter((x) => x !== undefined && x !== null && x !==
  * B : base commune (ou null au premier contact) · L : cette base · R : base du fichier du Drive
  * → { db, recus: { cle: n }, envoyes: { cle: n }, conflits: [...], identique, gagnant, doublons }
  */
+// journal des conflits (0.38.0-alpha.3) : les versions écartées reprenables (« autre ») sont toutes gardées — rien n'est perdu —, les
+// simples mentions sont limitées aux 60 plus récentes (la liste reçue commence par les plus récentes)
+function syncConflitsGarder(liste) {
+  let n = 0; return (Array.isArray(liste) ? liste : []).filter((c) => c && (c.autre != null || (n += 1) <= 60));
+}
 function syncFusion(B, L, R, opts) {
   opts = opts || {}; const st = { recus: {}, envoyes: {}, supprEnvoyees: 0, supprRecues: 0 }; const conflits = [];
   const tl = (L.meta && L.meta.modifLe) || ''; const tr = (R.meta && R.meta.modifLe) || '';

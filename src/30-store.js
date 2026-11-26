@@ -135,21 +135,36 @@ function normalizeDb(d) {
 /* ---------- persistance locale ---------- */
 // 0.38.0-alpha.1 : la base est lue dans le coffre de l'appareil (33d-coffre.js : déchiffrée au démarrage, en clair en mémoire seulement) ;
 // données écrites à côté par une version antérieure (enveloppe lue comme une base vide) : réunies sans base commune, rien n'est perdu
+// 0.38.0-alpha.3 : la base de l'appareil l'emporte sur ces données (valeurs par défaut de la version antérieure), et chaque version
+// écartée va au journal des conflits (reprenable) ; base présente mais illisible : jamais remplacée par l'exemple (voir loadDbIllisible)
+const LOAD_SANS_NULS = (o) => { if (o && typeof o === 'object' && !Array.isArray(o)) Object.keys(o).forEach((k) => { if (Array.isArray(o[k]) && o[k].some((x) => x == null)) o[k] = o[k].filter((x) => x != null); }); return o; };
+let _loadIllisible = false; // base présente mais illisible : la sauvegarde automatique est suspendue (rien n'est écrasé)
+const loadDbIllisible = () => _loadIllisible;
+const loadDbDebloquer = () => { _loadIllisible = false; }; // base remplacée volontairement (sauvegarde restaurée)
 function loadDb() {
+  let raw = null;
   try {
-    const raw = coffreLire(STORAGE_KEY);
+    raw = coffreLire(STORAGE_KEY);
     if (raw) {
-      let db = normalizeDb(JSON.parse(raw)); const anc = _coffre.ancien;
-      if (anc) { try { db = normalizeDb(syncFusion(null, db, normalizeDb(clone(anc))).db); _coffre.ancien = null; return { db, fromStorage: true, reunie: true }; } catch (e) { /* base chiffrée seule */ } }
+      const j = JSON.parse(raw); let db; try { db = normalizeDb(j); } catch (e) { db = normalizeDb(LOAD_SANS_NULS(j)); } // élément vide (null) dans une collection
+      const anc = _coffre.ancien;
+      if (anc) {
+        try {
+          const fu = syncFusion(null, db, normalizeDb(LOAD_SANS_NULS(clone(anc))), { gagnant: 'appareil' }); const nd = normalizeDb(fu.db);
+          if (fu.conflits.length) nd.meta.syncConflits = syncConflitsGarder([...fu.conflits.map((c) => ({ ...c, date: new Date().toISOString(), fichier: 'version antérieure sur cet appareil' })), ...((db.meta && db.meta.syncConflits) || [])]);
+          _coffre.ancien = null; return { db: nd, fromStorage: true, reunie: true };
+        } catch (e) { /* base chiffrée seule */ }
+      }
       return { db, fromStorage: true };
     }
-  } catch (e) { /* stockage indisponible ou corrompu */ }
+  } catch (e) { if (raw) { _loadIllisible = true; return { db: null, fromStorage: false, illisible: true }; } /* stockage indisponible */ }
   for (const k of OLD_STORAGE_KEYS) { // première ouverture d'Œnotrack : reprise automatique des données de « Cuverie champenoise »
     try { const raw = window.localStorage.getItem(k); if (raw) { const db = normalizeDb(JSON.parse(raw)); return { db, fromStorage: true, migrated: true }; } } catch (e) { /* ignoré */ }
   }
   return { db: null, fromStorage: false };
 }
 function saveDb(db) {
+  if (_loadIllisible) return false; // base de l'appareil illisible : gardée telle quelle (voir loadDb)
   try { return coffreEcrire(STORAGE_KEY, JSON.stringify(db)); } catch (e) { return false; }
 }
 function exportJSON(db) { return JSON.stringify(db, null, 2); }

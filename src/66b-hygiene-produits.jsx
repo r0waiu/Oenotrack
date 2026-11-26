@@ -45,8 +45,8 @@ const FDS_ACCEPT = '.pdf,application/pdf,image/*,.txt,text/plain';
 async function lireFds(file, { onEtape } = {}) {
   const nom = file.name || 'FDS'; const et = (t) => { if (onEtape) onEtape(t); };
   if (estPdf(file)) {
-    et('Ouverture du PDF…'); const L = await chargerPdfjs();
-    const doc = await L.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false, wasmUrl: `${PDFJS_BASE}wasm/`, standardFontDataUrl: `${PDFJS_BASE}standard_fonts/`, cMapUrl: `${PDFJS_BASE}cmaps/`, cMapPacked: true }).promise;
+    et('Ouverture du PDF…');
+    return pdfAvecDocument(file, async (doc) => {
     const pages = []; const n = Math.min(doc.numPages, 40);
     for (let i = 1; i <= n; i += 1) { et(`Lecture de la page ${i} / ${n}…`); const pg = await doc.getPage(i); const t = await pdfPageItems(pg); pages.push({ n: i, ...t, pg, vide: t.items.filter((it) => /[A-Za-z]/.test(it.s)).length < 10 }); }
     let ocr = false;
@@ -56,6 +56,7 @@ async function lireFds(file, { onEtape } = {}) {
       pages.splice(max);
     }
     const texte = fdsTexteDePages(pages); return { res: fdsAnalyser(texte), texte: texte.slice(0, 20000), fichier: nom, ocr, nbPages: doc.numPages };
+    });
   }
   if (estImage(file)) { et('Reconnaissance du texte de la photo (la première fois, le module de lecture se télécharge)…'); const c = nettoyerScan(await imageCanvas(file)); const p = await ocrCanvas(c, 1, 1); const texte = fdsTexteDePages([p]); return { res: fdsAnalyser(texte), texte: texte.slice(0, 20000), fichier: nom, ocr: true, nbPages: 1 }; }
   const texte = await lectureFichier(file); return { res: fdsAnalyser(texte), texte: String(texte || '').slice(0, 20000), fichier: nom, ocr: false, nbPages: 1 };

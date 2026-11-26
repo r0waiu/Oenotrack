@@ -1,5 +1,6 @@
 /* ============ PARAMÈTRES : atelier des contenants & couleurs · crus (villages) · apporteurs · sites ============ */
-const ColorInp = ({ value, onChange, label }) => (<input type="color" className="h-9 w-12 cursor-pointer rounded border border-line bg-surface p-0.5" aria-label={label} value={value || '#999999'} onChange={(e) => onChange(e.target.value)} />);
+// 0.38.0-alpha.3 : la couleur est enregistrée après une pause du sélecteur (plus à chaque mouvement de la souris)
+const ColorInp = ({ value, onChange, label }) => { const [v, changer, envoyer] = useDiffere(value || '#999999', onChange, 250); return (<input type="color" className="h-9 w-12 cursor-pointer rounded border border-line bg-surface p-0.5" aria-label={label} value={v || '#999999'} onChange={(e) => changer(e.target.value)} onBlur={envoyer} />); };
 
 function StudioView() {
   const { db, act } = useApp(); const ap = db.apparence;

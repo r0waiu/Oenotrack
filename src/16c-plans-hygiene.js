@@ -199,7 +199,6 @@ function hygTaches(db, today, E) {
 }
 
 /* ---------- plan de maintenance : échéances ---------- */
-const MAINT_JOURS = { jour: 1, semaine: 7, mois: 30.44, an: 365.25 };
 const maintFreqTexte = (f) => (f && num(f.n) > 0 ? `${fmt(num(f.n))} ${hygLib(MAINT_UNITES, f.unite || 'an')}` : '—');
 const maintAjout = (d, f) => { const n = Math.max(1, Math.round(num(f && f.n) || 1)); const u = (f && f.unite) || 'an'; if (u === 'an' || u === 'mois') { const [y, m, j] = d.split('-').map(Number); const mm = m - 1 + (u === 'an' ? 12 * n : n); const dt = new Date(Date.UTC(y + Math.floor(mm / 12), ((mm % 12) + 12) % 12, 1)); const fin = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 0)).getUTCDate(); return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(Math.min(j, fin)).padStart(2, '0')}`; } return addDays(d, n * (u === 'semaine' ? 7 : 1)); };
 const maintEquipements = (db, e) => hygCibles(db, { type: 'equipements', ids: e.equipementIds, motCle: e.motCle });

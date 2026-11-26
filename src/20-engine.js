@@ -26,6 +26,7 @@ function evenementsOp(R, op, avant) {
     if (b > 0.5) R._contenu[cid] = qualifsDe(R, cid);
   });
 }
+const R_FINIS = new WeakSet(); // états rejoués terminés (0.38.0-alpha.3, voir contParts)
 function replay(db, upTo, opts) {
   syncConfig(db);
   const R = { upTo: upTo || null, lots: {}, portions: {}, pinfo: {}, contVol: {}, preps: {}, tir: {}, raisins: {}, arrUsed: {}, apps: [], warn: {}, flows: [], prepUse: [], opsByLot: {}, capOver: {}, stadeHist: {},
@@ -260,6 +261,7 @@ function replay(db, upTo, opts) {
   R.lotVol = {}; pa.forEach((p) => { R.lotVol[p.lotId] = (R.lotVol[p.lotId] || 0) + p.vol; });
   db.contenants.forEach((c) => { const t = sum(pa.filter((p) => p.contenantId === c.id), (p) => p.vol); R.contVol[c.id] = t; if (c.volMax > 0 && t > c.volMax + 0.5) R.capOver[c.id] = true; });
   R.totalVol = sum(pa, (p) => p.vol);
+  R_FINIS.add(R); // rejeu terminé : R ne change plus (index des contenants, contParts)
   return R;
 }
 
@@ -339,7 +341,18 @@ function composition(db, R, lotId, memo) {
 }
 const lotEchelle = (db, R, lotId) => echelleInfo(composition(db, R, lotId));
 // contenu d'un contenant = mélange (au prorata des volumes) de toutes les portions qu'il contient
-const contParts = (R, cid) => Object.values(R.portions).filter((p) => p.contenantId === cid).map((p) => ({ lotId: p.lotId, vol: p.vol, portionId: p.id, since: p.since }));
+// 0.38.0-alpha.3 : sur un état terminé (R_FINIS), index des portions par contenant construit une fois (les cartes de cuves appelaient
+// ce calcul trois fois par cuve, en parcourant toutes les portions) ; toujours une liste neuve (les appelants la trient sur place)
+const _rParCont = new WeakMap();
+const contPartsTout = (R, cid) => Object.values(R.portions).filter((p) => p.contenantId === cid);
+function contParts(R, cid) {
+  let ps;
+  if (R && R_FINIS.has(R)) {
+    let ix = _rParCont.get(R); if (!ix) { ix = {}; Object.values(R.portions).forEach((p) => { (ix[p.contenantId] || (ix[p.contenantId] = [])).push(p); }); _rParCont.set(R, ix); }
+    ps = ix[cid] || [];
+  } else ps = contPartsTout(R, cid);
+  return ps.map((p) => ({ lotId: p.lotId, vol: p.vol, portionId: p.id, since: p.since }));
+}
 function contentComp(db, R, cid) { const ps = contParts(R, cid); return ps.length ? mixComp(ps.map((p) => ({ comp: composition(db, R, p.lotId), w: p.vol }))) : null; }
 
 /* ---------- état à une date : photo de stocks ---------- */

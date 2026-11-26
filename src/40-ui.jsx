@@ -32,6 +32,17 @@ function VI({ value, onChange, ...p }) {
 }
 const DI = ({ value, onChange, ...p }) => <input className="inp" type="date" value={value || ''} onChange={(e) => onChange(e.target.value)} {...p} />;
 const TA = ({ value, onChange, ...p }) => <textarea className="inp" value={value ?? ''} onChange={(e) => onChange(e.target.value)} {...p} />;
+// 0.38.0-alpha.3 : valeur enregistrée dans la base après une pause de frappe (ms) ou en quittant le champ, plus à chaque caractère
+// (chaque enregistrement copie, contrôle et sauvegarde toute la base) ; rien n'est perdu à la fermeture : envoi au démontage
+function useDiffere(value, onChange, ms = 400) {
+  const [v, setV] = useState(value ?? ''); const att = useRef(null); const cb = useRef(onChange); cb.current = onChange;
+  const envoyer = () => { if (att.current) { clearTimeout(att.current.t); const x = att.current.v; att.current = null; cb.current(x); } };
+  useEffect(() => { if (!att.current) setV(value ?? ''); }, [value]);
+  useEffect(() => () => envoyer(), []);
+  const changer = (x) => { setV(x); if (att.current) clearTimeout(att.current.t); att.current = { v: x, t: setTimeout(envoyer, ms) }; };
+  return [v, changer, envoyer];
+}
+const TAD = ({ value, onChange, ...p }) => { const [v, changer, envoyer] = useDiffere(value, onChange); return <textarea className="inp" value={v} onChange={(e) => changer(e.target.value)} onBlur={envoyer} {...p} />; };
 const SI = ({ value, onChange, options, placeholder, search, plain, ...p }) => (!plain && (search || options.length >= COMBO_MIN)
   ? <Combo value={value} onChange={onChange} options={options} placeholder={placeholder || undefined} required={placeholder == null} {...p} />
   : (
@@ -51,14 +62,16 @@ const SubNav = ({ value, onChange, items }) => (
   </div>
 );
 
+const SHEET_DEFIL = { avant: '' }; // défilement de la page avant la première fiche
 const SHEETS = []; // feuilles ouvertes (la dernière est au premier plan : seule elle réagit à Échap)
 function Sheet({ title, sub, onClose, onBack, backLabel, onCloseAll, children, footer, wide }) {
   const me = useRef({}); const cb = useRef(onClose); cb.current = onClose;
   useEffect(() => {
     SHEETS.push(me.current);
     const k = (e) => { if (e.key === 'Escape' && SHEETS[SHEETS.length - 1] === me.current) cb.current(); };
-    window.addEventListener('keydown', k); const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
-    return () => { window.removeEventListener('keydown', k); const i = SHEETS.indexOf(me.current); if (i >= 0) SHEETS.splice(i, 1); document.body.style.overflow = prev; };
+    window.addEventListener('keydown', k); if (SHEETS.length === 1) SHEET_DEFIL.avant = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    // 0.38.0-alpha.3 : défilement rendu à la fermeture de la DERNIÈRE fiche (plusieurs fiches fermées ensemble le laissaient bloqué)
+    return () => { window.removeEventListener('keydown', k); const i = SHEETS.indexOf(me.current); if (i >= 0) SHEETS.splice(i, 1); if (!SHEETS.length) document.body.style.overflow = SHEET_DEFIL.avant || ''; };
   }, []);
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : 'Fiche'}>

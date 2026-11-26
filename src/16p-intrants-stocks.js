@@ -20,7 +20,6 @@ const ALLERGENES = [
   ['fruitsCoque', 'Fruits à coque', 'Fruits à coque', /\b(fruits? a coques?|noix|noisettes?|amandes?|nuts)\b/, /$^/],
 ];
 const allergeneDef = (id) => ALLERGENES.find((a) => a[0] === id) || null;
-const allergeneLib = (id) => (allergeneDef(id) || [id, id])[1];
 const allergeneCourt = (id) => (allergeneDef(id) || [id, id, id])[2];
 const lot3Plier = (s) => norm(String(s || '').replace(/œ/g, 'oe').replace(/Œ/g, 'OE').replace(/æ/g, 'ae')).replace(/[’`]/g, "'");
 const allergenesDe = (p) => (Array.isArray(p && p.allergenesListe) ? p.allergenesListe.filter((x) => allergeneDef(x)) : []);
