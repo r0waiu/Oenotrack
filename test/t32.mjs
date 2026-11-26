@@ -30,7 +30,7 @@ ok('lien « sauvegarde » → Paramètres › Sauvegarde & Drive', (await page.l
 
 // 3. écran Modules
 await allerModules();
-ok('Modules : 14 lignes à ordonner + Déclassements « dans Opérations & Assemblages », Paramètres verrouillé', (await page.locator('main [data-module]').count()) === 14 && (await page.locator('main [data-module-dans="declass"]').innerText()).includes('dans « Opérations & Assemblages »') && (await ligne('params').locator('[role=switch]').isDisabled()) && (await ligne('params').innerText()).includes('toujours actif'));
+ok('Modules : 15 lignes à ordonner (Plan de vinification depuis 0.39) + Déclassements « dans Opérations & Assemblages », Paramètres verrouillé', (await page.locator('main [data-module]').count()) === 15 && (await page.locator('main [data-module-dans="declass"]').innerText()).includes('dans « Opérations & Assemblages »') && (await ligne('params').locator('[role=switch]').isDisabled()) && (await ligne('params').innerText()).includes('toujours actif'));
 ok('Modules : « s’ouvre au démarrage » sur Cuverie', (await ligne('cuverie').innerText()).includes('s’ouvre au démarrage'));
 await page.screenshot({ path: SH + '/t32-modules.png', fullPage: true });
 // désactiver Hygiène (rien en attente : pas de confirmation)
