@@ -26,9 +26,10 @@ function evenementsOp(R, op, avant) {
     if (b > 0.5) R._contenu[cid] = qualifsDe(R, cid);
   });
 }
+const R_FINIS = new WeakSet(); // états rejoués terminés (0.38.0-alpha.3, voir contParts)
 function replay(db, upTo, opts) {
   syncConfig(db);
-  const R = { upTo: upTo || null, lots: {}, portions: {}, pinfo: {}, contVol: {}, preps: {}, tir: {}, raisins: {}, arrUsed: {}, apps: [], warn: {}, flows: [], prepUse: [], opsByLot: {}, capOver: {}, stadeHist: {},
+  const R = { upTo: upTo || null, fusions: {}, lots: {}, portions: {}, pinfo: {}, contVol: {}, preps: {}, tir: {}, raisins: {}, arrUsed: {}, apps: [], warn: {}, flows: [], prepUse: [], opsByLot: {}, capOver: {}, stadeHist: {},
     conc: {}, concDir: {}, concPrep: {}, tirVol: {}, so2Ev: {}, depass: {}, arrRegul: {} };
   // régularisations manuelles de stock (0.36.0-alpha.1) : ajoutées au restant de leur lot fournisseur, à leur date
   const regAv = {}; (Array.isArray(db.regulStocks) ? db.regulStocks : []).forEach((x) => { if (!x || !x.arrivageId || !isoOK(x.date) || (upTo && x.date > upTo)) return; R.arrRegul[x.arrivageId] = (R.arrRegul[x.arrivageId] || 0) + num(x.qty); (regAv[x.arrivageId] = regAv[x.arrivageId] || []).push(x); });
@@ -77,7 +78,7 @@ function replay(db, upTo, opts) {
     if (vol <= 0) return null;
     if (cin !== undefined) concMelange(lotId, volLot(lotId), cin, vol); // moût ou vin venu d'ailleurs ({} : sans intrant) ; absent : même lot déplacé
     const ex = Object.values(R.portions).find((p) => p.lotId === lotId && p.contenantId === cid);
-    if (ex) { ex.vol += vol; return ex; }
+    if (ex) { ex.vol += vol; if (op && op.id) (R.fusions[op.id] || (R.fusions[op.id] = [])).push(ex.id); return ex; } // 0.38.0-alpha.3 : versé dans une portion existante (dependentsOf)
     const p = { id, lotId, contenantId: cid, vol, since: op.date };
     R.portions[id] = p; R.pinfo[id] = { lotId, contenantId: cid };
     const others = Object.values(R.portions).filter((q) => q.contenantId === cid && q.lotId !== lotId);
@@ -184,6 +185,7 @@ function replay(db, upTo, opts) {
         if (op.stade) setStade(op, p.lotId, op.stade);
         (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, p.lotId); if (pr) { prepVerse(op, pr.id, p.lotId, volLot(p.lotId), num(u.volL)); p.vol += num(u.volL); flow(op, 'ajout', num(u.volL), { lotId: p.lotId, prepId: pr.id }); if (lot && rang(pr.qualif) < rang(lot.qualif)) R.apps.push({ opId: op.id, date: op.date, opType: op.type, opSousType: op.sousType || '', kind: 'prep', prepId: pr.id, lotId: p.lotId, portionId: p.id, contenantId: p.contenantId, qualif: lot.qualif, prepQualif: pr.qualif, unauth: true, qty: num(u.volL), unite: 'L', produitId: null }); } });
         if ((op.prepUses || []).length) checkCap(op, p.contenantId); // seul un ajout de volume peut faire déborder
+        if (op.type === 'filtration' && p.vol < 0.005 && R.portions[op.portionId] === p) delete R.portions[op.portionId]; // 0.38.0-alpha.3 : tout perdu → cuve vide (comme le jaugeage)
         break;
       }
       case 'jaugeage': {
@@ -234,7 +236,10 @@ function replay(db, upTo, opts) {
         if (!t) warn(op, 'Lot de tirage introuvable (aucune bouteille en stock à cette date).');
         else { if (num(op.nb) > t.nb) warn(op, `Dégorgement de ${fmt(op.nb)} bouteilles pour ${fmt(t.nb)} en stock.`); t.nb = Math.max(0, t.nb - num(op.nb)); t.deg = (t.deg || 0) + num(op.nb); if (t.nb <= 0) setStade(op, op.sourceLotId, stadeRole(db, 'degorgement')); }
         (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, op.sourceLotId); const vd = num(op.nb) * num(op.volBouteilleL || (R.tirVol[op.sourceLotId] && t && t.mis ? R.tirVol[op.sourceLotId] / t.mis : 0.75));
-          const c = pr && R.concPrep[pr.id]; if (c && vd > 0) for (const k in c) { const d = c[k] * num(u.volL) / vd; concAjout(op.sourceLotId, k, d, true); if (k === '@so2') so2Ev(op, op.sourceLotId, d * 10); } });
+          // 0.38.0-alpha.3 : la liqueur ne va que dans les bouteilles dégorgées → imputée au LOT FINI (jamais cumulée sur le lot de tirage,
+          // qui garde ses bouteilles sur lattes) ; le lot fini reprend ce que contenait le lot de tirage à cette date (SO₂ compris)
+          const fid = op.lotFiniId; if (fid && !R.conc[fid]) { R.conc[fid] = { ...(R.conc[op.sourceLotId] || {}) }; R.concDir[fid] = {}; const h = so2Herite(db, R, op.sourceLotId, op.date); R.conc[fid]['@so2'] = h / 10; if (h > 1e-9) (R.so2Ev[fid] = R.so2Ev[fid] || []).push({ date: op.date, opId: op.id, mgL: h, herite: op.sourceLotId }); }
+          const c = pr && R.concPrep[pr.id]; if (fid && c && vd > 0) for (const k in c) { const d = c[k] * num(u.volL) / vd; concAjout(fid, k, d, true); if (k === '@so2') so2Ev(op, fid, d * 10); } });
         applyLignes(op, op.lignes, { kind: 'deg', lotId: op.sourceLotId, vol: null, qualif: null });
         break;
       }
@@ -260,6 +265,7 @@ function replay(db, upTo, opts) {
   R.lotVol = {}; pa.forEach((p) => { R.lotVol[p.lotId] = (R.lotVol[p.lotId] || 0) + p.vol; });
   db.contenants.forEach((c) => { const t = sum(pa.filter((p) => p.contenantId === c.id), (p) => p.vol); R.contVol[c.id] = t; if (c.volMax > 0 && t > c.volMax + 0.5) R.capOver[c.id] = true; });
   R.totalVol = sum(pa, (p) => p.vol);
+  R_FINIS.add(R); // rejeu terminé : R ne change plus (index des contenants, contParts)
   return R;
 }
 
@@ -339,7 +345,18 @@ function composition(db, R, lotId, memo) {
 }
 const lotEchelle = (db, R, lotId) => echelleInfo(composition(db, R, lotId));
 // contenu d'un contenant = mélange (au prorata des volumes) de toutes les portions qu'il contient
-const contParts = (R, cid) => Object.values(R.portions).filter((p) => p.contenantId === cid).map((p) => ({ lotId: p.lotId, vol: p.vol, portionId: p.id, since: p.since }));
+// 0.38.0-alpha.3 : sur un état terminé (R_FINIS), index des portions par contenant construit une fois (les cartes de cuves appelaient
+// ce calcul trois fois par cuve, en parcourant toutes les portions) ; toujours une liste neuve (les appelants la trient sur place)
+const _rParCont = new WeakMap();
+const contPartsTout = (R, cid) => Object.values(R.portions).filter((p) => p.contenantId === cid);
+function contParts(R, cid) {
+  let ps;
+  if (R && R_FINIS.has(R)) {
+    let ix = _rParCont.get(R); if (!ix) { ix = {}; Object.values(R.portions).forEach((p) => { (ix[p.contenantId] || (ix[p.contenantId] = [])).push(p); }); _rParCont.set(R, ix); }
+    ps = ix[cid] || [];
+  } else ps = contPartsTout(R, cid);
+  return ps.map((p) => ({ lotId: p.lotId, vol: p.vol, portionId: p.id, since: p.since }));
+}
 function contentComp(db, R, cid) { const ps = contParts(R, cid); return ps.length ? mixComp(ps.map((p) => ({ comp: composition(db, R, p.lotId), w: p.vol }))) : null; }
 
 /* ---------- état à une date : photo de stocks ---------- */
@@ -383,10 +400,14 @@ function opRefs(op) {
 function dependentsOf(db, op) {
   const made = opCreates(op); const out = [];
   const lotsMade = new Set(made.lots), portMade = new Set(made.portions), prepMade = new Set(made.preps), appMade = new Set(made.apports);
+  // 0.38.0-alpha.3 : volume versé dans une portion qui existait déjà (même lot, même cuve) : les opérations suivantes sur cette portion en dépendent
+  let fus = new Set(); try { const Rf = replay(db); // rejeu direct (la base peut avoir changé depuis le dernier getR)
+     fus = new Set(((Rf && Rf.fusions) || {})[op.id] || []); } catch (e) { /* rejeu impossible : dépendances directes seules */ }
+  const apres = (o) => o.date > op.date || (o.date === op.date && (o.seq || 0) > (op.seq || 0));
   db.ops.forEach((o) => {
     if (o.id === op.id) return;
     const r = opRefs(o);
-    if (r.portions.some((p) => portMade.has(p)) || r.preps.some((p) => prepMade.has(p)) || r.apports.some((p) => appMade.has(p)) || r.lots.some((l) => lotsMade.has(l))) out.push(o);
+    if (r.portions.some((p) => portMade.has(p) || (fus.has(p) && apres(o))) || r.preps.some((p) => prepMade.has(p)) || r.apports.some((p) => appMade.has(p)) || r.lots.some((l) => lotsMade.has(l))) out.push(o);
   });
   db.lots.forEach((l) => { if (!lotsMade.has(l.id) && (l.parentIds || []).some((p) => lotsMade.has(p))) { const lo = db.ops.find((o) => o.id === l.opId); if (lo && lo.id !== op.id && !out.includes(lo)) out.push(lo); } });
   (db.lotsFinis || []).forEach((f) => { if (lotsMade.has(f.sourceLotId)) { const lo = db.ops.find((o) => o.id === f.opId); if (lo && lo.id !== op.id && !out.includes(lo)) out.push(lo); } });

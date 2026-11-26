@@ -36,18 +36,23 @@ try { NID_SUFFIXE = `-${appareilInfo().tag}`; } catch (e) { /* ignoré */ }
 const etatLire = () => { try { return JSON.parse(window.localStorage.getItem(SYNC_KEY) || 'null') || {}; } catch (e) { return {}; } };
 const etatEcrire = (x) => { try { window.localStorage.setItem(SYNC_KEY, JSON.stringify(x)); } catch (e) { /* ignoré */ } };
 const nowISO = () => new Date().toISOString();
+// empreinte de la base affichée (0.38.0-alpha.3) : calculée une fois par état, partagée par la synchronisation par fichier et le cloud
+// (la base de l'interface n'est jamais modifiée en place : chaque modification en fait une copie)
+const _empUI = { db: null, e: '' };
+const empreinteUI = (db) => { if (_empUI.db !== db) { _empUI.db = db; _empUI.e = syncEmpreinte(db); } return _empUI.e; };
 const nouvelIdSync = () => `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 const fmtQuand = (iso) => { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; return `${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`; };
 const nomFichierSync = (db) => `Oenotrack-${(norm((db.entreprise && db.entreprise.nom) || db.settings.domaine || 'exploitation').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'exploitation').slice(0, 40)}.json`;
 const baseVide = (db) => !!(db.meta && db.meta.exemple) || (!db.ops.length && !db.lots.length && !db.contenants.length);
-const lectureFichier = (f) => (typeof f.text === 'function' ? f.text() : new Promise((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result)); rd.onerror = () => rej(rd.error); rd.readAsText(f); }));
+// 0.38.0-alpha.3 : encodage reconnu (UTF-8, UTF-16, Windows-1252), voir texteDeOctets
+const lectureFichier = async (f) => { if (f && typeof f.arrayBuffer === 'function') return texteDeOctets(new Uint8Array(await f.arrayBuffer())); return typeof f.text === 'function' ? f.text() : new Promise((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result)); rd.onerror = () => rej(rd.error); rd.readAsText(f); }); };
 
 function useDriveSync({ db, dbRef, applyDb, toast }) {
   const [etat, setEtat0] = useState(etatLire); const etatRef = useRef(etat);
   const setEtat = useCallback((p) => { const n = typeof p === 'function' ? p(etatRef.current) : { ...etatRef.current, ...p }; etatRef.current = n; etatEcrire(n); setEtat0(n); }, []);
   const [lien, setLien0] = useState(null); const lienRef = useRef(null); const setLien = useCallback((l) => { lienRef.current = l; setLien0(l); }, []);
   const [survol, setSurvol] = useState(false); const [rapport, setRapport] = useState(null); const [occupe, setOccupe] = useState('');
-  const busy = useRef(false); const empreinte = useMemo(() => syncEmpreinte(db), [db]);
+  const busy = useRef(false); const empreinte = useMemo(() => empreinteUI(db), [db]);
   const [appareil, setAppareil] = useState(appareilInfo);
   const marquer = () => { const d0 = dbRef.current; if (d0.meta.derniereSync !== todayISO()) applyDb({ ...d0, meta: { ...d0.meta, derniereSync: todayISO() } }); };
 
@@ -82,7 +87,7 @@ function useDriveSync({ db, dbRef, applyDb, toast }) {
     const L = dbRef.current; if (choix === 'fusion' && a.fusion && a.L !== L) a.fusion = syncFusion(a.baseDb || null, L, a.remote); // saisie faite entre-temps : on refait la fusion
     const nd = choix === 'fusion' && a.fusion ? normalizeDb(clone(a.fusion.db)) : normalizeDb(clone(a.remote));
     sauvRapportAppliquer(nd, rap, 'sauvegarde'); if (choix !== 'fusion' || !a.fusion) { pointRetourEcrire(L, 'Base remplacée par le fichier du Drive'); gardeJournalGarder(L, nd); }
-    if (choix === 'fusion' && a.fusion && a.fusion.conflits.length) nd.meta.syncConflits = [...a.fusion.conflits.map((c) => ({ ...c, date: nowISO(), fichier: a.fichier })), ...((L.meta && L.meta.syncConflits) || [])].slice(0, 60);
+    if (choix === 'fusion' && a.fusion && a.fusion.conflits.length) nd.meta.syncConflits = syncConflitsGarder([...a.fusion.conflits.map((c) => ({ ...c, date: nowISO(), fichier: a.fichier })), ...((L.meta && L.meta.syncConflits) || [])]);
     else if (L.meta && L.meta.syncConflits && choix === 'fusion') nd.meta.syncConflits = L.meta.syncConflits;
     nd.meta.derniereSync = todayISO();
     setEtat({ fichierNom: a.fichier || etatRef.current.fichierNom, syncId: a.idF, lignee: a.chaine.slice(0, 20), empreinteFichier: syncEmpreinte(a.remote), derniereSync: nowISO(), appareilFichier: (a.sync && a.sync.appareilNom) || '', fichierEcritLe: (a.sync && a.sync.ecritLe) || (a.s.head && a.s.head.exporteLe) || '', suspendu: false, exportEnAttente: false, erreur: '', ...(lm ? { fichierModifie: lm } : {}) });

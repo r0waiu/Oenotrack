@@ -12,7 +12,6 @@ const PRU = (u) => (u || []).map((x) => ({ prepId: x.prepId, volL: S_(x.volL) })
 const PRT = (p) => (p || []).map((x) => ({ typeId: x.typeId, volL: S_(x.volL) }));
 
 // code / désignation des moûts : le suffixe suit la fraction choisie (M26-02-C → M26-02-T1)
-const reSuffix = (code, from, to) => { let c = String(code || ''); if (from && c.endsWith(`-${from}`)) c = c.slice(0, -(from.length + 1)); return to ? `${c}-${to}` : c; };
 // Ligne de moût reçu (compartiment de citerne) : cépage, fraction, cru, revendication, et répartition sur une ou plusieurs cuves
 const moutLine = (db, cid, e) => { e = e || {}; return { numLot: e.numLot || '', apporteurs: Array.isArray(e.apporteurs) && e.apporteurs.length ? e.apporteurs.map((a) => ({ id: a.id, pct: S_(a.pct) })) : (e.apporteurId ? [{ id: e.apporteurId, pct: '' }] : []), analyses: Object.fromEntries(Object.entries(e.analyses || {}).map(([k, v]) => [k, S_(v)])), couleur: e.couleur || couleurDefaut(db), parcelleId: e.parcelleId || '', compartiment: e.compartiment || '', cepageId: e.cepageId || (db.lists.cepages[0] || {}).id || '', fractionId: e.fractionId || (fracList(db)[0] || {}).id || '', cruId: e.cruId || '', qualifId: e.qualifId || 'conv', millesime: e.millesime || '', dests: (e.dests && e.dests.length ? e.dests : [{ contenantId: cid || '', volL: '' }]).map((d) => ({ contenantId: d.contenantId || '', volL: S_(d.volL) })) }; };
 // onglets partenaires du formulaire (0.34.0-alpha.1) : f.partenaires [{ id, apporteurId, ref }] ; sans liste, le partenaire et le n° de bon de l'en-tête

@@ -17,11 +17,6 @@ const OP_HELP = {
   tirage: 'Mixtion sans cuve dédiée : vin de base + liqueur + levain + adjuvants + matières sèches.',
   degorgement: 'Sort les bouteilles du stock et crée un lot fini tracé.',
 };
-const OP_GROUPS = [
-  { title: 'Vendange & moûts', items: ['apport', 'pressurage', 'entree_mout'] },
-  { title: 'Vinification', items: ['debourbage', 'soutirage', 'transfert', 'intrant', 'froid', 'filtration', 'jaugeage', 'etape'] },
-  { title: 'Assemblage & stock', items: ['assemblage', 'reprise'] },
-];
 const G = ({ children, n = 2 }) => <div className={`grid${n}`}>{children}</div>;
 // Stade et couleur du vin : lots créés par l'opération, ou stade du lot traité après l'opération
 function VinFields({ type, f, upd, Rd }) {
@@ -109,7 +104,12 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   useEffect(() => () => { if (!engage.current) piecesRef.current.forEach((x) => { docDel(x.id).catch(() => { /* déjà absent */ }); }); }, []);
   const nDocs = () => (piecesRef.current.length ? ` ${piecesRef.current.length > 1 ? `${piecesRef.current.length} documents joints` : '1 document joint'}.` : '');
   const built = useMemo(() => buildSpec(type, f, db, Rd, old), [f, db, Rd]);
-  const pv = useMemo(() => (built.spec ? previewOp(db, built.spec, editId) : null), [built, db, editId]);
+  // aperçu (copie de la base + rejeu complet) : 0.38.0-alpha.3, recalculé 250 ms après la dernière frappe, plus à chaque caractère ;
+  // à la validation, il est recalculé tout de suite s'il est en retard (un dépassement de plafond n'est jamais manqué)
+  const [builtPv, setBuiltPv] = useState(built);
+  useEffect(() => { if (builtPv === built) return undefined; const t = setTimeout(() => setBuiltPv(built), 250); return () => clearTimeout(t); }, [built]);
+  const pv = useMemo(() => (builtPv.spec ? previewOp(db, builtPv.spec, editId) : null), [builtPv, db, editId]);
+  const pvAJour = () => (builtPv === built ? pv : built.spec ? previewOp(db, built.spec, editId) : null);
   // dépassement d'un plafond (dose, dose cumulée, SO₂ total estimé) : avertir et exiger le motif, tracé avec l'opération (0.30.0-alpha.1)
   const [motifDep, setMotifDep] = useState(() => (old && old.depassement && old.depassement.motif) || ''); const deps = (pv && pv.ok && pv.depassements) || [];
   const upd = (patch) => setF((x) => ({ ...x, ...patch }));
@@ -132,12 +132,13 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   const valider = () => {
     if (built.error) { toast(built.error, 'bad'); return; }
     if (!old && champEffectif(fcfg, type, 'docs').obligatoire && !piecesRef.current.length && !(prevId && docsOf(db, 'prev', prevId).length)) { toast(`Joignez au moins un document : « ${champEffectif(fcfg, type, 'docs').libelle || 'Documents joints'} » est obligatoire pour cette opération.`, 'bad'); return; }
-    if (deps.length && !String(motifDep || '').trim()) { toast('Dépassement d’un plafond : indiquez le motif (il est tracé avec l’opération).', 'bad'); return; }
+    const pvV = pvAJour(); const depsV = (pvV && pvV.ok && pvV.depassements) || []; if (pvV !== pv) setBuiltPv(built);
+    if (depsV.length && !String(motifDep || '').trim()) { toast('Dépassement d’un plafond : indiquez le motif (il est tracé avec l’opération).', 'bad'); return; }
     const spec00 = plan0 && plan0.groupe && !old ? { ...built.spec, groupe: plan0.groupe } : built.spec; // validée seule, une opération d'un groupe planifié y reste (0.29.0-alpha.1)
     const spec0 = plan0 && plan0.schema && !old ? { ...spec00, schema: plan0.schema } : spec00; // étape d'un schéma de vinification (0.31.0-alpha.1)
-    const spec = deps.length ? { ...spec0, depassement: depassementSpec(deps, motifDep, uid) } : old && old.depassement ? { ...spec0, depassement: null } : spec0;
+    const spec = depsV.length ? { ...spec0, depassement: depassementSpec(depsV, motifDep, uid) } : old && old.depassement ? { ...spec0, depassement: null } : spec0;
     const r = act((d) => { const r1 = opSave(d, spec, editId, { motif: f.motifRegistre, par: uid, maintenant: new Date().toISOString() }); if (r1 && r1.ok && prevId) previsionStatut(d, prevId, 'realisee', r1.op.id); if (r1 && r1.ok && !old) docsJoindre(d, piecesRef.current, { type: 'op', id: r1.op.id }); return r1; });
-    if (r && r.ok) { engage.current = true; toast(`${pv && (pv.warnings.length || pv.alerts.length) ? 'Opération validée — des avertissements sont à vérifier dans le journal.' : prevId ? 'Opération validée : retirée de la liste « À réaliser ».' : old ? 'Opération modifiée.' : 'Opération validée.'}${old ? '' : nDocs()}`); onClose();
+    if (r && r.ok) { engage.current = true; toast(`${pvV && (pvV.warnings.length || pvV.alerts.length) ? 'Opération validée — des avertissements sont à vérifier dans le journal.' : prevId ? 'Opération validée : retirée de la liste « À réaliser ».' : old ? 'Opération modifiée.' : 'Opération validée.'}${old ? '' : nDocs()}`); onClose();
       if (!old && ['pressurage', 'entree_mout'].includes(type) && r.op && schemasReglage(db).proposer && lotsCreesPar(r.op).length && openSchema) openSchema({ opId: r.op.id, auto: true }); } // schéma de vinification proposé (0.31.0-alpha.1)
   };
   const sourcesQ = (srcs, preps) => { const qs = [...srcs.map((s) => lotQ(s.portionId)), ...(preps || []).map((u) => (Rd.preps[u.prepId] || {}).qualif)].filter(Boolean); return qs.length ? minQualif(qs) : 'conv'; };

@@ -2,6 +2,15 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.38.0-alpha.3 — 26/11/2026
+
+- Un seul onglet actif à la fois : un second onglet d’Œnotrack affiche « Œnotrack est déjà ouvert dans un autre onglet » et n’enregistre rien ; « Reprendre la main ici » bloque l’autre onglet (ses enregistrements se terminent) et recharge celui-ci avec la base à jour — deux onglets ne s’effacent plus leurs saisies.
+- Dégorgement : le SO₂ de la liqueur d’expédition est imputé au lot fini dégorgé (SO₂ du lot de tirage à cette date + apport de la liqueur sur le volume dégorgé), plus au lot de tirage entier — des dégorgements partiels ne cumulent plus de faux dépassements de plafond ; SO₂ total estimé affiché dans la fiche du lot fini.
+- Pressoir : rôle explicite de chaque fraction (Cuvée, Taille, Rebêche, Autre) dans Paramètres, proposé d’après le nom et modifiable ; une fraction ajoutée compte maintenant dans les marcs, les plafonds et les rendements.
+- Sûreté des données : une base chiffrée réécrite par une version antérieure est de nouveau reconnue ; une base illisible n’est plus remplacée par l’exemple ; une synchronisation en cours ne relance plus l’envoi après une restauration ; les versions écartées par une fusion sont toutes gardées au journal des conflits ; « Repartir » n’efface plus rien si la copie de côté échoue ; fermeture de l’onglet pendant un enregistrement chiffré : confirmation demandée.
+- Corrections : teneurs en SO₂ en « mg/mL » ou « g/KG » ; filtration avec pertes totales (cuve vide) ; régularisation par comptage avec un motif de sortie ; mouvements de produits de maintenance du même jour ; arrivage avec régularisations protégé ; « 1 234 » lu 1 234 ; acidité totale déjà en H₂SO₄ ; CSV d’Excel (Windows-1252, UTF-16) ; n° de bulletin ; caractères interdits retirés du XML de la DRM ; fichiers trop gros refusés avant lecture ; défilement bloqué après la fermeture de plusieurs fiches ; bouton « Identifier avec l’IA » affiché « en cours » pendant le complément automatique des fiches FT / FDS.
+- Fluidité et poids : aperçu du formulaire d’opération recalculé après la frappe, notes d’audit et couleurs enregistrées après une pause, listes et cartes de cuves mémorisées, PDF libérés après lecture ; page allégée d’environ 70 Ko et installation hors ligne d’environ 1,4 Mo (polices des autres chartes mises en cache à leur premier usage).
+
 ## 0.38.0-alpha.2 — 26/11/2026
 
 - Clés d’accès : « ＋ Activer sur cet appareil » demande maintenant l’empreinte, le visage ou le code PIN intégrés au téléphone ou à l’ordinateur (Android, iPhone et iPad, Windows Hello, Mac, Linux avec le Gestionnaire de mots de passe) au lieu de ne proposer que des clés USB / NFC ou un autre appareil ; « ＋ Clé de sécurité ou autre téléphone » garde les clés externes au choix

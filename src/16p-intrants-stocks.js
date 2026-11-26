@@ -20,7 +20,6 @@ const ALLERGENES = [
   ['fruitsCoque', 'Fruits à coque', 'Fruits à coque', /\b(fruits? a coques?|noix|noisettes?|amandes?|nuts)\b/, /$^/],
 ];
 const allergeneDef = (id) => ALLERGENES.find((a) => a[0] === id) || null;
-const allergeneLib = (id) => (allergeneDef(id) || [id, id])[1];
 const allergeneCourt = (id) => (allergeneDef(id) || [id, id, id])[2];
 const lot3Plier = (s) => norm(String(s || '').replace(/œ/g, 'oe').replace(/Œ/g, 'OE').replace(/æ/g, 'ae')).replace(/[’`]/g, "'");
 const allergenesDe = (p) => (Array.isArray(p && p.allergenesListe) ? p.allergenesListe.filter((x) => allergeneDef(x)) : []);
@@ -149,7 +148,7 @@ function regulSave(db, s, id, uid) {
   const rest = regulRestant(db, a.id, s.date, id || null); let qty; let compte = null;
   if (s.mode === 'compte') { if (!hasNum(s.compte) || num(s.compte) < 0) return fail('Quantité comptée : valeur positive ou nulle requise.'); compte = r2(num(s.compte)); qty = r2(compte - rest); if (Math.abs(qty) < 1e-6) return fail('Le stock compté est égal au restant : aucune régularisation à enregistrer.'); }
   else { if (!hasNum(s.qty) || Math.abs(num(s.qty)) < 1e-9) return fail('Quantité de la régularisation : valeur non nulle requise (− pour une sortie, + pour une entrée).'); qty = r2(num(s.qty)); }
-  if (['casse', 'perte', 'peremption', 'echantillon', 'retour'].includes(motif) && qty > 0) qty = -qty; // ces motifs retirent du stock
+  if (s.mode !== 'compte' && ['casse', 'perte', 'peremption', 'echantillon', 'retour'].includes(motif) && qty > 0) qty = -qty; // ces motifs retirent du stock (0.38.0-alpha.3 : un comptage donne le signe de lui-même)
   if (rest + qty < -1e-6) return fail(`Régularisation supérieure au restant du lot (${fmt(rest, 2)}).`);
   const motifTxt = String(s.notes || '').trim().slice(0, 300); if (motif === 'autre' && !motifTxt) return fail('Motif « Autre » : précisez la raison dans les notes.');
   const x = { arrivageId: a.id, produitId: a.produitId, date: s.date, qty, motif, notes: motifTxt, restantAvant: r2(rest), ...(compte != null ? { compte } : {}), par: uid || s.par || '', le: new Date().toISOString() };

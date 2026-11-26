@@ -86,7 +86,7 @@ function TabTrace() {
           <Btn disabled={!res} onClick={csv}>⬇ Export CSV</Btn><Btn disabled={!res} onClick={() => setPrinting(true)}>🖨 Rapport imprimable</Btn>
         </div>
       </div>
-      <Body /></>}
+      {Body() /* 0.38.0-alpha.3 : appelée, plus montée comme composant (recréé à chaque rendu) */}</>}
       {printing && res ? <Sheet wide title="Rapport de traçabilité" sub={subject} onClose={() => setPrinting(false)} footer={<><BoutonsSortie out={out} /></>}>
         <div ref={ref} className="report"><ReportHead title="Rapport de traçabilité" sub={subject} />
           <div className="rpt-item">

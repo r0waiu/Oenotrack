@@ -71,6 +71,7 @@ function DocViewer({ doc, onClose }) {
       if (!b) { if (vivant) setErr('Fichier introuvable dans ce navigateur.'); return; }
       if (suspect) { if (vivant) setVue({ kind: 'bloque' }); return; }
       const tete = new Uint8Array(await b.slice(0, 65536).arrayBuffer()); const sig = gardeSignature(tete);
+      if (!vivant) return; // 0.38.0-alpha.3 : visionneuse fermée pendant la lecture → aucune URL d'objet créée (elle n'était jamais libérée)
       if (sig.famille === 'image' && sig.type) { u = URL.createObjectURL(new Blob([b], { type: sig.type })); if (vivant) setVue({ kind: 'image', url: u }); return; }
       if (sig.famille === 'pdf') { u = URL.createObjectURL(new Blob([b], { type: 'application/pdf' })); if (vivant) setVue({ kind: 'pdf', url: u }); return; }
       if (['texte', 'json', 'xml'].includes(sig.famille)) { const t = gardeDecoder(new Uint8Array(await b.slice(0, 2 * GARDE_MO).arrayBuffer()), sig.utf16); if (vivant) setVue({ kind: 'texte', texte: t, coupe: b.size > 2 * GARDE_MO }); return; }

@@ -281,7 +281,15 @@ function peseeReste(db, id, saufMarc) { const o = db.ops.find((x) => x.id === id
 
 /* ---------- marc : chargement (début), puis volumes, TAV en puissance, validation ---------- */
 // rôle des fractions : cuvée, taille (1re, 2e…), rebêches ; les autres (lies, bourbes) ne comptent pas dans le volume revendicable
-const fracRole = (db, id) => { const f = fracDef(db, id) || {}; if (f.role) return f.role; const k = norm(id); return k === 'cuvee' ? 'cuvee' : /^taille/.test(k) ? 'taille' : /^rebech/.test(k) ? 'rebeche' : 'autre'; };
+// rôle d'une fraction dans les marcs, plafonds et rendements (0.38.0-alpha.3 : champ « rôle » explicite de la liste des fractions ;
+// à défaut, déduit de l'identifiant des fractions par défaut puis du libellé — une fraction ajoutée « Taille » comptait comme « autre »)
+const FRAC_ROLES = [['cuvee', 'Cuvée'], ['taille', 'Taille'], ['rebeche', 'Rebêche'], ['autre', 'Autre']];
+const fracRoleOk = (r) => FRAC_ROLES.some((x) => x[0] === r);
+function fracRoleDevine(label, id) {
+  const k = norm(id || ''); if (k === 'cuvee') return 'cuvee'; if (/^taille/.test(k)) return 'taille'; if (/^rebech/.test(k)) return 'rebeche';
+  const l = norm(label || ''); return /rebech/.test(l) ? 'rebeche' : /taille/.test(l) ? 'taille' : /cuvee/.test(l) ? 'cuvee' : 'autre';
+}
+const fracRole = (db, id) => { const f = fracDef(db, id) || {}; if (fracRoleOk(f.role)) return f.role; return fracRoleDevine(f.label, id); };
 function marcVolumes(db, op) {
   const v = { cuvee: 0, taille: 0, rebeche: 0, autre: 0 };
   (op.fractions || []).forEach((f) => { v[fracRole(db, f.fractionId)] += num(f.volL); });

@@ -10,7 +10,6 @@ const FICHE_FILLS = {
   produits: 'Produits et matières sèches de l’opération', preparations: 'Préparations utilisées (liqueur, levain)', suivi: 'Suivi de cuves (la cuve + toutes les cuves en fermentation)',
   inventaire: 'Inventaire (toutes les cuves occupées)', sortie: 'Sorties (cuve, volume sorti)', etape: 'Changements de stade (lot, stade avant / après)',
 };
-const FICHE_CLES = {}; // (ancien aide-mémoire des clés, remplacé par les listes de l'éditeur)
 const FICHE_VERSION = 2; // modèles d'origine de la 0.19.0-alpha.1 (génériques)
 const pr2 = (t, k, s = 'relevé') => `${t}\n  prévu${k ? ` {${k}}` : ''}\n  ${s}`; // colonne « prévu / relevé »
 const sub2 = (txt) => txt.split('\n').map((l) => `  ${l}`).join('\n'); // indente un bloc (sous-colonnes)

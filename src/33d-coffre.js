@@ -21,7 +21,7 @@ const COFFRE_SECRETS_KEY = 'oenotrack-coffre-secrets';
 const COFFRE_MAGIC = [0x4f, 0x45, 0x43, 0x4f, 0x46, 0x31]; // « OECOF1 » : document joint chiffré par le coffre
 const COFFRE_ITER = 600000; const COFFRE_MDP_MIN = 10;
 const COFFRE_ENV_CHAMPS = ['format', 'formatVersion', 'appVersion', 'coffre', 'nom', 'iv', 'donnees'];
-const _coffre = { etat: 'inactif', dek: null, id: '', rec: null, clair: {}, secrets: {}, attente: {}, file: Promise.resolve(), demarre: null, bruts: null, ancien: null, erreur: '' };
+const _coffre = { etat: 'inactif', dek: null, id: '', rec: null, clair: {}, secrets: {}, attente: {}, enCours: 0, file: Promise.resolve(), demarre: null, bruts: null, ancien: null, erreur: '' };
 
 /* ---------- enveloppes (testables dans Node : Web Crypto seul) ---------- */
 const coffreAad = (id, nom) => new TextEncoder().encode(`${COFFRE_FORMAT}|${id}|${nom}`);
@@ -32,7 +32,9 @@ async function coffreChiffrerAvec(dek, id, nom, texte) {
 }
 // enveloppe du coffre ? → objet lu (avec, s'il y en a, les champs écrits à côté par une version antérieure) ou null
 function coffreEnveloppe(texte) {
-  if (typeof texte !== 'string' || texte.length < 40 || texte.slice(0, 600).indexOf(`"${COFFRE_FORMAT}"`) < 0) return null;
+  // 0.38.0-alpha.3 : marqueur cherché dans tout le texte — une version antérieure qui réécrit l'enveloppe (normalizeDb) place ses
+  // listes par défaut AVANT « format » : l'enveloppe n'était plus reconnue et la base, prise pour vide, était rechiffrée telle quelle
+  if (typeof texte !== 'string' || texte.length < 40 || texte.indexOf(`"${COFFRE_FORMAT}"`) < 0) return null;
   let j; try { j = JSON.parse(texte); } catch (e) { return null; }
   return j && j.format === COFFRE_FORMAT && j.coffre && j.iv && typeof j.donnees === 'string' ? j : null;
 }
@@ -142,14 +144,19 @@ function coffreEcrire(k, texte) {
   _coffre.clair[k] = texte;
   if (!coffrePret()) return _coffre.etat === 'indisponible' || _coffre.etat === 'inactif' ? coffreLsEcrire(k, texte) : false;
   const deja = Object.prototype.hasOwnProperty.call(_coffre.attente, k); _coffre.attente[k] = texte; if (deja) return true;
+  _coffre.enCours += 1;
   _coffre.file = _coffre.file.then(async () => {
     const t = _coffre.attente[k]; delete _coffre.attente[k];
-    let ok = false; try { ok = await coffreEcrireMaintenant(k, t); } catch (e) { ok = false; }
+    let ok = false; try { ok = await coffreEcrireMaintenant(k, t); } catch (e) { ok = false; } finally { _coffre.enCours = Math.max(0, _coffre.enCours - 1); }
     try { window.dispatchEvent(new CustomEvent('oenotrack-stockage', { detail: { cle: k, ok } })); } catch (e) { /* ignoré */ }
   });
   return true;
 }
-const coffreAttendre = () => _coffre.file; // fin des écritures en cours (tests, sauvegarde avant fermeture)
+const coffreAttendre = () => _coffre.file; // fin des écritures en cours (onglet qui cède la main, tests)
+// 0.38.0-alpha.3 : fermeture de l'onglet pendant une écriture chiffrée (quelques millisecondes) : le navigateur demande confirmation,
+// le temps qu'elle se termine — rien n'est jamais écrit en clair pour aller plus vite
+const coffreEcritureEnCours = () => _coffre.enCours > 0;
+if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('beforeunload', (e) => { if (!coffreEcritureEnCours()) return undefined; e.preventDefault(); e.returnValue = ''; return ''; });
 
 /* ---------- secrets de l'appareil : clés d'API, clé de l'équipe, jetons cloud (jamais dans la base ni en clair dans le navigateur) ---------- */
 const coffreSecret = (nom) => (Object.prototype.hasOwnProperty.call(_coffre.secrets, nom) ? _coffre.secrets[nom] : undefined);
@@ -184,7 +191,6 @@ async function coffreBlobChiffrer(blob) {
   out.set(COFFRE_MAGIC, p); p += COFFRE_MAGIC.length; out[p] = h.length >> 8; out[p + 1] = h.length & 0xff; p += 2; out.set(h, p); p += h.length; out.set(iv, p); p += 12; out.set(d, p);
   return new Blob([out], { type: 'application/octet-stream' });
 }
-const coffreOctetsChiffres = (u8) => !!u8 && u8.length > COFFRE_MAGIC.length + 14 && COFFRE_MAGIC.every((b, i) => u8[i] === b);
 async function coffreBlobDechiffrer(blob) {
   if (!blob || typeof blob.arrayBuffer !== 'function' || blob.size < COFFRE_MAGIC.length + 14) return blob;
   const u = new Uint8Array(await blob.slice(0, COFFRE_MAGIC.length).arrayBuffer()); if (!COFFRE_MAGIC.every((b, i) => u[i] === b)) return blob; // document rangé avant 0.38 : en clair
@@ -222,7 +228,9 @@ async function coffreMdpRetirer(mdpActuel) {
 // clé perdue (données illisibles) : l'enveloppe est mise de côté (jamais effacée), puis départ sur une base vide ou une sauvegarde
 async function coffreRepartir() {
   const date = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-  [STORAGE_KEY, COFFRE_SECRETS_KEY].forEach((k) => { const v = coffreLsLire(k); if (coffreEnveloppe(v)) { coffreLsEcrire(`${k}-illisible-${date}`, v); coffreLsEcrire(k, null); } });
+  // 0.38.0-alpha.3 : l'original n'est retiré que si sa copie de côté a réussi (quota plein : rien n'est effacé, échec signalé)
+  for (const k of [STORAGE_KEY, COFFRE_SECRETS_KEY]) { const v = coffreLsLire(k); if (coffreEnveloppe(v) && !coffreLsEcrire(`${k}-illisible-${date}`, v)) throw { coffre: true, quota: true, message: 'Stockage du navigateur plein : la copie de côté des données illisibles est impossible, rien n’a été effacé. Libérez de la place (anciennes copies « illisible ») ou exportez-les, puis réessayez.' }; }
+  [STORAGE_KEY, COFFRE_SECRETS_KEY].forEach((k) => { if (coffreEnveloppe(coffreLsLire(k))) coffreLsEcrire(k, null); });
   _coffre.demarre = null; _coffre.clair = {}; _coffre.secrets = {}; _coffre.etat = 'inactif';
   try { await coffreIdbRun('readwrite', (s) => s.delete(COFFRE_REC)); } catch (e) { /* ignoré */ }
   return coffreDemarrer();

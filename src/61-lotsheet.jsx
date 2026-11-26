@@ -55,11 +55,9 @@ function DescTree({ lotId, depth = 0 }) {
   </ul>);
 }
 
-/* Bilan matière du lot, campagne par campagne (affiché en hL) : ouverture + entrées − sorties − pertes = clôture, contrôlé sur le stock réel */
-function LotBilan({ lotId }) {
-  const { db, R } = useApp(); const lot = R.lots[lotId]; if (!lot) return null;
+function lotBilanCols(db, lot, lotId) {
   const kids = childrenOf(db, lotId).filter((ch) => ch.type !== 'cuvee_tirage');
-  const cols = db.campagnes.map((c) => {
+  return db.campagnes.map((c) => {
     const R0 = getR(db, addDays(c.debut, -1)), R1 = getR(db, c.fin); const inC = (d) => d >= c.debut && d <= c.fin;
     const fl = R1.flows.filter((f) => f.lotId === lotId && inC(f.date)); const k = (kind) => sum(fl.filter((f) => f.kind === kind), (f) => f.L);
     const recu = k('entree') + (lot.type !== 'cuvee_tirage' && lot.date && inC(lot.date) ? sum(lot.sources || [], (s) => s.volL) : 0);
@@ -69,7 +67,13 @@ function LotBilan({ lotId }) {
     v.any = [v.open, v.recu, v.ajout, v.perte, v.jau, v.prel, v.tir, v.vente, v.sorti, v.close].some((x) => Math.abs(x) > 0.004);
     return v;
   }).filter((v) => v.any);
-  if (!cols.length) return null;
+}
+/* Bilan matière du lot, campagne par campagne (affiché en hL) : ouverture + entrées − sorties − pertes = clôture, contrôlé sur le stock réel */
+function LotBilan({ lotId }) {
+  const { db, R } = useApp(); const lot = R.lots[lotId];
+  // 0.38.0-alpha.3 : deux rejeux par campagne, refaits seulement quand la base change (plus à chaque rendu : toasts, synchronisation)
+  const cols = useMemo(() => (!lot ? [] : lotBilanCols(db, lot, lotId)), [db, lot, lotId]);
+  if (!lot || !cols.length) return null;
   const LINES = [['open', 'Stock à l’ouverture'], ['recu', '+ Reçu (pressurage, reprise, assemblage)'], ['ajout', '+ Préparations ajoutées'], ['perte', '− Pertes (bourbes, lies…)'], ['jau', '± Écart de jaugeage'], ['prel', '− Prélevé pour préparations'], ['tir', '− Mis en bouteilles (tirage)'], ['vente', '− Sorties de cave (vente, distillerie…)'], ['sorti', '− Sorti vers d’autres assemblages'], ['calc', '= Stock de clôture calculé'], ['close', 'Stock en cuve à la clôture'], ['ecart', 'Contrôle']].filter(([key]) => ['open', 'calc', 'close', 'ecart'].includes(key) || cols.some((v) => Math.abs(v[key]) > 0.004));
   const bold = (key) => ['open', 'calc', 'close'].includes(key);
   return (
@@ -175,6 +179,7 @@ function FiniSheet({ id, onClose }) {
       <Sec title="Liqueur d’expédition" className="mb-5"><Tbl rows={preps} empty="Aucune liqueur d’expédition enregistrée." cols={[{ h: 'Préparation', r: (p) => <b>{p.code}</b> }, { h: 'Type', r: (p) => PREP_TYPES[p.ptype] }, { h: 'Qualification', r: (p) => <QChip id={p.qualif} /> }, { h: 'Volume utilisé', cls: 'r', r: (p) => <span className="num">{fmtL(p.use)}</span> }]} />
         {preps.map((p) => { const pa = R.apps.filter((a) => a.prepId === p.id && a.produitId); return pa.length ? <div key={p.id} className="mt-2"><div className="lbl">Ingrédients de {p.code}</div><Tbl rows={pa} cols={[{ h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }]} /></div> : null; })}
       </Sec>
+      <Sec title="SO₂ total estimé (lot de tirage + liqueur d’expédition)" className="mb-5"><So2EstimeBloc lotId={f.id} /></Sec>
       <Sec title="Bouchon, muselet et autres matières sèches" className="mb-5"><Tbl rows={apps} empty="Aucune matière sèche enregistrée." cols={[{ h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 0)} {a.unite}</span> }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }]} /></Sec>
       <Sec title="Traçabilité amont (de la bouteille à la vendange)"><div className="tree"><ul style={{ borderLeft: 0, paddingLeft: 0 }}><AncTree lotId={f.sourceLotId} /></ul></div></Sec>
     </Sheet>

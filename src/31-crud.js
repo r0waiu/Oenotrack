@@ -24,7 +24,6 @@ function planAuto(db, siteId, onlyMissing) {
   todo.forEach((c) => { const t = tileSize(db, c); const p = freeSlot(rects, t.w, t.h); c.x = p.x; c.y = p.y; rects.push({ x: p.x, y: p.y, w: t.w, h: t.h }); });
 }
 function contMove(db, id, x, y) { const c = db.contenants.find((k) => k.id === id); if (!c) return fail('Contenant introuvable.'); c.x = Math.max(0, Math.round(num(x) / GRID) * GRID); c.y = Math.max(0, Math.round(num(y) / GRID) * GRID); return okr(); }
-function planReset(db, siteId) { planAuto(db, siteId, false); return okr(); }
 
 /* ---------- sites (stock commun : un site n'isole jamais les stocks) ---------- */
 function siteSave(db, s, id) {
@@ -231,13 +230,14 @@ function fractionCont(db, op, id, patch) {
   if (op === 'add') {
     if (!lab) return fail('Libellé de la fraction requis.'); if (L.some((x) => norm(x.label) === norm(lab))) return fail('Cette fraction existe déjà.');
     if (sfx && L.some((x) => x.suffix === sfx)) return fail(`Le suffixe « ${sfx} » est déjà utilisé par une autre fraction.`);
-    L.push({ id: nid(db, 'fr'), label: lab, suffix: sfx, pressurage: patch.pressurage !== false }); return okr();
+    L.push({ id: nid(db, 'fr'), label: lab, suffix: sfx, pressurage: patch.pressurage !== false, role: fracRoleOk(patch.role) ? patch.role : fracRoleDevine(lab) }); return okr();
   }
   const i = L.findIndex((x) => x.id === id); const it = L[i]; if (!it) return fail('Fraction introuvable.');
   if (op === 'edit') {
     if (patch.label != null) { if (!lab) return fail('Libellé requis.'); if (L.some((x) => x.id !== id && norm(x.label) === norm(lab))) return fail('Ce libellé existe déjà.'); it.label = lab; }
     if (patch.suffix != null) { if (sfx && L.some((x) => x.id !== id && x.suffix === sfx)) return fail(`Le suffixe « ${sfx} » est déjà utilisé.`); it.suffix = sfx; }
     if (patch.pressurage != null) it.pressurage = !!patch.pressurage;
+    if (patch.role != null) { if (!fracRoleOk(patch.role)) return fail('Rôle de la fraction inconnu.'); it.role = patch.role; } // 0.38.0-alpha.3
     return okr();
   }
   if (op === 'up' || op === 'down') { const j = op === 'up' ? i - 1 : i + 1; if (j < 0 || j >= L.length) return okr(); [L[i], L[j]] = [L[j], L[i]]; return okr(); }
@@ -340,7 +340,7 @@ function arrivageSave(db, s, id) {
   if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.');
   const pr = db.produits.find((p) => p.id === s.produitId);
   const item = { produitId: s.produitId, fournisseurId: s.fournisseurId || (pr && pr.fournisseurId) || '', numLot: String(s.numLot).trim(), dluo: s.dluo || '', date: s.date, qty: num(s.qty), notes: s.notes || '' };
-  if (id) { const a = db.arrivages.find((x) => x.id === id); if (isLocked(db, a.date)) return fail('Arrivage verrouillé (campagne figée).'); Object.assign(a, item); }
+  if (id) { const a = db.arrivages.find((x) => x.id === id); if (!a) return fail('Arrivage introuvable.'); if (isLocked(db, a.date)) return fail('Arrivage verrouillé (campagne figée).'); Object.assign(a, item); }
   else { const aid = nid(db, 'ar'); db.arrivages.push({ id: aid, ...item }); return okr({ id: aid }); }
   return okr({ id });
 }
@@ -348,6 +348,7 @@ function arrivageDelete(db, id) {
   const a = db.arrivages.find((x) => x.id === id); if (!a) return fail('Arrivage introuvable.');
   if (isLocked(db, a.date)) return fail('Arrivage verrouillé (campagne figée).');
   if (JSON.stringify(db.ops).includes(`"arrivageId":"${id}"`)) return fail('Cet arrivage a déjà été utilisé dans des opérations.');
+  if ((db.regulStocks || []).some((x) => x && x.arrivageId === id)) return fail('Cet arrivage a des régularisations de stock : supprimez-les d’abord (la trace d’inventaire est gardée).'); // 0.38.0-alpha.3
   db.arrivages = db.arrivages.filter((x) => x.id !== id); db.docs = (db.docs || []).filter((x) => !(x.cible && x.cible.type === 'arrivage' && x.cible.id === id)); return okr();
 }
 
@@ -615,7 +616,6 @@ function docMetaAdd(db, m) {
     ...(m.partId ? { partId: String(m.partId).slice(0, 40) } : {}) }); // 0.34.0-alpha.1 : partenaire (onglet) d'une entrée de moûts
   return okr();
 }
-function docMetaEdit(db, id, patch) { const x = (db.docs || []).find((y) => y.id === id); if (!x) return fail('Document introuvable.'); if (patch.cat) x.cat = patch.cat; if (patch.nom != null && String(patch.nom).trim()) x.nom = String(patch.nom).trim(); return okr(); }
 function docMetaDel(db, id) { db.docs = (db.docs || []).filter((x) => x.id !== id); return okr(); }
 // documents joints avant validation (opération à réaliser) : rattachés à l'opération quand elle est validée (0.14.0-alpha.1)
 function docsDeplacer(db, de, vers) { let n = 0; (db.docs || []).forEach((x) => { if (x.cible && x.cible.type === de.type && x.cible.id === de.id) { x.cible = { type: vers.type, id: vers.id }; n += 1; } }); return n; }

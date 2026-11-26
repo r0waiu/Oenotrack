@@ -14,7 +14,7 @@ const mouvementsMaint = (db, pid) => (Array.isArray(db && db.mouvementsMaintenan
 const maintMouvSigne = (m) => (m.type === 'sortie' ? -Math.abs(num(m.qty)) : m.type === 'entree' ? Math.abs(num(m.qty)) : num(m.qty));
 function maintStock(db, pid, date) { return r2(sum(mouvementsMaint(db, pid).filter((m) => !date || m.date <= date), maintMouvSigne)); }
 function maintMouvHistorique(db, pid) {
-  const M = mouvementsMaint(db, pid).slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.le || '').localeCompare(String(b.le || ''))));
+  const M = mouvementsMaint(db, pid).slice().sort(maintMouvOrdre);
   let s = 0; return M.map((m) => { s += maintMouvSigne(m); return { ...m, signe: maintMouvSigne(m), solde: r2(s) }; });
 }
 const maintStockBas = (db, p) => !!(p && p.suiviStock && p.actif !== false && hasNum(p.seuil) && maintStock(db, p.id) <= num(p.seuil) + 1e-9);
@@ -52,6 +52,8 @@ function maintProduitDelete(db, id) {
   const docs = (db.docs || []).filter((x) => x && x.cible && x.cible.type === 'produitMaintenance' && x.cible.id === id).map((x) => x.id);
   db.produitsMaintenance = db.produitsMaintenance.filter((p) => !(p && p.id === id)); if (docs.length) db.docs = db.docs.filter((x) => !docs.includes(x.id)); return okr({ docs });
 }
+// ordre des mouvements : date, puis moment de la saisie (0.38.0-alpha.3 : le même partout ; une modification garde sa place)
+const maintMouvOrdre = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.le || '').localeCompare(String(b.le || '')));
 function maintMouvementSave(db, s, id, uid) {
   s = s || {}; const p = maintProdDef(db, s.produitId); if (!p) return fail('Produit de maintenance introuvable.');
   if (!p.suiviStock) return fail('Le suivi du stock n’est pas activé pour ce produit.');
@@ -62,19 +64,19 @@ function maintMouvementSave(db, s, id, uid) {
   if (s.type === 'regul' && s.mode === 'compte') { if (!hasNum(s.compte) || num(s.compte) < 0) return fail('Quantité comptée : valeur positive ou nulle requise.'); const st = r2(sum(mouvementsMaint(db, p.id).filter((m) => m.id !== id && m.date <= s.date), maintMouvSigne)); qty = r2(num(s.compte) - st); if (Math.abs(qty) < 1e-9) return fail('Le stock compté est égal au stock calculé : rien à régulariser.'); }
   else { if (!hasNum(s.qty) || Math.abs(num(s.qty)) < 1e-9) return fail('Quantité : valeur non nulle requise.'); qty = s.type === 'regul' ? r2(num(s.qty)) : r2(Math.abs(num(s.qty))); }
   const notes = String(s.notes || '').trim().slice(0, 300); const motif = s.type === 'regul' ? (REGUL_MOTIFS.some((m) => m[0] === s.motif) ? s.motif : 'autre') : '';
-  if (s.type === 'regul' && ['casse', 'perte', 'peremption', 'echantillon', 'retour'].includes(motif) && qty > 0) qty = -qty;
+  if (s.type === 'regul' && s.mode !== 'compte' && ['casse', 'perte', 'peremption', 'echantillon', 'retour'].includes(motif) && qty > 0) qty = -qty; // un comptage donne le signe de lui-même
   if (motif === 'autre' && !notes) return fail('Motif « Autre » : précisez la raison dans les notes.');
   const x = { produitId: p.id, date: s.date, type: s.type, qty, motif, numLot: String(s.numLot || '').trim().slice(0, 60), notes, ...(s.type === 'regul' && s.mode === 'compte' ? { compte: r2(num(s.compte)) } : {}), par: uid || '', le: new Date().toISOString() };
   // stock jamais négatif après le mouvement (à sa date et ensuite)
-  const autres = mouvementsMaint(db, p.id).filter((m) => m.id !== id); const L = [...autres, { ...x, id: '_' }].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const tous = mouvementsMaint(db, p.id); const L = (old ? tous.map((m) => (m.id === id ? { ...x, id, le: old.le || x.le } : m)) : [...tous, { ...x, id: '_' }]).sort(maintMouvOrdre); // tri stable : à égalité, l'ordre de saisie
   let st = 0; for (const m of L) { st += maintMouvSigne(m); if (st < -1e-6) return fail(`Stock insuffisant au ${fmtDate(m.date)} (${fmt(st - maintMouvSigne(m), 2)} ${p.unite}).`); }
   if (!Array.isArray(db.mouvementsMaintenance)) db.mouvementsMaintenance = [];
-  if (old) { delete old.compte; Object.assign(old, x); return okr({ id: old.id }); }
+  if (old) { delete old.compte; Object.assign(old, x, { le: old.le || x.le, modifLe: x.le }); return okr({ id: old.id }); }
   const m = { id: nid(db, 'mm'), ...x }; db.mouvementsMaintenance.push(m); return okr({ id: m.id });
 }
 function maintMouvementDelete(db, id) {
   const m = mouvementsMaint(db).find((x) => x.id === id); if (!m) return fail('Mouvement introuvable.'); if (isLocked(db, m.date)) return fail('Mouvement verrouillé (campagne figée).');
-  const reste = mouvementsMaint(db, m.produitId).filter((x) => x.id !== id).sort((a, b) => (a.date < b.date ? -1 : 1)); let st = 0;
+  const reste = mouvementsMaint(db, m.produitId).filter((x) => x.id !== id).sort(maintMouvOrdre); let st = 0;
   for (const x of reste) { st += maintMouvSigne(x); if (st < -1e-6) return fail('Supprimer ce mouvement rendrait le stock négatif.'); }
   db.mouvementsMaintenance = db.mouvementsMaintenance.filter((x) => !(x && x.id === id)); return okr();
 }

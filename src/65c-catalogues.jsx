@@ -96,16 +96,14 @@ function CataloguesView() {
 }
 // texte d'un PDF (catalogue, cahier des charges) : toutes les pages qui portent du texte ; un PDF fait d'images n'en donne pas
 async function lireTextePdf(file, { onEtape, maxPages } = {}) {
-  const L = await chargerPdfjs();
-  const doc = await L.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false, wasmUrl: `${PDFJS_BASE}wasm/`, standardFontDataUrl: `${PDFJS_BASE}standard_fonts/`, cMapUrl: `${PDFJS_BASE}cmaps/`, cMapPacked: true }).promise;
-  try {
+  return pdfAvecDocument(file, async (doc) => {
     const n = Math.min(doc.numPages, maxPages || 200); const pages = []; let vides = 0;
     for (let i = 1; i <= n; i += 1) { if (onEtape) onEtape(`Lecture de la page ${i} / ${n}…`); const pg = await doc.getPage(i); const t = await pdfPageItems(pg); if (t.items.map((it) => it.s).join('').replace(/[^A-Za-zÀ-ÿ]/g, '').length < 40) vides += 1; pages.push({ n: i, ...t }); }
     return { texte: pages.map((p) => `${fdsTexteDePages([p])}\n`).join(''), nbPages: doc.numPages, vides, lues: n };
-  } finally { try { doc.destroy(); } catch (e) { /* ignoré */ } }
+  });
 }
 // texte d'un fichier CSV : UTF-8, sinon Windows-1252 (exports d'Excel en français)
-async function texteCsv(file) { const b = new Uint8Array(await file.arrayBuffer()); try { return new TextDecoder('utf-8', { fatal: true }).decode(b); } catch (e) { return new TextDecoder('windows-1252').decode(b); } }
+const texteCsv = (file) => lectureFichier(file); // UTF-8, UTF-16 ou Windows-1252 (68f-drive)
 // découpe d'un long texte pour l'assistant IA (morceaux de lignes entières)
 const texteMorceaux = (t, n) => { const out = []; let cur = ''; String(t || '').split('\n').forEach((l) => { if ((cur + l).length > n && cur) { out.push(cur); cur = ''; } cur += `${l}\n`; }); if (cur.trim()) out.push(cur); return out; };
 function CatalogueImportSheet({ onClose, onFait }) {

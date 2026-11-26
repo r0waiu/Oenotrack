@@ -101,14 +101,20 @@ import shutil
 for n in ['icone-192.png', 'icone-512.png', 'icone-maskable-512.png', 'apple-touch-icon.png']: shutil.copy(os.path.join(racine, 'tools', 'icones', n), os.path.join(dossier, n))
 import hashlib
 empreinte = hashlib.sha1(page.encode('utf8') + b''.join(open(os.path.join(dossier, n), 'rb').read() for n in ['icone-192.png', 'icone-512.png', 'icone-maskable-512.png', 'apple-touch-icon.png'])).hexdigest()[:8]
+# polices de la charte par défaut « oenotrack » (head.html : Inter, Playfair Display) et Barlow (courbes, étiquettes QR, toutes chartes)
+POLICES_PRECACHE = r'(inter|playfair-display|barlow)-latin'
 sw = """// Œnotrack — service worker : l'application s'ouvre même sans réseau (cave, vignes) ; nouvelle version prise dès que le réseau est là
 const VERSION = 'oenotrack-__VERSION__';
 const COEUR = ['./', './index.html', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 // 0.38.0-alpha.1 : bibliothèques et polices servies par le site (vendor/) : mises en cache dès l'installation ; aucun CDN
+// 0.38.0-alpha.3 : seules les polices de la charte par défaut sont mises en cache à l'installation (les autres le sont à leur premier
+// usage, et gardées d'une version à l'autre) : environ 1,5 Mo de moins à télécharger
 const VENDOR = __VENDOR__;
 const LIBS = VENDOR;
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COEUR).catch(() => null).then(() => Promise.all(LIBS.map((u) => c.add(u).catch(() => null))))).catch(() => null).then(() => self.skipWaiting())); });
-self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('oenotrack-') && k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
+// polices déjà utilisées (autre charte) reprises de l'ancienne version avant son effacement : elles restent disponibles hors ligne
+const reprendre = (k) => Promise.all([caches.open(k), caches.open(VERSION)]).then(([a, n]) => a.keys().then((rs) => Promise.all(rs.filter((r) => /\/vendor\/polices\/[^/]+\.woff2$/.test(new URL(r.url).pathname)).map((r) => n.match(r).then((x) => x || a.match(r).then((rep) => rep && n.put(r, rep))))))).catch(() => null);
+self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('oenotrack-') && k !== VERSION).map((k) => reprendre(k).then(() => caches.delete(k))))).then(() => self.clients.claim())); });
 const garder = (r, rep) => { if (rep && (rep.ok || rep.type === 'opaque')) { const cp = rep.clone(); caches.open(VERSION).then((c) => c.put(r, cp)).catch(() => null); } return rep; };
 self.addEventListener('fetch', (e) => {
   const r = e.request; if (r.method !== 'GET') return; const u = new URL(r.url);
@@ -121,7 +127,7 @@ self.addEventListener('fetch', (e) => {
   }
   // Google Drive, OneDrive, Dropbox, services d'IA : jamais interceptés
 });
-""".replace('__VERSION__', version + '-' + empreinte).replace('__VENDOR__', json.dumps(['./vendor/' + x for x in sorted([BIB[n]['local'] for n in ['react', 'reactDom', 'pdflib', 'xlsx', 'pdfjs', 'pdfjsWorker']] + ['polices/polices.css'] + ['polices/' + f for f in os.listdir(os.path.join(vendor, 'polices')) if f.endswith('.woff2')] + ['pdfjs/wasm/' + f for f in os.listdir(os.path.join(vendor, 'pdfjs', 'wasm')) if f.endswith('.wasm')])]))
+""".replace('__VERSION__', version + '-' + empreinte).replace('__VENDOR__', json.dumps(['./vendor/' + x for x in sorted([BIB[n]['local'] for n in ['react', 'reactDom', 'pdflib', 'xlsx', 'pdfjs', 'pdfjsWorker']] + ['polices/polices.css'] + ['polices/' + f for f in os.listdir(os.path.join(vendor, 'polices')) if f.endswith('.woff2') and re.match(POLICES_PRECACHE, f)] + ['pdfjs/wasm/' + f for f in os.listdir(os.path.join(vendor, 'pdfjs', 'wasm')) if f.endswith('.wasm')])]))
 open(os.path.join(dossier, 'sw.js'), 'w', encoding='utf8').write(sw)
 # README.md (format GitHub, depuis 0.24.0-alpha.1, à la place de LISEZ-MOI.txt) : celui du dépôt, badge de version mis à jour ;
 # CHANGELOG.md fabriqué à partir du journal des nouveautés de l'application (tools/changelog.mjs)

@@ -3,7 +3,6 @@
    vectoriel (fonds, bordures, mots placés exactement comme à l'écran ; images et dessins SVG intégrés) à enregistrer. Dans claude.ai, la
    page tourne dans un cadre où window.print() n'atteint pas l'imprimante : le PDF prend alors le relais. pdf-lib chargé à la demande. */
 // page ouverte seule (pas dans un cadre) : l'impression directe y fonctionne à coup sûr
-const CAN_PRINT_DIRECT = (() => { try { return window.self === window.top; } catch (e) { return false; } })();
 // 0.38.0-alpha.1 : bibliothèques vérifiées (16r-bibliotheques.js : version figée, attribut integrity ; copiées dans vendor/ sur le site)
 function loadPdfLib() {
   if (window.PDFLib) return Promise.resolve(window.PDFLib);

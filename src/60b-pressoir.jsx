@@ -3,7 +3,6 @@
    un marc une opération « pressurage » (ses lots de cuvée, tailles et rebêches entrent dans les cuves). */
 const pMaintenant = () => new Date().toISOString();
 const kgTxt = (x) => `${fmt(x)} kg`;
-const heureDe = (iso) => { const d = new Date(iso || ''); return Number.isNaN(d.getTime()) ? '' : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const etatLabel = (id) => (ETATS_SANITAIRES.find((e) => e.id === id) || {}).label || '';
 const peseeOrigine = (db, o) => [o.cruId ? cruName(db, o.cruId) : '', o.parcelleId ? parcelleName(db, o.parcelleId) : '', (o.pesee || {}).mention || ''].filter(Boolean).join(' · ');
 const peseeLibelle = (db, o, reste) => `${o.pesee && o.pesee.num ? `n° ${o.pesee.num}` : 'sans n°'} · ${fmtDate(o.date)}${o.pesee && o.pesee.heure ? ` ${o.pesee.heure}` : ''} · ${lbl(db, 'cepages', o.cepageId)} · ${o.apporteurId ? apporteurName(db, o.apporteurId) : 'exploitation'}${o.cruId ? ` · ${cruName(db, o.cruId)} (${cruEchUn(db, o.cruId)})` : ''}${reste != null ? ` · reste ${kgTxt(reste)}` : ''}`;

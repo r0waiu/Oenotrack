@@ -26,6 +26,13 @@ function chargerTesseract() {
   _tessP.catch(() => { _tessP = null; });
   return _tessP;
 }
+// ouverture d'un PDF (0.38.0-alpha.3 : réglages communs aux cinq lectures de PDF) ; fn(doc) puis doc.destroy() dans tous les cas :
+// la mémoire du document (et du worker) est rendue même si la lecture échoue
+async function pdfAvecDocument(file, fn) {
+  const L = await chargerPdfjs();
+  const doc = await L.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false, wasmUrl: `${PDFJS_BASE}wasm/`, standardFontDataUrl: `${PDFJS_BASE}standard_fonts/`, cMapUrl: `${PDFJS_BASE}cmaps/`, cMapPacked: true }).promise;
+  try { return await fn(doc); } finally { try { doc.destroy(); } catch (e) { /* ignoré */ } }
+}
 // texte positionné d'une page PDF (unités de la page, origine en haut à gauche)
 async function pdfPageItems(page) {
   const vp = page.getViewport({ scale: 1 }); const tc = await page.getTextContent();
@@ -46,13 +53,15 @@ function nettoyerScan(canvas) {
   ctx.putImageData(img, 0, 0); return canvas;
 }
 // reconnaissance de caractères d'une image (canvas) → page de texte positionné ; echelle : px → unités de la page
-let _tessWorker = null;
+let _tessWorker = null; let _tessLog = null;
 async function ocrCanvas(canvas, n, echelle, onLog) {
   const T = await chargerTesseract();
   // sur le site : moteur, « worker » et données de langue copiés dans vendor/ (aucun CDN) ; fichier seul : réglages d'origine de Tesseract
   const L = bibLocal(); const abs = (x) => new URL(`${L}${x}`, document.baseURI).href.replace(/\/$/, '');
   const chemins = L ? { workerPath: abs(BIB_TABLE.tesseractWorker.local), corePath: abs(BIB_DOSSIERS.tesseractCore), langPath: abs(BIB_DOSSIERS.tesseractLangue), workerBlobURL: false } : {};
-  if (!_tessWorker) _tessWorker = T.createWorker('fra', 1, { ...chemins, logger: (m) => { if (onLog && m && m.status) onLog(m); } });
+  // 0.38.0-alpha.3 : le suivi d'avancement suit l'appel en cours (plus celui du premier appel) ; un échec de création ne bloque plus les suivants
+  _tessLog = onLog || null;
+  if (!_tessWorker) { _tessWorker = T.createWorker('fra', 1, { ...chemins, logger: (m) => { if (_tessLog && m && m.status) _tessLog(m); } }); _tessWorker.catch(() => { _tessWorker = null; }); }
   const w = await _tessWorker; const r = await w.recognize(canvas); const tsv = (r && r.data && r.data.tsv) || '';
   return { ...jaugePageDeTsv(tsv, n, echelle), ocr: true };
 }
@@ -73,7 +82,6 @@ const estPdf = (f) => /pdf/.test(f.type || '') || /\.pdf$/i.test(f.name || '');
 const estImage = (f) => /^image\//.test(f.type || '') || /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(f.name || '');
 const estTableur = (f) => /\.(xlsx|xls|ods)$/i.test(f.name || '') || /spreadsheet|excel/.test(f.type || '');
 const estJson = (f) => /\.json$/i.test(f.name || '') || /json/.test(f.type || '');
-const etiquetteFichier = (f) => (estPdf(f) ? 'PDF' : estImage(f) ? 'image' : estTableur(f) ? 'tableur' : estJson(f) ? 'fichier de barèmes' : 'texte');
 
 // lecture d'un fichier → { baremes, journal, sansTexte: [pages], doc (pdf.js, pour la reconnaissance), fichier }
 async function lireFichierJauge(file, { onEtape, ocr } = {}) {
@@ -96,8 +104,8 @@ async function lireFichierJauge(file, { onEtape, ocr } = {}) {
     return { ...jaugeAnalyser([p], { fichier: nom }), sansTexte: [], fichier: nom, ocr: true };
   }
   if (estPdf(file)) {
-    if (onEtape) onEtape('Ouverture du PDF…'); const L = await chargerPdfjs();
-    const doc = await L.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false, wasmUrl: `${PDFJS_BASE}wasm/`, standardFontDataUrl: `${PDFJS_BASE}standard_fonts/`, cMapUrl: `${PDFJS_BASE}cmaps/`, cMapPacked: true }).promise;
+    if (onEtape) onEtape('Ouverture du PDF…');
+    return pdfAvecDocument(file, async (doc) => {
     const lirePages = async (avecOcr) => {
       const pages = []; const sansTexte = [];
       for (let n = 1; n <= doc.numPages; n += 1) {
@@ -111,6 +119,7 @@ async function lireFichierJauge(file, { onEtape, ocr } = {}) {
     let L1 = await lirePages(!!ocr);
     if (!ocr && L1.sansTexte.length === doc.numPages) L1 = await lirePages(true); // scan sans aucun texte : lu tout de suite
     return { ...jaugeAnalyser(L1.pages, { fichier: nom }), sansTexte: L1.sansTexte, fichier: nom, nbPages: doc.numPages, ocr: !!ocr || !L1.sansTexte.length };
+    });
   }
   const txt = await lectureFichier(file); return { ...jaugeAnalyser([jaugePageDeTexte(txt)], { fichier: nom }), sansTexte: [], fichier: nom };
 }

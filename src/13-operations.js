@@ -79,7 +79,6 @@ const OP_BASES_VISIBLES_MENU = ['soutirage', 'transfert', 'debourbage', 'intrant
 
 const opList = (db) => (db && db.lists && Array.isArray(db.lists.operations) && db.lists.operations.length ? db.lists.operations : DEFAULT_OPERATIONS());
 const opDef = (db, id) => opList(db).find((x) => x.id === id) || (OP_LABELS0[id] ? { id, base: id, label: OP_LABELS0[id] } : null);
-const opBase = (db, id) => (opDef(db, id) || {}).base || id;
 const opIcone = (db, id) => { const d = opDef(db, id) || {}; return d.icone || OP_BASES_ICONES[d.base || id] || '•'; };
 const opNom = (o) => { if (!o) return ''; const k = o.sousType || (o.f && o.f.sousType) || ''; return (k && OP_LABELS[k]) || OP_LABELS[o.type] || o.type || ''; };
 const opBaseLabel = (b) => OP_LABELS0[b] || b;

@@ -20,10 +20,11 @@ function TabOps() {
   const quiOK = (o) => !oprF || (oprF === '-' ? !operateursValides(db, o.operateurs).length : Array.isArray(o.operateurs) && o.operateurs.includes(oprF));
   const inCamp = (o) => o.date >= camp.debut && o.date <= camp.fin;
   const kOf = (o) => (o.sousType && opDef(db, o.sousType) ? o.sousType : o.type);
-  const rows = [...db.ops].filter((o) => (scope === 'all' || inCamp(o)) && quiOK(o) && (!typeF || kOf(o) === typeF || (typeF.startsWith('g:') && (opDef(db, kOf(o)) || {}).groupe === typeF.slice(2))))
+  // 0.38.0-alpha.3 : liste recalculée quand la base ou un filtre change (plus à chaque rendu : toasts, synchronisation, menus)
+  const rows = useMemo(() => [...db.ops].filter((o) => (scope === 'all' || inCamp(o)) && quiOK(o) && (!typeF || kOf(o) === typeF || (typeF.startsWith('g:') && (opDef(db, kOf(o)) || {}).groupe === typeF.slice(2))))
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (b.seq || 0) - (a.seq || 0)))
     .map((op) => ({ id: op.id, op, lots: opLots(op, R), conts: opConts(op, R), text: opSummary(db, R, op), vol: opVolume(op), warns: R.warn[op.id] || [], locked: isLocked(db, op.date) }))
-    .filter((r) => !q || norm(`${opNom(r.op)} ${r.text} ${r.op.notes || ''} ${r.lots.map((l) => lotCode(db, R, l)).join(' ')} ${r.conts.map((c) => contName(db, c)).join(' ')} ${operateursNoms(db, r.op.operateurs, ' ')}`).includes(norm(q)));
+    .filter((r) => !q || norm(`${opNom(r.op)} ${r.text} ${r.op.notes || ''} ${r.lots.map((l) => lotCode(db, R, l)).join(' ')} ${r.conts.map((c) => contName(db, c)).join(' ')} ${operateursNoms(db, r.op.operateurs, ' ')}`).includes(norm(q))), [db, R, scope, oprF, typeF, q, camp.debut, camp.fin]);
   const oprs = operateursTries(db, true);
   const nCamp = db.ops.filter(inCamp).length; const nPlan = (db.previsions || []).filter((p) => p.statut === 'prevue').length; const toCheck = db.ops.filter((o) => inCamp(o) && (R.warn[o.id] || []).length && !o.verifie).length;
   const pending = db.alertes.filter((a) => a.statut === 'attente').length;
