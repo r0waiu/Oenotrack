@@ -99,7 +99,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   });
   const Rd = useRd(db, f.date, editId);
   const [fracEd, setFracEd] = useState(false);
-  const [ongletMout, setOngletMout] = useState(''); const [bulBusy, setBulBusy] = useState(''); // entrée de moûts : onglet partenaire affiché, lecture d'un bulletin (0.34.0-alpha.1)
+  const [ongletMout, setOngletMout] = useState(''); const [bulBusy, setBulBusy] = useState(''); const [bulGuides, setBulGuides] = useState([]); // entrée de moûts : onglet partenaire affiché, lecture d'un bulletin (0.34.0-alpha.1)
   const [tout, setTout] = useState(false); const [cfgEd, setCfgEd] = useState(false); // afficher les champs masqués ; éditeur du formulaire
   const cfgv = { cfg: fcfg, type, tout };
   const nMasques = champsStd(type).filter((c) => champEffectif(fcfg, type, c.k).vis === 'masque').length;
@@ -192,16 +192,22 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         };
         const prefixeLot = (ref) => (String(ref || '').trim() ? String(ref).trim().toUpperCase().replace(/\s+/g, '') : `EM${String(f.date || todayISO()).slice(2).replace(/-/g, '')}`);
         const numeroter = () => { const cpt = {}; upd({ entrees: f.entrees.map((e) => { const pid = moutOngletDe(P, e); cpt[pid] = (cpt[pid] || 0) + 1; if (String(e.numLot || '').trim()) return e; const t = ongletVal(P.find((p) => p.id === pid), P.findIndex((p) => p.id === pid)); return { ...e, numLot: `${prefixeLot(t.ref || (P.length > 1 ? '' : f.ref))}${P.length > 1 && !String(t.ref || '').trim() ? `-P${P.findIndex((p) => p.id === pid) + 1}` : ''}-${cpt[pid]}` }; }) }); };
-        // bulletin d'analyses d'un partenaire : lu, valeurs reportées sur ses moûts (n° de lot, compartiment, ordre), fichier joint à l'onglet
-        const lireBulletin = async (files) => {
-          const pid = actif; const L = lignesDe(pid).map((x) => ({ i: x.i, numLot: x.e.numLot, compartiment: x.e.compartiment }));
+        // bulletin d'analyses (0.37.0-alpha.1) : déposé dans l'onglet d'un partenaire (ses moûts) ou pour toute l'entrée (tous les moûts) ;
+        // chaque échantillon est rapproché d'un moût (n° de lot, compartiment, mêmes nombres) ; s'il reste un doute, affectation guidée
+        const moutsPour = (pid) => (pid ? lignesDe(pid) : f.entrees.map((e, i) => ({ e, i }))).map((x) => { const t = moutOngletDe(P, x.e); const k = P.findIndex((p) => p.id === t); const ap = ongletVal(P[k], k).apporteurId;
+          return { i: x.i, numLot: x.e.numLot, compartiment: x.e.compartiment, partId: t, onglet: k + 1, partenaire: ap ? apporteurName(db, ap) : '', n: lignesDe(t).findIndex((y) => y.i === x.i) + 1 }; });
+        const reporter = (aff) => setF((x) => ({ ...x, entrees: x.entrees.map((e, k) => { const L = (aff || []).filter((y) => y.i === k); if (!L.length) return e; const an = { ...(e.analyses || {}) }; L.forEach((a) => Object.keys(a.valeurs).forEach((pp) => { an[pp] = String(a.valeurs[pp]).replace('.', ','); })); return { ...e, analyses: an }; }) }));
+        const lireBulletin = async (files, pid) => {
+          const M = moutsPour(pid); const plusieurs = !pid && P.length > 1;
           for (const file of files) {
             setBulBusy(`« ${file.name} » : lecture…`);
             try {
-              const lu = await bulletinLireFichier(file, { onEtape: (t) => setBulBusy(`« ${file.name} » : ${t}`) }); const res = bulletinAnalyser(db, R, lu.lignes, { candidats: [] }); const aff = bulletinPourMouts(res, L);
-              if (aff.length) setF((x) => ({ ...x, entrees: x.entrees.map((e, k) => { const a = aff.find((y) => y.i === k); if (!a) return e; const an = { ...(e.analyses || {}) }; Object.keys(a.valeurs).forEach((pp) => { an[pp] = String(a.valeurs[pp]).replace('.', ','); }); return { ...e, analyses: an }; }) }));
-              const id = newDocId(); await docPut(id, file); const meta = { id, nom: gardeNomPropre(file.name), mime: file.type, taille: file.size, cat: 'analyse', date: todayISO(), garde: gardeResume(GARDE_VERDICTS.get(file)), partId: pid };
+              const lu = await bulletinLireAnalyser(db, R, file, { candidats: [], onEtape: (t) => setBulBusy(`« ${file.name} » : ${t}`) }); const res = lu.res; const aff = bulletinPourMouts(res, M);
+              const nE = bulletinEchantillonsValeurs(res).length; const parts = uniq(aff.map((a) => (M.find((m) => m.i === a.i) || {}).partId));
+              const id = newDocId(); await docPut(id, file); const meta = { id, nom: gardeNomPropre(file.name), mime: file.type, taille: file.size, cat: 'analyse', date: todayISO(), garde: gardeResume(GARDE_VERDICTS.get(file)), partId: pid || (P.length === 1 || parts.length === 1 ? parts[0] || P[0].id : '') };
               if (old) act((d) => docMetaAdd(d, { ...meta, cible: { type: 'op', id: old.id } })); else setPieces((X) => [...X, meta]);
+              if (nE && bulletinAffectationDouteuse(res, aff, plusieurs)) { setBulGuides((G) => [...G, { cle: id, nom: file.name, res, aff, mouts: M, ia: lu.ia }]); continue; }
+              if (aff.length) reporter(aff);
               toast(aff.length ? `Bulletin « ${file.name} » : analyses reportées sur ${aff.length} moût(s).` : `Bulletin « ${file.name} » joint : aucune valeur reconnue, saisissez les analyses.`, aff.length ? 'ok' : 'warn');
             } catch (er) { toast(lectureEchec(file, er), 'bad'); }
           }
@@ -213,6 +219,8 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
           <G n={3}><CF k="date" label="Date de réception"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="immat" label="Immatriculation de la citerne (facultatif)" help={(() => { const L = f.immat ? baremesCiterne(db, f.immat) : []; if (!L.length) return immatNorm(f.immat).length >= 6 ? <span data-citerne-inconnue="">📏 Importez son certificat de jaugeage (Paramètres › Barèmes de jaugeage) pour saisir le creux de chaque compartiment.</span> : ''; const val = L.map((b) => (b.meta || {}).validite).filter(Boolean).sort()[0]; return <span data-citerne-connue="">📏 Certificat de jaugeage : {L.length} compartiment{L.length > 1 ? 's' : ''}{val ? (val < todayISO() ? <b className="text-bad"> · expiré le {fmtDate(val)}</b> : ` · valable jusqu’au ${fmtDate(val)}`) : ''}</span>; })()}><TI value={f.immat} onChange={(v) => upd({ immat: v.toUpperCase() })} placeholder="ex. AB-123-CD" /></CF><CF k="millesime" label="Millésime (par défaut)" help="Modifiable pour chaque moût."><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder={String(yearOf(f.date))} /></CF></G>
           <div className="flex flex-wrap items-end gap-3"><div className="help" data-analyse-imposee="">🔬 Analyses des lots reçus : <b>{mod.nom}{mod.etape ? ` · ${mod.etape}` : ''}</b> ({mod.paramIds.map((x) => paramDe(db, x).nom).join(', ')})</div>
             {cfVisible(cfgv, 'e.numLot') ? <Btn size="sm" onClick={numeroter} title="Donne un n° de lot à chaque compartiment qui n’en a pas (n° de bon ou date)">№ Numéroter les lots</Btn> : null}</div>
+          <div data-bulletin-entree=""><ZoneDepot onFiles={(fs) => lireBulletin(fs, '')} accept={BULLETIN_ACCEPT} garde="bulletin" icon="🧪" busy={!!bulBusy} label="Glisser ici le bulletin d’analyses des moûts" sub={bulBusy || `PDF, scan, tableur ou CSV du laboratoire, même avec plusieurs échantillons : chaque échantillon est reporté sur son moût${P.length > 1 ? ' (tous les partenaires)' : ''}`} inputLabel="Bulletin d’analyses de l’entrée de moûts" /></div>
+          {bulGuides.length ? <BulletinMoutsGuide g={bulGuides[0]} reste={bulGuides.length - 1} onAnnuler={() => setBulGuides((G) => G.slice(1))} onValider={(aff) => { reporter(aff); toast(`Bulletin « ${bulGuides[0].nom} » : analyses reportées sur ${uniq(aff.map((a) => a.i)).length} moût(s).`); setBulGuides((G) => G.slice(1)); }} /> : null}
           <Group label={`Partenaires de la citerne (${P.length})`} help={<span>Un onglet par partenaire, avec son n° de bon / DAE, ses moûts et ses documents. Total reçu : <b className="num">{fmtL(totV)}</b>. <button type="button" className="linkish" onClick={() => setFracEd(true)}>Personnaliser les fractions</button></span>}>
             <div className="mb-2 flex flex-wrap items-center gap-1" role="tablist" aria-label="Partenaires de la citerne" data-onglets-partenaires="">
               {P.map((p0, k) => { const p = ongletVal(p0, k); return <button key={p.id} type="button" role="tab" aria-selected={p.id === actif} className={cx('opr-tog', p.id === actif && 'on')} data-onglet-partenaire={k + 1} onClick={() => setOngletMout(p.id)}>
@@ -227,7 +235,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
               <details className="rounded-md border border-line px-2 py-1.5" open={(old ? docsOf(db, 'op', old.id) : pieces).some((d) => d.partId === actif) || undefined} data-docs-partenaire={kA + 1}>
                 <summary className="cursor-pointer text-sm"><b>📎 Documents et bulletins d’analyses de ce partenaire</b> <span className="text-ink2">({(old ? docsOf(db, 'op', old.id) : pieces).filter((d) => d.partId === actif).length})</span></summary>
                 <div className="mt-2 space-y-2">
-                  <ZoneDepot onFiles={lireBulletin} accept={BULLETIN_ACCEPT} garde="bulletin" icon="🧪" busy={!!bulBusy} label="Importer un bulletin d’analyses" sub={bulBusy || 'Lu et reporté sur les moûts de ce partenaire (n° de lot, compartiment), puis joint à l’onglet'} inputLabel={`Bulletin d’analyses du partenaire ${kA + 1}`} />
+                  <ZoneDepot onFiles={(fs) => lireBulletin(fs, actif)} accept={BULLETIN_ACCEPT} garde="bulletin" icon="🧪" busy={!!bulBusy} label="Importer un bulletin d’analyses" sub={bulBusy || 'Lu et reporté sur les moûts de ce partenaire (n° de lot, compartiment), puis joint à l’onglet'} inputLabel={`Bulletin d’analyses du partenaire ${kA + 1}`} />
                   {old ? <DocsPanel cible={{ type: 'op', id: old.id }} kind="op" locked={isLocked(db, old.date)} filtre={(d) => d.partId === actif} extra={{ partId: actif }} inputLabel={`Documents du partenaire ${kA + 1}`} catDefaut="bon" key={actif} /> : <DocsAttente items={pieces} onChange={setPieces} filtre={(d) => d.partId === actif} extra={{ partId: actif }} inputLabel={`Documents du partenaire ${kA + 1}`} catDefaut="bon" key={actif} />}
                 </div>
               </details>

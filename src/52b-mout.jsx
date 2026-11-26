@@ -1,4 +1,4 @@
-/* ============ ENTRÉES DE MOÛTS : partenaires par compartiment, n° de lot, analyses, moyennes et enrichissement (0.14.0-alpha.1) ============ */
+/* ============ ENTRÉES DE MOÛTS : partenaires par compartiment, n° de lot, analyses, moyennes et enrichissement (0.14.0-alpha.1) ; bulletins à plusieurs échantillons (0.37.0-alpha.1) ============ */
 // paramètres d'analyse des lots reçus : modèle imposé « Moût · Débourbage » (moutModeleImpose, 0.34.0-alpha.1)
 const paramDe = (db, pid) => db.analysesParams.find((p) => p.id === pid) || { id: pid, nom: pid, unite: '', dec: 1 };
 const valeurAnalyse = (db, pid, v) => { const p = paramDe(db, pid); return `${p.nom} ${fmt(v, p.dec)}${p.unite ? ` ${p.unite}` : ''}`; };
@@ -82,5 +82,46 @@ function AnalysesEntreesSection() {
         { h: 'Partenaire(s)', r: (r) => <span className="text-sm">{ligneApporteursNoms(db, r.e, r.o) || '—'}</span> }, { h: 'Cuve(s)', cls: 'hm', r: (r) => <span className="flex flex-wrap gap-x-2">{(r.e.dests || []).map((d) => <ContLink key={d.contenantId} id={d.contenantId} />)}</span> },
         { h: 'Volume', cls: 'r', r: (r) => <span className="num">{fmtL(r.e.volL)}</span> }, { h: 'Résultats', r: (r) => <span className="text-sm">{analysesTexte(db, r.an)}</span> }]} />
     </Sec>
+  );
+}
+
+/* ---------- bulletin d'analyses à plusieurs échantillons : affectation guidée aux moûts (0.37.0-alpha.1) ----------
+   g : { nom, res (bulletin lu), aff (rapprochement proposé, bulletinPourMouts), mouts: [{ i, numLot, compartiment, onglet, partenaire, n }], ia }
+   Pour chaque moût : l'échantillon dont il reprend les valeurs (un même échantillon peut valoir pour plusieurs moûts). */
+const BUL_SUR = { lot: 'rapproché par le n° de lot', compartiment: 'rapproché par le compartiment', chiffres: 'rapproché par les mêmes nombres', unique: 'seul échantillon du bulletin', ordre: 'dans l’ordre du bulletin : à vérifier' };
+function BulletinMoutsGuide({ g, reste, onAnnuler, onValider }) {
+  const { db } = useApp(); const E = bulletinEchantillonsValeurs(g.res); const plusieurs = uniq(g.mouts.map((m) => m.onglet)).length > 1;
+  const [choix, setChoix] = useState(() => Object.fromEntries(g.mouts.map((m) => { const a = g.aff.find((x) => x.i === m.i); return [m.i, a ? String(a.k) : '']; })));
+  const sur = (m) => { const a = g.aff.find((x) => x.i === m.i); return a && String(a.k) === choix[m.i] ? a.sur : choix[m.i] ? 'manuel' : ''; };
+  const resume = (e) => Object.keys(e.valeurs).slice(0, 6).map((k) => valeurAnalyse(db, k, e.valeurs[k])).join(' · ');
+  const nomE = (e) => `${e.numero && e.numero !== e.ref ? `${e.numero} · ` : ''}${e.ref || `Échantillon ${e.k + 1}`}`;
+  const nb = (e) => g.mouts.filter((m) => choix[m.i] === String(e.k)).length;
+  const valider = () => onValider(g.mouts.filter((m) => choix[m.i]).map((m) => { const e = E.find((x) => String(x.k) === choix[m.i]); return { i: m.i, k: e.k, valeurs: e.valeurs, ref: e.ref }; }));
+  const opts = [{ value: '', label: '— aucun échantillon —' }, ...E.map((e) => ({ value: String(e.k), label: nomE(e) }))];
+  return (
+    <Sheet wide title="🧪 Bulletin d’analyses : échantillon de chaque moût" sub={`« ${g.nom} » · ${E.length} échantillon(s)`} onClose={onAnnuler}
+      footer={<><Btn onClick={onAnnuler}>Ne rien reporter</Btn><Btn kind="primary" disabled={!Object.values(choix).some(Boolean)} onClick={valider}>Reporter les analyses</Btn></>}>
+      <div className="space-y-4" data-bulletin-guide="">
+        <p className="text-sm">{E.length > 1 ? 'Le bulletin contient plusieurs échantillons qu’Œnotrack n’a pas tous pu rapprocher avec certitude des moûts (n° de lot, compartiment). Vérifiez l’échantillon proposé pour chaque moût ; un même échantillon peut valoir pour plusieurs moûts. Le bulletin est joint à l’entrée.' : 'Le bulletin contient un seul échantillon : choisissez les moûts dont il donne les analyses. Le bulletin est joint à l’entrée.'}</p>
+        {g.ia ? (g.ia.ok ? <Chip tone="ok">🤖 lecture complétée par l’IA</Chip> : <Chip tone="warn" title={g.ia.msg}>🤖 IA indisponible</Chip>) : null}
+        <Sec title={`Échantillons du bulletin (${E.length})`}>
+          <div className="space-y-1">{E.map((e) => (
+            <div key={e.k} className="flex flex-wrap items-center gap-2 rounded-md border border-line px-2 py-1 text-sm" data-bulletin-guide-ech={e.k + 1}>
+              <b translate="no">{nomE(e)}</b><span className="min-w-0 flex-1 text-ink2">{resume(e)}</span>
+              {nb(e) ? <Chip tone="ok">{`reporté sur ${nb(e)} moût(s)`}</Chip> : <Chip tone="warn">non reporté</Chip>}
+            </div>))}</div>
+        </Sec>
+        <Sec title={`Moûts de l’entrée (${g.mouts.length})`}>
+          <div className="space-y-2">{g.mouts.map((m) => (
+            <div key={m.i} className="grid items-center gap-2 rounded-md border border-line p-2" style={{ gridTemplateColumns: 'minmax(180px,1fr) minmax(220px,1.3fr)' }} data-bulletin-guide-mout={m.i + 1}>
+              <div className="text-sm">{plusieurs ? <span translate={m.partenaire ? 'no' : undefined}>{m.partenaire || `Partenaire n° ${m.onglet}`}</span> : null}{plusieurs ? ' · ' : ''}<b>{`Moût ${m.n}`}</b>
+                {m.numLot ? <> · <span>{`lot ${m.numLot}`}</span></> : null}{m.compartiment ? <> · <span translate="no">{m.compartiment}</span></> : null}
+                {sur(m) && sur(m) !== 'manuel' ? <div><Chip tone={sur(m) === 'ordre' ? 'warn' : 'ok'}>{BUL_SUR[sur(m)]}</Chip></div> : null}</div>
+              <SI plain value={choix[m.i] || ''} onChange={(v) => setChoix((c) => ({ ...c, [m.i]: v }))} options={opts} aria-label={`Échantillon du moût ${m.i + 1}`} />
+            </div>))}</div>
+        </Sec>
+        {reste ? <p className="help">{`Encore ${reste} bulletin(s) à affecter ensuite.`}</p> : null}
+      </div>
+    </Sheet>
   );
 }

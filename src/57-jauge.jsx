@@ -281,6 +281,8 @@ function BaremeImport({ onClose, contIdPreset, fichiers: fichiers0 }) {
     else { Object.values(docs).forEach((x) => docDel(x.id).catch(() => null)); toast(r.msg, 'bad'); }
   };
   const setP = (i, patch) => setEtat((e) => ({ ...e, props: e.props.map((p, k) => (k === i ? { ...p, ...patch } : p)) }));
+  // deux tableaux lus séparément réunis en une seule table (0.37.0-alpha.1) : le tableau j complète le tableau i, qui garde son rattachement
+  const fusionP = (i, j) => setEtat((e) => { const L = baremesListeFusion(e.props.map((p) => p.b), i, j); if (!L) return e; const ni = i < j ? i : i - 1; return { ...e, props: e.props.filter((p, k) => k !== j).map((p, k) => (k === ni ? { ...p, b: L[ni] } : p)) }; });
   const revue = etat.phase === 'revue'; const nOk = revue ? etat.props.filter((p) => p.ok).length : 0;
   return (
     <Sheet wide title="📏 Importer des barèmes de jaugeage" sub="Tables d’épalement des cuves, certificats de jaugeage des citernes" onClose={onClose}
@@ -295,7 +297,7 @@ function BaremeImport({ onClose, contIdPreset, fichiers: fichiers0 }) {
       ) : etat.phase === 'lecture' ? (
         <div className="jg-lecture" role="status"><div className="jg-sablier" aria-hidden="true">📏</div><div className="font-semibold">Lecture en cours…</div><div className="text-sm text-ink2">{etat.msg}</div></div>
       ) : (
-        <BaremeRevue etat={etat} setP={setP} site={site} setSite={setSite} garderDoc={garderDoc} setGarderDoc={setGarderDoc} relireOcr={() => lire(etat.fichiers, { ocr: true })} />
+        <BaremeRevue etat={etat} setP={setP} fusionP={fusionP} site={site} setSite={setSite} garderDoc={garderDoc} setGarderDoc={setGarderDoc} relireOcr={() => lire(etat.fichiers, { ocr: true })} />
       )}
     </Sheet>
   );
@@ -306,7 +308,7 @@ function proposition(db, b, contId) {
   const c = contId ? db.contenants.find((x) => x.id === contId) : contenantPourReservoir(db, b.reservoir || b.nom);
   return { b, ok: b.fiabilite !== 'faible', lien: c ? c.id : '', creer: !c, nomCree: b.reservoir || b.nom, mesure: b.mesure };
 }
-function BaremeRevue({ etat, setP, site, setSite, garderDoc, setGarderDoc, relireOcr }) {
+function BaremeRevue({ etat, setP, fusionP, site, setSite, garderDoc, setGarderDoc, relireOcr }) {
   const { db } = useApp(); const [ouvert, setOuvert] = useState(null); const props = etat.props || [];
   const graves = (etat.journal || []).filter((j) => j.grave); const creer = props.some((p) => p.ok && p.creer);
   const contOpts = [{ value: '', label: 'Contenant…' }, ...db.contenants.filter((c) => c.statut !== 'archive').map((c) => ({ value: c.id, label: `${c.nom}${baremeDe(db, c.id) ? ' (a déjà un barème)' : ''}` }))];
@@ -317,7 +319,7 @@ function BaremeRevue({ etat, setP, site, setSite, garderDoc, setGarderDoc, relir
         Pages {etat.sansTexte.map((x) => x.n).join(', ')}{uniq(etat.sansTexte.map((x) => x.fichier)).length > 1 ? ' (plusieurs fichiers)' : ''} : Œnotrack peut en lire les chiffres (reconnaissance de caractères, quelques secondes par page ; le module de lecture se télécharge la première fois).
         <div className="mt-2"><Btn kind="primary" size="sm" onClick={relireOcr}>🔎 Lire les pages scannées</Btn></div></Notice> : null}
       {graves.length && props.length ? <Notice tone="warn" title="Fichiers non lus">{graves.map((j) => `« ${j.fichier} » : ${j.msg}`).join(' · ')}{graves.some((j) => j.ocr) ? ' — sans accès au module de lecture, collez le tableau ou utilisez un fichier de barèmes préparé.' : ''}</Notice> : null}
-      {props.map((p, i) => <BaremeProp key={p.b._cle || i} p={p} i={i} setP={setP} contOpts={contOpts} ouvert={ouvert === i} onOuvrir={() => setOuvert(ouvert === i ? null : i)} />)}
+      {props.map((p, i) => <BaremeProp key={p.b._cle || i} p={p} i={i} setP={setP} contOpts={contOpts} ouvert={ouvert === i} onOuvrir={() => setOuvert(ouvert === i ? null : i)} liste={props.map((x) => x.b)} onFusion={(a, b) => { setOuvert(null); fusionP(a, b); }} />)}
       {props.length ? <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-line p-3">
         {creer && db.sites.length > 1 ? <label className="flex items-center gap-2 text-sm">Site des contenants créés <select className="inp" style={{ width: 'auto' }} value={site} onChange={(e) => setSite(e.target.value)} aria-label="Site des contenants créés">{db.sites.map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}</select></label> : null}
         {(etat.fichiers || []).length ? <Check checked={garderDoc} onChange={setGarderDoc} label="Garder le document d’origine avec les barèmes" /> : null}
@@ -325,7 +327,7 @@ function BaremeRevue({ etat, setP, site, setSite, garderDoc, setGarderDoc, relir
     </div>
   );
 }
-function BaremeProp({ p, i, setP, contOpts, ouvert, onOuvrir }) {
+function BaremeProp({ p, i, setP, contOpts, ouvert, onOuvrir, liste, onFusion }) {
   const b = p.b; const P = baremePts(b); const m = b.meta || {}; const [ton, txt] = FIAB[b.fiabilite || m.fiabilite] || FIAB.moyenne; const alertes = baremeControle({ ...b, mesure: p.mesure });
   const setB = (patch) => setP(i, { b: { ...b, ...patch } });
   return (
@@ -349,7 +351,32 @@ function BaremeProp({ p, i, setP, contOpts, ouvert, onOuvrir }) {
       <div className="text-xs text-ink2">{[m.organisme && titreCourt(m.organisme), m.date && `jaugé le ${fmtDate(m.date)}`, m.validite && `valable jusqu’au ${fmtDate(m.validite)}`, m.certificat && `certificat ${m.certificat}`, m.constructeur && `constructeur ${m.constructeur}`, m.forme, m.materiau, hasNum(m.capacite) && `capacité ${fmtL(m.capacite)}`].filter(Boolean).join(' · ')}</div>
       {b.controle ? <div className={cx('text-xs', b.controle.ok ? 'text-ok' : 'text-warn')}>{b.controle.ok ? '✓' : '⚠'} {b.controle.certificat ? 'Volumes du certificat (nominal, minimal) retrouvés par le tableau' : 'Table volumétrique du cahier retrouvée par le tableau'} : écart maximal {fmt(b.controle.ecartMax, 2)} %.</div> : null}
       {alertes.length ? <ul className="jg-alertes">{alertes.map((a, k) => <li key={k} className={`jg-${a.niveau}`}>{a.msg}</li>)}</ul> : null}
+      {liste && liste.length > 1 && onFusion ? <BaremeFusionChoix liste={liste} i={i} onFusion={onFusion} /> : null}
       {ouvert ? <div className="mt-2 space-y-2"><BaremeCourbe b={b} /><BaremeTableau b={b} onChange={(patch) => setB(patch)} /></div> : null}
+    </div>
+  );
+}
+// fusion de deux tableaux d'un même document, avant enregistrement (0.37.0-alpha.1) : choix du tableau, aperçu, fusion
+function BaremeFusionChoix({ liste, i, onFusion }) {
+  const [j, setJ] = useState(''); const a = liste[i]; const autres = liste.map((b, k) => ({ b, k })).filter((x) => x.k !== i && (x.b.cible === 'citerne') === (a.cible === 'citerne'));
+  if (!autres.length) return null; const ap = j !== '' && liste[Number(j)] ? baremeFusionApercu(a, liste[Number(j)]) : null;
+  return (
+    <details className="rounded-md border border-line px-2 py-1.5" data-bareme-fusion-choix={i}>
+      <summary className="cursor-pointer text-sm">⧉ Fusionner avec un autre tableau du document</summary>
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <Field label="Tableau à réunir à celui-ci"><SI plain value={j} onChange={setJ} options={[{ value: '', label: 'Tableau…' }, ...autres.map((x) => ({ value: String(x.k), label: `${x.b.nom} · ${baremePlage(x.b)}` }))]} aria-label={`Tableau à fusionner avec ${a.nom}`} /></Field>
+        <Btn size="sm" kind="primary" disabled={!ap || !!ap.refus} onClick={() => { const k = Number(j); setJ(''); onFusion(i, k); }}>⧉ Fusionner en une seule table</Btn>
+      </div>
+      {ap ? <BaremeFusionResume ap={ap} /> : null}
+    </details>
+  );
+}
+function BaremeFusionResume({ ap }) {
+  if (ap.refus) return <Notice tone="bad">{ap.refus}</Notice>;
+  return (
+    <div className="mt-2 space-y-1 text-sm" data-bareme-fusion-apercu="">
+      <div>{`Table fusionnée : ${ap.plage} · ${ap.ajout} ligne(s) ajoutée(s)`}</div>
+      {ap.alertes.length ? <ul className="jg-alertes">{ap.alertes.map((x, k) => <li key={k} className="jg-warn">{x}</li>)}</ul> : null}
     </div>
   );
 }
@@ -414,6 +441,7 @@ function ContBareme({ contId, nomCont, val, onVal, onReprise, lecture }) {
           </div>
           <div className="text-xs text-ink2">{[m.organisme && titreCourt(m.organisme), m.date && `jaugé le ${fmtDate(m.date)}`, m.constructeur && `constructeur ${m.constructeur}`, m.forme, m.materiau, hasNum(m.capacite) && `capacité ${fmtL(m.capacite)}`].filter(Boolean).join(' · ')}</div>
           {alertes.length ? <ul className="jg-alertes">{alertes.map((a, k) => <li key={k} className={`jg-${a.niveau}`}>{a.msg}</li>)}</ul> : null}
+          {val.baremes.length > 1 ? <BaremeFusionChoix liste={val.baremes} i={val.i} onFusion={(i, j) => { const L = baremesListeFusion(val.baremes, i, j); if (!L) return; const ni = i < j ? i : i - 1; onVal({ ...val, baremes: L, i: ni, mesure: L[ni].mesure || val.mesure }); onReprise(L[ni]); }} /> : null}
           {ouvert ? <div className="mt-2 space-y-2"><BaremeCourbe b={bm} /><BaremeTableau b={b} onChange={majB} /></div> : null}
           {val.fichier ? <Check checked={val.garderDoc} onChange={(v) => onVal({ ...val, garderDoc: v })} label="Garder le document d’origine avec le barème" /> : null}
           <p className="help">Enregistré avec le contenant{actuel ? ' ; le barème actuel est archivé (consultable dans Paramètres › 📏 Barèmes de jaugeage)' : ''}.</p>
@@ -448,7 +476,7 @@ function BaremesView() {
         <Tbl rows={cuves} onRow={(b) => setVue(b.id)} empty="Aucun barème : importez un cahier d’épalement (PDF, scan, Excel)." cols={[
           { h: 'Contenant', r: (b) => (b.contenantId && cn(b.contenantId) ? <b>{cn(b.contenantId)}</b> : <Chip tone="warn">non rattaché</Chip>) }, { h: 'Réservoir (document)', cls: 'hm', r: (b) => b.nom },
           { h: 'Plage', r: (b) => baremePlage(b) }, { h: 'Jaugeage', cls: 'hm', r: (b) => [(b.meta || {}).organisme ? titreCourt(b.meta.organisme) : null, (b.meta || {}).date ? fmtDate(b.meta.date) : null].filter(Boolean).join(' · ') || '—' },
-          { h: '', r: (b) => <span className="flex flex-wrap gap-1">{b.archive ? <Chip>archivé</Chip> : null}{(b.corrections || []).some((c) => c.mode !== 'manuel') ? <Chip tone="warn">{(b.corrections || []).filter((c) => c.mode !== 'manuel').length} à vérifier</Chip> : null}</span> },
+          { h: '', r: (b) => <span className="flex flex-wrap gap-1">{b.archive ? <Chip>{b.fusionneDans ? 'fusionné' : 'archivé'}</Chip> : null}{(b.fusions || []).length ? <Chip tone="info">{`${b.fusions.length + 1} tables réunies`}</Chip> : null}{(b.corrections || []).some((c) => c.mode !== 'manuel') ? <Chip tone="warn">{(b.corrections || []).filter((c) => c.mode !== 'manuel').length} à vérifier</Chip> : null}</span> },
         ]} />
         {sansB.length && cuves.length ? <p className="help mt-1">Sans barème : {sansB.slice(0, 12).map((c) => c.nom).join(', ')}{sansB.length > 12 ? '…' : ''}.</p> : null}
       </Sec>
@@ -465,7 +493,7 @@ function BaremesView() {
   );
 }
 function BaremeSheet({ id, onClose }) {
-  const { db, R, act, confirm } = useApp(); const b = (db.baremes || []).find((x) => x.id === id); const [edit, setEdit] = useState(false); const [brouillon, setBrouillon] = useState(null); const [voirDoc, setVoirDoc] = useState(null);
+  const { db, R, act, confirm } = useApp(); const b = (db.baremes || []).find((x) => x.id === id); const [edit, setEdit] = useState(false); const [brouillon, setBrouillon] = useState(null); const [voirDoc, setVoirDoc] = useState(null); const [fusion, setFusion] = useState(false);
   if (!b) return null; const m = b.meta || {}; const c = db.contenants.find((x) => x.id === b.contenantId); const vol = c ? (R.contVol || {})[c.id] || 0 : 0;
   const doc = b.docId ? (db.docs || []).find((x) => x.id === b.docId) : null; // document d'origine (un seul pour tous les barèmes d'un même cahier)
   const suppr = async () => {
@@ -478,15 +506,36 @@ function BaremeSheet({ id, onClose }) {
   const contOpts = [{ value: '', label: 'Non rattaché' }, ...db.contenants.filter((x) => x.statut !== 'archive' || x.id === b.contenantId).map((x) => ({ value: x.id, label: x.nom }))];
   return (
     <Sheet wide title={b.cible === 'citerne' ? `Citerne ${b.immat} · compartiment ${b.compartiment || '?'}` : `Barème de jaugeage — ${c ? c.nom : b.nom}`} sub={baremeTexte(b)} onClose={onClose}
-      footer={edit ? <><Btn onClick={() => { setEdit(false); setBrouillon(null); }}>Annuler</Btn><Btn kind="primary" disabled={!brouillon} onClick={garder}>Enregistrer les modifications</Btn></> : <><Btn kind="danger" className="mr-auto" onClick={suppr}>Supprimer</Btn><Btn onClick={() => act((d) => baremeArchiver(d, id, !b.archive), b.archive ? 'Barème remis en service.' : 'Barème archivé.')}>{b.archive ? 'Remettre en service' : 'Archiver'}</Btn><Btn onClick={() => setEdit(true)}>✎ Corriger le tableau</Btn><Btn kind="primary" onClick={onClose}>Fermer</Btn></>}>
+      footer={edit ? <><Btn onClick={() => { setEdit(false); setBrouillon(null); }}>Annuler</Btn><Btn kind="primary" disabled={!brouillon} onClick={garder}>Enregistrer les modifications</Btn></> : <><Btn kind="danger" className="mr-auto" onClick={suppr}>Supprimer</Btn><Btn onClick={() => act((d) => baremeArchiver(d, id, !b.archive), b.archive ? 'Barème remis en service.' : 'Barème archivé.')}>{b.archive ? 'Remettre en service' : 'Archiver'}</Btn>{!b.archive ? <Btn onClick={() => setFusion(true)} data-bareme-fusionner="">⧉ Fusionner…</Btn> : null}<Btn onClick={() => setEdit(true)}>✎ Corriger le tableau</Btn><Btn kind="primary" onClick={onClose}>Fermer</Btn></>}>
       <div className="space-y-4" data-bareme-sheet={id}>
         {b.cible !== 'citerne' ? <Field label="Contenant"><SI value={b.contenantId || ''} onChange={(v) => act((d) => baremeLier(d, id, v), v ? 'Barème rattaché.' : 'Barème détaché.')} options={contOpts} aria-label="Contenant du barème" /></Field> : null}
-        <dl className="kv">{[['Réservoir (document)', b.nom], ['Organisme', m.organisme && titreCourt(m.organisme)], ['Certificat', m.certificat], ['Date du jaugeage', m.date && fmtDate(m.date)], ['Validité', m.validite && fmtDate(m.validite)], ['Constructeur', m.constructeur], ['N° de série', m.numeroSerie], ['Forme', m.forme], ['Matériau', m.materiau], ['Capacité annoncée', hasNum(m.capacite) && fmtL(m.capacite)], ['Hauteur totale (témoin)', hasNum(m.hauteurTotale) && cmTxt(m.hauteurTotale)], ['Volume au débordement', hasNum(m.volumeDebordement) && fmtL(m.volumeDebordement)], ['Volume nominal', hasNum(m.volumeNominal) && `${fmtL(m.volumeNominal)}${hasNum(m.creuxNominal) ? ` (creux ${cmTxt(m.creuxNominal)})` : ''}`], ['Volume minimal', hasNum(m.volumeMinimal) && `${fmtL(m.volumeMinimal)}${hasNum(m.creuxMinimal) ? ` (creux ${cmTxt(m.creuxMinimal)})` : ''}`], ['Mesure', b.mesure === 'creux' ? 'creux (vide depuis le haut)' : 'hauteur de liquide'], ['Source', [m.fichier, m.pages && m.pages.length ? `page${m.pages.length > 1 ? 's' : ''} ${m.pages.join(', ')}` : null].filter(Boolean).join(' · ')]].filter((x) => x[1]).map(([k, v]) => <React.Fragment key={k}><dt>{k}</dt><dd>{v}</dd></React.Fragment>)}</dl>
+        <dl className="kv">{[['Réservoir (document)', b.nom], ['Organisme', m.organisme && titreCourt(m.organisme)], ['Certificat', m.certificat], ['Date du jaugeage', m.date && fmtDate(m.date)], ['Validité', m.validite && fmtDate(m.validite)], ['Constructeur', m.constructeur], ['N° de série', m.numeroSerie], ['Forme', m.forme], ['Matériau', m.materiau], ['Capacité annoncée', hasNum(m.capacite) && fmtL(m.capacite)], ['Hauteur totale (témoin)', hasNum(m.hauteurTotale) && cmTxt(m.hauteurTotale)], ['Volume au débordement', hasNum(m.volumeDebordement) && fmtL(m.volumeDebordement)], ['Volume nominal', hasNum(m.volumeNominal) && `${fmtL(m.volumeNominal)}${hasNum(m.creuxNominal) ? ` (creux ${cmTxt(m.creuxNominal)})` : ''}`], ['Volume minimal', hasNum(m.volumeMinimal) && `${fmtL(m.volumeMinimal)}${hasNum(m.creuxMinimal) ? ` (creux ${cmTxt(m.creuxMinimal)})` : ''}`], ['Mesure', b.mesure === 'creux' ? 'creux (vide depuis le haut)' : 'hauteur de liquide'], ['Source', [m.fichier, m.pages && m.pages.length ? `page${m.pages.length > 1 ? 's' : ''} ${m.pages.join(', ')}` : null].filter(Boolean).join(' · ')], ['Tables réunies', (b.fusions || []).map((x) => `${x.nom || '—'} (${x.plage})`).join(' ; ')], ['Fusionné dans', b.fusionneDans ? ((db.baremes || []).find((x) => x.id === b.fusionneDans) || {}).nom || b.fusionneDans : '']].filter((x) => x[1]).map(([k, v]) => <React.Fragment key={k}><dt>{k}</dt><dd>{v}</dd></React.Fragment>)}</dl>
         {doc ? <Btn size="sm" onClick={() => setVoirDoc(doc)}>📎 Document d’origine : {doc.nom}</Btn> : null}
         {voirDoc ? <DocViewer doc={voirDoc} onClose={() => setVoirDoc(null)} /> : null}
+        {fusion ? <BaremeFusionSheet id={id} onClose={() => setFusion(false)} /> : null}
         {baremeControle(b).map((a, k) => <Notice key={k} tone={a.niveau === 'bad' ? 'bad' : a.niveau === 'warn' ? 'warn' : 'info'}>{a.msg}</Notice>)}
         {!edit ? <><Sec title="Calcul"><JaugeCalc b={b} volActuel={vol} /></Sec><Sec title={`Tableau (${baremePts(b).length} lignes)`}><BaremeTableau b={b} lecture /></Sec></>
           : <Sec title="Corriger le tableau"><BaremeTableau b={{ ...b, ...(brouillon || {}) }} onChange={(patch) => setBrouillon({ ...(brouillon || {}), ...patch })} /></Sec>}
+      </div>
+    </Sheet>
+  );
+}
+// fusion de deux barèmes enregistrés (0.37.0-alpha.1) : celui-ci reçoit les lignes de l'autre, qui est archivé
+function BaremeFusionSheet({ id, onClose }) {
+  const { db, act } = useApp(); const a = (db.baremes || []).find((x) => x.id === id); const [j, setJ] = useState('');
+  if (!a) return null; const cn = (x) => (db.contenants.find((c) => c.id === x.contenantId) || {}).nom || '';
+  const autres = (db.baremes || []).filter((x) => x.id !== id && !x.archive && (x.cible === 'citerne') === (a.cible === 'citerne') && (a.cible !== 'citerne' || immatNorm(x.immat) === immatNorm(a.immat)));
+  const b = autres.find((x) => x.id === j); const ap = b ? baremeFusionApercu(a, b) : null;
+  const ok = () => { const r = act((d) => baremeFusionner(d, id, j), 'Barèmes fusionnés en une seule table.'); if (r && r.ok) onClose(); };
+  return (
+    <Sheet title="⧉ Fusionner deux tables de jaugeage" sub={`${cn(a) ? `${cn(a)} · ` : ''}${a.nom} · ${baremePlage(a)}`} onClose={onClose}
+      footer={<><Btn onClick={onClose}>Annuler</Btn><Btn kind="primary" disabled={!ap || !!ap.refus} onClick={ok}>⧉ Fusionner en une seule table</Btn></>}>
+      <div className="space-y-3" data-bareme-fusion={id}>
+        <p className="text-sm">Les lignes du barème choisi complètent celui-ci ; aux hauteurs communes, les valeurs de celui-ci sont gardées. Le barème réuni est archivé : il reste consultable dans les barèmes archivés.</p>
+        {autres.length ? <Field label="Barème à réunir à celui-ci"><SI value={j} onChange={setJ} placeholder="Barème…" options={autres.map((x) => ({ value: x.id, label: `${cn(x) ? `${cn(x)} · ` : ''}${x.nom} · ${baremePlage(x)}` }))} aria-label="Barème à fusionner" /></Field>
+          : <Notice tone="info">Aucun autre barème en service à fusionner.</Notice>}
+        {ap ? <BaremeFusionResume ap={ap} /> : null}
+        {ap && !ap.refus ? <BaremeCourbe b={{ ...a, points: ap.points }} /> : null}
       </div>
     </Sheet>
   );
