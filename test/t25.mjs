@@ -44,7 +44,7 @@ log('restauré :', (await page.locator('main .card').first().innerText()).replac
 log('fichiers IndexedDB :', await page.evaluate(async () => (await docKeys()).length), '| logo :', await page.evaluate(() => !!JSON.parse(localStorage.getItem('oenotrack-db-v2')).entreprise.logo));
 log('capacité assets jamais demandée :', (await page.evaluate(() => window.__use.includes('assets'))) ? '✗ ÉCHEC' : '✓');
 // ancienne sauvegarde (base seule 0.7.0-alpha.1) : import direct
-await page.locator('input[aria-label="Fichier de sauvegarde à importer"]').setInputFiles('/home/claude/cuverie/test/fixtures/base-0.7.0-alpha.1-exemple.json'); await page.waitForTimeout(600);
+await page.locator('input[aria-label="Fichier de sauvegarde à importer"]').setInputFiles(new URL('./fixtures/base-0.7.0-alpha.1-exemple.json', import.meta.url).pathname); await page.waitForTimeout(600);
 log('ancienne base :', (await top().innerText()).replace(/\s+/g, ' ').slice(0, 260));
 await top().locator('button', { hasText: 'Restaurer' }).last().click(); await page.waitForTimeout(800);
 log('lots après import 0.7.0-alpha.1 :', await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')).lots.length), '| version :', await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')).meta.versions.join(',')));
