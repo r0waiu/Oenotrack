@@ -24,9 +24,9 @@ const lienCourt = (u) => { try { const x = new URL(u); return x.hostname.replace
 /* ---------- documents d'un produit (en vigueur ou archivés) ---------- */
 const ficheDocs = (db, type, id, cat, archives) => (db.docs || []).filter((x) => x && x.cible && x.cible.type === type && x.cible.id === id && (!cat || x.cat === cat) && (archives ? !!x.archive : !x.archive));
 const prodDocs = (db, id, cat, archives) => ficheDocs(db, 'produit', id, cat, archives);
-const ficheCibleObj = (db, c) => (!c ? null : c.type === 'produit' ? (db.produits || []).find((p) => p.id === c.id) || null : c.type === 'produitHygiene' ? (db.produitsHygiene || []).find((p) => p.id === c.id) || null : null);
+const ficheCibleObj = (db, c) => (!c ? null : c.type === 'produit' ? (db.produits || []).find((p) => p.id === c.id) || null : c.type === 'produitHygiene' ? (db.produitsHygiene || []).find((p) => p.id === c.id) || null : c.type === 'produitMaintenance' ? (db.produitsMaintenance || []).find((p) => p && p.id === c.id) || null : null);
 const ficheCibleCle = (c) => (c ? `${c.type}:${c.id}` : '');
-const ficheCibleDeCle = (k) => { const m = /^(produit|produitHygiene):(.+)$/.exec(String(k || '')); return m ? { type: m[1], id: m[2] } : null; };
+const ficheCibleDeCle = (k) => { const m = /^(produit|produitHygiene|produitMaintenance):(.+)$/.exec(String(k || '')); return m ? { type: m[1], id: m[2] } : null; };
 const derniereRevision = (docs) => { const d = (docs || []).map((x) => x.revision).filter(isoOK).sort(); return d.length ? d[d.length - 1] : ''; };
 // fournisseur affiché : celui de la fiche intrant, ou fabricant / fournisseur du produit d'hygiène
 const ficheFournisseur = (db, c, p) => { const o = p || ficheCibleObj(db, c); if (!o) return ''; if (c.type === 'produit') return ((db.fournisseurs || []).find((f) => f.id === o.fournisseurId) || {}).nom || ''; return o.fabricant || o.fournisseur || ''; };
@@ -150,6 +150,7 @@ function ficheScoreMots(mp, ms) {
 function ficheCandidatsListe(db, avecHygiene = true) {
   const L = (db.produits || []).map((p) => ({ type: 'produit', id: p.id, nom: p.nom, ref: p.reference || '', fo: ficheFournisseur(db, { type: 'produit', id: p.id }, p), actif: p.actif !== false }));
   if (avecHygiene) (db.produitsHygiene || []).filter((p) => !p.archive).forEach((p) => L.push({ type: 'produitHygiene', id: p.id, nom: p.nom, ref: p.reference || '', fo: p.fabricant || p.fournisseur || '', actif: true }));
+  if (avecHygiene) (db.produitsMaintenance || []).filter((p) => p && p.id).forEach((p) => L.push({ type: 'produitMaintenance', id: p.id, nom: p.nom, ref: p.reference || '', fo: p.fournisseur || p.fabricant || '', actif: p.actif !== false })); // 0.36.0-alpha.1
   return L;
 }
 function ficheCorrespondances(db, lu, o = {}) {
@@ -203,7 +204,7 @@ function ficheJoindre(db, o) {
   if (action === 'remplacer') ficheDocs(db, cible.type, cible.id, cat).forEach((x) => { if (x.id !== nv.id) { x.archive = t; x.remplacePar = nv.id; } });
   if (action !== 'archiver' && cat === 'fds' && (action === 'remplacer' || (date && (!isoOK(obj.fdsDate) || date > obj.fdsDate)))) { obj.fdsDate = date; obj.fdsVersion = version; }
   if (action !== 'archiver' && cat === 'ft' && cible.type === 'produit' && (action === 'remplacer' || (date && (!isoOK(obj.ftDate) || date > obj.ftDate)))) obj.ftDate = date;
-  if (cible.type === 'produitHygiene') obj.modifLe = t;
+  if (cible.type === 'produitHygiene' || cible.type === 'produitMaintenance') obj.modifLe = t;
   return okr({ id: nv.id });
 }
 // date de révision ou version d'un document joint, corrigée à la main ; la fiche du produit suit pour la version en vigueur

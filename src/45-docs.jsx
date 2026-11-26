@@ -5,6 +5,7 @@ const DOC_CATS = {
   arrivage: [['certificat', 'Certificat de conformité'], ['fiche_technique', 'Fiche technique'], ['fds', 'Fiche de données de sécurité (FDS)'], ['bon', 'Bon de livraison'], ['autre', 'Autre document']],
   produitHygiene: [['fds', 'Fiche de données de sécurité (FDS)'], ['ft', 'Fiche technique'], ['contact', 'Attestation contact alimentaire'], ['certif', 'Attestation bio, Demeter… (revendications)'], ['autre', 'Autre document']],
   produit: [['fds', 'Fiche de données de sécurité (FDS)'], ['ft', 'Fiche technique'], ['certificat', 'Certificat / attestation (bio, allergènes, OGM…)'], ['autre', 'Autre document']], // intrants (0.20.0-alpha.1)
+  produitMaintenance: [['fds', 'Fiche de données de sécurité (FDS)'], ['ft', 'Fiche technique'], ['certificat', 'Attestation contact alimentaire (NSF H1…)'], ['autre', 'Autre document']], // produits de maintenance (0.36.0-alpha.1)
   equipement: [['notice', 'Notice, manuel'], ['verification', 'Certificat de vérification, étalonnage'], ['facture', 'Facture, garantie'], ['contrat', 'Contrat d’entretien'], ['photo', 'Photo'], ['autre', 'Autre document']], // équipements (0.28.0-alpha.1)
 };
 const docCatLabel = (kind, id) => ((DOC_CATS[kind] || DOC_CATS.op).find((c) => c[0] === id) || [id, id === 'autre' ? 'Autre document' : id])[1];
@@ -103,7 +104,7 @@ function DocsPanel({ cible, kind = 'op', locked, deposer: deposerPerso, aide, fi
   const { db, act } = useApp(); const tous = docsOf(db, cible.type, cible.id).filter((d) => !filtre || filtre(d)); const list = tous.filter((d) => !d.archive); const arch = tous.filter((d) => d.archive).sort((a, b) => String(b.revision || b.date).localeCompare(String(a.revision || a.date)));
   const { add, download, remove } = useDocActions();
   const cats = DOC_CATS[kind] || DOC_CATS.op; const [cat, setCat] = useState(catDefaut && cats.some((c) => c[0] === catDefaut) ? catDefaut : cats[0][0]); const [view, setView] = useState(null); const [busy, setBusy] = useState(false);
-  const revisable = kind === 'produit' || kind === 'produitHygiene';
+  const revisable = kind === 'produit' || kind === 'produitHygiene' || kind === 'produitMaintenance';
   const deposer = async (fs) => { if (!fs.length) return; if (deposerPerso) { deposerPerso(fs); return; } setBusy(true); await add(fs, cible, cat, extra); setBusy(false); };
   const dep = useDepot(deposer, { disabled: locked || busy }); // tout le bloc accepte le dépôt (liste comprise)
   const ligne = (d, ancien) => (

@@ -35,7 +35,8 @@ const PRODUIT_INFOS = [['fabricant', 'Fabricant', 120], ['composition', 'Composi
   ['stockage', 'Stockage', 400], ['conservation', 'Conservation', 300], ['allergenes', 'Allergènes', 300], ['usageBio', 'Utilisation en bio', 300]];
 // informations reprises sur un produit d'hygiène (les autres rubriques de la FDS : « Relire une FDS » dans sa fiche)
 const HYG_INFOS = [['fabricant', 'Fabricant', 120], ['composition', 'Composition', 600], ['modeEmploi', 'Mode d’emploi', 2000], ['stockage', 'Stockage', 1000]];
-const infosDe = (type) => (type === 'produitHygiene' ? HYG_INFOS : PRODUIT_INFOS);
+const infosDe = (type) => (type === 'produitHygiene' ? HYG_INFOS : type === 'produitMaintenance' ? PMAINT_INFOS : PRODUIT_INFOS);
+const ficheObjDe = (db, cible) => (!cible ? null : cible.type === 'produitHygiene' ? hygDef(db, cible.id) : cible.type === 'produitMaintenance' ? maintProdDef(db, cible.id) : (db.produits || []).find((x) => x.id === cible.id) || null);
 const infoLib = (k) => ([...PRODUIT_INFOS, ...HYG_INFOS].find((x) => x[0] === k) || [k, k])[1];
 
 /* ---------- lecture par le script : rubriques reconnues d'une FT, d'une FDS ou d'un certificat ---------- */
@@ -98,14 +99,16 @@ function infosFusion(script, ia) {
 }
 // propositions pour un produit : informations lues qui complètent (case cochée) ou changeraient (décochée) sa fiche ; identiques : omises
 function infosPropositions(db, cible, infos) {
-  const p = cible ? (cible.type === 'produitHygiene' ? hygDef(db, cible.id) : (db.produits || []).find((x) => x.id === cible.id)) : null;
+  const p = ficheObjDe(db, cible);
   const V = (infos && infos.vals) || {};
-  return infosDe(cible ? cible.type : 'produit').filter(([k]) => V[k]).map(([k, lab]) => { const act = String((p && p[k]) || '').trim(); return { k, lab, v: V[k], src: (infos.src || {})[k] || 'script', actuel: act, complete: !act }; }).filter((x) => norm(x.actuel) !== norm(x.v));
+  return [...infosDe(cible ? cible.type : 'produit').filter(([k]) => V[k]).map(([k, lab]) => { const act = String((p && p[k]) || '').trim(); return { k, lab, v: V[k], src: (infos.src || {})[k] || 'script', actuel: act, complete: !act }; }).filter((x) => norm(x.actuel) !== norm(x.v)),
+    ...detectionPropositions(db, cible, p, V)]; // allergènes, revendications, contact alimentaire (0.36.0-alpha.1)
 }
 function produitInfosAppliquer(db, cible, vals) {
-  if (!cible || !vals) return 0; const L = infosDe(cible.type); const p = cible.type === 'produitHygiene' ? hygDef(db, cible.id) : (db.produits || []).find((x) => x.id === cible.id); if (!p) return 0;
+  if (!cible || !vals) return 0; const L = infosDe(cible.type); const p = ficheObjDe(db, cible); if (!p) return 0;
   let n = 0; L.forEach(([k, , max]) => { const v = vals[k]; if (v == null) return; const t = String(v).trim().slice(0, max); if (t && t !== p[k]) { p[k] = t; n += 1; } });
-  if (n && cible.type === 'produitHygiene') p.modifLe = todayISO();
+  Object.keys(vals).filter((k) => DETECTION_CLES(k)).forEach((k) => { n += detectionAppliquer(db, cible, p, k, vals[k]); });
+  if (n && (cible.type === 'produitHygiene' || cible.type === 'produitMaintenance')) p.modifLe = todayISO();
   return n;
 }
 

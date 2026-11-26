@@ -57,7 +57,7 @@ function traceExport(db, opId, sections0, opts) {
   if (S.has('apporteurs')) d.apporteurs = tracePct(comp.apporteurs, (k) => (k === '?' ? 'non renseigné' : apporteurName(db, k)));
   if (S.has('parcelles')) d.parcelles = tracePct(comp.parcelles, (k) => parcelleName(db, k));
   const lignee = [lotId, ...ancestors(db, lotId)];
-  if (S.has('intrants')) d.intrants = intrantsForLots(db, R, [lotId], true).map((r) => { const p = (db.produits || []).find((x) => x.id === r.produitId) || {}; return { produit: String(p.nom || ''), quantite: r2(r.qty), unite: String(r.unite || ''), lotFournisseur: String(r.numLot || ''), allergenes: String(p.allergenes || ''), ...(r.direct ? { surCeLot: true } : {}) }; });
+  if (S.has('intrants')) d.intrants = intrantsForLots(db, R, [lotId], true).map((r) => { const p = (db.produits || []).find((x) => x.id === r.produitId) || {}; return { produit: String(p.nom || ''), quantite: r2(r.qty), unite: String(r.unite || ''), lotFournisseur: String(r.numLot || ''), allergenes: String(allergenesTexte(p) || ''), ...(r.direct ? { surCeLot: true } : {}) }; });
   if (S.has('analyses')) { const P = (k) => (db.analysesParams || []).find((p) => p.id === k) || { nom: k, unite: '' }; d.analyses = (db.analyses || []).filter((a) => lignee.includes(a.lotId) && a.date <= op.date).sort(byDate).reverse().slice(0, 40).map((a) => ({ date: a.date, lot: ((R.lots[a.lotId] || lotById(db, a.lotId)) || {}).code || '', valeurs: Object.keys(a.valeurs || {}).map((k) => ({ nom: P(k).nom, valeur: a.valeurs[k], unite: P(k).unite || '' })) })); }
   if (S.has('historique')) {
     const ids = uniq(lignee.flatMap((l) => (R.opsByLot || {})[l] || [])); const C = S.has('contenants');

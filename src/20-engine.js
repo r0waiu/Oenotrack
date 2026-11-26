@@ -29,7 +29,10 @@ function evenementsOp(R, op, avant) {
 function replay(db, upTo, opts) {
   syncConfig(db);
   const R = { upTo: upTo || null, lots: {}, portions: {}, pinfo: {}, contVol: {}, preps: {}, tir: {}, raisins: {}, arrUsed: {}, apps: [], warn: {}, flows: [], prepUse: [], opsByLot: {}, capOver: {}, stadeHist: {},
-    conc: {}, concDir: {}, concPrep: {}, tirVol: {}, so2Ev: {}, depass: {} }; // cumul des intrants, SO₂ ajouté, dépassements (0.30.0-alpha.1)
+    conc: {}, concDir: {}, concPrep: {}, tirVol: {}, so2Ev: {}, depass: {}, arrRegul: {} };
+  // régularisations manuelles de stock (0.36.0-alpha.1) : ajoutées au restant de leur lot fournisseur, à leur date
+  const regAv = {}; (Array.isArray(db.regulStocks) ? db.regulStocks : []).forEach((x) => { if (!x || !x.arrivageId || !isoOK(x.date) || (upTo && x.date > upTo)) return; R.arrRegul[x.arrivageId] = (R.arrRegul[x.arrivageId] || 0) + num(x.qty); (regAv[x.arrivageId] = regAv[x.arrivageId] || []).push(x); });
+  const regulAu = (aid, date) => sum((regAv[aid] || []).filter((x) => x.date <= date), (x) => x.qty); // cumul des intrants, SO₂ ajouté, dépassements (0.30.0-alpha.1)
   for (const l of db.lots) {
     const st = l.stade || stadeFromType(l.type); const co = l.couleur || couleurDefaut(db);
     R.lots[l.id] = { ...l, stade: st, couleur: co };
@@ -98,7 +101,7 @@ function replay(db, upTo, opts) {
       const a = arr[l.arrivageId]; const q = num(l.qty);
       if (!a) warn(op, `${pr.nom} : aucun arrivage (lot fournisseur) sélectionné.`);
       else {
-        const rest = a.qty - (R.arrUsed[a.id] || 0);
+        const rest = a.qty + regulAu(a.id, op.date) - (R.arrUsed[a.id] || 0);
         if (q > rest + 1e-6) warn(op, `${pr.nom} (lot ${a.numLot}) : quantité utilisée supérieure au restant (${fmt(rest, 2)} ${pr.unite}).`);
         if (a.dluo && op.date > a.dluo) warn(op, `${pr.nom} (lot ${a.numLot}) : DLUO dépassée au ${fmtDate(a.dluo)}.`);
         if (a.date && op.date < a.date) warn(op, `${pr.nom} (lot ${a.numLot}) : utilisé avant sa réception (${fmtDate(a.date)}).`);
@@ -267,7 +270,7 @@ function getR(db, upTo) {
 }
 
 /* ---------- arrivages / DLUO ---------- */
-const arrivalRest = (R, a) => a.qty - (R.arrUsed[a.id] || 0);
+const arrivalRest = (R, a) => a.qty + ((R.arrRegul || {})[a.id] || 0) - (R.arrUsed[a.id] || 0); // régularisations comprises (0.36.0-alpha.1)
 function dluoState(dluo, ref) {
   if (!dluo) return { k: 'none', label: 'Sans DLUO', cls: '' };
   const d = daysBetween(ref || todayISO(), dluo);
@@ -346,7 +349,7 @@ function snapshotAt(db, date, opts) {
     date, creeLe: todayISO(),
     portions: Object.values(R.portions).map((p) => ({ lotId: p.lotId, code: (R.lots[p.lotId] || {}).code, designation: (R.lots[p.lotId] || {}).designation, qualif: (R.lots[p.lotId] || {}).qualif, contenantId: p.contenantId, contenant: (db.contenants.find((c) => c.id === p.contenantId) || {}).nom, volL: r2(p.vol) })),
     bouteilles: Object.values(R.tir).filter((t) => t.nb > 0).map((t) => ({ lotId: t.lotId, code: (R.lots[t.lotId] || {}).code, nb: t.nb })),
-    intrants: db.arrivages.filter((a) => a.date <= date).map((a) => { const p = db.produits.find((x) => x.id === a.produitId) || {}; return { arrivageId: a.id, produit: p.nom, unite: p.unite, numLot: a.numLot, dluo: a.dluo, restant: r2(a.qty - (R.arrUsed[a.id] || 0)) }; }).filter((x) => x.restant > 0),
+    intrants: db.arrivages.filter((a) => a.date <= date).map((a) => { const p = db.produits.find((x) => x.id === a.produitId) || {}; return { arrivageId: a.id, produit: p.nom, unite: p.unite, numLot: a.numLot, dluo: a.dluo, restant: r2(arrivalRest(R, a)) }; }).filter((x) => x.restant > 0),
     preparations: Object.values(R.preps).filter((p) => p.remaining > 0.005).map((p) => ({ prepId: p.id, code: p.code, type: p.ptype, qualif: p.qualif, restantL: r2(p.remaining) })),
     totalL: r2(R.totalVol),
     totalBouteilles: sum(Object.values(R.tir), (t) => t.nb),
