@@ -2,6 +2,14 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.32.0-alpha.1 — 26/11/2026
+
+- DRM (Registres › 📮 DRM) : déclaration récapitulative des entrées et sorties de vins, mensuelle (DRM) ou annuelle (DRA) au choix, calculée d’après les opérations — stocks de début et de fin (vrac, bouteilles sur lattes, bouteilles finies), récolte, achats, transferts entre produits au tirage et à l’assemblage, pertes, sorties — avec ses contrôles (n° d’accise, codes, stock négatif, écarts, continuité avec la DRM déposée précédente)
+- Trois moyens : fichier XML DTI+ à importer dans CIEL (format de la douane, vérifié avec son schéma), le même fichier avec vos codes produits CIVC pour la plateforme du CIVC, impression et CSV ; pas de compte CRD ; « ✓ Marquer comme déposée » fige les chiffres
+- Bouteilles finies : les bouteilles dégorgées restent dans le stock de la DRM jusqu’à leur sortie, saisie à chaque DRM (ventes France sous CRD, export et UE, dégustation, autres sorties, entrées)
+- Produits de la DRM pré-remplis selon la région (Champagne : vins tranquilles, vins mousseux, rebêches, lies et bourbes, Coteaux champenois, Rosé des Riceys), « à vérifier » : libellé de votre compte CIEL, code INAO ou libellé fiscal, code CIVC ; lots rattachés automatiquement (nature, fractions) ou à la main
+- Registre d’enrichissement (Registres) : les enrichissements enregistrés, avec le titre avant et le titre visé, la méthode, les produits et quantités
+
 ## 0.31.0-alpha.1 — 26/11/2026
 
 - Schémas de vinification (Paramètres › Schémas de vinification) : suites d’étapes types — jour après la création du lot, opération, famille de produit, dose par hL de produit ou de SO₂ apporté, consigne — choisies selon le cépage majoritaire, la fraction et l’état sanitaire des raisins ; quatre exemples non officiels « à vérifier » (cuvée de Chardonnay, cuvée de noirs avec FML, tailles, raisins altérés), à dupliquer et adapter

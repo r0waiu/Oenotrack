@@ -37,7 +37,7 @@ const SI = ({ value, onChange, options, placeholder, search, plain, ...p }) => (
   : (
   <select className="inp" value={value ?? ''} onChange={(e) => onChange(e.target.value)} {...p}>
     {placeholder != null ? <option value="">{placeholder}</option> : null}
-    {options.map((o) => <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>)}
+    {options.map((o) => <option key={o.value} value={o.value} disabled={o.disabled} translate={o.donnee ? 'no' : undefined}>{o.label}</option>)}
   </select>
 ));
 const Check = ({ checked, onChange, label, disabled }) => (<label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4" style={{ accentColor: 'var(--accent)' }} checked={!!checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />{label}</label>);
