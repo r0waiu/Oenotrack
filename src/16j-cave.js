@@ -11,7 +11,7 @@ const FICHE_RUBRIQUES = {
     ['hygiene', 'Hygiène'], ['analyses', 'Analyses prélevées ici'], ['mouts', 'Moûts reçus'], ['historique', 'Historique des opérations'],
   ],
   lot: [
-    ['stades', 'Stade du vin'], ['fermentation', 'Fermentation (courbes densité et température, alerte)'], ['composition', 'Composition calculée'],
+    ['stades', 'Stade du vin'], ['schema', 'Schéma de vinification (opérations prévues)'], ['fermentation', 'Fermentation (courbes densité et température, alerte)'], ['composition', 'Composition calculée'],
     ['portions', 'Portions (lot + contenant + volume)'], ['intrants', 'Intrants cumulés par portion'], ['so2', 'SO₂ total estimé (analyse + ajouts depuis)'], ['amont', 'Traçabilité amont (avant réception)'],
     ['genealogie', 'Généalogie'], ['pertes', 'Pertes et écarts'], ['bilan', 'Bilan matière du lot'], ['hygiene', 'Journal d’hygiène'],
     ['mouts', 'Moûts reçus'], ['analyses', 'Analyses'], ['operations', 'Opérations du lot'],

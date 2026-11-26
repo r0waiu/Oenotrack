@@ -510,6 +510,23 @@ details>summary{cursor:pointer;font-weight:600}
 .report.bon .bon-tete{display:flex;gap:14px;margin-bottom:12px}.report.bon .bon-bloc{flex:1;min-width:0;border:1px solid #bdb59d;border-radius:6px;padding:8px 10px;font-size:12px}
 .report.bon .bon-lbl{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#555;margin-bottom:2px}.report.bon .bon-camp{font-family:var(--font-display);font-weight:700;font-size:16px;font-style:italic;margin-bottom:6px;border-bottom:1px solid #bdb59d;padding-bottom:3px}
 .report.bon h1{font-size:22px}.report.bon .bon-ligne{font-size:12px;margin:2px 0 6px}
+.report .vis-logi{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-start}
+.report .vis-col{flex:1 1 200px;max-width:330px;min-width:0;break-inside:avoid}
+.report .vis-col.seule{flex:none;width:100%;max-width:520px;margin:0 auto}
+.report .vis-col-t{font-family:var(--font-display);font-weight:700;font-size:13px;color:#17493A;margin-bottom:6px;border-bottom:2px solid #B8892B;padding-bottom:2px}
+.report .vis-boite{border:1.5px solid #8a7a52;border-radius:8px;padding:5px 9px;background:#FBF8EF;font-size:11.5px;line-height:1.3;break-inside:avoid}
+.report .vis-boite .vis-h{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#6b5a2e;font-weight:700}
+.report .vis-boite .vis-t{font-weight:700;font-size:12.5px;margin:1px 0;color:#111}
+.report .vis-boite .vis-l{color:#333}
+.report .vis-fleche{text-align:center;line-height:1;color:#8a7a52;font-size:13px;margin:2px 0}
+.report .vis-frise{display:grid;gap:0 8px;position:relative;margin:4px 0 16px;break-inside:avoid}
+.report .vis-frise::before{content:'';position:absolute;left:0;right:0;top:35px;height:2px;background:#8a7a52}
+.report .vis-fcol{position:relative;min-width:0}
+.report .vis-fh{text-align:center;font-weight:700;font-size:11.5px;line-height:1.15;color:#17493A;height:28px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.report .vis-fdot{width:12px;height:12px;border-radius:50%;background:#B8892B;border:2px solid #fff;box-shadow:0 0 0 1px #8a7a52;margin:1px auto 5px;position:relative;z-index:1}
+.report .vis-fs{text-align:center;font-size:10px;color:#555;margin-bottom:4px;min-height:12px}
+.report .vis-fcol .vis-boite{margin-bottom:5px;font-size:10.5px;padding:4px 6px}
+.report .vis-fcol .vis-boite .vis-t{font-size:11px}
 @media (max-width:560px){.report.bon .bon-tete{flex-direction:column}}
 .ech-chip{display:inline-flex;align-items:center;gap:5px;border-width:1px;border-style:solid}.ech-chip i{display:inline-block;width:8px;height:8px;border-radius:8px}
 /* fiches d’enregistrement */

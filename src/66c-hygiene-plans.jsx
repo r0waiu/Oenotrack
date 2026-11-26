@@ -208,24 +208,46 @@ function MaintInterventionForm({ id, preset, cloturer, onClose }) {
   );
 }
 
-/* ---------- impression des plans (classeur HACCP) ---------- */
+/* ---------- impression des plans (classeur HACCP) : tableau, logigramme vertical ou frise (0.31.0-alpha.1), au choix ---------- */
+// moments du plan de nettoyage dans l'ordre de l'année de vinification (frise)
+const PLAN_FRISE_MOMENTS = [['avantVendanges', 'Avant les vendanges'], ['vendangesSoir', 'Soir de vendanges'], ['apresOp', 'Après chaque marc ou opération'], ['vidange', 'Après vidange'], ['avantRemplissage', 'Avant remplissage'],
+  ['changementRevendication', 'Changement de revendication'], ['periodique', 'Périodique'], ['apresVendanges', 'Après les vendanges'], ['avantAssemblages', 'Avant les assemblages'], ['apresAssemblages', 'Après les assemblages'], ['apresTirage', 'Après le tirage'], ['texte', 'Autre moment']];
+const moisCourt = (iso) => { try { return new Date(`${iso.slice(0, 7)}-15T12:00:00Z`).toLocaleDateString(LANGUE, { month: 'short', year: 'numeric', timeZone: 'UTC' }); } catch (e) { return iso.slice(0, 7); } };
 function PlanImpression({ quoi, onClose }) {
-  const { db } = useApp(); const ref = useRef(null); const maint = quoi === 'maintenance';
-  const out = useReportOutput(ref, maint ? 'plan-de-maintenance' : 'plan-de-nettoyage');
+  const { db } = useApp(); const maint = quoi === 'maintenance';
   const th = { textAlign: 'left', fontSize: 11 }; const td = { fontSize: 11, verticalAlign: 'top' };
+  const titre = maint ? 'Plan de maintenance du matériel' : 'Plan de nettoyage et de désinfection';
+  const ctl = (e) => (e.controle && e.controle !== 'aucun' ? `${hygLib(HYG_CONTROLES, e.controle)}${e.attendu ? ` (${e.attendu})` : ''}` : '');
+  const enr = (e) => (e.enregistrer === false ? '' : e.enregistrement || 'Journal d’hygiène');
+  const M = planMaintenance(db).filter((e) => e.actif !== false); const N = planNettoyage(db).filter((e) => e.actif !== false);
+  const parZone = (rendu) => HYG_ZONES.map(([z, zl]) => { const L = N.filter((e) => (e.zone || 'autre') === z); return L.length ? <div key={z} style={{ marginBottom: 12 }}><h3 style={{ fontSize: 14, margin: '10px 0 4px' }}>{zl}</h3>{rendu(L)}</div> : null; });
+  const tableau = () => (maint ? <table><thead><tr>{['Matériel', 'Mise en service', 'Type', 'Fréquence', 'Interventions', 'Intervenant', 'Enregistrement', 'Dernière', 'Prochaine'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+    <tbody>{M.map((e) => { const st = maintEtat(db, e); return <tr key={e.id}>{[e.libelle, e.annee || '—', hygLib(MAINT_TYPES, e.type), <><span>{maintFreqTexte(e.frequence)}</span>{e.avantVendanges ? <><br /><span>avant vendanges</span></> : null}</>, e.interventions, e.intervenant, e.enregistrement || '—', st.derniere ? fmtDate(st.derniere) : '—', st.echeance ? fmtDate(st.echeance) : '—'].map((v, i) => <td key={i} style={td}>{v}</td>)}</tr>; })}</tbody></table>
+    : parZone((L) => <table><thead><tr>{['Équipement ou local', 'Objectif', 'Fréquence', 'Produit(s)', 'Actions / consignes', 'Temps de contact', 'Contrôle', 'Enregistrement', 'Responsable'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+      <tbody>{L.map((e) => <tr key={e.id}>{[e.libelle, lbl(db, 'actionsHygiene', e.actionId), <QuandPlan e={e} />, <ProduitsPlan e={e} />, e.mode, e.contact || '—', ctl(e) || '—', enr(e) || '—', e.responsable || '—'].map((v, i) => <td key={i} style={td}>{v}</td>)}</tr>)}</tbody></table>));
+  const logigramme = () => (maint ? <Logigramme colonnes={M.map((e) => { const st = maintEtat(db, e); return { titre: e.libelle, boites: [
+      { haut: 'Type et fréquence', titre: hygLib(MAINT_TYPES, e.type), lignes: [maintFreqTexte(e.frequence), e.avantVendanges ? <span>avant vendanges</span> : ''] },
+      { haut: 'Interventions', lignes: [e.interventions || '—'] }, { haut: 'Intervenant', lignes: [e.intervenant || '—'] },
+      { haut: 'Enregistrement', lignes: [e.enregistrement || (st.derniere || st.echeance ? '' : '—'), st.derniere ? <><span>dernière :</span> <span translate="no">{fmtDate(st.derniere)}</span></> : '', st.echeance ? <><span>prochaine :</span> <span translate="no">{fmtDate(st.echeance)}</span></> : ''] }] }; })} />
+    : parZone((L) => <Logigramme colonnes={L.map((e) => ({ titre: e.libelle, boites: [
+      { haut: 'Quand', lignes: [<QuandPlan e={e} />] }, { haut: 'Action', titre: lbl(db, 'actionsHygiene', e.actionId), lignes: [<ProduitsPlan e={e} />, e.contact ? <><span>temps de contact :</span> {e.contact}</> : ''] },
+      ...(e.mode ? [{ haut: 'Consignes', lignes: [e.mode] }] : []), { haut: 'Contrôle', lignes: [ctl(e) || '—'] }, { haut: 'Enregistrement', lignes: [enr(e) || '—', e.responsable ? <><span>responsable :</span> {e.responsable}</> : ''] }] }))} />));
+  const frise = () => {
+    if (!maint) {
+      const cols = PLAN_FRISE_MOMENTS.map(([k, label]) => { const L = N.filter((e) => (e.quand || []).some((q) => q && q.type === k)); return { haut: label, sous: '', boites: L.map((e) => ({ titre: e.libelle, lignes: [lbl(db, 'actionsHygiene', e.actionId), k === 'periodique' || k === 'texte' ? (e.quand || []).filter((q) => q && q.type === k).map((q) => hygLibQuand(q)).join(' ; ') : ''] })) }; }).filter((c) => c.boites.length);
+      return <Frise colonnes={cols} parLigne={6} />;
+    }
+    const auj = todayISO(); const mois = []; for (let k = 0; k < 12; k += 1) { const d = new Date(`${auj.slice(0, 7)}-15T12:00:00Z`); d.setUTCMonth(d.getUTCMonth() + k); mois.push(d.toISOString().slice(0, 7)); }
+    const E = M.map((e) => ({ e, st: maintEtat(db, e) })); const bx = (x) => ({ titre: x.e.libelle, lignes: [hygLib(MAINT_TYPES, x.e.type), x.st.echeance ? <span translate="no">{fmtDate(x.st.echeance)}</span> : ''] });
+    const retard = E.filter((x) => x.st.echeance && x.st.echeance < auj); const sans = E.filter((x) => !x.st.echeance || x.st.echeance.slice(0, 7) > mois[11]);
+    const cols = [...(retard.length ? [{ haut: 'En retard', sous: '', boites: retard.map(bx) }] : []), ...mois.map((m) => ({ haut: <span translate="no">{moisCourt(m)}</span>, sous: '', boites: E.filter((x) => x.st.echeance && x.st.echeance >= auj && x.st.echeance.slice(0, 7) === m).map(bx) })),
+      ...(sans.length ? [{ haut: 'Plus tard ou sans échéance', sous: '', boites: sans.map(bx) }] : [])];
+    return <Frise colonnes={cols} parLigne={7} />;
+  };
   return (
-    <Sheet wide title={maint ? 'Plan de maintenance' : 'Plan de nettoyage et de désinfection'} sub="À imprimer pour le classeur qualité (HACCP)" onClose={onClose}
-      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><BoutonsSortie out={out} /></>}>
-      <div ref={ref} className="report" data-plan-impression="">
-        <ReportHead title={maint ? 'Plan de maintenance du matériel' : 'Plan de nettoyage et de désinfection'} sub={`Mis en place le ${fmtDate(planDepuis(db))} · édité le ${fmtDate(todayISO())}`} />
-        {maint ? <table><thead><tr>{['Matériel', 'Mise en service', 'Type', 'Fréquence', 'Interventions', 'Intervenant', 'Enregistrement', 'Dernière', 'Prochaine'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
-          <tbody>{planMaintenance(db).filter((e) => e.actif !== false).map((e) => { const s = maintEtat(db, e); return <tr key={e.id}>{[e.libelle, e.annee || '—', hygLib(MAINT_TYPES, e.type), <><span>{maintFreqTexte(e.frequence)}</span>{e.avantVendanges ? <><br /><span>avant vendanges</span></> : null}</>, e.interventions, e.intervenant, e.enregistrement || '—', s.derniere ? fmtDate(s.derniere) : '—', s.echeance ? fmtDate(s.echeance) : '—'].map((v, i) => <td key={i} style={td}>{v}</td>)}</tr>; })}</tbody></table>
-          : HYG_ZONES.map(([z, zl]) => { const L = planNettoyage(db).filter((e) => e.actif !== false && (e.zone || 'autre') === z); return L.length ? <div key={z} style={{ marginBottom: 12 }}><h3 style={{ fontSize: 14, margin: '10px 0 4px' }}>{zl}</h3>
-            <table><thead><tr>{['Équipement ou local', 'Objectif', 'Fréquence', 'Produit(s)', 'Actions / consignes', 'Temps de contact', 'Contrôle', 'Enregistrement', 'Responsable'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
-              <tbody>{L.map((e) => <tr key={e.id}>{[e.libelle, lbl(db, 'actionsHygiene', e.actionId), <QuandPlan e={e} />, <ProduitsPlan e={e} />, e.mode, e.contact || '—', e.controle && e.controle !== 'aucun' ? `${hygLib(HYG_CONTROLES, e.controle)}${e.attendu ? ` (${e.attendu})` : ''}` : '—', e.enregistrer === false ? '—' : e.enregistrement || 'Journal d’hygiène', e.responsable || '—'].map((v, i) => <td key={i} style={td}>{v}</td>)}</tr>)}</tbody></table></div> : null; })}
-        <p className="muted" style={{ fontSize: 10, marginTop: 10 }}>{maint ? 'Préventive : planifiée pour éviter les pannes ; réglementaire : imposée par la réglementation (registre de sécurité) ; curative : en cas de panne.' : 'Porter les protections indiquées sur la FDS de chaque produit ; ne jamais mélanger de produits purs ; rincer systématiquement après le temps de contact.'}</p>
-      </div>
-    </Sheet>
+    <ImpressionVisuelle cle={maint ? 'plan-maintenance' : 'plan-nettoyage'} formeDefaut="tableau" titre={titre} sous={`Mis en place le ${fmtDate(planDepuis(db))}`} nomFichier={maint ? 'plan-de-maintenance' : 'plan-de-nettoyage'} onClose={onClose} attrs={{ 'data-plan-impression': '' }} aide="À imprimer pour le classeur qualité (HACCP)"
+      rendu={(forme) => (forme === 'logigramme' ? logigramme() : forme === 'frise' ? frise() : tableau())}
+      note={maint ? 'Préventive : planifiée pour éviter les pannes ; réglementaire : imposée par la réglementation (registre de sécurité) ; curative : en cas de panne.' : 'Porter les protections indiquées sur la FDS de chaque produit ; ne jamais mélanger de produits purs ; rincer systématiquement après le temps de contact.'} />
   );
 }
 

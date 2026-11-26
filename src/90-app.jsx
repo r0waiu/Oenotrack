@@ -55,6 +55,7 @@ function App() {
   const [stack, setStack] = useState([]); // fiches ouvertes : { k: 'lot' | 'cont' | 'fini', id } — la dernière ouverte est au premier plan
   const [traceDlg, setTraceDlg] = useState(null); // fichier de traçabilité : export d'une expédition, traçabilité amont d'une entrée (0.27.0-alpha.1)
   const [opDlg, setOpDlg] = useState(null); const [misc, setMisc] = useState(null); const [menu, setMenu] = useState(null); const [contEdit, setContEdit] = useState(null); const [report, setReport] = useState(null); const [docsDlg, setDocsDlg] = useState(null); const [ficheDlg, setFicheDlg] = useState(null);
+  const [schemaDlg, setSchemaDlg] = useState(null); // schéma de vinification proposé (0.31.0-alpha.1)
   const [groupeDlg, setGroupeDlg] = useState(null); const [mdpDlg, setMdpDlg] = useState(null); // saisie groupée, mot de passe de chiffrement (0.29.0-alpha.1)
   const [theme, setTheme] = useState(() => { try { return window.localStorage.getItem(THEME_KEY) || window.localStorage.getItem('cuverie-champenoise-theme') || 'auto'; } catch (e) { return 'auto'; } });
 
@@ -174,6 +175,7 @@ function App() {
     openDocs: (cible, kind, title) => { setMenu(null); setDocsDlg({ cible, kind, title, k: Date.now() }); }, openTrace: (x) => { setMenu(null); setTraceDlg(x ? { ...x, n: Date.now() } : null); }, openLegal: (o) => { setMenu(null); setLegal(o || 'mentions'); }, openFiche: (sources) => { setMenu(null); setFicheDlg({ sources, k: Date.now() }); },
     openAnalyse: (preset) => { setMenu(null); setMisc({ kind: 'analyse', preset }); }, openHyg: (preset) => { setMenu(null); setMisc({ kind: 'hyg', preset }); },
     openGroupe: (x) => { setMenu(null); setGroupeDlg(x ? { ...x, k: Date.now() } : null); },
+    openSchema: (x) => { setMenu(null); setSchemaDlg(x ? { ...x, k: Date.now() } : null); },
     openMenu: (cid, x, y) => setMenu({ cid, x, y, k: Date.now() }), editCont: (id) => { setMenu(null); setContEdit(id); }, openReport: (init) => { setMenu(null); setReport(init || { kind: 'lot', ids: [] }); },
   };
 
@@ -300,6 +302,7 @@ function App() {
       {apparence ? <ApparenceSheet onClose={() => setApparence(false)} /> : null}
       {docsDlg ? <DocsSheet key={docsDlg.k} cible={docsDlg.cible} kind={docsDlg.kind} title={docsDlg.title} onClose={() => setDocsDlg(null)} /> : null}
       {ficheDlg ? <FicheDialog key={ficheDlg.k} sources={ficheDlg.sources} onClose={() => setFicheDlg(null)} /> : null}
+      {schemaDlg ? <SchemaFeuille key={schemaDlg.k} lotIds={schemaDlg.lotIds} opId={schemaDlg.opId} auto={!!schemaDlg.auto} onClose={() => setSchemaDlg(null)} /> : null}
       {groupeDlg && groupeDlg.gid ? <GroupeSheet key={groupeDlg.k} gid={groupeDlg.gid} onClose={() => setGroupeDlg(null)} /> : null}
       {groupeDlg && groupeDlg.form ? <GroupeForm key={groupeDlg.k} gid={groupeDlg.form.gid} prevGid={groupeDlg.form.prevGid} onClose={() => setGroupeDlg(null)} /> : null}
       {mdpDlg ? <MdpChiffrementDialog d={mdpDlg} onFin={(k) => { const r = mdpDlg.res; setMdpDlg(null); r(k); }} /> : null}
