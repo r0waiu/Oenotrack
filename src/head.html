@@ -1,6 +1,7 @@
 <title>Œnotrack</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Cormorant+Garamond:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=Lato:wght@300;400;700;900&family=Lora:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap">
+<style id="oenotrack-tailwind">/*__TAILWIND__*/</style>
 <style>
 /* === CHARTES (généré par tools/chartes.py) === */
 /* Œnotrack — Craie & Champagne · épuré, très lisible */
@@ -532,7 +533,7 @@ details>summary{cursor:pointer;font-weight:600}
 /* fiches d’enregistrement */
 .report.fiches{padding:0;border:0;background:transparent}
 .fiche-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.fiche{background:#fff;color:#000;font:11px/1.3 Arial,Helvetica,sans-serif;margin:0 auto 22px;padding:9px 10px;box-sizing:border-box;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.fiche{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;color:#000;font:11px/1.3 Arial,Helvetica,sans-serif;margin:0 auto 22px;padding:9px 10px;box-sizing:border-box;box-shadow:0 1px 4px rgba(0,0,0,.18)}
 .fiche.paysage{width:277mm}.fiche.portrait{width:190mm}
 .fiche table{border-collapse:collapse;width:100%}
 .fiche .fh2{display:flex;align-items:center;gap:10px;border-bottom:1.5px solid var(--f-bord,#555);padding-bottom:4px;margin-bottom:5px;min-height:10mm}
@@ -642,7 +643,10 @@ details>summary{cursor:pointer;font-weight:600}
 #fatal{display:none;position:fixed;left:0;right:0;bottom:0;z-index:999;background:#7a1f19;color:#fff;font:12px/1.4 ui-monospace,monospace;padding:10px 14px;white-space:pre-wrap;max-height:40vh;overflow:auto}
 /* impression : seul le rapport est imprimé */
 @page{size:A4;margin:12mm}
+/* couleurs à l'impression (0.38.0-alpha.1) : fonds, bordures et mises en évidence imprimés tels qu'à l'écran (cases « relevé » à
+   remplir, en-têtes, bandeaux, lignes alternées, pastilles), même si « Graphiques d'arrière-plan » est décoché dans la boîte d'impression */
 @media print{
+  *,*::before,*::after{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   html,body{overflow:visible!important;height:auto!important;background:#fff!important}
   body *{visibility:hidden}
   .report,.report *{visibility:visible}
@@ -777,6 +781,16 @@ details>summary{cursor:pointer;font-weight:600}
 .etq-a6 .etq-ent{font-size:11pt}
 .etq-pied{font-size:6.5pt;color:#666;margin-top:.8mm}
 .etq-a6 .etq-pied{font-size:10pt;margin-top:3mm}
+.etq-page-perso{width:210mm;height:297mm;display:grid;align-content:start;justify-content:start;box-sizing:border-box;overflow:hidden}
+.etq-perso{align-items:center;--etq-k:1;--etq-qr:29mm}
+.etq-perso .etq-qr{width:var(--etq-qr);height:var(--etq-qr);flex:none}
+.etq-perso.etq-haute{flex-direction:column;justify-content:center;text-align:center}
+.etq-perso .etq-nom{font-size:calc(15pt * var(--etq-k))}
+.etq-perso .etq-sub{font-size:calc(8.5pt * var(--etq-k))}
+.etq-perso .etq-ent{font-size:calc(7.5pt * var(--etq-k))}
+.etq-perso .etq-pied{font-size:calc(6.5pt * var(--etq-k))}
+.etq-contour{outline:.2mm dashed #9A9A9A;outline-offset:-.1mm}
+.etq-reglages{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 12px}
 @page zetiq4{size:A4 portrait;margin:0}
 @page zetiq6{size:A6 portrait;margin:0}
 @media print{
@@ -791,18 +805,9 @@ details>summary{cursor:pointer;font-weight:600}
 .scan-viseur{position:absolute;inset:18% 22%;border:3px solid rgba(255,255,255,.85);border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.25)}
 .rappel-sauv{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--warn);background:var(--warnSoft);border-radius:var(--r-btn,8px);padding:6px 10px;color:var(--ink)}
 </style>
-<script src="https://cdn.tailwindcss.com/3.4.17"></script>
-<script>
-tailwind.config = {
-  theme: { extend: {
-    colors: { bg:'var(--bg)', surface:'var(--surface)', surface2:'var(--surface2)', ink:'var(--ink)', ink2:'var(--ink2)', line:'var(--line)', accent:'var(--accent)', accentSoft:'var(--accentSoft)', accentInk:'var(--accentInk)', gold:'var(--gold)', goldSoft:'var(--goldSoft)', ok:'var(--ok)', okSoft:'var(--okSoft)', warn:'var(--warn)', warnSoft:'var(--warnSoft)', bad:'var(--bad)', badSoft:'var(--badSoft)', qconv:'var(--qconv)', qbio:'var(--qbio)', qdem:'var(--qdem)' },
-    borderColor: { DEFAULT: 'var(--line)' },
-    fontFamily: { display:['"Barlow Condensed"','Arial Narrow','sans-serif'], sans:['Barlow','system-ui','sans-serif'], mono:['"IBM Plex Mono"','ui-monospace','monospace'], serif:['"Cormorant Garamond"','Georgia','serif'] }
-  } }
-};
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<!-- 0.38.0-alpha.1 : React à version figée, vérifié par son empreinte (integrity) ; Tailwind précompilé à la construction (build.mjs) -->
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js" integrity="__SRI_react__" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="__SRI_reactDom__" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <div id="root"><p style="padding:24px;font-family:system-ui">Chargement d’Œnotrack…</p></div>
 <pre id="fatal"></pre>
 <script>

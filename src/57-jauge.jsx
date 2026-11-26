@@ -2,19 +2,18 @@
    Lecture dans le navigateur : PDF « texte » et PDF déjà reconnus (Adobe Scan…) par pdf.js ; scans et photos par la reconnaissance
    de caractères (Tesseract), après effacement des traits du tableau ; tableurs (Excel, CSV) et tableaux collés.
    Le moteur (15-baremes.js) comprend le tableau, corrige les valeurs mal lues et contrôle le tout ; l'utilisateur vérifie avant d'enregistrer. */
-const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.min.mjs';
-const PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.worker.min.mjs';
-const PDFJS_BASE = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/'; // décodeurs des images scannées (JBIG2, JPEG 2000) et polices standard
-const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+// 0.38.0-alpha.1 : bibliothèques vérifiées (16r-bibliotheques.js) — sur le site, copiées dans vendor/ ; fichier seul : CDN, empreintes contrôlées
+const PDFJS_BASE = bibPdfjsBase(); // décodeurs des images scannées (JBIG2, JPEG 2000) et polices standard
 const JAUGE_ACCEPT = '.pdf,application/pdf,image/*,.xlsx,.xls,.ods,.csv,.txt,.json,text/csv,text/plain,application/json';
 let _pdfjsP = null;
 // pdf.js (module) ; son « worker » est chargé dans la page même : rien à autoriser de plus que le script
 function chargerPdfjs() {
   if (_pdfjsP) return _pdfjsP;
   _pdfjsP = (async () => {
-    const m = await import(PDFJS_URL); const L = m && m.getDocument ? m : (m && m.default) || m;
-    try { await import(PDFJS_WORKER_URL); } catch (e) { /* le worker classique prendra le relais */ }
-    try { L.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL; } catch (e) { /* ignoré */ }
+    const m = await bibModule('pdfjs'); const L = m && m.getDocument ? m : (m && m.default) || m;
+    const wurl = await bibModuleUrl('pdfjsWorker'); // octets vérifiés (fichier seul) ou fichier du site
+    try { await import(/* webpackIgnore: true */ wurl); } catch (e) { /* le worker classique prendra le relais */ }
+    try { L.GlobalWorkerOptions.workerSrc = wurl; } catch (e) { /* ignoré */ }
     return L;
   })();
   _pdfjsP.catch(() => { _pdfjsP = null; });
@@ -23,7 +22,7 @@ function chargerPdfjs() {
 let _tessP = null;
 function chargerTesseract() {
   if (window.Tesseract && window.Tesseract.createWorker) return Promise.resolve(window.Tesseract);
-  if (!_tessP) _tessP = chargerScript(TESSERACT_URL).then(() => { if (!window.Tesseract || !window.Tesseract.createWorker) throw new Error('module incomplet'); return window.Tesseract; });
+  if (!_tessP) _tessP = bibScript('tesseract').then(() => { if (!window.Tesseract || !window.Tesseract.createWorker) throw new Error('module incomplet'); return window.Tesseract; });
   _tessP.catch(() => { _tessP = null; });
   return _tessP;
 }
@@ -50,7 +49,10 @@ function nettoyerScan(canvas) {
 let _tessWorker = null;
 async function ocrCanvas(canvas, n, echelle, onLog) {
   const T = await chargerTesseract();
-  if (!_tessWorker) _tessWorker = T.createWorker('fra', 1, { logger: (m) => { if (onLog && m && m.status) onLog(m); } });
+  // sur le site : moteur, « worker » et données de langue copiés dans vendor/ (aucun CDN) ; fichier seul : réglages d'origine de Tesseract
+  const L = bibLocal(); const abs = (x) => new URL(`${L}${x}`, document.baseURI).href.replace(/\/$/, '');
+  const chemins = L ? { workerPath: abs(BIB_TABLE.tesseractWorker.local), corePath: abs(BIB_DOSSIERS.tesseractCore), langPath: abs(BIB_DOSSIERS.tesseractLangue), workerBlobURL: false } : {};
+  if (!_tessWorker) _tessWorker = T.createWorker('fra', 1, { ...chemins, logger: (m) => { if (onLog && m && m.status) onLog(m); } });
   const w = await _tessWorker; const r = await w.recognize(canvas); const tsv = (r && r.data && r.data.tsv) || '';
   return { ...jaugePageDeTsv(tsv, n, echelle), ocr: true };
 }

@@ -41,7 +41,7 @@ const etatCarte = async (page) => page.locator('main [data-cloud]').getAttribute
   ok('Google : modification d’un autre appareil reçue', (await toast(page)).includes('Google Drive') && (await toast(page)).includes('1 contenant'), await toast(page));
   await page.click('#tab-cuverie'); await page.waitForTimeout(300); ok('Google : visible sur le plan', await page.locator('.pitem', { hasText: 'Cuve 05 (tablette)' }).count() >= 1);
   // jeton expiré (1 h) → « se reconnecter » → 1 clic
-  await page.evaluate(() => { const j = JSON.parse(localStorage.getItem('oenotrack-cloud-jetons')); j.google.exp = 0; localStorage.setItem('oenotrack-cloud-jetons', JSON.stringify(j)); window.dispatchEvent(new Event('focus')); }); await page.waitForTimeout(800);
+  await page.evaluate(() => { const g = jetonsLire('google'); g.exp = 0; jetonsEcrire('google', g); window.dispatchEvent(new Event('focus')); }); // 0.38 : jetons dans le coffre de l’appareil (chiffrés) await page.waitForTimeout(800);
   ok('Google : connexion expirée signalée', (await page.locator('[data-cloud-etat]').innerText()).includes('se reconnecter'), await page.locator('[data-cloud-etat]').innerText());
   await page.locator('[data-cloud-etat]').click(); await page.waitForTimeout(1200);
   ok('Google : reconnecté en 1 clic', (await page.locator('[data-cloud-etat]').innerText()).includes('à jour'), await page.locator('[data-cloud-etat]').innerText());

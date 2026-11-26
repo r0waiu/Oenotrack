@@ -133,10 +133,16 @@ function normalizeDb(d) {
 }
 
 /* ---------- persistance locale ---------- */
+// 0.38.0-alpha.1 : la base est lue dans le coffre de l'appareil (33d-coffre.js : déchiffrée au démarrage, en clair en mémoire seulement) ;
+// données écrites à côté par une version antérieure (enveloppe lue comme une base vide) : réunies sans base commune, rien n'est perdu
 function loadDb() {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) return { db: normalizeDb(JSON.parse(raw)), fromStorage: true };
+    const raw = coffreLire(STORAGE_KEY);
+    if (raw) {
+      let db = normalizeDb(JSON.parse(raw)); const anc = _coffre.ancien;
+      if (anc) { try { db = normalizeDb(syncFusion(null, db, normalizeDb(clone(anc))).db); _coffre.ancien = null; return { db, fromStorage: true, reunie: true }; } catch (e) { /* base chiffrée seule */ } }
+      return { db, fromStorage: true };
+    }
   } catch (e) { /* stockage indisponible ou corrompu */ }
   for (const k of OLD_STORAGE_KEYS) { // première ouverture d'Œnotrack : reprise automatique des données de « Cuverie champenoise »
     try { const raw = window.localStorage.getItem(k); if (raw) { const db = normalizeDb(JSON.parse(raw)); return { db, fromStorage: true, migrated: true }; } } catch (e) { /* ignoré */ }
@@ -144,7 +150,7 @@ function loadDb() {
   return { db: null, fromStorage: false };
 }
 function saveDb(db) {
-  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); return true; } catch (e) { return false; }
+  try { return coffreEcrire(STORAGE_KEY, JSON.stringify(db)); } catch (e) { return false; }
 }
 function exportJSON(db) { return JSON.stringify(db, null, 2); }
 function importJSON(text) {

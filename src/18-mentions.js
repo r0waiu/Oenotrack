@@ -74,12 +74,11 @@ const COMPOSANTS_TIERS = [
   { nom: 'PDF.js 6.2', role: 'lecture des PDF', auteur: 'Mozilla et contributeurs', licence: 'Apache 2.0', web: 'https://mozilla.github.io/pdf.js/' },
   { nom: 'pdf-lib 1.17', role: 'fabrication des PDF', auteur: 'Andrew Dillon et contributeurs', licence: 'MIT', web: 'https://pdf-lib.js.org' },
   { nom: 'Tesseract.js 5.1 et Tesseract OCR', role: 'lecture des scans et photos', auteur: 'Projet Naptha ; Google et contributeurs', licence: 'Apache 2.0', web: 'https://tesseract.projectnaptha.com' },
-  { nom: 'Polices Barlow, Lato, Inter, Lora, Manrope, IBM Plex, DM Sans, Playfair Display, Source Sans 3, Space Grotesk…', role: 'typographie', auteur: 'leurs auteurs (diffusion Google Fonts)', licence: 'SIL Open Font License 1.1', web: 'https://fonts.google.com' },
+  { nom: 'Polices Barlow, Lato, Inter, Lora, Manrope, IBM Plex, DM Sans, Playfair Display, Source Sans 3, Space Grotesk…', role: 'typographie', auteur: 'leurs auteurs (Google Fonts ; copies Fontsource embarquées dans Œnotrack en ligne)', licence: 'SIL Open Font License 1.1', web: 'https://fonts.google.com' },
 ];
 // services tiers sollicités au chargement de la page (adresse IP et navigateur transmis) — à citer dans la politique de confidentialité
 const SERVICES_CHARGEMENT = [
+  // 0.38.0-alpha.1 : Œnotrack en ligne n'en sollicite plus aucun (bibliothèques et polices embarquées) ; liste valable pour le fichier seul
   { nom: 'Google Fonts', societe: 'Google', quoi: 'polices de caractères', quand: 'à l’ouverture' },
-  { nom: 'cdnjs', societe: 'Cloudflare, Inc.', quoi: 'bibliothèques React et SheetJS', quand: 'à l’ouverture' },
-  { nom: 'Tailwind CSS (CDN)', societe: 'Tailwind Labs, Inc.', quoi: 'mise en forme', quand: 'à l’ouverture' },
-  { nom: 'jsDelivr', societe: 'jsDelivr (réseau de diffusion)', quoi: 'lecture des PDF, des scans et fabrication des PDF', quand: 'à la première utilisation de ces fonctions' },
+  { nom: 'jsDelivr', societe: 'jsDelivr (réseau de diffusion)', quoi: 'bibliothèque React à l’ouverture ; SheetJS, lecture des PDF, des scans et fabrication des PDF', quand: 'à la première utilisation de ces fonctions' },
 ];

@@ -12,7 +12,7 @@ const errors = []; const shim = (n) => fs.readFileSync(path.join(dir, 'shim', n)
 await ctx.route('**/*', (route) => { const u = route.request().url();
   if (u.startsWith('http://localhost:8765/')) return route.continue();
   if (u.includes('react-dom')) return route.fulfill({ contentType: 'text/javascript', body: '' });
-  if (u.includes('/react/')) return route.fulfill({ contentType: 'text/javascript', body: shim('react-shim.js') });
+  if (u.includes('/react/') || u.includes('/react@')) return route.fulfill({ contentType: 'text/javascript', body: shim('react-shim.js') });
   if (u.includes('tailwindcss')) return route.fulfill({ contentType: 'text/javascript', body: shim('tw.js') });
   if (u.includes('xlsx')) return route.fulfill({ contentType: 'text/javascript', body: 'window.XLSX={utils:{}};' });
   if (u.includes('fonts.g')) return route.fulfill({ contentType: 'text/css', body: '' });

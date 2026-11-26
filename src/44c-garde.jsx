@@ -64,6 +64,7 @@ function pointRetourEcrire(db, motif) {
   const x = { id: `pr${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`, date: new Date().toISOString(), motif: String(motif || 'Base remplacée').slice(0, 160), resume: { contenants: (db.contenants || []).length, lots: (db.lots || []).length, ops: (db.ops || []).length, docs: (db.docs || []).length }, taille: texte.length, db: texte };
   return (async () => {
     try {
+      x.db = await coffreTexteChiffrer(texte); // 0.38.0-alpha.1 : point de restauration chiffré par le coffre de l'appareil
       await gardeRun('readwrite', (s) => s.put(x));
       const all = (await gardeRun('readonly', (s) => s.getAll())) || [];
       for (const y of all.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(GARDE_RETOURS_MAX)) await gardeRun('readwrite', (s) => s.delete(y.id));
@@ -71,7 +72,13 @@ function pointRetourEcrire(db, motif) {
     } catch (e) { return false; }
   })();
 }
-const pointsRetourLire = async () => { try { return ((await gardeRun('readonly', (s) => s.getAll())) || []).sort((a, b) => (a.date < b.date ? 1 : -1)); } catch (e) { return []; } };
+const pointsRetourLire = async () => {
+  try {
+    const L = ((await gardeRun('readonly', (s) => s.getAll())) || []).sort((a, b) => (a.date < b.date ? 1 : -1));
+    for (const p of L) { try { p.db = await coffreTexteDechiffrer(p.db); } catch (e) { p.db = ''; p.illisible = true; } }
+    return L;
+  } catch (e) { return []; }
+};
 const pointRetourSuppr = async (id) => { try { await gardeRun('readwrite', (s) => s.delete(id)); return true; } catch (e) { return false; } };
 
 /* ---------- documents déjà joints : vérifiés une fois, en arrière-plan ---------- */

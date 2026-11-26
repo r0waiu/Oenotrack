@@ -4,32 +4,15 @@
    page tourne dans un cadre où window.print() n'atteint pas l'imprimante : le PDF prend alors le relais. pdf-lib chargé à la demande. */
 // page ouverte seule (pas dans un cadre) : l'impression directe y fonctionne à coup sûr
 const CAN_PRINT_DIRECT = (() => { try { return window.self === window.top; } catch (e) { return false; } })();
-const PDFLIB_URL = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
-let _pdfLibP = null;
+// 0.38.0-alpha.1 : bibliothèques vérifiées (16r-bibliotheques.js : version figée, attribut integrity ; copiées dans vendor/ sur le site)
 function loadPdfLib() {
   if (window.PDFLib) return Promise.resolve(window.PDFLib);
-  if (_pdfLibP) return _pdfLibP;
-  _pdfLibP = new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = PDFLIB_URL; s.async = true;
-    s.onload = () => (window.PDFLib ? res(window.PDFLib) : rej(new Error('module PDF incomplet')));
-    s.onerror = () => { _pdfLibP = null; rej(new Error('module PDF injoignable (connexion internet ?)')); };
-    document.head.appendChild(s);
-  });
-  return _pdfLibP;
+  return bibScript('pdflib').then(() => { if (!window.PDFLib) throw new Error('module PDF incomplet'); return window.PDFLib; }, (e) => { throw new Error(e && e.bibliotheque && /refusée/.test(e.message) ? e.message : 'module PDF injoignable (connexion internet ?)'); });
 }
 // tableur Excel (SheetJS) : chargé seulement au premier import ou export Excel (0.29.0-alpha.1 : page plus légère à l'ouverture)
-const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-let _xlsxP = null;
 function loadXlsx() {
   if (window.XLSX && window.XLSX.utils) return Promise.resolve(window.XLSX);
-  if (_xlsxP) return _xlsxP;
-  _xlsxP = new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = XLSX_URL; s.async = true;
-    s.onload = () => (window.XLSX && window.XLSX.utils ? res(window.XLSX) : (_xlsxP = null, rej(new Error('module Excel incomplet'))));
-    s.onerror = () => { _xlsxP = null; rej(new Error('module Excel injoignable (connexion internet ?)')); };
-    document.head.appendChild(s);
-  });
-  return _xlsxP;
+  return bibScript('xlsx').then(() => { if (!(window.XLSX && window.XLSX.utils)) { _bibScripts.xlsx = null; throw new Error('module Excel incomplet'); } return window.XLSX; }, (e) => { throw new Error(e && e.bibliotheque && /refusée/.test(e.message) ? e.message : 'module Excel injoignable (connexion internet ?)'); });
 }
 
 // Polices standard du PDF (WinAnsi) : on remplace les caractères qu'elles ne savent pas écrire

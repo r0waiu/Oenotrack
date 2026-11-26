@@ -22,8 +22,9 @@ function idb() {
   return _idb;
 }
 const idbRun = (mode, fn) => idb().then((d) => new Promise((res, rej) => { const tx = d.transaction(DOC_STORE, mode); const rq = fn(tx.objectStore(DOC_STORE)); tx.oncomplete = () => res(rq ? rq.result : undefined); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error || new Error('Écriture interrompue (espace insuffisant ?)')); }));
-const docPut = (id, blob) => idbRun('readwrite', (s) => s.put(blob, id));
-const docGet = (id) => idbRun('readonly', (s) => s.get(id));
+// 0.38.0-alpha.1 : documents chiffrés par le coffre de l'appareil (33d-coffre.js) ; ceux rangés avant restent lus tels quels
+const docPut = async (id, blob) => { const b = await coffreBlobChiffrer(blob); return idbRun('readwrite', (s) => s.put(b, id)); };
+const docGet = async (id) => coffreBlobDechiffrer(await idbRun('readonly', (s) => s.get(id)));
 const docDel = (id) => idbRun('readwrite', (s) => s.delete(id));
 const docKeys = () => idbRun('readonly', (s) => s.getAllKeys());
 const newDocId = () => `doc${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
