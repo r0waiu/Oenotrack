@@ -13,7 +13,14 @@ const routes = async (route, u) => {
 };
 fs.mkdirSync(SC + '/shots', { recursive: true });
 const { browser, page, errors } = await open({ routes, viewport: { width: 1360, height: 900 } });
-await page.exposeFunction('__ocr', (dataUrl) => { const f = path.join(SC, `ocr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.png`); fs.writeFileSync(f, Buffer.from(dataUrl.split(',')[1], 'base64')); const out = execFileSync('tesseract', [f, 'stdout', '-l', 'fra', '--psm', '6', 'tsv'], { stdio: ['ignore', 'pipe', 'ignore'] }).toString(); fs.unlinkSync(f); return out; });
+// reconnaissance de caractères : programme « tesseract » s'il est installé, sinon tesseract.js (Node, données « fra » locales) — mêmes réglages (psm 6)
+let tessJs = null;
+async function ocrTsv(f) {
+  try { return execFileSync('tesseract', [f, 'stdout', '-l', 'fra', '--psm', '6', 'tsv'], { stdio: ['ignore', 'pipe', 'ignore'] }).toString(); } catch (e) { /* programme absent : tesseract.js */ }
+  if (!tessJs) { const { createRequire } = await import('module'); const T = createRequire(import.meta.url)('/opt/npm-tools/node_modules/tesseract.js'); tessJs = T.createWorker('fra', 1, { langPath: '/opt/npm-tools/node_modules/@tesseract.js-data/fra/4.0.0', cacheMethod: 'none', gzip: true }).then(async (w) => { await w.setParameters({ tessedit_pageseg_mode: '6' }); return w; }); }
+  const w = await tessJs; const r = await w.recognize(f, {}, { tsv: true }); return r.data.tsv;
+}
+await page.exposeFunction('__ocr', async (dataUrl) => { const f = path.join(SC, `ocr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.png`); fs.writeFileSync(f, Buffer.from(dataUrl.split(',')[1], 'base64')); try { return await ocrTsv(f); } finally { fs.unlinkSync(f); } });
 const top = () => page.locator('.overlay').last(); const log = (...a) => console.log(...a); const ok = (n, c, x) => log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined ? x : '');
 const dbj = () => page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')));
 const toast = async () => page.locator('.toast').last().innerText().catch(() => '');
@@ -185,3 +192,4 @@ await browser.close();
   log('erreurs (téléphone) :', e2.length ? e2 : 'aucune');
   await b2.close();
 }
+if (tessJs) await (await tessJs).terminate();

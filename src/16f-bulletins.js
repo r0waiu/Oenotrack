@@ -136,7 +136,7 @@ function bulletinEntete(texte) {
   const T = String(texte || ''); const L = T.split('\n').map((x) => x.trim()).filter(Boolean);
   // laboratoire : nom connu, sinon case citant un laboratoire (pas une phrase du rapport : « … autorisation du laboratoire. ») ; forme juridique retirée
   const cases = L.slice(0, 40).flatMap((x) => x.split(/\s{2,}/)).map((x) => x.trim()).filter((x) => x.length >= 3 && x.length <= 90);
-  const phrase = (x) => /[.;]$/.test(x) || x.split(/\s+/).length > 9 || /^(?:par|analyste|oenologue|œnologue|laboratoire|valide|approuve)\b/i.test(norm(x).replace(/[^a-z ]/g, ''));
+  const phrase = (x) => { const n = norm(x).replace(/[^a-z ]/g, '').trim(); return /[.;]$/.test(x) || x.split(/\s+/).length > 9 || /^(?:par|analyste|oenologue|valide|approuve)\b/.test(n) || /^laboratoire$/.test(n) || /habilite|accredit/.test(n); };
   const lab0 = cases.find((x) => BUL_LABOS.test(x) && !phrase(x)) || cases.find((x) => /laboratoire|labo\b|oenolog|œnolog|analyses? (?:oenolog|œnolog)/i.test(x) && !phrase(x)) || '';
   const labo = lab0.replace(/^(?:s\.?\s?a\.?\s?s\.?\s?u?\.?|s\.?\s?a\.?\s?r\.?\s?l\.?|e\.?u\.?r\.?l\.?|s\.?\s?a\.?|scop)\s+/i, '').slice(0, 80);
   const m = /(?:bulletin|rapport|certificat|dossier)(?:\s+d['’]analyses?)?\s*(?:n[°º]|no|num[ée]ro)\s*[:.]?\s*([A-Z0-9][A-Z0-9/._-]{2,30})/i.exec(T);
