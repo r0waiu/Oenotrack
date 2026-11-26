@@ -57,7 +57,7 @@ await s.locator('[aria-label="Part de Lefèvre Père & Fils (moût 1)"]').fill('
 ok('crus des partenaires proposés (Cramant)', (await s.locator('text=Crus des partenaires').count()) === 1 && (await s.locator('button.chip', { hasText: 'Cramant' }).count()) >= 1);
 await s.locator('[aria-label="Volume vers la cuve 1 du moût 1"]').fill('10');
 await s.locator('[aria-label="N° de lot du moût 1"]').fill('LOT-A');
-await s.locator('summary', { hasText: /Analyses du lot/ }).first().click(); await page.waitForTimeout(150);
+// 0.34.0-alpha.1 : analyses « Moût · Débourbage » affichées directement (plus de section repliée)
 await s.locator('[aria-label="TAP du moût 1"]').fill('9,6');
 await s.locator('[aria-label="AT du moût 1"]').fill('8');
 // moût 2 : un seul partenaire, autre n° de lot, vers la même cuve
@@ -68,7 +68,7 @@ await pick(page, s.locator('input[aria-label="Partenaire du moût 2"]'), 'Henn',
 await pick(page, s.locator('input[aria-label="Cuve de destination 1 du moût 2"]'), 'Bac D1', 'Bac D1');
 await s.locator('[aria-label="Volume vers la cuve 1 du moût 2"]').fill('5');
 await s.locator('[aria-label="N° de lot du moût 2"]').fill('LOT-A');
-await s.locator('summary', { hasText: /Analyses du lot/ }).nth(1).click(); await page.waitForTimeout(150);
+// (analyses du moût 2 affichées directement)
 await s.locator('[aria-label="TAP du moût 2"]').fill('10,2'); await page.waitForTimeout(300);
 const moy = await s.locator('[data-moyennes]').first().innerText().catch(() => '');
 ok('moyenne pondérée par cuve dans « Lots créés » (TAP 9,8)', /TAP 9,8/.test(moy) && /Enrichissement|enrichissement/.test(moy), moy);

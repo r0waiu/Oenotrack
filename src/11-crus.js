@@ -82,4 +82,28 @@ function ligneApporteurs(e, op) {
 // partage des partenaires d'un lot de moût (au prorata des volumes versés et des parts de chaque compartiment)
 function moutApporteursLot(op, l) { const app = {}; const add = (k, v) => { app[k] = (app[k] || 0) + v; }; (l.parts || []).forEach((p) => { const la = ligneApporteurs(p.e, op); if (la.length) la.forEach((a) => add(a.id, p.vol * a.part)); else add('?', p.vol); }); return app; }
 const ligneApporteursNoms = (db, e, op) => ligneApporteurs(e, op).map((a) => `${apporteurName(db, a.id)}${a.pct != null ? ` (${fmt(a.pct)} %)` : ''}`).join(', ');
+/* Plusieurs partenaires dans une même citerne (0.34.0-alpha.1) : op.partenaires = [{ id, apporteurId, ref (n° de bon / DAE), lignes: [clé de ligne…] }],
+   chaque moût porte e.partId. op.apporteurId (premier partenaire) et op.ref (n° de bon de chacun, séparés par « / ») restent remplis pour les
+   versions antérieures. Une version antérieure qui réécrit les moûts perd e.partId : on retrouve l'onglet par la clé de la ligne, puis par son partenaire. */
+function moutPartenaires(op) {
+  const L = Array.isArray(op && op.partenaires) ? op.partenaires.filter((p) => p && p.id) : [];
+  if (L.length) return L.map((p) => ({ ...p, apporteurId: p.apporteurId || '', ref: p.ref || '' }));
+  return [{ id: 'pa1', apporteurId: (op && op.apporteurId) || '', ref: (op && op.ref) || '' }];
+}
+function lignePartId(op, e, P0) {
+  const P = P0 || moutPartenaires(op); if (!e) return P[0].id;
+  if (e.partId && P.some((p) => p.id === e.partId)) return e.partId;
+  const c = cleLigne(e); const parCle = P.find((p) => Array.isArray(p.lignes) && p.lignes.includes(c)); if (parCle) return parCle.id;
+  const ids = (Array.isArray(e.apporteurs) ? e.apporteurs.map((a) => a && a.id) : []).concat(e.apporteurId ? [e.apporteurId] : []).filter(Boolean);
+  const parAp = P.find((p) => p.apporteurId && ids.includes(p.apporteurId)); return (parAp || P[0]).id;
+}
+// n° de bon / DAE d'un moût : celui de son partenaire (onglet), sinon celui de l'opération
+function ligneRef(op, e) { if (!Array.isArray(op && op.partenaires) || !op.partenaires.length) return (op && op.ref) || ''; const P = moutPartenaires(op); const p = P.find((x) => x.id === lignePartId(op, e, P)); return (p && p.ref) || (op && op.ref) || ''; }
+// n° de bon de tous les partenaires d'une entrée (sans doublon)
+const moutRefs = (op) => uniq(moutPartenaires(op).map((p) => String(p.ref || '').trim()).filter(Boolean));
+// modèle d'analyse imposé à la réception des moûts (0.34.0-alpha.1) : « Moût · Débourbage »
+function moutModeleImpose(db) {
+  const M = (db && db.analysesModeles) || [];
+  return M.find((m) => m.id === 'm_mout') || M.find((m) => norm(m.nom) === 'mout' && norm(m.etape) === 'debourbage') || M.find((m) => norm(m.nom) === 'mout') || { id: 'm_mout', nom: 'Moût', etape: 'Débourbage', paramIds: ['tap', 'at', 'ph', 'azote'] };
+}
 const siteName = (db, id) => ((db.sites || []).find((s) => s.id === id) || { nom: '—' }).nom;

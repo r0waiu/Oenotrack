@@ -73,7 +73,7 @@ function OpForm(props) {
   return <OpFormSaisie {...props} />;
 }
 function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, fromPrev }) {
-  const { db, act, toast, defaultDate, openFiche, moi, uid, secu, openSchema } = useApp();
+  const { db, R, act, toast, confirm, defaultDate, openFiche, moi, uid, secu, openSchema } = useApp();
   const prevId = prevId0 || fromPrev || null; const plan0 = prevId ? (db.previsions || []).find((p) => p.id === prevId) : null;
   const old = editId ? db.ops.find((o) => o.id === editId) : null;
   // t0 peut être une variante du catalogue (collage, levurage…) : le formulaire et le moteur suivent son comportement (base)
@@ -99,6 +99,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   });
   const Rd = useRd(db, f.date, editId);
   const [fracEd, setFracEd] = useState(false);
+  const [ongletMout, setOngletMout] = useState(''); const [bulBusy, setBulBusy] = useState(''); // entrée de moûts : onglet partenaire affiché, lecture d'un bulletin (0.34.0-alpha.1)
   const [tout, setTout] = useState(false); const [cfgEd, setCfgEd] = useState(false); // afficher les champs masqués ; éditeur du formulaire
   const cfgv = { cfg: fcfg, type, tout };
   const nMasques = champsStd(type).filter((c) => champEffectif(fcfg, type, c.k).vis === 'masque').length;
@@ -171,22 +172,69 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         const setCode = (cid, patch) => upd({ lotCodes: { ...(f.lotCodes || {}), [cid]: { ...((f.lotCodes || {})[cid] || {}), ...patch } } });
         const inTank = (cid) => sum(Object.values(Rd.portions).filter((p) => p.contenantId === cid), (p) => p.vol);
         const fracOpts = fracList(db).map((x) => ({ value: x.id, label: x.label })).concat([...new Set(f.entrees.map((e) => e.fractionId))].filter((x) => x && !fracDef(db, x)).map((x) => ({ value: x, label: `(${x})` })));
-        const mod = modeleEntree(db, f.analyseModele);
-        // partenaire par défaut : donné aux compartiments qui n'en ont pas encore (avec son cru par défaut si la case est vide)
-        const setDefaut = (v) => upd({ apporteurId: v, entrees: f.entrees.map((e) => ((e.apporteurs || []).length || !v ? e : { ...e, apporteurs: [{ id: v, pct: '' }], ...(!e.cruId && apporteurCruAuto(db, v) ? { cruId: apporteurCruAuto(db, v) } : {}) })) });
-        const prefixeLot = () => (String(f.ref || '').trim() ? String(f.ref).trim().toUpperCase().replace(/\s+/g, '') : `EM${String(f.date || todayISO()).slice(2).replace(/-/g, '')}`);
-        const numeroter = () => { const pf = prefixeLot(); upd({ entrees: f.entrees.map((e, k) => (String(e.numLot || '').trim() ? e : { ...e, numLot: `${pf}-${k + 1}` })) }); };
+        const mod = moutModeleImpose(db); // analyses imposées : « Moût · Débourbage » (0.34.0-alpha.1)
+        // onglets partenaires (0.34.0-alpha.1) : le premier garde ses valeurs dans f.apporteurId / f.ref (lus par l'import de traçabilité et les versions antérieures)
+        const P = moutOnglets(f); const actif = P.some((p) => p.id === ongletMout) ? ongletMout : P[0].id; const kA = P.findIndex((p) => p.id === actif); const tabA = { ...P[kA], ...(kA === 0 ? { apporteurId: f.apporteurId || '', ref: f.ref || '' } : {}) };
+        const ongletVal = (p, k) => (k === 0 ? { ...p, apporteurId: f.apporteurId || '', ref: f.ref || '' } : p);
+        const lignesDe = (pid) => f.entrees.map((e, i) => ({ e, i })).filter((x) => ongletDe(P, x.e) === pid);
+        const setTab = (pid, patch) => setF((x) => { const L = moutOnglets(x); const k = L.findIndex((p) => p.id === pid); const nv = L.map((p, j) => (j === k ? { ...p, ...patch } : p));
+          return { ...x, partenaires: nv.map((p) => ({ id: p.id, apporteurId: p.apporteurId || '', ref: p.ref || '' })), ...(k === 0 ? { ...('apporteurId' in patch ? { apporteurId: patch.apporteurId } : {}), ...('ref' in patch ? { ref: patch.ref } : {}) } : {}) }; });
+        // partenaire d'un onglet : donné aux moûts de l'onglet qui n'en ont pas (ou qui avaient l'ancien), avec son cru par défaut si la case est vide
+        const setPartenaire = (pid, v) => { const avant = (ongletVal(P.find((p) => p.id === pid) || {}, P.findIndex((p) => p.id === pid)) || {}).apporteurId;
+          setTab(pid, { apporteurId: v }); setF((x) => ({ ...x, entrees: x.entrees.map((e) => { if (ongletDe(moutOnglets(x), e) !== pid || !v) return e; const L = e.apporteurs || []; if (L.length && !(L.length === 1 && L[0].id === avant)) return e; return { ...e, apporteurs: [{ id: v, pct: '' }], ...(!e.cruId && apporteurCruAuto(db, v) ? { cruId: apporteurCruAuto(db, v) } : {}) }; }) })); };
+        const ajouterOnglet = () => { const id = `pa${Date.now().toString(36)}${P.length + 1}`; setF((x) => ({ ...x, partenaires: [...moutOnglets(x).map((p) => ({ id: p.id, apporteurId: p.apporteurId || '', ref: p.ref || '' })), { id, apporteurId: '', ref: '' }], entrees: [...x.entrees.map((e) => (e.partId ? e : { ...e, partId: moutOnglets(x)[0].id })), { ...nvLigne(), partId: id }] })); setOngletMout(id); };
+        const retirerOnglet = async (pid) => {
+          const L = lignesDe(pid); const plein = L.some((x) => sum(x.e.dests, (d) => d.volL) > 0);
+          if (plein && !(await confirm({ title: 'Retirer ce partenaire ?', body: `Ses ${L.length} moût(s) seront retirés de cette entrée.`, ok: 'Retirer', danger: true }))) return;
+          const reste = P.filter((p) => p.id !== pid); const prem = ongletVal(reste[0], P.indexOf(reste[0]));
+          setF((x) => { const ent = x.entrees.filter((e) => ongletDe(moutOnglets(x), e) !== pid); return { ...x, partenaires: reste.map((p, k) => (k === 0 ? { id: p.id, apporteurId: prem.apporteurId || '', ref: prem.ref || '' } : { id: p.id, apporteurId: p.apporteurId || '', ref: p.ref || '' })), apporteurId: prem.apporteurId || '', ref: prem.ref || '', entrees: ent.length ? ent : [{ ...nvLigne(), partId: reste[0].id }] }; });
+          setPieces((L0) => L0.map((d) => (d.partId === pid ? { ...d, partId: '' } : d))); setOngletMout(reste[0].id);
+        };
+        const prefixeLot = (ref) => (String(ref || '').trim() ? String(ref).trim().toUpperCase().replace(/\s+/g, '') : `EM${String(f.date || todayISO()).slice(2).replace(/-/g, '')}`);
+        const numeroter = () => { const cpt = {}; upd({ entrees: f.entrees.map((e) => { const pid = ongletDe(P, e); cpt[pid] = (cpt[pid] || 0) + 1; if (String(e.numLot || '').trim()) return e; const t = ongletVal(P.find((p) => p.id === pid), P.findIndex((p) => p.id === pid)); return { ...e, numLot: `${prefixeLot(t.ref || (P.length > 1 ? '' : f.ref))}${P.length > 1 && !String(t.ref || '').trim() ? `-P${P.findIndex((p) => p.id === pid) + 1}` : ''}-${cpt[pid]}` }; }) }); };
+        // bulletin d'analyses d'un partenaire : lu, valeurs reportées sur ses moûts (n° de lot, compartiment, ordre), fichier joint à l'onglet
+        const lireBulletin = async (files) => {
+          const pid = actif; const L = lignesDe(pid).map((x) => ({ i: x.i, numLot: x.e.numLot, compartiment: x.e.compartiment }));
+          for (const file of files) {
+            setBulBusy(`« ${file.name} » : lecture…`);
+            try {
+              const lu = await bulletinLireFichier(file, { onEtape: (t) => setBulBusy(`« ${file.name} » : ${t}`) }); const res = bulletinAnalyser(db, R, lu.lignes, { candidats: [] }); const aff = bulletinPourMouts(res, L);
+              if (aff.length) setF((x) => ({ ...x, entrees: x.entrees.map((e, k) => { const a = aff.find((y) => y.i === k); if (!a) return e; const an = { ...(e.analyses || {}) }; Object.keys(a.valeurs).forEach((pp) => { an[pp] = String(a.valeurs[pp]).replace('.', ','); }); return { ...e, analyses: an }; }) }));
+              const id = newDocId(); await docPut(id, file); const meta = { id, nom: gardeNomPropre(file.name), mime: file.type, taille: file.size, cat: 'analyse', date: todayISO(), garde: gardeResume(GARDE_VERDICTS.get(file)), partId: pid };
+              if (old) act((d) => docMetaAdd(d, { ...meta, cible: { type: 'op', id: old.id } })); else setPieces((X) => [...X, meta]);
+              toast(aff.length ? `Bulletin « ${file.name} » : analyses reportées sur ${aff.length} moût(s).` : `Bulletin « ${file.name} » joint : aucune valeur reconnue, saisissez les analyses.`, aff.length ? 'ok' : 'warn');
+            } catch (er) { toast(lectureEchec(file, er), 'bad'); }
+          }
+          setBulBusy('');
+        };
+        const nTab = (pid) => lignesDe(pid).length; const LA = lignesDe(actif);
         return (<>
           <TraceImport type="entree_mout" f={f} setF={setF} />
-          <G><CF k="date" label="Date de réception"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="apporteurId" label="Partenaire par défaut" help="Donné à chaque compartiment qui n’en a pas ; chaque compartiment peut avoir un ou plusieurs partenaires."><ApporteurSelect value={f.apporteurId} role="apporteur" onChange={setDefaut} /></CF></G>
-          <G n={3}><CF k="ref" label="N° de bon / DAE (facultatif)"><TI value={f.ref} onChange={(v) => upd({ ref: v })} /></CF><CF k="immat" label="Immatriculation de la citerne (facultatif)" help={(() => { const L = f.immat ? baremesCiterne(db, f.immat) : []; if (!L.length) return immatNorm(f.immat).length >= 6 ? <span data-citerne-inconnue="">📏 Importez son certificat de jaugeage (Paramètres › Barèmes de jaugeage) pour saisir le creux de chaque compartiment.</span> : ''; const val = L.map((b) => (b.meta || {}).validite).filter(Boolean).sort()[0]; return <span data-citerne-connue="">📏 Certificat de jaugeage : {L.length} compartiment{L.length > 1 ? 's' : ''}{val ? (val < todayISO() ? <b className="text-bad"> · expiré le {fmtDate(val)}</b> : ` · valable jusqu’au ${fmtDate(val)}`) : ''}</span>; })()}><TI value={f.immat} onChange={(v) => upd({ immat: v.toUpperCase() })} placeholder="ex. AB-123-CD" /></CF><CF k="millesime" label="Millésime (par défaut)" help="Modifiable pour chaque moût."><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder={String(yearOf(f.date))} /></CF></G>
-          <div className="flex flex-wrap items-end gap-3"><CF k="analyseModele" label="Analyses des lots reçus" help="Modèle d’analyse proposé pour chaque compartiment (Analyses › Modèles)." className="min-w-[220px]"><SI plain value={mod.id} onChange={(v) => upd({ analyseModele: v })} options={db.analysesModeles.map((m) => ({ value: m.id, label: `${m.nom}${m.etape ? ` · ${m.etape}` : ''}` }))} aria-label="Modèle d’analyse des lots reçus" /></CF>
+          <G n={3}><CF k="date" label="Date de réception"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="immat" label="Immatriculation de la citerne (facultatif)" help={(() => { const L = f.immat ? baremesCiterne(db, f.immat) : []; if (!L.length) return immatNorm(f.immat).length >= 6 ? <span data-citerne-inconnue="">📏 Importez son certificat de jaugeage (Paramètres › Barèmes de jaugeage) pour saisir le creux de chaque compartiment.</span> : ''; const val = L.map((b) => (b.meta || {}).validite).filter(Boolean).sort()[0]; return <span data-citerne-connue="">📏 Certificat de jaugeage : {L.length} compartiment{L.length > 1 ? 's' : ''}{val ? (val < todayISO() ? <b className="text-bad"> · expiré le {fmtDate(val)}</b> : ` · valable jusqu’au ${fmtDate(val)}`) : ''}</span>; })()}><TI value={f.immat} onChange={(v) => upd({ immat: v.toUpperCase() })} placeholder="ex. AB-123-CD" /></CF><CF k="millesime" label="Millésime (par défaut)" help="Modifiable pour chaque moût."><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder={String(yearOf(f.date))} /></CF></G>
+          <div className="flex flex-wrap items-end gap-3"><div className="help" data-analyse-imposee="">🔬 Analyses des lots reçus : <b>{mod.nom}{mod.etape ? ` · ${mod.etape}` : ''}</b> ({mod.paramIds.map((x) => paramDe(db, x).nom).join(', ')})</div>
             {cfVisible(cfgv, 'e.numLot') ? <Btn size="sm" onClick={numeroter} title="Donne un n° de lot à chaque compartiment qui n’en a pas (n° de bon ou date)">№ Numéroter les lots</Btn> : null}</div>
-          <Group label={`Moûts reçus : un par compartiment ou qualité (${f.entrees.length})`} help={<span>Total reçu : <b className="num">{fmtL(totV)}</b>. Un moût peut être réparti sur plusieurs cuves ; plusieurs moûts envoyés dans la même cuve y forment un seul lot (mélange). <button type="button" className="linkish" onClick={() => setFracEd(true)}>Personnaliser les fractions</button></span>}>
-            <div className="space-y-3">{f.entrees.map((e, i) => (
-              <div key={i} className="rounded-md border border-line p-3" style={{ background: 'var(--surface2)' }}>
-                <div className="mb-2 flex flex-wrap items-center gap-2"><span className="chip chip-info">Moût {i + 1}{e.numLot ? ` · lot ${e.numLot}` : ''}{e.compartiment ? ` · ${e.compartiment}` : ''}</span><span className="num text-sm">{fmtL(sum(e.dests, (d) => d.volL))}</span>
-                  <span className="ml-auto flex gap-1"><Btn size="sm" onClick={() => upd({ entrees: [...f.entrees.slice(0, i + 1), { ...e, compartiment: '', dests: e.dests.map((d) => ({ ...d, volL: '' })) }, ...f.entrees.slice(i + 1)] })} title="Copier cépage, fraction, cru, revendication et cuves">Dupliquer</Btn><Btn size="sm" kind="danger" aria-label={`Retirer le moût ${i + 1}`} onClick={() => upd({ entrees: f.entrees.length > 1 ? f.entrees.filter((_, k) => k !== i) : [nvLigne()] })}>✕</Btn></span></div>
+          <Group label={`Partenaires de la citerne (${P.length})`} help={<span>Un onglet par partenaire, avec son n° de bon / DAE, ses moûts et ses documents. Total reçu : <b className="num">{fmtL(totV)}</b>. <button type="button" className="linkish" onClick={() => setFracEd(true)}>Personnaliser les fractions</button></span>}>
+            <div className="mb-2 flex flex-wrap items-center gap-1" role="tablist" aria-label="Partenaires de la citerne" data-onglets-partenaires="">
+              {P.map((p0, k) => { const p = ongletVal(p0, k); return <button key={p.id} type="button" role="tab" aria-selected={p.id === actif} className={cx('opr-tog', p.id === actif && 'on')} data-onglet-partenaire={k + 1} onClick={() => setOngletMout(p.id)}>
+                <span translate={p.apporteurId ? 'no' : undefined}>{p.apporteurId ? apporteurName(db, p.apporteurId) : `Partenaire n° ${k + 1}`}</span>{p.ref ? <span className="text-ink2" translate="no"> · {p.ref}</span> : null} <span className="chip">{nTab(p.id)}</span></button>; })}
+              <Btn size="sm" onClick={ajouterOnglet} data-ajouter-partenaire="">+ Partenaire</Btn>
+            </div>
+            <div role="tabpanel" className="space-y-3 rounded-md border border-line p-3" data-onglet-actif={kA + 1}>
+              <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,240px),1fr))' }}>
+                <CF k="apporteurId" label="Partenaire" help="Viticulteur, coopérative ou négoce ; donné à chaque moût de l’onglet qui n’en a pas."><ApporteurSelect value={tabA.apporteurId} role="apporteur" onChange={(v) => setPartenaire(actif, v)} ariaLabel={`Partenaire ${kA + 1}`} /></CF>
+                <CF k="ref" label="N° de bon / DAE (facultatif)"><TI value={tabA.ref} onChange={(v) => setTab(actif, { ref: v })} aria-label={`N° de bon / DAE du partenaire ${kA + 1}`} /></CF>
+              </div>
+              <details className="rounded-md border border-line px-2 py-1.5" open={(old ? docsOf(db, 'op', old.id) : pieces).some((d) => d.partId === actif) || undefined} data-docs-partenaire={kA + 1}>
+                <summary className="cursor-pointer text-sm"><b>📎 Documents et bulletins d’analyses de ce partenaire</b> <span className="text-ink2">({(old ? docsOf(db, 'op', old.id) : pieces).filter((d) => d.partId === actif).length})</span></summary>
+                <div className="mt-2 space-y-2">
+                  <ZoneDepot onFiles={lireBulletin} accept={BULLETIN_ACCEPT} garde="bulletin" icon="🧪" busy={!!bulBusy} label="Importer un bulletin d’analyses" sub={bulBusy || 'Lu et reporté sur les moûts de ce partenaire (n° de lot, compartiment), puis joint à l’onglet'} inputLabel={`Bulletin d’analyses du partenaire ${kA + 1}`} />
+                  {old ? <DocsPanel cible={{ type: 'op', id: old.id }} kind="op" locked={isLocked(db, old.date)} filtre={(d) => d.partId === actif} extra={{ partId: actif }} inputLabel={`Documents du partenaire ${kA + 1}`} catDefaut="bon" key={actif} /> : <DocsAttente items={pieces} onChange={setPieces} filtre={(d) => d.partId === actif} extra={{ partId: actif }} inputLabel={`Documents du partenaire ${kA + 1}`} catDefaut="bon" key={actif} />}
+                </div>
+              </details>
+              <div className="space-y-3">{LA.map(({ e, i }, k) => (
+              <div key={i} className="rounded-md border border-line p-3" style={{ background: 'var(--surface2)' }} data-mout={i + 1}>
+                <div className="mb-2 flex flex-wrap items-center gap-2"><span className="chip chip-info">Moût {k + 1}{e.numLot ? ` · lot ${e.numLot}` : ''}{e.compartiment ? ` · ${e.compartiment}` : ''}</span><span className="num text-sm">{fmtL(sum(e.dests, (d) => d.volL))}</span>
+                  <span className="ml-auto flex gap-1"><Btn size="sm" onClick={() => upd({ entrees: [...f.entrees.slice(0, i + 1), { ...e, compartiment: '', numLot: '', dests: e.dests.map((d) => ({ ...d, volL: '', hauteur: '' })) }, ...f.entrees.slice(i + 1)] })} title="Copier cépage, fraction, cru, revendication et cuves">Dupliquer</Btn><Btn size="sm" kind="danger" aria-label={`Retirer le moût ${i + 1}`} onClick={() => upd({ entrees: f.entrees.length > 1 && LA.length > 1 ? f.entrees.filter((_, x) => x !== i) : f.entrees.map((y, x) => (x === i ? { ...nvLigne(), partId: actif } : y)) })}>✕</Btn></span></div>
                 <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
                   <CF k="e.numLot" label="N° de lot"><TI value={e.numLot || ''} onChange={(v) => setE(i, { numLot: v })} placeholder="ex. EM-261005-1" aria-label={`N° de lot du moût ${i + 1}`} /></CF>
                   <CF k="e.compartiment" label="Compartiment"><TI value={e.compartiment} onChange={(v) => setE(i, { compartiment: v })} placeholder="ex. C1 (facultatif)" aria-label={`Compartiment du moût ${i + 1}`} /></CF>
@@ -203,21 +251,26 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
                   <CF k="e.apporteurs" group label={(e.apporteurs || []).length > 1 ? 'Partenaires (parts en %)' : 'Partenaire'}><PartenairesLigne n={i + 1} value={e.apporteurs} onChange={(v) => setE(i, { apporteurs: v })} onAjout={(id) => { if (!e.cruId && apporteurCruAuto(db, id)) setE(i, { apporteurs: [...(e.apporteurs || []), { id, pct: '' }], cruId: apporteurCruAuto(db, id) }); }} /></CF>
                   <CF k="e.cruId" group label="Cru (village)"><CruSelect value={e.cruId} onChange={(v) => setE(i, { cruId: v })} /><CrusProposes ids={(e.apporteurs || []).map((a) => a.id)} cruId={e.cruId} onPick={(c) => setE(i, { cruId: c })} /></CF>
                 </div>
-                <CF k="e.analyses" label="Analyses du lot" bare><details className="mt-2 rounded-md border border-line px-2 py-1.5" open={Object.keys(e.analyses || {}).some((k) => hasNum(e.analyses[k])) || undefined}>
-                  <summary className="cursor-pointer text-sm"><b>🔬 Analyses du lot{e.numLot ? ` ${e.numLot}` : ''}</b> <span className="text-ink2">{analysesTexte(db, e.analyses) || `(${mod.nom} : ${mod.paramIds.map((x) => paramDe(db, x).nom).join(', ')})`}</span></summary>
+                <CF k="e.analyses" label="Analyses du lot" bare><div className="mt-2 rounded-md border border-line px-2 py-1.5" data-analyses-mout={i + 1}>
+                  <div className="text-sm"><b>🔬 Analyses du lot{e.numLot ? ` ${e.numLot}` : ''}</b> <span className="text-ink2">{mod.nom}{mod.etape ? ` · ${mod.etape}` : ''}</span></div>
                   <div className="mt-2"><AnalysesLigne n={i + 1} paramIds={mod.paramIds} value={e.analyses} onChange={(v) => setE(i, { analyses: v })} /></div>
-                </details></CF>
+                </div></CF>
                 <div className="mt-2"><span className="lbl">{e.dests.length > 1 ? 'Répartition sur plusieurs cuves' : 'Cuve de destination et volume'}</span>
                   <div className="space-y-2">{e.dests.map((d, j) => (
-                    <div key={j} className="grid items-center gap-2" style={{ gridTemplateColumns: 'minmax(0,1.6fr) minmax(90px,.8fr) auto' }}>
-                      <SI value={d.contenantId} onChange={(v) => setD(i, j, { contenantId: v })} placeholder="Cuve…" options={contOptions(db)} aria-label={`Cuve de destination ${j + 1} du moût ${i + 1}`} />
-                      <VI value={d.volL} onChange={(v) => setD(i, j, { volL: v })} placeholder="hL" aria-label={`Volume vers la cuve ${j + 1} du moût ${i + 1}`} />
-                      <Btn size="sm" kind="danger" disabled={e.dests.length < 2} aria-label="Retirer cette cuve" onClick={() => setE(i, { dests: e.dests.filter((_, k) => k !== j) })}>✕</Btn>
+                    <div key={j} className="space-y-1">
+                      <div className="grid items-center gap-2" style={{ gridTemplateColumns: 'minmax(0,1.6fr) minmax(90px,.8fr) auto' }}>
+                        <SI value={d.contenantId} onChange={(v) => setD(i, j, { contenantId: v, hauteur: '' })} placeholder="Cuve…" options={contOptions(db)} aria-label={`Cuve de destination ${j + 1} du moût ${i + 1}`} />
+                        <VI value={d.volL} onChange={(v) => setD(i, j, { volL: v })} placeholder="hL" aria-label={`Volume vers la cuve ${j + 1} du moût ${i + 1}`} />
+                        <Btn size="sm" kind="danger" disabled={e.dests.length < 2} aria-label="Retirer cette cuve" onClick={() => setE(i, { dests: e.dests.filter((_, x) => x !== j) })}>✕</Btn>
+                      </div>
+                      {cfVisible(cfgv, 'd.hauteur') ? <HauteurCuve contId={d.contenantId} hauteur={d.hauteur} volL={d.volL} volAvant={moutVolAvant(Rd, f, i, j)} n={i + 1} j={j + 1} onChange={(h, v) => setD(i, j, { hauteur: h, ...(v != null ? { volL: String(Math.round(v)) } : {}) })} /> : null}
                     </div>))}
                     <Btn size="sm" onClick={() => setE(i, { dests: [...e.dests, { contenantId: '', volL: '' }] })}>+ Répartir sur une autre cuve</Btn>
                   </div></div>
               </div>))}
-              <Btn onClick={() => upd({ entrees: [...f.entrees, nvLigne()] })}>+ Ajouter un moût (compartiment)</Btn>
+              <Btn onClick={() => upd({ entrees: [...f.entrees, { ...nvLigne(), partId: actif }] })}>+ Ajouter un moût (compartiment)</Btn>
+              {P.length > 1 ? <div><Btn size="sm" kind="danger" onClick={() => retirerOnglet(actif)} data-retirer-partenaire="">Retirer ce partenaire</Btn></div> : null}
+              </div>
             </div>
           </Group>
           {fracEd ? <FractionsDialog onClose={() => setFracEd(false)} /> : null}
@@ -394,7 +447,8 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       <CF k="notes" label="Notes"><TA value={f.notes} onChange={(v) => upd({ notes: v })} placeholder="Observations (facultatif)" /></CF>
       <CF k="docs" group label="Documents joints (fiche remplie, bon, bulletin d’analyse, photo…)"
         help={old ? null : prevId && plan0 ? 'Joints à l’opération à réaliser : ils passent sur l’opération dès sa validation.' : `Rattachés à l’opération dès « ✓ Valider »${moduleActif(db, 'previsions') ? ' (ou à l’opération à réaliser avec « 📋 Planifier »)' : ''} ; formulaire fermé sans enregistrer : ils sont retirés.`}>
-        {old ? <DocsPanel cible={{ type: 'op', id: old.id }} kind="op" locked={isLocked(db, old.date)} /> : prevId && plan0 ? <DocsPanel cible={{ type: 'prev', id: prevId }} kind="op" /> : <DocsAttente items={pieces} onChange={setPieces} />}
+        {(() => { const ids = type === 'entree_mout' ? moutOnglets(f).map((p) => p.id) : []; const gen = ids.length ? (d) => !d.partId || !ids.includes(d.partId) : undefined; // entrée de moûts : documents des partenaires dans leur onglet (0.34.0-alpha.1)
+          return old ? <DocsPanel cible={{ type: 'op', id: old.id }} kind="op" locked={isLocked(db, old.date)} filtre={gen} /> : prevId && plan0 ? <DocsPanel cible={{ type: 'prev', id: prevId }} kind="op" filtre={gen} /> : <DocsAttente items={pieces} onChange={setPieces} filtre={gen} />; })()}
       </CF>
       </FormCfgCtx.Provider>
       {cfgEd ? <FormulaireEditor catId={cat.id} onClose={() => setCfgEd(false)} /> : null}

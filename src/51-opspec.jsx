@@ -15,6 +15,12 @@ const PRT = (p) => (p || []).map((x) => ({ typeId: x.typeId, volL: S_(x.volL) })
 const reSuffix = (code, from, to) => { let c = String(code || ''); if (from && c.endsWith(`-${from}`)) c = c.slice(0, -(from.length + 1)); return to ? `${c}-${to}` : c; };
 // Ligne de moût reçu (compartiment de citerne) : cépage, fraction, cru, revendication, et répartition sur une ou plusieurs cuves
 const moutLine = (db, cid, e) => { e = e || {}; return { numLot: e.numLot || '', apporteurs: Array.isArray(e.apporteurs) && e.apporteurs.length ? e.apporteurs.map((a) => ({ id: a.id, pct: S_(a.pct) })) : (e.apporteurId ? [{ id: e.apporteurId, pct: '' }] : []), analyses: Object.fromEntries(Object.entries(e.analyses || {}).map(([k, v]) => [k, S_(v)])), couleur: e.couleur || couleurDefaut(db), parcelleId: e.parcelleId || '', compartiment: e.compartiment || '', cepageId: e.cepageId || (db.lists.cepages[0] || {}).id || '', fractionId: e.fractionId || (fracList(db)[0] || {}).id || '', cruId: e.cruId || '', qualifId: e.qualifId || 'conv', millesime: e.millesime || '', dests: (e.dests && e.dests.length ? e.dests : [{ contenantId: cid || '', volL: '' }]).map((d) => ({ contenantId: d.contenantId || '', volL: S_(d.volL) })) }; };
+// onglets partenaires du formulaire (0.34.0-alpha.1) : f.partenaires [{ id, apporteurId, ref }] ; sans liste, le partenaire et le n° de bon de l'en-tête
+const moutOnglets = (f) => { const L = Array.isArray(f && f.partenaires) ? f.partenaires.filter((p) => p && p.id) : []; return L.length ? L : [{ id: 'pa1', apporteurId: (f && f.apporteurId) || '', ref: (f && f.ref) || '' }]; };
+const ongletDe = (P, e) => (e && e.partId && P.some((p) => p.id === e.partId) ? e.partId : P[0].id);
+const moutStockCuve = (Rd, cid) => sum(Object.values((Rd && Rd.portions) || {}).filter((p) => p.contenantId === cid), (p) => p.vol);
+// contenu d'une cuve avant la destination j du moût i : stock à la date + volumes des moûts précédents de la même entrée vers cette cuve
+function moutVolAvant(Rd, f, i, j) { const cid = (((f.entrees || [])[i] || {}).dests || [])[j] ? f.entrees[i].dests[j].contenantId : ''; if (!cid) return 0; let v = moutStockCuve(Rd, cid); (f.entrees || []).forEach((e, k) => (e.dests || []).forEach((d, l) => { if ((k < i || (k === i && l < j)) && d.contenantId === cid) v += num(d.volL); })); return v; }
 // Plan des lots créés : un par cuve de destination (codes automatiques : préfixe + suffixe de fraction, numérotés si besoin)
 function moutPlan(db, f) {
   const tanks = []; const by = {};
@@ -26,7 +32,8 @@ function moutPlan(db, f) {
   tanks.forEach((t) => {
     const ov = (f.lotCodes || {})[t.contenantId] || {};
     t.code = String(ov.code || '').trim() || t.auto;
-    t.designationAuto = `Moût ${t.fractions.map((x) => fracLabel(db, x).toLowerCase()).join(' + ')}${f.apporteurId ? ` – ${apporteurName(db, f.apporteurId)}` : ''}`;
+    const PF = moutOnglets(f); const apIds = PF.length > 1 ? uniq(t.parts.map((p) => ((p.e.apporteurs || [])[0] || {}).id || (PF.find((x) => x.id === ongletDe(PF, p.e)) || {}).apporteurId).filter(Boolean)) : (f.apporteurId ? [f.apporteurId] : []); // plusieurs partenaires (0.34.0-alpha.1)
+    t.designationAuto = `Moût ${t.fractions.map((x) => fracLabel(db, x).toLowerCase()).join(' + ')}${apIds.length ? ` – ${apIds.map((id) => apporteurName(db, id)).join(' + ')}` : ''}`;
     t.designation = String(ov.designation || '').trim() || t.designationAuto; t.qualif = minQualif(t.qualifs);
   });
   return tanks;
@@ -41,7 +48,11 @@ function opInit(type, old, db, date) {
       // ligne réécrite par une version antérieure : n° de lot, analyses et partenaires repris de la copie (entreesExtra)
       const lignes = (o.entrees && o.entrees.length ? o.entrees : [null]).map((e, i) => { if (!e) return e; const { cle, ...x } = ligneExtra(o, i, e); if ((x.apporteurs || []).length && e.apporteurId && x.apporteurs[0].id !== e.apporteurId) delete x.apporteurs; // partenaire changé ensuite : on garde le sien
         return { ...e, ...(e.numLot ? {} : x.numLot ? { numLot: x.numLot } : {}), ...((e.apporteurs || []).length ? {} : (x.apporteurs || []).length ? { apporteurs: x.apporteurs } : {}), ...(e.analyses && Object.keys(e.analyses).length ? {} : x.analyses ? { analyses: x.analyses } : {}) }; });
-      return { ...base, apporteurId: o.apporteurId || '', ref: o.ref || '', immat: o.immat || '', millesime: o.millesime || '', analyseModele: o.analyseModele || '', code: ((o.lots || [])[0] || {}).code || '', entrees: lignes.map((e) => { const L0 = moutLine(db, '', e); const j = e && (o.jauges || []).find((x) => x && x.cle && x.cle === cleLigne(e)); return j ? { ...L0, creux: S_(j.apres), baremeId: j.baremeId || '' } : L0; }), lotCodes: codes }; }
+      // plusieurs partenaires dans la citerne (0.34.0-alpha.1) : un onglet chacun (partenaire, n° de bon / DAE) ; hauteurs mesurées en cuve (épalement)
+      const P = moutPartenaires(o).map((p) => ({ id: p.id, apporteurId: p.apporteurId || '', ref: p.ref || '' })); const JC = Array.isArray(o.jaugesCuves) ? o.jaugesCuves.filter((x) => x && x.cle) : [];
+      return { ...base, apporteurId: P[0].apporteurId, ref: P[0].ref, partenaires: P, immat: o.immat || '', millesime: o.millesime || '', code: ((o.lots || [])[0] || {}).code || '', entrees: lignes.map((e) => { const L0 = moutLine(db, '', e); const j = e && (o.jauges || []).find((x) => x && x.cle && x.cle === cleLigne(e));
+        const L1 = { ...L0, partId: lignePartId(o, e, P), dests: L0.dests.map((d) => { const h = e && JC.find((x) => x.cle === cleLigne(e) && x.contenantId === d.contenantId); return h ? { ...d, hauteur: S_(h.apres) } : d; }) };
+        return j ? { ...L1, creux: S_(j.apres), baremeId: j.baremeId || '' } : L1; }), lotCodes: codes }; }
     case 'pressurage': {
       const ps = o.parentSpec || {}; const frac = {};
       fracPress(db, (o.fractions || []).map((y) => y.fractionId)).forEach((fr) => { const x = (o.fractions || []).find((y) => y.fractionId === fr.id); frac[fr.id] = { volL: x ? S_(x.volL) : '', contenantId: x ? x.contenantId : '', code: x ? x.code : '' }; });
@@ -144,7 +155,7 @@ function buildSpec0(type, f, db, Rd, old) {
       return { spec: { ...base, cepageId: f.cepageId, kg: num(f.kg), qualifId: f.qualifId, apporteurId: f.apporteurId || '', cruId: f.cruId || '', parcelleId: f.parcelleId || '', ref: String(f.ref || '').trim(),
         ...(f.heurePesee || (old && old.pesee) ? { pesee: { ...((old && old.pesee) || {}), ...(f.heurePesee ? { heure: f.heurePesee } : {}) } } : {}) } };
     case 'entree_mout': {
-      const lines = [];
+      const lines = []; const PF = moutOnglets(f); const multi = PF.length > 1; const JC = []; const dejaCuve = {};
       for (let i = 0; i < (f.entrees || []).length; i += 1) {
         const e = f.entrees[i]; const n = i + 1; const ds = (e.dests || []).filter((d) => num(d.volL) > 0);
         if (!ds.length) continue; // ligne sans volume : ignorée
@@ -158,9 +169,14 @@ function buildSpec0(type, f, db, Rd, old) {
         const pcts = aps.map((a) => (hasNum(a.pct) ? num(a.pct) : null));
         if (pcts.some((p) => p != null) && (pcts.some((p) => p == null || p <= 0) || Math.abs(sum(pcts) - 100) > 0.5)) return err(`Moût ${n} : les parts des partenaires doivent être toutes renseignées et totaliser 100 % (ou laissez-les vides : parts égales).`);
         const an = {}; Object.keys(e.analyses || {}).forEach((k) => { if (hasNum(e.analyses[k])) an[k] = num(e.analyses[k]); });
-        const numLot = String(e.numLot || '').trim();
+        const numLot = String(e.numLot || '').trim(); const tab = PF.find((p) => p.id === ongletDe(PF, e)) || PF[0];
+        if (!aps.length && tab.apporteurId && multi) aps.push({ id: tab.apporteurId, pct: '' }); // partenaire de l'onglet, écrit dans le moût (lu aussi par les versions antérieures)
         lines.push({ couleur: e.couleur || couleurDefaut(db), parcelleId: e.parcelleId || '', compartiment: String(e.compartiment || '').trim(), cepageId: e.cepageId, fractionId: e.fractionId, cruId: e.cruId || '', qualifId: e.qualifId || 'conv', millesime: String(e.millesime || '').trim() || String(f.millesime || '').trim() || String(yearOf(f.date)),
-          apporteurId: (aps[0] || {}).id || f.apporteurId || '', ...(aps.length ? { apporteurs: aps.map((a, k) => ({ id: a.id, ...(pcts[k] != null ? { pct: pcts[k] } : {}) })) } : {}), ...(numLot ? { numLot } : {}), ...(Object.keys(an).length ? { analyses: an } : {}), volL: r2(sum(dests, (d) => d.volL)), dests });
+          apporteurId: (aps[0] || {}).id || tab.apporteurId || f.apporteurId || '', ...(aps.length ? { apporteurs: aps.map((a, k) => ({ id: a.id, ...(pcts[k] != null ? { pct: pcts[k] } : {}) })) } : {}), ...(numLot ? { numLot } : {}), ...(Object.keys(an).length ? { analyses: an } : {}), volL: r2(sum(dests, (d) => d.volL)), dests, ...(multi ? { partId: tab.id } : {}) });
+        // volume mesuré en cuve à l'épalement (hauteur ou creux après réception) : gardé avec l'opération (op.jaugesCuves)
+        const ln = lines[lines.length - 1];
+        ds.forEach((d) => { const b = hasNum(d.hauteur) ? baremeDe(db, d.contenantId) : null; const avant = moutStockCuve(Rd, d.contenantId) + (dejaCuve[d.contenantId] || 0); dejaCuve[d.contenantId] = (dejaCuve[d.contenantId] || 0) + num(d.volL); if (!b) return; const r = jaugeEntreeCuve(b, d.hauteur, avant);
+          if (r) { const x = JC.find((y) => y.cle === cleLigne(ln) && y.contenantId === d.contenantId); const m = { cle: cleLigne(ln), contenantId: d.contenantId, mesure: b.mesure === 'creux' ? 'creux' : 'hauteur', apres: num(d.hauteur), volAvant: r2(r.avant), volL: r2(r.v), baremeId: b.id }; if (x) Object.assign(x, m); else JC.push(m); } });
       }
       const nums = lines.map((l) => norm(l.numLot || '')).filter(Boolean);
       if (new Set(nums).size !== nums.length) return err('Deux moûts ont le même n° de lot : chaque compartiment reçu doit avoir son propre numéro.');
@@ -170,8 +186,13 @@ function buildSpec0(type, f, db, Rd, old) {
       const codes = plan.map((t) => t.code);
       if (new Set(codes.map((c) => norm(c).trim())).size !== codes.length) return err('Chaque cuve de destination doit recevoir un code de lot différent.');
       const tk = codes.find((c) => takenCode(db, c, own)); if (tk) return err(`Le code de lot « ${tk} » existe déjà.`);
-      return { spec: { ...base, apporteurId: f.apporteurId || (lines[0] || {}).apporteurId || '', ref: String(f.ref || '').trim(), immat: String(f.immat || '').trim().toUpperCase(), millesime: f.millesime || String(yearOf(f.date)), entrees: lines, lots: plan.map((t) => ({ contenantId: t.contenantId, code: t.code, designation: t.designation })),
-        ...(f.analyseModele ? { analyseModele: f.analyseModele } : {}) } }; // copie des compartiments (entreesExtra) : faite par opSave
+      // onglets gardés : ceux qui ont un moût, un partenaire ou un n° de bon ; op.apporteurId et op.ref restent remplis pour les versions antérieures
+      const PG = PF.filter((p, k) => k === 0 || p.apporteurId || String(p.ref || '').trim() || lines.some((l) => l.partId === p.id));
+      const parts = PG.length > 1 ? { partenaires: PG.map((p) => ({ id: p.id, apporteurId: p.apporteurId || '', ref: String(p.ref || '').trim(), lignes: lines.filter((l) => l.partId === p.id).map(cleLigne) })) } : {};
+      if (PG.length < 2) lines.forEach((l) => { delete l.partId; });
+      const refs = uniq(PG.map((p) => String(p.ref || '').trim()).filter(Boolean));
+      return { spec: { ...base, apporteurId: PG[0].apporteurId || f.apporteurId || (lines[0] || {}).apporteurId || '', ref: refs.join(' / '), immat: String(f.immat || '').trim().toUpperCase(), millesime: f.millesime || String(yearOf(f.date)), entrees: lines, lots: plan.map((t) => ({ contenantId: t.contenantId, code: t.code, designation: t.designation })),
+        analyseModele: moutModeleImpose(db).id, ...parts, ...(JC.length ? { jaugesCuves: JC } : {}) } }; // modèle d'analyse imposé « Moût · Débourbage » (0.34.0-alpha.1) ; copie des compartiments (entreesExtra) : faite par opSave
     }
     case 'pressurage': {
       const charges = f.charges.filter((c) => c.apportId && num(c.kg) > 0).map((c) => ({ apportId: c.apportId, kg: num(c.kg) }));

@@ -31,13 +31,13 @@ const blobToBytes = async (b) => new Uint8Array(await b.arrayBuffer());
 // Ajout de fichiers : contenu → IndexedDB, puis métadonnées → base (sauvegardées avec le reste)
 function useDocActions() {
   const { act, toast, confirm } = useApp();
-  const add = async (files, cible, cat) => {
+  const add = async (files, cible, cat, extra) => { // extra (0.34.0-alpha.1) : { partId } — partenaire d'une entrée de moûts
     let n = 0;
     for (const file of Array.from(files || [])) {
       if (file.size > DOC_MAX) { toast(`« ${file.name} » dépasse ${fmtSize(DOC_MAX)} : non joint.`, 'bad'); continue; }
       const id = newDocId();
       try { await docPut(id, file); } catch (e) { toast('Impossible d’enregistrer le fichier dans ce navigateur (stockage indisponible ou plein).', 'bad'); return n; }
-      const r = act((d) => docMetaAdd(d, { id, nom: gardeNomPropre(file.name), mime: file.type, taille: file.size, cat, cible, garde: gardeResume(GARDE_VERDICTS.get(file)) }));
+      const r = act((d) => docMetaAdd(d, { id, nom: gardeNomPropre(file.name), mime: file.type, taille: file.size, cat, cible, garde: gardeResume(GARDE_VERDICTS.get(file)), ...(extra || {}) }));
       if (r.ok) n += 1;
     }
     if (n) toast(n > 1 ? `${n} documents joints.` : 'Document joint.');
@@ -98,12 +98,13 @@ function DocRevision({ d, editable, avertir }) {
   if (!editable) return txt ? <Chip>{txt}</Chip> : null;
   return <button type="button" className={cx('chip', !txt && avertir && 'chip-warn')} onClick={() => { setR(d.revision || ''); setV(d.version || ''); setEd(true); }} title="Corriger la date de révision ou la version">{txt || (avertir ? 'date de révision ?' : 'dater')} ✎</button>;
 }
-function DocsPanel({ cible, kind = 'op', locked, deposer: deposerPerso, aide }) {
-  const { db, act } = useApp(); const tous = docsOf(db, cible.type, cible.id); const list = tous.filter((d) => !d.archive); const arch = tous.filter((d) => d.archive).sort((a, b) => String(b.revision || b.date).localeCompare(String(a.revision || a.date)));
+// filtre / extra (0.34.0-alpha.1) : documents montés (ceux d'un partenaire d'une entrée de moûts) et champs donnés aux fichiers ajoutés
+function DocsPanel({ cible, kind = 'op', locked, deposer: deposerPerso, aide, filtre, extra, inputLabel, catDefaut }) {
+  const { db, act } = useApp(); const tous = docsOf(db, cible.type, cible.id).filter((d) => !filtre || filtre(d)); const list = tous.filter((d) => !d.archive); const arch = tous.filter((d) => d.archive).sort((a, b) => String(b.revision || b.date).localeCompare(String(a.revision || a.date)));
   const { add, download, remove } = useDocActions();
-  const cats = DOC_CATS[kind] || DOC_CATS.op; const [cat, setCat] = useState(cats[0][0]); const [view, setView] = useState(null); const [busy, setBusy] = useState(false);
+  const cats = DOC_CATS[kind] || DOC_CATS.op; const [cat, setCat] = useState(catDefaut && cats.some((c) => c[0] === catDefaut) ? catDefaut : cats[0][0]); const [view, setView] = useState(null); const [busy, setBusy] = useState(false);
   const revisable = kind === 'produit' || kind === 'produitHygiene';
-  const deposer = async (fs) => { if (!fs.length) return; if (deposerPerso) { deposerPerso(fs); return; } setBusy(true); await add(fs, cible, cat); setBusy(false); };
+  const deposer = async (fs) => { if (!fs.length) return; if (deposerPerso) { deposerPerso(fs); return; } setBusy(true); await add(fs, cible, cat, extra); setBusy(false); };
   const dep = useDepot(deposer, { disabled: locked || busy }); // tout le bloc accepte le dépôt (liste comprise)
   const ligne = (d, ancien) => (
     <li key={d.id} className={cx('flex flex-wrap items-center gap-2 px-3 py-2 text-sm', ancien && 'opacity-80')}>
@@ -119,7 +120,7 @@ function DocsPanel({ cible, kind = 'op', locked, deposer: deposerPerso, aide }) 
       {arch.length ? <details className="rounded-md border border-line" data-docs-archives=""><summary className="cursor-pointer px-3 py-2 text-sm">Versions précédentes archivées <Chip>{arch.length}</Chip></summary><ul className="divide-y divide-[var(--line)] border-t border-line">{arch.map((d) => ligne(d, true))}</ul></details> : null}
       {!locked ? <div className="flex flex-wrap items-center gap-2">
         {deposerPerso ? null : <div style={{ minWidth: 220 }}><SI plain value={cat} onChange={setCat} options={cats.map(([v, l]) => ({ value: v, label: l }))} aria-label="Type de document" /></div>}
-        <ZoneDepot onFiles={deposer} depot={dep} busy={busy} kind="primary" accept={DOC_ACCEPT} label={deposerPerso ? 'Déposer FT, FDS, certificats…' : 'Joindre des fichiers'} sub={deposerPerso ? 'lus pour reconnaître le type et la date de révision' : undefined} />
+        <ZoneDepot onFiles={deposer} depot={dep} busy={busy} kind="primary" accept={DOC_ACCEPT} inputLabel={inputLabel} label={deposerPerso ? 'Déposer FT, FDS, certificats…' : 'Joindre des fichiers'} sub={deposerPerso ? 'lus pour reconnaître le type et la date de révision' : undefined} />
         <span className="help w-full">{aide || <>PDF, photos, documents… conservés dans ce navigateur (sauvegarde complète : Paramètres › 💾 Sauvegarde &amp; Drive).</>}</span>
       </div> : null}
       {view ? <DocViewer doc={view} onClose={() => setView(null)} /> : null}
@@ -128,15 +129,16 @@ function DocsPanel({ cible, kind = 'op', locked, deposer: deposerPerso, aide }) 
 }
 // Documents choisis pendant la saisie d'une opération, avant qu'elle existe : le fichier est rangé tout de suite dans ce navigateur,
 // sa fiche (métadonnées) est créée avec l'opération validée ou planifiée (docsJoindre) ; formulaire fermé sans enregistrer → fichiers effacés
-function DocsAttente({ items, onChange, kind = 'op' }) {
-  const { toast } = useApp(); const cats = DOC_CATS[kind] || DOC_CATS.op; const [cat, setCat] = useState(cats[0][0]); const [busy, setBusy] = useState(false);
+function DocsAttente({ items: tous, onChange, kind = 'op', filtre, extra, inputLabel, catDefaut }) {
+  const items = filtre ? tous.filter(filtre) : tous;
+  const { toast } = useApp(); const cats = DOC_CATS[kind] || DOC_CATS.op; const [cat, setCat] = useState(catDefaut && cats.some((c) => c[0] === catDefaut) ? catDefaut : cats[0][0]); const [busy, setBusy] = useState(false);
   const deposer = async (fs) => {
     if (!fs.length) return; setBusy(true); const plus = [];
     for (const file of fs) {
       if (file.size > DOC_MAX) { toast(`« ${file.name} » dépasse ${fmtSize(DOC_MAX)} : non joint.`, 'bad'); continue; }
       const id = newDocId();
       try { await docPut(id, file); } catch (er) { toast('Impossible d’enregistrer le fichier dans ce navigateur (stockage indisponible ou plein).', 'bad'); break; }
-      plus.push({ id, nom: gardeNomPropre(file.name), mime: file.type, taille: file.size, cat, date: todayISO(), garde: gardeResume(GARDE_VERDICTS.get(file)) });
+      plus.push({ id, nom: gardeNomPropre(file.name), mime: file.type, taille: file.size, cat, date: todayISO(), garde: gardeResume(GARDE_VERDICTS.get(file)), ...(extra || {}) });
     }
     setBusy(false); if (plus.length) onChange((L) => [...L, ...plus]);
   };
@@ -152,7 +154,7 @@ function DocsAttente({ items, onChange, kind = 'op' }) {
         </li>))}</ul> : null}
       <div className="flex flex-wrap items-center gap-2">
         <div style={{ minWidth: 220 }}><SI plain value={cat} onChange={setCat} options={cats.map(([v, l]) => ({ value: v, label: l }))} aria-label="Type de document" /></div>
-        <ZoneDepot onFiles={deposer} depot={dep} busy={busy} accept={DOC_ACCEPT} label="Joindre des fichiers" />
+        <ZoneDepot onFiles={deposer} depot={dep} busy={busy} accept={DOC_ACCEPT} inputLabel={inputLabel} label="Joindre des fichiers" />
       </div>
     </div>
   );

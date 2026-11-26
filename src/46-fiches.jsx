@@ -207,13 +207,13 @@ function ficheRows0(db, st, fill) {
     if (['soutirage', 'transfert'].includes(type) && fill === 'filtration') rows.push(mv(OP_LABELS[f.sousType || type] || OP_LABELS[type], P(f.portionId), hasNum(f.volL) ? num(f.volL) : null, f.destId));
   }
   if (fill === 'reception' && type === 'entree_mout') {
-    const plan = moutPlan(db, f); const cur = {};
+    const plan = moutPlan(db, f); const cur = {}; const PO = moutOnglets(f); const ong = (e) => { const k = PO.findIndex((p) => p.id === ongletDe(PO, e)); return k === 0 ? { apporteurId: f.apporteurId, ref: f.ref } : PO[k]; }; // partenaire et n° de bon de l'onglet (0.34.0-alpha.1)
     (f.entrees || []).forEach((e, i) => (e.dests || []).filter((d) => d.contenantId || num(d.volL) > 0).forEach((d) => {
       const t = plan.find((x) => x.contenantId === d.contenantId); const av = d.contenantId ? (cur[d.contenantId] != null ? cur[d.contenantId] : volIn(Rd, d.contenantId)) : 0; const v = num(d.volL);
       if (d.contenantId) cur[d.contenantId] = av + v;
       rows.push({ comp: e.compartiment || String(i + 1), vol: v ? hlv(v) : '', origine: [fracLabel(db, e.fractionId), lbl(db, 'cepages', e.cepageId), e.cruId ? cruName(db, e.cruId) : '', e.millesime || f.millesime || ''].filter(Boolean).join(' · '), dest: cn(d.contenantId), code: t ? t.code : '', avHL: d.contenantId ? hlv(av) : '', apHL: d.contenantId && v ? hlv(av + v) : '', ech: '☐',
         numLot: String(e.numLot || ''), fraction: e.fractionId ? fracLabel(db, e.fractionId) : '', cepage: e.cepageId ? lbl(db, 'cepages', e.cepageId) : '', cru: e.cruId ? cruName(db, e.cruId) : '', echelle: e.cruId ? eLabel(cruEchelle(db, e.cruId)) : '', millesime: String(e.millesime || f.millesime || ''), revendication: qLabel(e.qualifId || 'conv'), couleur: e.couleur ? couleurLabel(db, e.couleur) : '', parcelle: e.parcelleId ? parcelleName(db, e.parcelleId) : '',
-        partenaires: (e.apporteurs || []).filter((a) => a.id).map((a) => `${apporteurName(db, a.id)}${hasNum(a.pct) ? ` (${fmt(a.pct)} %)` : ''}`).join(', ') || (f.apporteurId ? apporteurName(db, f.apporteurId) : ''), analyses: analysesTexte(db, e.analyses), refBon: f.ref || '', citerne: f.immat || '' });
+        partenaires: (e.apporteurs || []).filter((a) => a.id).map((a) => `${apporteurName(db, a.id)}${hasNum(a.pct) ? ` (${fmt(a.pct)} %)` : ''}`).join(', ') || (ong(e).apporteurId ? apporteurName(db, ong(e).apporteurId) : ''), analyses: analysesTexte(db, e.analyses), refBon: ong(e).ref || f.ref || '', citerne: f.immat || '' });
     }));
   }
   // vendange : l'apport lui-même, ou les apports chargés au pressoir

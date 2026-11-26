@@ -201,6 +201,21 @@ function JaugeDialog({ contIds, onUse, onClose, sortieDe }) {
     </Sheet>
   );
 }
+// hauteur (ou creux) mesurée dans la cuve de destination après réception (entrée de moûts, 0.34.0-alpha.1) : le volume reçu se calcule
+// d'après la table d'épalement (contenu mesuré − contenu d'avant) ; il reste modifiable à la main
+function HauteurCuve({ contId, hauteur, volL, volAvant, onChange, n, j }) {
+  const { db } = useApp(); const b = baremeDe(db, contId); if (!b) return null;
+  const M = mesureLabel(b); const r = hasNum(hauteur) ? jaugeEntreeCuve(b, hauteur, volAvant) : null; const manuel = r && hasNum(volL) && Math.abs(num(volL) - r.v) > 1;
+  return (
+    <div className="jg-creux flex flex-wrap items-center gap-2 text-sm" data-hauteur-cuve={`${n}-${j}`}>
+      <span className="lbl">📏 {b.mesure === 'creux' ? 'Creux après réception (cm)' : 'Hauteur après réception (cm)'}</span>
+      <input className="inp num" style={{ width: 100 }} inputMode="decimal" value={hauteur ?? ''} placeholder="cm" aria-label={`${M} en cuve ${j} du moût ${n} (cm)`} onChange={(e) => { const h = e.target.value; const x = hasNum(h) ? jaugeEntreeCuve(b, h, volAvant) : null; onChange(h, x ? x.v : null); }} />
+      {r ? <span data-hauteur-calcul="">{r.avant > 0.5 ? `${fmtL(r.total)} en cuve − ${fmtL(r.avant)} déjà présents = ${fmtL(r.v)} reçus` : `${fmtL(r.total)} en cuve = ${fmtL(r.v)} reçus`}{r.hors ? <span className="text-warn"> · hors barème</span> : null}{r.negatif ? <span className="text-bad"> · mesure inférieure au contenu d’avant</span> : null}
+        {manuel ? <> <Chip tone="warn">volume ajusté à la main</Chip> <button type="button" className="linkish" onClick={() => onChange(hauteur, r.v)}>Reprendre le calcul</button></> : null}</span>
+        : <span className="text-xs text-ink2">{`Barème ${baremePlage(b)} : le volume se calcule et reste modifiable.`}</span>}
+    </div>
+  );
+}
 // creux d'un compartiment de citerne (entrée de moûts)
 function CreuxCiterne({ immat, compartiment, creux, onChange, onVolume, n }) {
   const { db } = useApp(); const L = baremesCiterne(db, immat); if (!L.length) return null;
