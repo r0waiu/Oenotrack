@@ -5,7 +5,7 @@ const PREV_STATUT = { prevue: { label: 'À réaliser', tone: 'info' }, realisee:
 
 function PrevisionsView() {
   const { db, act, confirm, openOp, openFiche, setTab, moi } = useApp(); const today = todayISO();
-  const [statut, setStatut] = useState('prevue'); const [sel, setSel] = useState([]); const [q, setQ] = useState(''); const [oprF, setOprF] = useState('');
+  const [statut, setStatut] = useState('prevue'); const [sel, setSel] = useState([]); const [q, setQ] = useState(''); const [oprF, setOprF] = useState(''); const [jour, setJour] = useState(false);
   const all = db.previsions || []; const quiDe = (p) => operateursValides(db, (p.f || {}).operateurs);
   const quiOK = (p) => !oprF || (oprF === '-' ? !quiDe(p).length : quiDe(p).includes(oprF));
   const list = all.filter((p) => (statut === 'toutes' || p.statut === statut) && quiOK(p) && (!q || norm(`${opNom(p)} ${p.resume} ${p.notes || ''} ${p.ficheOrdre || ''} ${operateursNoms(db, quiDe(p), ' ')}`).includes(norm(q))))
@@ -36,12 +36,13 @@ function PrevisionsView() {
         </select> : null}
         <input className="inp" style={{ width: 'auto', flex: '1 1 200px' }} placeholder="Rechercher cuve, lot, n° de fiche, opérateur…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une opération à réaliser" />
         <Btn disabled={!sel.length} kind={sel.length ? 'primary' : undefined} onClick={() => openFiche(sel.map((id) => ({ kind: 'prev', id })))}>🖨 Fiche(s) pour la sélection ({sel.length})</Btn>
+        <Btn onClick={() => setJour(true)} title="Une fiche multi-lignes par type d’opération et par jour : prévu et relevé, une ligne par cuve">🖨 Fiche du jour…</Btn>
         {sel.length ? <Btn size="sm" kind="ghost" onClick={() => setSel([])}>Désélectionner</Btn> : null}
       </div>
       <Tbl rows={list} empty={statut === 'prevue' ? 'Rien à réaliser. Dans un formulaire d’opération, « 📋 Planifier (à réaliser) » l’ajoute ici.' : 'Aucune opération.'} cols={[
         { h: '', r: (p) => <input type="checkbox" className="h-4 w-4" style={{ accentColor: 'var(--accent)' }} checked={sel.includes(p.id)} onChange={() => tog(p.id)} aria-label={`Sélectionner ${OP_LABELS[p.type]} du ${fmtDate(p.date)}`} /> },
         { h: 'Date prévue', r: (p) => <div className="whitespace-nowrap"><span className="num">{fmtDate(p.date)}</span>{p.statut === 'prevue' && p.date < today ? <Chip tone="warn" className="ml-1">en retard</Chip> : null}{p.statut === 'prevue' ? <div><button type="button" className="linkish text-xs" onClick={() => sameDay(p.date)}>+ toute la journée</button></div> : null}</div> },
-        { h: 'Opération', r: (p) => <Chip tone={OP_TONE[p.type]}>{opNom(p)}</Chip> },
+        { h: 'Opération', r: (p) => <div className="flex flex-wrap items-center gap-1"><Chip tone={OP_TONE[p.type]}>{opNom(p)}</Chip><GroupeChip x={p} /></div> },
         { h: 'Détail prévu', r: (p) => <div className="text-sm">{p.resume || '—'}{p.notes ? <div className="text-xs text-ink2">{p.notes}</div> : null}</div> },
         { h: 'Opérateur(s)', r: (p) => <OperateursChips ids={quiDe(p)} vide="non attribuée" /> },
         { h: 'Statut', r: (p) => <div><Chip tone={PREV_STATUT[p.statut].tone}>{PREV_STATUT[p.statut].label}</Chip>{p.statut === 'realisee' && p.realiseLe ? <div className="mt-1 text-xs text-ink2">le {fmtDate(p.realiseLe)}</div> : null}{p.ficheOrdre ? <div className="num mt-1 text-xs text-ink2">fiche {p.ficheOrdre}</div> : null}</div> },
@@ -54,7 +55,36 @@ function PrevisionsView() {
           {p.statut === 'realisee' && p.opId && !db.ops.some((o) => o.id === p.opId) ? <Chip>opération supprimée</Chip> : null}
           <Btn size="sm" kind="danger" onClick={() => del(p)} aria-label="Supprimer l’opération à réaliser">✕</Btn>
         </div> }]} />
+      {jour ? <FicheJourDialog onClose={() => setJour(false)} /> : null}
     </div>
+  );
+}
+
+/* fiche multi-lignes du jour (0.29.0-alpha.1) : toutes les opérations d'un même type prévues (et, au choix, déjà validées) ce jour-là,
+   une ligne par cuve dans le modèle de fiche du type (prévu en gris, relevé en cases teintées) ; la fiche individuelle reste disponible */
+const FICHE_JOUR_TYPES = ['intrant', 'suivi', 'etape', 'soutirage', 'transfert', 'debourbage', 'froid', 'filtration', 'sortie', 'jaugeage', 'assemblage'];
+function FicheJourDialog({ onClose }) {
+  const { db, openFiche } = useApp(); const [date, setDate] = useState(todayISO()); const [avecOps, setAvecOps] = useState(true);
+  const cle = (x) => (x.f ? x.f.sousType : x.sousType) || x.type;
+  const prevs = (db.previsions || []).filter((p) => p.statut === 'prevue' && p.date === date && FICHE_JOUR_TYPES.includes(p.type));
+  const ops = avecOps ? db.ops.filter((o) => o.date === date && FICHE_JOUR_TYPES.includes(o.type)) : [];
+  const types = uniq([...prevs.map(cle), ...ops.map(cle)]);
+  const [choix, setChoix] = useState(''); const t = types.includes(choix) ? choix : types[0] || '';
+  const nom = (k) => (opDef(db, k) || {}).label || OP_LABELS[k] || k;
+  const imprimer = () => { const src = [...prevs.filter((p) => cle(p) === t).map((p) => ({ kind: 'prev', id: p.id })), ...ops.filter((o) => cle(o) === t).map((o) => ({ kind: 'op', id: o.id }))]; if (!src.length) return; onClose(); openFiche(src); };
+  return (
+    <Sheet title="Fiche du jour" sub="Une fiche multi-lignes par type d’opération" onClose={onClose} footer={<><Btn onClick={onClose}>Annuler</Btn><Btn kind="primary" disabled={!t} onClick={imprimer}>🖨 Préparer la fiche</Btn></>}>
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+        <Field label="Jour"><DI value={date} onChange={setDate} /></Field>
+        <div className="self-end"><Check checked={avecOps} onChange={setAvecOps} label="Ajouter les opérations déjà validées ce jour-là" /></div>
+      </div>
+      <div className="mt-4 space-y-1" role="radiogroup" aria-label="Type d’opération">
+        {types.length ? types.map((k) => { const np = prevs.filter((p) => cle(p) === k).length; const no = ops.filter((o) => cle(o) === k).length; return (
+          <label key={k} className="flex items-center gap-2 text-sm"><input type="radio" name="fj-type" checked={t === k} onChange={() => setChoix(k)} /><b>{nom(k)}</b>{np ? <Chip tone="info"><span className="num">{np}</span> <span>à réaliser</span></Chip> : null}{no ? <Chip tone="ok"><span className="num">{no}</span> <span>validée(s)</span></Chip> : null}</label>); })
+          : <Empty>Rien de prévu ce jour-là. Planifiez des opérations (bouton « 📋 Planifier » d’un formulaire, ou saisie groupée depuis la cuverie).</Empty>}
+      </div>
+      <p className="help mt-3">Une ligne par cuve : valeurs prévues par Œnotrack en gris, cases teintées pour les quantités réelles, l’heure et le visa. Chaque opération garde aussi sa fiche individuelle (« 🖨 Fiche » de la ligne).</p>
+    </Sheet>
   );
 }
 

@@ -81,14 +81,15 @@ function LotBilan({ lotId }) {
 
 function LotSheet({ id, onClose }) {
   const { db, R, camp, openReport } = useApp(); const lot = R.lots[id];
-  const [edit, setEdit] = useState(false); const [opForm, setOpForm] = useState(null);
+  const [edit, setEdit] = useState(false); const [opForm, setOpForm] = useState(null); const [perso, setPerso] = useState(false); const [calc, setCalc] = useState(null);
+  const { dispo } = useFicheDispo('lot');
   if (!lot) return <Sheet title="Lot introuvable" onClose={onClose}><Empty>Ce lot n’existe plus.</Empty></Sheet>;
   const comp = composition(db, R, id); const ps = Object.values(R.portions).filter((p) => p.lotId === id); const vol = R.lotVol[id] || 0;
   const tir = R.tir[id];
   const items = (o, colorOf, labelOf) => Object.keys(o).map((k, i) => ({ label: labelOf(k), share: o[k], color: colorOf(k, i) }));
   const myApps = R.apps.filter((a) => a.lotId === id && a.produitId);
   const byCont = {}; myApps.forEach((a) => { const k = a.contenantId || '_tirage'; (byCont[k] = byCont[k] || []).push(a); });
-  const totals = {}; myApps.forEach((a) => { const k = `${a.produitId}|${a.arrivageId}`; totals[k] = totals[k] || { produitId: a.produitId, numLot: a.numLot, unite: a.unite, qty: 0, n: 0 }; totals[k].qty += a.qty; totals[k].n += 1; });
+  const totals = {}; myApps.forEach((a) => { const k = `${a.produitId}|${a.arrivageId}`; totals[k] = totals[k] || { produitId: a.produitId, numLot: a.numLot, unite: a.unite, qty: 0, n: 0, doses: [] }; totals[k].qty += a.qty; totals[k].n += 1; if (a.dose != null) totals[k].doses.push(a.dose); });
   const anc = [...ancestors(db, id)]; const ancApps = {}; R.apps.filter((a) => anc.includes(a.lotId) && a.produitId).forEach((a) => { const k = `${a.lotId}|${a.produitId}|${a.arrivageId}`; ancApps[k] = ancApps[k] || { lotId: a.lotId, produitId: a.produitId, numLot: a.numLot, unite: a.unite, qty: 0 }; ancApps[k].qty += a.qty; });
   const opsAll = (R.opsByLot[id] || []).map((oid) => db.ops.find((o) => o.id === oid)).filter(Boolean).sort(byDate);
   const contIds = uniq(Object.values(R.pinfo).filter((p) => p.lotId === id).map((p) => p.contenantId).concat(opsAll.flatMap((o) => opConts(o, R)).filter(() => false)));
@@ -98,19 +99,14 @@ function LotSheet({ id, onClose }) {
   const ans = db.analyses.filter((a) => a.lotId === id).sort(byDate);
   const pertes = {}; R.flows.filter((f) => f.lotId === id && (f.kind === 'perte' || f.kind === 'jaugeage')).forEach((f) => { const k = `${f.kind}|${f.typeId || ''}`; pertes[k] = pertes[k] || { kind: f.kind, typeId: f.typeId, L: 0 }; pertes[k].L += f.L; });
   const preps = R.prepUse.filter((u) => u.lotId === id);
-  return (
-    <Sheet wide title={<span>{lot.code} <span className="font-normal text-ink2">— {lot.designation}</span></span>} sub={`${stadeLabel(db, lot.stade)} · ${couleurLabel(db, lot.couleur).toLowerCase()} · ${LOT_TYPES[lot.type].toLowerCase()} · millésime ${lot.millesime || '—'}`} onClose={onClose}
-      footer={<><Btn onClick={() => openReport({ kind: 'lot', ids: [id] })}>🖨 Rapport…</Btn><Btn onClick={() => setEdit(true)}>Modifier code / désignation</Btn><Btn onClick={onClose}>Fermer</Btn></>}>
-      <div className="mb-5 flex flex-wrap items-center gap-2"><StadeChip id={lot.stade} /><CouleurChip id={lot.couleur} /><QChip id={lot.qualif} /><EChip info={echelleInfo(comp)} />{lot.fractionId ? <Chip tone="info">{fracLabel(db, lot.fractionId)}</Chip> : null}<Chip title="Nature du lot">{LOT_TYPES[lot.type]}</Chip><Chip>{fmtL(vol)} en cuves</Chip>{tir ? <Chip tone="info">{fmt(tir.nb)} bouteilles sur lattes{tir.deg ? ` · ${fmt(tir.deg)} dégorgées` : ''}</Chip> : null}{(R.opsByLot[id] || []).some((oid) => (R.warn[oid] || []).length) ? <Chip tone="warn">⚠ opérations à vérifier</Chip> : null}</div>
-
-      <StadesFrise lotId={id} onEtape={(preset) => setOpForm({ type: preset && preset.newStade ? opEtapePour(db, preset.newStade) : 'etape', preset })} />
-
-      <Sec title="Composition calculée" className="mb-5">
+  const blocs = {
+    stades: <StadesFrise lotId={id} onEtape={(preset) => setOpForm({ type: preset && preset.newStade ? opEtapePour(db, preset.newStade) : 'etape', preset })} />,
+    fermentation: <FermentationSection lotId={id} />,
+    composition: <Sec title="Composition calculée" className="mb-5">
         <CompBlock comp={comp} />
         <div className="help mt-1">Calculée récursivement au prorata des volumes engagés dans chaque assemblage, jusqu’aux apports de vendange et entrées de moûts (cru, apporteur). Le classement d’un mélange est celui du cru de rang le plus bas.</div>
-      </Sec>
-
-      <Sec title="Portions (lot + contenant + volume)" className="mb-5">
+      </Sec>,
+    portions: <Sec title="Portions (lot + contenant + volume)" className="mb-5">
         <Tbl rows={ps} empty="Aucune portion en cuverie à ce jour." cols={[
           { h: 'Contenant', r: (p) => <ContLink id={p.contenantId} /> }, { h: 'Volume', cls: 'r', r: (p) => <span className="num">{fmtL(p.vol)}</span> }, { h: 'Depuis', cls: 'hm', r: (p) => fmtDate(p.since) },
           { h: 'Agir', r: (p) => <div className="flex flex-wrap gap-1">{opMenu(db).filter((x) => ['intrant', 'soutirage', 'filtration'].includes(x.id)).map((x) => <Btn key={x.id} size="sm" disabled={camp.figee} title={x.aide || ''} onClick={() => setOpForm({ type: x.id, preset: { portionId: p.id } })}>{x.label}</Btn>)}
@@ -118,42 +114,45 @@ function LotSheet({ id, onClose }) {
               <option value="">Autre opération…</option>{opGroupes(db, (x) => OP_BASES_VISIBLES_MENU.includes(x.base)).map((g) => <optgroup key={g.title} label={g.title}>{g.items.map((k) => <option key={k} value={k}>{OP_LABELS[k] || k}</option>)}</optgroup>)}
             </select></div> },
         ]} />
-      </Sec>
-
-      <Sec title="Intrants cumulés par portion (avec n° de lots fournisseurs)" className="mb-5">
+      </Sec>,
+    intrants: <Sec title="Intrants cumulés par portion (avec n° de lots fournisseurs)" className="mb-5">
         {Object.keys(byCont).length ? Object.keys(byCont).map((k) => (
           <div key={k} className="mb-3"><div className="mb-1 text-sm font-semibold">{k === '_tirage' ? 'Tirage (mixtion)' : <>Portion en <ContLink id={k} /></>}</div>
-            <Tbl rows={byCont[k]} cols={[{ h: 'Date', r: (a) => fmtDate(a.date) }, { h: 'Opération', r: (a) => OP_LABELS[a.opSousType || a.opType] || OP_LABELS[a.opType] }, { h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> }, { h: 'Dose', cls: 'r', r: (a) => (a.dose != null ? <span className={cx('num', a.over && 'text-bad')}>{fmt(a.dose, 1)} {doseUnit(a.unite)}</span> : '—') }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }, { h: '', r: (a) => (a.unauth ? <Chip tone="bad">non autorisé</Chip> : null) }]} /></div>
+            <Tbl rows={byCont[k]} cols={[{ h: 'Date', r: (a) => fmtDate(a.date) }, { h: 'Opération', r: (a) => OP_LABELS[a.opSousType || a.opType] || OP_LABELS[a.opType] }, { h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> }, { h: 'Dose', cls: 'r', r: (a) => (a.dose != null ? <span className={cx('num', a.over && 'text-bad')}>{doseTexte(a.dose, a.unite)}</span> : '—') }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }, { h: '', r: (a) => (a.unauth ? <Chip tone="bad">non autorisé</Chip> : null) }]} /></div>
         )) : <Empty>Aucun intrant enregistré directement sur ce lot.</Empty>}
-        {Object.keys(totals).length ? <div className="mt-2"><div className="lbl">Cumul par produit et lot fournisseur</div><Tbl rows={Object.values(totals)} cols={[{ h: 'Produit', r: (t) => prodOf(db, t.produitId).nom }, { h: 'N° lot fournisseur', r: (t) => <b className="num">{t.numLot || '—'}</b> }, { h: 'Applications', cls: 'r', r: (t) => t.n }, { h: 'Total', cls: 'r', r: (t) => <span className="num">{fmt(t.qty, 2)} {t.unite}</span> }]} /></div> : null}
+        {Object.keys(totals).length ? <div className="mt-2"><div className="lbl">Cumul par produit et lot fournisseur</div><Tbl rows={Object.values(totals)} cols={[{ h: 'Produit', r: (t) => prodOf(db, t.produitId).nom }, { h: 'N° lot fournisseur', r: (t) => <b className="num">{t.numLot || '—'}</b> }, { h: 'Applications', cls: 'r', r: (t) => t.n }, { h: 'Total', cls: 'r', r: (t) => <span className="num">{fmt(t.qty, 2)} {t.unite}</span> }, { h: 'Doses à l’application', cls: 'r', r: (t) => dosesTexte(t.doses, t.unite) || '—' }]} /></div> : null}
         {Object.keys(ancApps).length ? <details className="mt-3"><summary>Intrants hérités des lots d’origine ({Object.keys(ancApps).length})</summary><div className="mt-2"><Tbl rows={Object.values(ancApps)} cols={[{ h: 'Lot d’origine', r: (a) => <LotLink id={a.lotId} /> }, { h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }, { h: 'Total', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> }]} /></div></details> : null}
         {preps.length ? <div className="mt-3 text-sm text-ink2">Préparations incorporées : {preps.map((u) => { const p = prepOf(R, u.prepId); return `${p.code} (${PREP_TYPES[p.ptype]}, ${qLabel(p.qualif)}, ${fmtL(u.volL)})`; }).join(' · ')}</div> : null}
-      </Sec>
-
-      <LotTraceAmont id={id} />
-      <Sec title="Généalogie" className="mb-5">
+      </Sec>,
+    amont: <LotTraceAmont id={id} />,
+    genealogie: <Sec title="Généalogie" className="mb-5">
         <div className="grid2">
           <div className="tree"><div className="lbl">Ascendance (d’où vient ce lot)</div>{(lot.sources && lot.sources.length) || (lot.parentIds || []).length || (lot.apports || []).length ? <ul style={{ borderLeft: 0, paddingLeft: 0 }}><AncTree lotId={id} /></ul> : <div className="text-sm text-ink2">Lot d’origine (aucun parent enregistré).</div>}</div>
           <div className="tree"><div className="lbl">Descendance (où est parti ce lot)</div>{childrenOf(db, id).length || finisOf(db, id).length ? <DescTree lotId={id} /> : <div className="text-sm text-ink2">Aucun lot enfant.</div>}</div>
         </div>
-      </Sec>
-
-      {Object.keys(pertes).length ? <Sec title="Pertes et écarts" className="mb-5"><div className="flex flex-wrap gap-2">{Object.values(pertes).map((p, i) => <Chip key={i} tone={p.L < 0 ? 'warn' : ''}>{p.kind === 'perte' ? lbl(db, 'typesPerte', p.typeId) : `Écart de jaugeage`} {fmtL(p.L)}</Chip>)}</div></Sec> : null}
-
-      <LotBilan lotId={id} />
-
-      <Sec title="Journal d’hygiène (cuves et équipements ayant servi à ce lot)" className="mb-5">
+      </Sec>,
+    pertes: Object.keys(pertes).length ? <Sec title="Pertes et écarts" className="mb-5"><div className="flex flex-wrap gap-2">{Object.values(pertes).map((p, i) => <Chip key={i} tone={p.L < 0 ? 'warn' : ''}>{p.kind === 'perte' ? lbl(db, 'typesPerte', p.typeId) : `Écart de jaugeage`} {fmtL(p.L)}</Chip>)}</div></Sec> : null,
+    bilan: <LotBilan lotId={id} />,
+    hygiene: <Sec title="Journal d’hygiène (cuves et équipements ayant servi à ce lot)" className="mb-5">
         <Tbl rows={hyg.slice(0, 25)} empty="Aucune entrée d’hygiène pour les contenants et équipements de ce lot." cols={[{ h: 'Date', r: (h) => fmtDate(h.date) }, { h: 'Cible', r: (h) => <span>{h.cibleType === 'contenant' ? '🛢 ' : '⚙ '}{hName(h)}</span> }, { h: 'Action', r: (h) => lbl(db, 'actionsHygiene', h.actionId) }, { h: 'Produit', r: (h) => h.produit || '—' }]} />
-      </Sec>
-
-      <div className="mb-5"><MoutsRecusSection lotId={id} /></div>
-      <Sec title="Analyses" className="mb-5">
+      </Sec>,
+    mouts: <div className="mb-5"><MoutsRecusSection lotId={id} /></div>,
+    analyses: <Sec title="Analyses" className="mb-5">
         <Tbl rows={ans} empty="Aucune analyse sur ce lot." cols={[{ h: 'Date', r: (a) => fmtDate(a.date) }, { h: 'Contenant prélevé', r: (a) => (a.contenantId ? contName(db, a.contenantId) : '—') }, { h: 'Valeurs', r: (a) => Object.keys(a.valeurs).map((k) => { const p = db.analysesParams.find((x) => x.id === k) || {}; return `${p.nom} ${fmt(a.valeurs[k], p.dec || 0)}${p.unite ? ' ' + p.unite : ''}`; }).join(' · ') }]} />
-      </Sec>
+      </Sec>,
+    operations: <Sec title="Opérations du lot">
+        <Tbl rows={opsAll} empty="Aucune opération." cols={[{ h: 'Date', r: (o) => fmtDate(o.date) }, { h: 'Opération', r: (o) => <span className="inline-flex flex-wrap items-center gap-1"><Chip tone={OP_TONE[o.type]}>{opNom(o)}</Chip><GroupeChip x={o} /></span> }, { h: 'Détail', r: (o) => opSummary(db, R, o) }, { h: 'Opérateur(s)', r: (o) => <OperateursChips ids={o.operateurs} /> }, { h: '', r: (o) => <WarnChip n={(R.warn[o.id] || []).length} verified={o.verifie} /> }]} />
+      </Sec>,
+  };
+  return (
+    <Sheet wide title={<span>{lot.code} <span className="font-normal text-ink2">— {lot.designation}</span></span>} sub={`${stadeLabel(db, lot.stade)} · ${couleurLabel(db, lot.couleur).toLowerCase()} · ${LOT_TYPES[lot.type].toLowerCase()} · millésime ${lot.millesime || '—'}`} onClose={onClose}
+      footer={<><Btn onClick={() => openReport({ kind: 'lot', ids: [id] })}>🖨 Rapport…</Btn><Btn onClick={() => setEdit(true)}>Modifier code / désignation</Btn><Btn onClick={onClose}>Fermer</Btn></>}>
+      <div className="mb-5 flex flex-wrap items-center gap-2"><StadeChip id={lot.stade} /><CouleurChip id={lot.couleur} /><QChip id={lot.qualif} /><EChip info={echelleInfo(comp)} />{lot.fractionId ? <Chip tone="info">{fracLabel(db, lot.fractionId)}</Chip> : null}<Chip title="Nature du lot">{LOT_TYPES[lot.type]}</Chip><Chip>{fmtL(vol)} en cuves</Chip>{tir ? <Chip tone="info">{fmt(tir.nb)} bouteilles sur lattes{tir.deg ? ` · ${fmt(tir.deg)} dégorgées` : ''}</Chip> : null}{(R.opsByLot[id] || []).some((oid) => (R.warn[oid] || []).length) ? <Chip tone="warn">⚠ opérations à vérifier</Chip> : null}<span className="ml-auto flex flex-wrap gap-1 no-print"><Btn size="sm" onClick={() => setCalc('so2')} title="SO₂ moléculaire, enrichissement">🧪 Calculs</Btn><Btn size="sm" onClick={() => setPerso(true)} title="Rubriques affichées et leur ordre">⚙ Personnaliser la fiche</Btn></span></div>
 
-      <Sec title="Opérations du lot">
-        <Tbl rows={opsAll} empty="Aucune opération." cols={[{ h: 'Date', r: (o) => fmtDate(o.date) }, { h: 'Opération', r: (o) => <Chip tone={OP_TONE[o.type]}>{opNom(o)}</Chip> }, { h: 'Détail', r: (o) => opSummary(db, R, o) }, { h: 'Opérateur(s)', r: (o) => <OperateursChips ids={o.operateurs} /> }, { h: '', r: (o) => <WarnChip n={(R.warn[o.id] || []).length} verified={o.verifie} /> }]} />
-      </Sec>
+
+      <RubriquesRendu dispo={dispo} blocs={blocs} />
+      {perso ? <FicheRubriquesSheet kind="lot" onClose={() => setPerso(false)} /> : null}
+      {calc ? <CalculsSheet lotId={id} onglet={calc} onClose={() => setCalc(null)} /> : null}
       {edit ? <LotEditForm id={id} onClose={() => setEdit(false)} /> : null}
       {opForm ? <OpForm type={opForm.type} preset={opForm.preset} onClose={() => setOpForm(null)} /> : null}
     </Sheet>

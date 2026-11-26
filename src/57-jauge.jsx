@@ -82,7 +82,7 @@ async function lireFichierJauge(file, { onEtape, ocr } = {}) {
     return { baremes: j.baremes.map((b) => ({ ...b, meta: { ...(b.meta || {}), fichier: (b.meta || {}).fichier || nom } })), journal: [], sansTexte: [], fichier: nom, prepare: true };
   }
   if (estTableur(file)) {
-    if (onEtape) onEtape('Lecture du tableur…'); if (!window.XLSX || !window.XLSX.read) throw new Error('lecture Excel indisponible (bibliothèque non chargée, hors ligne ?) : enregistrez le tableau en CSV ou collez-le');
+    if (onEtape) onEtape('Lecture du tableur…'); try { await loadXlsx(); } catch (e) { /* message ci-dessous */ } if (!window.XLSX || !window.XLSX.read) throw new Error('lecture Excel indisponible (bibliothèque non chargée, hors ligne ?) : enregistrez le tableau en CSV ou collez-le');
     const ab = await file.arrayBuffer(); // lecture surveillée (garde des importations) : un classeur piégé ne peut pas modifier le cœur de l'application
     const pages = gardeSurveiller(() => { const wb = window.XLSX.read(ab, { type: 'array' }); return wb.SheetNames.map((sn, i) => jaugePageDeLignes(window.XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: '' }), i + 1)); });
     return { ...jaugeAnalyser(pages, { fichier: nom }), sansTexte: [], fichier: nom };

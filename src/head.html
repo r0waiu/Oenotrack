@@ -721,6 +721,57 @@ details>summary{cursor:pointer;font-weight:600}
 .fe-detail{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
 .fe-txt-c{display:none}
 @media (max-width:520px){.fe-btn{padding:5px 10px;font-size:13px}.fe-txt,.fe-txt-o{display:none}.fe-txt-c{display:inline}.fe-ctl{gap:6px}}
+
+/* 0.29.0-alpha.1 : fiches personnalisables, saisie groupée, fermentation, étiquettes QR, scanner, rappel de sauvegarde */
+.rub-liste{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rub-item{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:var(--r-btn,8px);padding:6px 8px;background:var(--surface)}
+.rub-item.off{opacity:.6;background:var(--surface2)}
+.courbe{border:1px solid var(--line);border-radius:var(--r-card,6px);background:var(--surface);padding:6px 8px 4px}
+.courbe-svg{width:100%;height:auto;display:block;max-height:280px}
+.courbe-grille{stroke:var(--line);stroke-width:1}
+.courbe-axe{font:11px Barlow,system-ui,sans-serif;fill:var(--ink2)}
+.courbe-axe-t{fill:var(--ink2);opacity:.85}
+.courbe-leg{display:flex;flex-wrap:wrap;gap:4px 14px;padding:2px 2px 4px}
+.courbe-l{display:inline-block;width:22px;height:0;border-top:2.4px solid var(--accent);vertical-align:middle}
+.courbe-l-t{border-top:1.6px dashed var(--accent)}
+.pitem.is-sel{outline:3px solid var(--accent);outline-offset:2px;border-radius:8px;background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.tankcard.is-sel{outline:3px solid var(--accent);outline-offset:-1px;background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.selbar{position:sticky;bottom:0;z-index:40;margin:14px -16px 0;padding:10px 0;background:var(--surface);border-top:2px solid var(--accent);box-shadow:0 -6px 18px var(--shadow)}
+.selbar .wrap{padding-left:16px;padding-right:16px}
+.qr{display:inline-block;line-height:0}
+.qr svg{width:100%;height:auto;display:block}
+.etq-scroll{overflow:auto;background:var(--surface2);border-radius:var(--r-card,6px);padding:12px}
+.etiquettes{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.etq-page{background:#fff;color:#111;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.etq-page-a4{width:210mm;height:297mm;display:grid;grid-template-columns:repeat(3,70mm);grid-template-rows:repeat(8,37.125mm);align-content:start}
+.etq-page-a6{width:105mm;height:148mm;display:flex}
+.etq{box-sizing:border-box;display:flex;gap:2.5mm;overflow:hidden;font-family:Barlow,Arial,sans-serif;color:#111}
+.etq-a4{padding:3.5mm 4mm;align-items:center}
+.etq-a4 .etq-qr{width:29mm;height:29mm;flex:none}
+.etq-a6{flex-direction:column;align-items:center;justify-content:center;width:100%;padding:8mm;text-align:center}
+.etq-a6 .etq-qr{width:72mm;height:72mm}
+.etq-txt{min-width:0;display:flex;flex-direction:column;gap:.6mm}
+.etq-nom{font-weight:700;font-size:15pt;line-height:1.05;word-break:break-word}
+.etq-a6 .etq-nom{font-size:30pt;margin-top:3mm}
+.etq-sub{font-size:8.5pt;line-height:1.15;color:#333}
+.etq-a6 .etq-sub{font-size:13pt}
+.etq-ent{font-size:7.5pt;color:#555}
+.etq-a6 .etq-ent{font-size:11pt}
+.etq-pied{font-size:6.5pt;color:#666;margin-top:.8mm}
+.etq-a6 .etq-pied{font-size:10pt;margin-top:3mm}
+@page zetiq4{size:A4 portrait;margin:0}
+@page zetiq6{size:A6 portrait;margin:0}
+@media print{
+  html.impression-zone #zone-impression[data-format=etiq-a4]{page:zetiq4}
+  html.impression-zone #zone-impression[data-format=etiq-a6]{page:zetiq6}
+  html.impression-zone #zone-impression .etiquettes{display:block;padding:0;gap:0}
+  html.impression-zone #zone-impression .etq-page{box-shadow:none!important;break-after:page;margin:0}
+}
+.scan-cadre{position:relative;border-radius:var(--r-card,6px);overflow:hidden;background:#000;aspect-ratio:4/3;max-height:60vh}
+.scan-video{width:100%;height:100%;object-fit:cover;display:block}
+.scan-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;padding:16px;text-align:center}
+.scan-viseur{position:absolute;inset:18% 22%;border:3px solid rgba(255,255,255,.85);border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.25)}
+.rappel-sauv{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--warn);background:var(--warnSoft);border-radius:var(--r-btn,8px);padding:6px 10px;color:var(--ink)}
 </style>
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script>
@@ -734,7 +785,6 @@ tailwind.config = {
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <div id="root"><p style="padding:24px;font-family:system-ui">Chargement d’Œnotrack…</p></div>
 <pre id="fatal"></pre>
 <script>
@@ -744,6 +794,4 @@ window.addEventListener('unhandledrejection',function(e){var f=document.getEleme
 <script>
 /*__APPJS__*/
 </script>
-<script type="text/plain" id="jsx-source">
 <!--__JSXSRC__-->
-</script>

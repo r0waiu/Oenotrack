@@ -17,6 +17,20 @@ function loadPdfLib() {
   });
   return _pdfLibP;
 }
+// tableur Excel (SheetJS) : chargé seulement au premier import ou export Excel (0.29.0-alpha.1 : page plus légère à l'ouverture)
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+let _xlsxP = null;
+function loadXlsx() {
+  if (window.XLSX && window.XLSX.utils) return Promise.resolve(window.XLSX);
+  if (_xlsxP) return _xlsxP;
+  _xlsxP = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = XLSX_URL; s.async = true;
+    s.onload = () => (window.XLSX && window.XLSX.utils ? res(window.XLSX) : (_xlsxP = null, rej(new Error('module Excel incomplet'))));
+    s.onerror = () => { _xlsxP = null; rej(new Error('module Excel injoignable (connexion internet ?)')); };
+    document.head.appendChild(s);
+  });
+  return _xlsxP;
+}
 
 // Polices standard du PDF (WinAnsi) : on remplace les caractères qu'elles ne savent pas écrire
 const PDF_WINANSI_X = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
@@ -74,10 +88,10 @@ function pdfCuts(root, R0, pageH, H) {
 }
 
 /* Rendu d'un élément du DOM (déjà affiché) dans une ou plusieurs pages PDF.
-   unit = { el, orientation: 'portrait'|'paysage', fit: 'page'|'width', format: 'A4'|'A3' } */
+   unit = { el, orientation: 'portrait'|'paysage', fit: 'page'|'width', format: 'A4'|'A3'|'A6', marge (points), svgScale } */
 async function drawUnit(doc, L, F, unit) {
   const root = unit.el; const R0 = root.getBoundingClientRect(); const W = R0.width, H = R0.height;
-  const A = unit.format === 'A3' ? [841.89, 1190.55] : [595.28, 841.89];
+  const A = unit.format === 'A3' ? [841.89, 1190.55] : unit.format === 'A6' ? [297.64, 419.53] : [595.28, 841.89];
   const [pw, ph] = unit.orientation === 'portrait' ? A : [A[1], A[0]]; const m = unit.marge != null ? unit.marge : 28.35;
   let s = (pw - 2 * m) / W; if (unit.fit === 'page') s = Math.min(s, (ph - 2 * m) / H);
   const cuts = unit.fit === 'page' ? [0, H] : pdfCuts(root, R0, (ph - 2 * m) / s, H);

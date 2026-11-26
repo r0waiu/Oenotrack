@@ -2,6 +2,19 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.29.0-alpha.1 — 26/11/2026
+
+- Fiches de cuve et de lot personnalisables (« ⚙ Personnaliser la fiche ») : rubriques affichées ou masquées et leur ordre, réglage commun à l’équipe et ajustement de chacun (sur son compte, ou sur l’appareil) ; le stade du vin s’affiche sur la fiche de la cuve
+- Doses dans l’unité du produit (g/hL, mL/hL, kg/hL ou L/hL au-delà de 1 000) dans l’historique des opérations, les ajouts d’intrants et les récapitulatifs (doses de chaque ajout et leur total)
+- Saisie groupée : « ☑ Sélection multiple » sur le plan, les cartes ou la liste des cuves, puis sulfitage, levurage, collage, autre intrant, relevé densité / température ou changement de stade en une fois — une opération par cuve, quantité = dose × volume de chaque cuve, mêmes contrôles qu’une saisie seule ; groupe corrigé, annulé ou imprimé ensemble ; planifiable puis validé en groupe
+- Fiches multi-lignes : « 🖨 Fiche du jour… » (À réaliser & fiches) réunit les opérations d’un même type prévues (et validées) ce jour-là, une ligne par cuve, prévu en gris et relevé en cases teintées, colonne visa ; la fiche individuelle reste disponible
+- Fermentation : courbes densité et température sur les fiches de cuve et de lot, vitesse de baisse de la densité, alerte « fermentation lente » ou « arrêtée » (seuils réglables dans Paramètres › Données & paramètres), signalée aussi sur les cartes des cuves
+- « 🧪 Calculs » sur les fiches : SO₂ moléculaire (SO₂ libre, pH, température, alcool) et SO₂ libre nécessaire pour un objectif ; simulateur d’enrichissement au sucre ou au MCR (quantité, volume final, plafond indicatif) qui prépare l’opération d’enrichissement
+- Étiquettes QR des cuves (planche A4 de 24 étiquettes 70 × 37 mm ou grande étiquette A6) : l’adresse d’Œnotrack en ligne et l’identifiant de la cuve seulement ; l’appareil photo du téléphone ouvre directement la fiche ; « 📷 Scanner » dans la cuverie
+- Chiffrement (Paramètres › Sauvegarde & Drive) : un mot de passe commun à l’équipe chiffre les sauvegardes, le fichier du Drive, ses copies et documents, et la synchronisation par fichier (AES-256, clé dérivée par PBKDF2, jamais enregistrée dans la base) ; les versions antérieures refusent un Drive chiffré sans rien écraser
+- Rappel de sauvegarde : quand les données ne sont que dans ce navigateur (pas de Drive) et qu’aucune sauvegarde n’est récente, un bandeau propose « ⬇ Sauvegarder maintenant »
+- Page plus légère (2,8 Mo au lieu de 6,5 Mo) : code compacté, code source publié à part (code-source.zip, GitHub), module Excel chargé seulement à la première utilisation ; compilation réglable (--dev, --source, --sortie)
+
 ## 0.28.0-alpha.1 — 22/11/2026
 
 - Impression : « 🖨 Imprimer » ouvre maintenant la boîte d’impression de l’appareil (Windows, Mac, Linux, Android, iPhone et iPad) et n’imprime que le document ; « ⬇ PDF » enregistre le PDF en parallèle. Là où l’impression directe est impossible (aperçu dans claude.ai), le PDF prend le relais.

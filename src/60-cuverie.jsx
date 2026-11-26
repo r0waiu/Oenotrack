@@ -70,7 +70,7 @@ function useWidth(ref) {
 const lotsOfCont = (R, id) => contParts(R, id).sort((a, b) => (a.since < b.since ? -1 : 1));
 const lotsShort = (R, id) => { const ps = lotsOfCont(R, id); return ps.length ? `${(R.lots[ps[0].lotId] || {}).code}${ps.length > 1 ? ` +${ps.length - 1}` : ''}` : ''; };
 
-function PlanView({ site, conts, edit, onOpen, onMenu, onZone }) {
+function PlanView({ site, conts, edit, onOpen, onMenu, onZone, sel }) {
   const { db, R, act } = useApp();
   const wrapRef = useRef(null); const wrapW = useWidth(wrapRef);
   const [zoom, setZoom] = useState(null); const [ghost, setGhost] = useState(null);
@@ -135,7 +135,7 @@ function PlanView({ site, conts, edit, onOpen, onMenu, onZone }) {
             {items.map(({ c, t }) => {
               const p = posOf(c); const vol = R.contVol[c.id] || 0;
               return (
-                <div key={c.id} role="button" tabIndex={0} className={cx('pitem', ghost && ghost.kind === 'c' && ghost.id === c.id && 'drag', c.statut === 'archive' && 'opacity-60')} style={{ left: p.x, top: p.y, width: t.w, height: t.h, zIndex: ghost && ghost.id === c.id ? 30 : 1 }}
+                <div key={c.id} role="button" tabIndex={0} aria-pressed={sel ? sel.includes(c.id) : undefined} className={cx('pitem', ghost && ghost.kind === 'c' && ghost.id === c.id && 'drag', c.statut === 'archive' && 'opacity-60', sel && sel.includes(c.id) && 'is-sel')} style={{ left: p.x, top: p.y, width: t.w, height: t.h, zIndex: ghost && ghost.id === c.id ? 30 : 1 }}
                   aria-label={`${c.nom}, ${fmtHL(vol)} hectolitres sur ${fmtHL(c.volMax)}. Clic droit ou appui long pour les opérations.`}
                   onPointerDown={(e) => down(e, 'c', c.id, { x0: c.x || 0, y0: c.y || 0, w0: t.w, h0: t.h })} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
                   onClick={edit ? undefined : () => { if (Date.now() < suppress.current) return; onOpen(c.id); }}
@@ -186,7 +186,7 @@ function VueChoix({ compact }) {
 }
 
 /* ---------- cartes (grille automatique, pratique sur téléphone) ---------- */
-function TankCards({ conts, onOpen, onMenu }) {
+function TankCards({ conts, onOpen, onMenu, sel }) {
   const { db, R } = useApp(); const suppress = useRef(0); const lp = useRef(null);
   const arm = (e, id) => { if (e.pointerType !== 'touch') return; const x = e.clientX, y = e.clientY; clearTimeout(lp.current); lp.current = setTimeout(() => { suppress.current = Date.now() + 800; onMenu(id, x, y); }, 520); };
   const stop = () => clearTimeout(lp.current);
@@ -195,7 +195,7 @@ function TankCards({ conts, onOpen, onMenu }) {
     <div className="tankgrid">{conts.map((c) => {
       const ps = lotsOfCont(R, c.id); const vol = R.contVol[c.id] || 0; const ov = !!R.capOver[c.id]; const t = tileSize(db, c); const ei = ps.length ? echelleInfo(contentComp(db, R, c.id)) : null;
       return (
-        <div key={c.id} role="button" tabIndex={0} className={cx('tankcard', c.statut === 'archive' && 'arch')} onClick={() => { if (Date.now() < suppress.current) return; onOpen(c.id); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(c.id); } }}
+        <div key={c.id} role="button" tabIndex={0} aria-pressed={sel ? sel.includes(c.id) : undefined} className={cx('tankcard', c.statut === 'archive' && 'arch', sel && sel.includes(c.id) && 'is-sel')} onClick={() => { if (Date.now() < suppress.current) return; onOpen(c.id); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(c.id); } }}
           onContextMenu={(e) => { e.preventDefault(); if (Date.now() < suppress.current) return; suppress.current = Date.now() + 800; onMenu(c.id, e.clientX, e.clientY); }}
           onPointerDown={(e) => arm(e, c.id)} onPointerUp={stop} onPointerMove={stop} onPointerCancel={stop} aria-label={`${c.nom}, ${fmtHL(vol)} hectolitres sur ${fmtHL(c.volMax)}`}>
           <button type="button" className="dots" aria-label={`Opérations sur ${c.nom}`} title="Opérations (ou clic droit)" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); onMenu(c.id, r.right - 8, r.bottom + 4); }} onPointerDown={(e) => e.stopPropagation()}>⋯</button>
@@ -204,6 +204,7 @@ function TankCards({ conts, onOpen, onMenu }) {
             <div className="flex w-[84px] shrink-0 justify-center"><ContainerGlyph db={db} R={R} c={c} width={Math.min(t.sw, 84)} /></div>
             <div className="min-w-0 flex-1"><div className="num whitespace-nowrap text-sm font-medium">{fmtL(vol)}</div><div className="num whitespace-nowrap text-xs text-ink2">/ {fmtL(c.volMax)}</div><div className="whitespace-nowrap text-xs text-ink2">{pct(vol / c.volMax)} rempli</div></div>
           </div>
+          {(() => { const al = fermentationAlerte(db, R, { contId: c.id }, todayISO()); return al ? <div><Chip tone={al.etat === 'arretee' ? 'bad' : 'warn'}>{al.etat === 'arretee' ? '⚠ FA arrêtée ?' : '⚠ FA lente'}</Chip></div> : null; })()}
           <div className="flex flex-wrap gap-1">{ps.map((p) => { const l = R.lots[p.lotId] || {}; return <Fragment key={p.portionId}><span className={`chip chip-c q-${qDef(l.qualif).id}`} style={qStyle(l.qualif)} title={`${l.designation || ''} — ${qLabel(l.qualif)}`}>{l.code} · {fmtL(p.vol)}</span><StadeChip id={l.stade} compact />{l.couleur && l.couleur !== couleurDefaut(db) ? <CouleurChip id={l.couleur} /> : null}</Fragment>; })}{ei ? <EChip info={ei} compact /> : null}{c.statut === 'archive' ? <Chip>Archivé</Chip> : null}{ov ? <Chip tone="bad">⚠ à vérifier : capacité</Chip> : null}</div>
         </div>
       );
@@ -215,6 +216,10 @@ function TabCuverie() {
   const { db, R, act, confirm, showCont, showLot, openMenu, setTab } = useApp();
   const [sub, setSub] = useState('plan'); const [filter, setFilter] = useState('actif'); const [q, setQ] = useState(''); const [form, setForm] = useState(null);
   const [lotF, setLotF] = useState('stock'); const [lq, setLq] = useState(''); const [edit, setEdit] = useState(false); const [siteForm, setSiteForm] = useState(null); const [zoneForm, setZoneForm] = useState(null); const [printPlan, setPrintPlan] = useState(false);
+  // saisie groupée (0.29.0-alpha.1) : sélection de plusieurs cuves, action commune ; étiquettes QR ; scanner
+  const [selMode, setSelMode] = useState(false); const [sel, setSel] = useState([]); const [grp, setGrp] = useState(null); const [etiq, setEtiq] = useState(null); const [scan, setScan] = useState(false);
+  const ouvrir = (id) => (selMode ? setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])) : showCont(id));
+  const finSel = () => { setSelMode(false); setSel([]); };
   const siteActif = db.settings.siteActif; const multi = db.sites.length > 1;
   const setSite = (id) => { setEdit(false); act((d) => { d.settings.siteActif = id; return okr(); }); };
   const nat = (a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true });
@@ -256,6 +261,7 @@ function TabCuverie() {
           <div className="w-44"><TI value={q} onChange={setQ} placeholder="Rechercher une cuve…" aria-label="Rechercher un contenant" /></div>
           {sub === 'plan' || sub === 'cartes' ? <VueChoix /> : null}
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            {!edit ? <><Btn onClick={() => setScan(true)} title="Lire l’étiquette QR d’une cuve">📷 Scanner</Btn><Btn kind={selMode ? 'primary' : undefined} aria-pressed={selMode} onClick={() => (selMode ? finSel() : setSelMode(true))} title="Choisir plusieurs cuves pour une saisie groupée (sulfitage, levurage, relevés…) ou leurs étiquettes">{selMode ? '✓ Sélection en cours' : '☑ Sélection multiple'}</Btn></> : null}
             {sub === 'plan' ? (edit
               ? <><Btn onClick={() => setZoneForm({ siteId: (sitesShown[0] || db.sites[0]).id, zone: null })}>+ Zone</Btn><Btn onClick={reorg}>Réorganiser</Btn><Btn kind="primary" onClick={() => setEdit(false)}>🔒 Verrouiller le plan</Btn></>
               : <><Btn onClick={() => setPrintPlan(true)} title="Plan imprimable (PDF) avec les légendes de votre choix">🖨 Imprimer le plan</Btn><Btn onClick={() => setEdit(true)} title="Déplacer les contenants pour reproduire l’organisation réelle de la cuverie">🔓 Modifier le plan</Btn></>) : null}
@@ -265,19 +271,20 @@ function TabCuverie() {
       ) : null}
       {sub === 'plan' ? (<>
         {edit ? <div className="mb-3"><Notice tone="info" title="Plan déverrouillé">Glissez les contenants (ou les zones) pour reproduire l’organisation réelle ; au clavier : flèches. Un toucher ouvre la fiche. Quand c’est fini, « Verrouiller le plan » pour éviter tout déplacement accidentel.</Notice></div> : <PlanLegend />}
-        {!edit ? <div className="mb-2 text-xs text-ink2">Clic droit (ou appui long) sur un contenant : opérations directes. Clic : fiche avec composition et intrants.</div> : null}
+        {!edit ? <div className="mb-2 text-xs text-ink2">{selMode ? 'Sélection multiple : touchez les cuves à traiter ensemble, puis choisissez l’opération en bas de l’écran.' : 'Clic droit (ou appui long) sur un contenant : opérations directes. Clic : fiche avec composition et intrants.'}</div> : null}
         <div className="space-y-5">
           {sitesShown.map((s) => (
             <section key={s.id} aria-label={`Plan ${s.nom}`}>
               {sitesShown.length > 1 ? <div className="mb-1 flex flex-wrap items-baseline gap-2"><h3 className="disp text-xl">{s.nom}</h3><span className="text-xs text-ink2">{s.adresse}</span></div> : (s.adresse ? <div className="mb-1 text-xs text-ink2">{s.nom} — {s.adresse}</div> : null)}
-              {conts.filter((c) => c.siteId === s.id).length || (s.zones || []).length ? <PlanView site={s} conts={conts.filter((c) => c.siteId === s.id)} edit={edit} onOpen={showCont} onMenu={openMenu} onZone={(zid) => zoneEdit(s.id, zid)} /> : <Empty>Aucun contenant sur ce site pour ce filtre.</Empty>}
+              {conts.filter((c) => c.siteId === s.id).length || (s.zones || []).length ? <PlanView site={s} conts={conts.filter((c) => c.siteId === s.id)} edit={edit} onOpen={ouvrir} onMenu={openMenu} onZone={(zid) => zoneEdit(s.id, zid)} sel={selMode ? sel : null} /> : <Empty>Aucun contenant sur ce site pour ce filtre.</Empty>}
             </section>
           ))}
         </div>
       </>) : null}
-      {sub === 'cartes' ? <><PlanLegend /><TankCards conts={conts} onOpen={showCont} onMenu={openMenu} /></> : null}
+      {sub === 'cartes' ? <><PlanLegend /><TankCards conts={conts} onOpen={ouvrir} onMenu={openMenu} sel={selMode ? sel : null} /></> : null}
       {sub === 'liste' ? (
-        <Tbl rows={conts} onRow={(c) => showCont(c.id)} onCtx={(c, e) => openMenu(c.id, e.clientX, e.clientY)} empty="Aucun contenant." cols={[
+        <Tbl rows={conts} onRow={(c) => ouvrir(c.id)} onCtx={(c, e) => openMenu(c.id, e.clientX, e.clientY)} empty="Aucun contenant." cols={[
+          ...(selMode ? [{ h: '', r: (c) => <input type="checkbox" className="h-4 w-4" style={{ accentColor: 'var(--accent)' }} checked={sel.includes(c.id)} onChange={() => ouvrir(c.id)} onClick={(e) => e.stopPropagation()} aria-label={`Sélectionner la cuve ${c.nom}`} /> }] : []),
           { h: 'Nom', r: (c) => <span className="inline-flex items-center gap-2"><ContainerGlyph db={db} R={R} c={c} width={22} /><b>{c.nom}</b></span> }, ...(multi ? [{ h: 'Site', r: (c) => siteName(db, c.siteId) }] : []), { h: 'Type', r: (c) => lbl(db, 'typesContenant', c.type) }, { h: 'Matière', r: (c) => lbl(db, 'matieres', c.matiere) }, { h: 'Fabricant', cls: 'hm', r: (c) => c.fabricant || '—' }, { h: 'Année', cls: 'hm', r: (c) => c.annee || '—' },
           { h: 'Volume max', cls: 'r', r: (c) => <span className="num">{fmtL(c.volMax)}</span> }, { h: 'Volume actuel', cls: 'r', r: (c) => <span className={cx('num', R.capOver[c.id] && 'text-bad font-semibold')}>{fmtL(R.contVol[c.id] || 0)}</span> },
           { h: 'Contenu', r: (c) => lotsOfCont(R, c.id).map((p) => (R.lots[p.lotId] || {}).code).join(', ') || '—' }, { h: 'Statut', cls: 'hm', r: (c) => (c.statut === 'archive' ? <Chip>Archivé</Chip> : <Chip tone="ok">Actif</Chip>) },
@@ -303,6 +310,10 @@ function TabCuverie() {
       {siteForm ? <SiteForm id={siteForm === 'new' ? null : siteForm} onClose={() => setSiteForm(null)} onSaved={() => act((d) => { d.settings.siteActif = d.sites[d.sites.length - 1].id; return okr(); })} /> : null}
       {zoneForm ? <ZoneForm siteId={zoneForm.siteId} zone={zoneForm.zone} onClose={() => setZoneForm(null)} /> : null}
       {printPlan ? <PlanPrintDialog siteIds={sitesShown.map((s) => s.id)} onClose={() => setPrintPlan(false)} /> : null}
+      {selMode && sub !== 'lots' ? <SelectionBar sel={sel} setSel={setSel} conts={conts} onAction={(a) => setGrp({ action: a, contIds: sel.slice() })} onEtiquettes={() => setEtiq(sel.slice())} onFin={finSel} /> : null}
+      {grp ? <GroupeForm action={grp.action} contIds={grp.contIds} onClose={() => setGrp(null)} onFait={finSel} /> : null}
+      {etiq ? <EtiquettesSheet contIds={etiq} onClose={() => setEtiq(null)} /> : null}
+      {scan ? <ScannerSheet onClose={() => setScan(false)} /> : null}
     </div>
   );
 }
@@ -311,6 +322,8 @@ TABS_REG.cuverie = TabCuverie;
 /* ---------- fiche contenant : contenu, composition (tous lots), intrants cumulés ---------- */
 function ContSheet({ id, onClose, onBack, backLabel, onCloseAll }) {
   const { db, R, act, confirm, showLot, camp, openMenu, openReport, editCont, openAnalyse, openHyg } = useApp();
+  const [perso, setPerso] = useState(false); const [calc, setCalc] = useState(null); const [etiq, setEtiq] = useState(false);
+  const { dispo } = useFicheDispo('cont');
   const c = db.contenants.find((x) => x.id === id);
   const ps = lotsOfCont(R, id);
   const comp = useMemo(() => contentComp(db, R, id), [db, R, id]);
@@ -322,43 +335,52 @@ function ContSheet({ id, onClose, onBack, backLabel, onCloseAll }) {
   const apps = R.apps.filter((a) => a.contenantId === id && a.produitId).slice().reverse();
   const ans = db.analyses.filter((a) => a.contenantId === id).sort(byDate).reverse();
   const del = async () => { const ok = await confirm({ title: `Supprimer ${c.nom} ?`, body: 'Possible uniquement si ce contenant n’a aucun historique.', ok: 'Supprimer', danger: true }); if (ok) { const r = act((d) => contDelete(d, id), 'Contenant supprimé.'); if (r.ok) onClose(); } };
-  const lotSet = new Set(ps.map((p) => p.lotId));
+  const lotIdsPresents = ps.map((p) => p.lotId);
+  // doses de chaque application, par produit et lot fournisseur (lots présents et lots d'origine) : dans l'unité du produit
+  const dosesDe = (r) => R.apps.filter((a) => a.produitId === r.produitId && (a.arrivageId || '') === (r.arrivageId || '') && a.lotId && r.lots.has(a.lotId) && a.dose != null).map((a) => a.dose);
+  const blocs = {
+    fermentation: <FermentationSection contId={id} />,
+    jauge: <JaugeSection contId={id} />,
+    lots: <Sec title={`Lots présents (${ps.length})`} className="mb-5">
+      <Tbl rows={ps.map((p) => ({ ...p, id: p.portionId }))} empty="Contenant vide." onRow={(p) => showLot(p.lotId)} cols={[
+        { h: 'Lot', r: (p) => <LotLink id={p.lotId} /> }, { h: 'Désignation', cls: 'hm', r: (p) => (R.lots[p.lotId] || {}).designation }, { h: 'Stade', r: (p) => <StadeChip id={(R.lots[p.lotId] || {}).stade} compact /> }, { h: 'Revendication', r: (p) => <QChip id={(R.lots[p.lotId] || {}).qualif} /> }, { h: ECH.nom, r: (p) => <EChip info={lotEchelle(db, R, p.lotId)} compact /> },
+        { h: 'Volume', cls: 'r', r: (p) => <span className="num">{fmtL(p.vol)}</span> }, { h: 'Part', cls: 'r hm', r: (p) => <span className="num">{pct(p.vol / (vol || 1))}</span> }, { h: 'Depuis', cls: 'hm', r: (p) => fmtDate(p.since) },
+        { h: 'Agir', r: (p) => <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>{['intrant', 'transfert', 'jaugeage'].map((t) => <ActBtn key={t} type={t} portionId={p.portionId} />)}</div> },
+      ]} />
+    </Sec>,
+    composition: <Sec title="Composition du contenu" right={ps.length > 1 ? <span className="text-xs text-ink2">mélange de {ps.length} lots, au prorata des volumes</span> : null} className="mb-5"><CompBlock comp={comp} empty="Contenant vide : aucune composition." /></Sec>,
+    intrants: <Sec title="Intrants du contenu (cumulés, lots d’origine inclus)" className="mb-5">
+      <Tbl rows={cumul.map((r, i) => ({ ...r, id: `${r.produitId}|${r.arrivageId}|${i}` }))} empty={ps.length ? 'Aucun intrant enregistré sur ces lots ni sur leurs lots d’origine.' : 'Contenant vide.'} cols={[
+        { h: 'Produit', r: (r) => <b>{prodOf(db, r.produitId).nom}</b> }, { h: 'Lot fournisseur', r: (r) => r.numLot || '—' }, { h: 'Quantité cumulée', cls: 'r', r: (r) => <span className="num">{fmt(r.qty, 2)} {r.unite}</span> },
+        { h: 'Doses à l’application', cls: 'r', r: (r) => { const t = dosesTexte(dosesDe(r), r.unite); return t ? <span className="num" title="Dose de chaque ajout, dans l’unité du produit, au volume traité ce jour-là">{t}</span> : '—'; } },
+        { h: 'Lots concernés', r: (r) => <div className="flex flex-wrap gap-x-2">{[...r.lots].map((l) => <LotLink key={l} id={l} />)}</div> }, { h: 'Origine', cls: 'hm', r: (r) => (r.direct ? <Chip tone="info">appliqué sur le lot présent</Chip> : <Chip>lot d’origine</Chip>) },
+        { h: '', r: (r) => (r.unauth ? <Chip tone="bad">non autorisé</Chip> : null) },
+      ]} />
+    </Sec>,
+    ajouts: <Sec title="Ajouts d’intrants réalisés dans ce contenant" className="mb-5"><Tbl rows={apps.slice(0, 40)} empty="Aucun intrant enregistré." cols={[
+      { h: 'Date', r: (a) => fmtDate(a.date) }, { h: 'Lot de vin', r: (a) => <LotLink id={a.lotId} /> }, { h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> },
+      { h: 'Dose', cls: 'r', r: (a) => (a.dose != null ? <span className={cx('num', a.over && 'text-bad')}>{doseTexte(a.dose, a.unite)}</span> : '—') }, { h: 'Lot fournisseur', r: (a) => a.numLot || '—' },
+    ]} /></Sec>,
+    hygiene: <Sec title="Hygiène" right={<Btn size="sm" onClick={() => openHyg({ cibleType: 'contenant', cibleId: id })}>+ Ajouter</Btn>}><Tbl rows={hyg.slice(0, 12)} empty="Aucune action d’hygiène." cols={[{ h: 'Date', r: (h) => fmtDate(h.date) }, { h: 'Action', r: (h) => lbl(db, 'actionsHygiene', h.actionId) }, { h: 'Produit', r: (h) => h.produit || '—' }, { h: 'Par', r: (h) => (Array.isArray(h.operateurs) && h.operateurs.length ? <OperateursChips ids={h.operateurs} /> : <span className="text-xs">{h.operateur || '—'}</span>) }]} /></Sec>,
+    analyses: <Sec title="Analyses prélevées ici" right={ps.length ? <Btn size="sm" onClick={() => openAnalyse({ lotId: ps[0].lotId, contenantId: id })}>+ Ajouter</Btn> : null}><Tbl rows={ans.slice(0, 12)} empty="Aucune analyse." cols={[{ h: 'Date', r: (a) => fmtDate(a.date) }, { h: 'Lot', r: (a) => <LotLink id={a.lotId} /> }, { h: 'Valeurs', r: (a) => Object.keys(a.valeurs).map((k) => `${(db.analysesParams.find((p) => p.id === k) || {}).nom} ${fmt(a.valeurs[k], (db.analysesParams.find((p) => p.id === k) || {}).dec || 0)}`).join(' · ') }]} /></Sec>,
+    mouts: <MoutsRecusSection cid={id} />,
+    historique: <Sec title="Historique des opérations"><Tbl rows={ops.slice(0, 30)} empty="Aucune opération." cols={[{ h: 'Date', r: (o) => fmtDate(o.date) }, { h: 'Opération', r: (o) => <span className="inline-flex flex-wrap items-center gap-1"><Chip tone={OP_TONE[o.type]}>{opNom(o)}</Chip><GroupeChip x={o} /></span> }, { h: 'Détail', r: (o) => opSummary(db, R, o) }, { h: 'Opérateur(s)', r: (o) => <OperateursChips ids={o.operateurs} /> }, { h: '', r: (o) => <WarnChip n={(R.warn[o.id] || []).length} verified={o.verifie} /> }]} /></Sec>,
+  };
   return (
     <Sheet title={c.nom} sub={`${lbl(db, 'typesContenant', c.type)} · ${lbl(db, 'matieres', c.matiere)}${c.fabricant || c.annee ? ` · fabriqué${c.fabricant ? ` par ${c.fabricant}` : ''}${c.annee ? ` en ${c.annee}` : ''}` : ''}${db.sites.length > 1 ? ` · ${siteName(db, c.siteId)}` : ''}`} onClose={onClose} onBack={onBack} backLabel={backLabel} onCloseAll={onCloseAll} wide
-      footer={<><Btn kind="danger" onClick={del} className="mr-auto">Supprimer</Btn><Btn onClick={() => openReport({ kind: 'cont', ids: [id] })}>🖨 Rapport…</Btn><Btn onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openMenu(id, r.left, r.top - 8, true); }}>Opérations ▾</Btn><Btn onClick={() => act((d) => contSave(d, { ...c, statut: c.statut === 'archive' ? 'actif' : 'archive' }, id), c.statut === 'archive' ? 'Contenant réactivé.' : 'Contenant archivé.')}>{c.statut === 'archive' ? 'Réactiver' : 'Archiver'}</Btn><Btn kind="primary" onClick={() => editCont(id)}>Modifier</Btn></>}>
+      footer={<><Btn kind="danger" onClick={del} className="mr-auto">Supprimer</Btn><Btn onClick={() => setEtiq(true)} title="Étiquette QR de ce contenant (fiche ouverte d’un scan)">🏷 Étiquette QR</Btn><Btn onClick={() => openReport({ kind: 'cont', ids: [id] })}>🖨 Rapport…</Btn><Btn onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openMenu(id, r.left, r.top - 8, true); }}>Opérations ▾</Btn><Btn onClick={() => act((d) => contSave(d, { ...c, statut: c.statut === 'archive' ? 'actif' : 'archive' }, id), c.statut === 'archive' ? 'Contenant réactivé.' : 'Contenant archivé.')}>{c.statut === 'archive' ? 'Réactiver' : 'Archiver'}</Btn><Btn kind="primary" onClick={() => editCont(id)}>Modifier</Btn></>}>
       <div className="mb-5 flex flex-wrap items-center gap-5">
         <ContainerGlyph db={db} R={R} c={c} width={Math.max(96, tileSize(db, c).sw)} />
         <dl className="kv"><dt>Contenu</dt><dd className="num">{fmtL(vol)} / {fmtL(c.volMax)} ({pct(vol / c.volMax)})</dd><dt>Statut</dt><dd>{c.statut === 'archive' ? 'Archivé' : 'Actif'}</dd>
-          {ps.length ? <><dt>Revendication</dt><dd className="flex flex-wrap gap-1">{uniq(ps.map((p) => (R.lots[p.lotId] || {}).qualif)).map((qq) => <QChip key={qq} id={qq} />)}</dd><dt>{ECH.nom}</dt><dd><EChip info={ei} /></dd></> : null}
+          {ps.length ? <><dt>Stade</dt><dd className="flex flex-wrap gap-1" data-stade-cuve="">{uniq(ps.map((p) => (R.lots[p.lotId] || {}).stade).filter(Boolean)).map((st) => <StadeChip key={st} id={st} />)}</dd><dt>Revendication</dt><dd className="flex flex-wrap gap-1">{uniq(ps.map((p) => (R.lots[p.lotId] || {}).qualif)).map((qq) => <QChip key={qq} id={qq} />)}</dd><dt>{ECH.nom}</dt><dd><EChip info={ei} /></dd></> : null}
           <dt>Apparence</dt><dd className="flex items-center gap-2"><span className="swatch" style={{ background: mat.couleur }} />{lbl(db, 'matieres', c.matiere)} · {formeLabel(formeOf(db, c))}</dd>{c.notes ? <><dt>Notes</dt><dd>{c.notes}</dd></> : null}</dl>
         {R.capOver[id] ? <Notice tone="bad" title="À vérifier">Le volume dépasse la capacité maximale du contenant.</Notice> : null}
+        <div className="ml-auto flex flex-wrap gap-1 self-start no-print"><Btn size="sm" onClick={() => setCalc('so2')} disabled={!ps.length} title="SO₂ moléculaire, enrichissement">🧪 Calculs</Btn><Btn size="sm" onClick={() => setPerso(true)} title="Rubriques affichées et leur ordre">⚙ Personnaliser la fiche</Btn></div>
       </div>
-      <JaugeSection contId={id} />
-      <Sec title={`Lots présents (${ps.length})`} className="mb-5">
-        <Tbl rows={ps.map((p) => ({ ...p, id: p.portionId }))} empty="Contenant vide." onRow={(p) => showLot(p.lotId)} cols={[
-          { h: 'Lot', r: (p) => <LotLink id={p.lotId} /> }, { h: 'Désignation', cls: 'hm', r: (p) => (R.lots[p.lotId] || {}).designation }, { h: 'Revendication', r: (p) => <QChip id={(R.lots[p.lotId] || {}).qualif} /> }, { h: ECH.nom, r: (p) => <EChip info={lotEchelle(db, R, p.lotId)} compact /> },
-          { h: 'Volume', cls: 'r', r: (p) => <span className="num">{fmtL(p.vol)}</span> }, { h: 'Part', cls: 'r hm', r: (p) => <span className="num">{pct(p.vol / (vol || 1))}</span> }, { h: 'Depuis', cls: 'hm', r: (p) => fmtDate(p.since) },
-          { h: 'Agir', r: (p) => <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>{['intrant', 'transfert', 'jaugeage'].map((t) => <ActBtn key={t} type={t} portionId={p.portionId} />)}</div> },
-        ]} />
-      </Sec>
-      <Sec title="Composition du contenu" right={ps.length > 1 ? <span className="text-xs text-ink2">mélange de {ps.length} lots, au prorata des volumes</span> : null} className="mb-5"><CompBlock comp={comp} empty="Contenant vide : aucune composition." /></Sec>
-      <Sec title="Intrants du contenu (cumulés, lots d’origine inclus)" className="mb-5">
-        <Tbl rows={cumul.map((r, i) => ({ ...r, id: `${r.produitId}|${r.arrivageId}|${i}` }))} empty={ps.length ? 'Aucun intrant enregistré sur ces lots ni sur leurs lots d’origine.' : 'Contenant vide.'} cols={[
-          { h: 'Produit', r: (r) => <b>{prodOf(db, r.produitId).nom}</b> }, { h: 'Lot fournisseur', r: (r) => r.numLot || '—' }, { h: 'Quantité cumulée', cls: 'r', r: (r) => <span className="num">{fmt(r.qty, 2)} {r.unite}</span> },
-          { h: 'Lots concernés', r: (r) => <div className="flex flex-wrap gap-x-2">{[...r.lots].map((l) => <LotLink key={l} id={l} />)}</div> }, { h: 'Origine', cls: 'hm', r: (r) => (r.direct ? <Chip tone="info">appliqué sur le lot présent</Chip> : <Chip>lot d’origine</Chip>) },
-          { h: '', r: (r) => (r.unauth ? <Chip tone="bad">non autorisé</Chip> : null) },
-        ]} />
-      </Sec>
-      <Sec title="Ajouts d’intrants réalisés dans ce contenant" className="mb-5"><Tbl rows={apps.slice(0, 40)} empty="Aucun intrant enregistré." cols={[
-        { h: 'Date', r: (a) => fmtDate(a.date) }, { h: 'Lot de vin', r: (a) => <LotLink id={a.lotId} /> }, { h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> },
-        { h: 'Dose', cls: 'r', r: (a) => (a.dose != null ? <span className={cx('num', a.over && 'text-bad')}>{fmt(a.dose, 1)} {doseUnit(a.unite)}</span> : '—') }, { h: 'Lot fournisseur', r: (a) => a.numLot || '—' },
-      ]} /></Sec>
-      <div className="grid2">
-        <Sec title="Hygiène" right={<Btn size="sm" onClick={() => openHyg({ cibleType: 'contenant', cibleId: id })}>+ Ajouter</Btn>}><Tbl rows={hyg.slice(0, 12)} empty="Aucune action d’hygiène." cols={[{ h: 'Date', r: (h) => fmtDate(h.date) }, { h: 'Action', r: (h) => lbl(db, 'actionsHygiene', h.actionId) }, { h: 'Produit', r: (h) => h.produit || '—' }, { h: 'Par', r: (h) => (Array.isArray(h.operateurs) && h.operateurs.length ? <OperateursChips ids={h.operateurs} /> : <span className="text-xs">{h.operateur || '—'}</span>) }]} /></Sec>
-        <Sec title="Analyses prélevées ici" right={ps.length ? <Btn size="sm" onClick={() => openAnalyse({ lotId: ps[0].lotId, contenantId: id })}>+ Ajouter</Btn> : null}><Tbl rows={ans.slice(0, 12)} empty="Aucune analyse." cols={[{ h: 'Date', r: (a) => fmtDate(a.date) }, { h: 'Lot', r: (a) => <LotLink id={a.lotId} /> }, { h: 'Valeurs', r: (a) => Object.keys(a.valeurs).map((k) => `${(db.analysesParams.find((p) => p.id === k) || {}).nom} ${fmt(a.valeurs[k], (db.analysesParams.find((p) => p.id === k) || {}).dec || 0)}`).join(' · ') }]} /></Sec>
-      </div>
-      <MoutsRecusSection cid={id} />
-      <Sec title="Historique des opérations"><Tbl rows={ops.slice(0, 30)} empty="Aucune opération." cols={[{ h: 'Date', r: (o) => fmtDate(o.date) }, { h: 'Opération', r: (o) => <Chip tone={OP_TONE[o.type]}>{opNom(o)}</Chip> }, { h: 'Détail', r: (o) => opSummary(db, R, o) }, { h: 'Opérateur(s)', r: (o) => <OperateursChips ids={o.operateurs} /> }, { h: '', r: (o) => <WarnChip n={(R.warn[o.id] || []).length} verified={o.verifie} /> }]} /></Sec>
+      <RubriquesRendu dispo={dispo} blocs={blocs} paires={[['hygiene', 'analyses']]} />
+      {perso ? <FicheRubriquesSheet kind="cont" onClose={() => setPerso(false)} /> : null}
+      {calc ? <CalculsSheet contId={id} onglet={calc} onClose={() => setCalc(null)} /> : null}
+      {etiq ? <EtiquettesSheet contIds={[id]} onClose={() => setEtiq(false)} /> : null}
     </Sheet>
   );
 }

@@ -74,7 +74,8 @@ function BaseView() {
         <Setting label="TAV visé après enrichissement (% vol)" k="chaptalTAV" defaut={10.5} help="Valeur proposée par défaut (10,5) ; modifiable sur chaque fiche de cuve." />
         <Setting label="Sucre pour 1 % vol (g/L)" k="chaptalCoef" defaut={17} help="Usage courant : 17 g/L pour 1 % vol (vins blancs) ; sert aussi à déduire le TAP des sucres." />
         <Setting label="Enrichissement maximal (% vol)" k="chaptalMax" defaut={2} zero help="Avertissement au-delà ; 0 = pas de contrôle. À adapter à la réglementation de la campagne." /></div>
-        <p className="help mt-2">Le calcul part de la moyenne pondérée des analyses saisies à l’entrée des moûts (TAP, ou sucres en g/L) : sucre à ajouter = (TAV visé − TAP) × g/L par % vol × volume.</p></div></Sec>
+        <p className="help mt-2">Le calcul part de la moyenne pondérée des analyses saisies à l’entrée des moûts (TAP, ou sucres en g/L) : sucre à ajouter = (TAV visé − TAP) × g/L par % vol × volume. <span>Simulateur (sucre ou MCR) : bouton « 🧪 Calculs » des fiches de cuve et de lot.</span></p></div></Sec>
+      <FermReglagesCard />
       <Sec title="Charte graphique"><ChartePicker /></Sec>
       <Sec title="Mode d’affichage"><ModePicker /></Sec>
     </div>

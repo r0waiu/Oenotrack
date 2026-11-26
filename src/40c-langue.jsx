@@ -74,6 +74,12 @@ function langueChanger(id) {
   try { document.documentElement.lang = LANGUE; } catch (e) { /* ignoré */ }
   Traducteur.demarrer();
 })();
+// langue courante, pour un composant qui compose lui-même un texte d'une zone non traduite automatiquement (translate="no")
+function useLangue() {
+  const [lg, setLg] = useState(LANGUE);
+  useEffect(() => { const f = () => setLg(LANGUE); window.addEventListener('oenotrack-langue', f); return () => window.removeEventListener('oenotrack-langue', f); }, []);
+  return lg;
+}
 // choix de la langue : noms des langues jamais traduits
 function LangueChoix({ compact, className }) {
   const [lg, setLg] = useState(LANGUE);

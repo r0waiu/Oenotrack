@@ -18,8 +18,9 @@ const docIdDistant = (nom) => String(nom || '').split('.')[0];
 
 /**
  * Une synchronisation complète : recevoir (si le fichier a changé), puis envoyer (si cet appareil a du nouveau).
- * h (hôte) : { lireLocale(), appliquer(db), vide(db), snapLire(id), snapEcrire(id, db), construire(db, sync) → texte,
- *              lire(texte) → { db, sync }, docLocal(id) → Promise<bool>, docLire(id) → Promise<Blob|null>, docEcrire(id, blob),
+ * h (hôte) : { lireLocale(), appliquer(db), vide(db), snapLire(id), snapEcrire(id, db), construire(db, sync) → texte (ou Promise),
+ *              lire(texte) → { db, sync } (ou Promise), docLocal(id) → Promise<bool>, docLire(id) → Promise<Blob|null>, docEcrire(id, blob),
+ *              facultatifs (chiffrement, 0.29.0-alpha.1) : docNom(doc) → nom distant, docEnvoi(blob) → Promise<Blob>, docRecu(blob) → Promise<Blob>,
  *              appareil: { tag, nom }, nouvelId(), maintenant() → ISO, aujourdhui() → 'AAAA-MM-JJ' }
  * e (état de cet appareil, modifié en place) : { rev, syncId, lignee, empreinteDistante, docsDistants, historiqueJour }
  * → { recu: fusion|null, adopte: bool, envoye: bool, docsRecus, docsEnvoyes, essais }
@@ -35,7 +36,7 @@ async function cloudSynchroniser(f, dossier, e, h, opts) {
     if (info && info.rev !== e.rev) {
       const r = await f.lireBase(dossier);
       if (r) {
-        const { db: R, sync } = h.lire(r.texte); const idR = (sync && sync.id) || `r${hash36(String(r.rev))}`;
+        const { db: R, sync } = await h.lire(r.texte); const idR = (sync && sync.id) || `r${hash36(String(r.rev))}`;
         const chaine = [idR, ...((sync && sync.ancetres) || [])].filter((x, i, a) => x && a.indexOf(x) === i);
         let base = null; for (const id of chaine) { base = await h.snapLire(id); if (base) break; }
         const L = h.lireLocale();
@@ -55,8 +56,8 @@ async function cloudSynchroniser(f, dossier, e, h, opts) {
         const D = h.lireLocale().docs || []; const manquants = [];
         for (const d of D) if (!(await h.docLocal(d.id))) manquants.push(d);
         if (manquants.length) {
-          docsR = await f.listerDocs(dossier); const parId = {}; Object.keys(docsR).forEach((n) => { parId[docIdDistant(n)] = docsR[n]; });
-          for (const d of manquants) { const ref = parId[d.id]; if (!ref) continue; const b = await f.lireDoc(dossier, ref); if (b) { await h.docEcrire(d.id, b); e.docsDistants[d.id] = ref; res.docsRecus += 1; } }
+          docsR = await f.listerDocs(dossier); const parId = {}; Object.keys(docsR).forEach((n) => { const id = docIdDistant(n); if (!parId[id] || /\.chiffre$/i.test(n)) parId[id] = docsR[n]; }); // copie chiffrée d'abord (0.29.0-alpha.1)
+          for (const d of manquants) { const ref = parId[d.id]; if (!ref) continue; const b = await f.lireDoc(dossier, ref); if (b) { await h.docEcrire(d.id, h.docRecu ? await h.docRecu(b) : b); e.docsDistants[d.id] = ref; res.docsRecus += 1; } }
         }
       }
     } else if (!info) { e.rev = null; } // dossier vide (ou fichier supprimé) : on (ré)écrit tout
@@ -66,13 +67,13 @@ async function cloudSynchroniser(f, dossier, e, h, opts) {
     for (const d of (L2.docs || [])) {
       if (e.docsDistants[d.id]) continue;
       if (!docsR) { docsR = await f.listerDocs(dossier); }
-      const nom = docNomDistant(d); if (docsR[nom]) { e.docsDistants[d.id] = docsR[nom]; continue; }
+      const nom = h.docNom ? h.docNom(d) : docNomDistant(d); if (docsR[nom]) { e.docsDistants[d.id] = docsR[nom]; continue; }
       const b = await h.docLire(d.id); if (!b) continue;
-      e.docsDistants[d.id] = await f.ecrireDoc(dossier, nom, b); res.docsEnvoyes += 1;
+      e.docsDistants[d.id] = await f.ecrireDoc(dossier, nom, h.docEnvoi ? await h.docEnvoi(b) : b); res.docsEnvoyes += 1; // chiffré si le chiffrement est actif
     }
     const id = h.nouvelId(); const anc = [e.syncId, ...e.lignee].filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 20);
     const sync = { id, ancetres: anc, appareil: h.appareil.tag, appareilNom: h.appareil.nom, ecritLe: h.maintenant(), documentsSepares: true };
-    const texte = h.construire(L2, sync);
+    const texte = await h.construire(L2, sync); // chiffré si le chiffrement est actif (0.29.0-alpha.1)
     try {
       const w = await f.ecrireBase(dossier, texte, e.rev || null);
       await h.snapEcrire(id, normalizeDb(clone(L2)));

@@ -50,7 +50,8 @@ function useDriveSync({ db, dbRef, applyDb, toast }) {
   const [appareil, setAppareil] = useState(appareilInfo);
   const marquer = () => { const d0 = dbRef.current; if (d0.meta.derniereSync !== todayISO()) applyDb({ ...d0, meta: { ...d0.meta, derniereSync: todayISO() } }); };
 
-  const analyser = async (text, fichier) => {
+  const analyser = async (text0, fichier) => {
+    const text = await sauvTexteEntree(text0, true); // fichier chiffré (0.29.0-alpha.1) : clé de l'appareil, sinon mot de passe demandé
     const s = lireSauvegarde(text); if (s.kind === 'documents') return { s };
     const sync = (s.head && s.head.sync) || null; const idF = sync && sync.id ? String(sync.id) : `f${hash36(text)}`;
     const chaine = [idF, ...((sync && sync.ancetres) || [])].filter((x, i, a) => x && a.indexOf(x) === i);
@@ -64,7 +65,8 @@ function useDriveSync({ db, dbRef, applyDb, toast }) {
     const e = etatRef.current; const id = nouvelIdSync(); const ap = appareilInfo();
     const anc = [e.syncId, ...(e.lignee || [])].filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 20);
     const b = await buildSauvegarde(dbx, 'derniereSync', { sync: { id, ancetres: anc, appareil: ap.tag, appareilNom: ap.nom, ecritLe: nowISO() } });
-    const w = await h.createWritable(); await w.write(b.text); await w.close();
+    const texte = await sauvTexteSortie(dbx, b.text, true); // chiffré si le réglage commun l'exige
+    const w = await h.createWritable(); await w.write(texte); await w.close();
     let lm = null; try { lm = (await h.getFile()).lastModified; } catch (er) { lm = Date.now(); }
     await snapEcrire(id, normalizeDb(clone(dbx)));
     setEtat({ fichierNom: h.name || e.fichierNom, syncId: id, lignee: anc, empreinteFichier: syncEmpreinte(dbx), fichierModifie: lm, derniereSync: nowISO(), derniereEcriture: nowISO(), appareilFichier: ap.nom, fichierEcritLe: nowISO(), suspendu: false, exportEnAttente: false, erreur: '' });
@@ -163,7 +165,8 @@ function useDriveSync({ db, dbRef, applyDb, toast }) {
     setOccupe('envoi');
     try {
       const b = await buildSauvegarde(dbx, 'derniereSync', { sync: { id, ancetres: anc, appareil: ap.tag, appareilNom: ap.nom, ecritLe: nowISO() } });
-      const r = await saveFile(nom, new Blob([b.text], { type: 'application/json' }), 'application/json');
+      const texte = await sauvTexteSortie(dbx, b.text, true);
+      const r = await saveFile(nom, new Blob([texte], { type: 'application/json' }), 'application/json');
       if (r.ok) { await snapEcrire(id, normalizeDb(clone(dbx))); setEtat({ fichierNom: nom, syncId: id, lignee: anc, empreinteFichier: syncEmpreinte(dbx), derniereEcriture: nowISO(), derniereSync: nowISO(), appareilFichier: ap.nom, fichierEcritLe: nowISO(), exportEnAttente: true, suspendu: false, erreur: '' }); marquer(); toast(`« ${nom} » enregistré : placez-le dans votre Drive à la place de l’ancien.`); }
       else if (r.declined) toast('Envoi annulé.'); else toast(failMsg(r), 'bad');
     } catch (er) { toast('Préparation du fichier impossible.', 'bad'); }
