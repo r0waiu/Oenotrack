@@ -2,7 +2,7 @@
 # Usage : python3 tools/paquet-web.py && python3 tools/depot-github.py DOSSIER   (DOSSIER : clone git du dépôt, ou dossier vide)
 #  - site : index.html, pages fixes, manifeste, service worker, icônes, LICENCE.txt ; config.json seulement s'il manque
 #    (celui du dépôt garde vos identifiants Drive et vos mentions) ;
-#  - code : src/, tools/, test/, build.mjs, README.md, CHANGELOG.md, .gitignore — jamais NOTES.md ni test/t37.mjs (données privées) ;
+#  - code : src/, tools/, test/, build.mjs, README.md, CHANGELOG.md, CLAUDE.md, .gitignore — jamais NOTES.md ni test/t37.mjs (données privées) ;
 #  - retirés : LISEZ-MOI.txt (remplacé par README.md) et code-source.zip (le code est dans le dépôt) ; LICENSE (texte GitHub) gardé.
 import os, sys, shutil
 racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,6 +28,6 @@ def copier(rel):
                 if r in PRIVES: continue
                 os.makedirs(os.path.join(depot, os.path.dirname(r)), exist_ok=True); shutil.copy(os.path.join(base, f), os.path.join(depot, r))
     else: shutil.copy(src, dst)
-for rel in ['src', 'tools', 'test', 'build.mjs', 'README.md', 'CHANGELOG.md', '.gitignore']: copier(rel)
+for rel in ['src', 'tools', 'test', 'build.mjs', 'README.md', 'CHANGELOG.md', 'CLAUDE.md', '.gitignore']: copier(rel)
 n = sum(len(f) for base, _, f in os.walk(depot) if '.git' not in base.split(os.sep))
 print('dépôt prêt :', depot, '—', n, 'fichiers (sans NOTES.md ni test/t37.mjs)')
