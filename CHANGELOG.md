@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.38.0-alpha.2 — 26/11/2026
+
+- Clés d’accès : « ＋ Activer sur cet appareil » demande maintenant l’empreinte, le visage ou le code PIN intégrés au téléphone ou à l’ordinateur (Android, iPhone et iPad, Windows Hello, Mac, Linux avec le Gestionnaire de mots de passe) au lieu de ne proposer que des clés USB / NFC ou un autre appareil ; « ＋ Clé de sécurité ou autre téléphone » garde les clés externes au choix
+- Connexion et déverrouillage par clé d’accès : l’appareil propose d’abord son propre déverrouillage (moyens retenus à l’enregistrement) ; clé publique lue aussi sur les navigateurs plus anciens ; iPad reconnu comme tel
+
 ## 0.38.0-alpha.1 — 26/11/2026
 
 - Impression : les couleurs des fiches d’opération à remplir (cases « relevé », en-têtes, bandeaux, lignes alternées) et des rapports sont imprimées telles qu’à l’écran, même quand « Graphiques d’arrière-plan » est décoché, et dans les fichiers HTML enregistrés

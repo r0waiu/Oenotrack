@@ -120,6 +120,11 @@ const init = () => {
   const toasts = async () => page.locator('.toast').allInnerTexts();
   const cdp = await ctx.newCDPSession(page); await cdp.send('WebAuthn.enable');
   const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+  // options demandées au navigateur (authentificateur intégré ou externe), relevées à chaque appel
+  await page.evaluate(() => { window.__webauthn = []; const c = navigator.credentials; const cr = c.create.bind(c); const gt = c.get.bind(c);
+    c.create = (o) => { window.__webauthn.push({ quoi: 'create', sel: o.publicKey.authenticatorSelection, hints: o.publicKey.hints, exclure: (o.publicKey.excludeCredentials || []).map((x) => x.transports || null) }); return cr(o); };
+    c.get = (o) => { window.__webauthn.push({ quoi: 'get', hints: o.publicKey.hints || null, transports: (o.publicKey.allowCredentials || []).map((x) => x.transports || null) }); return gt(o); }; });
+  const wa = () => page.evaluate(() => window.__webauthn);
   const params = async (s) => { await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('main button', { hasText: s }).first().click(); await page.waitForTimeout(350); };
   await params('Utilisateurs & droits');
   const fa = page.locator('main [data-activation] form'); const MDP = 'Essai-2026!zz';
@@ -132,6 +137,10 @@ const init = () => {
   await page.locator('[data-cle-ajouter]').first().click(); await page.waitForTimeout(1800);
   let d = await db(); const u0 = d.utilisateurs[0];
   ok('administrateur : appareil activé (clé publique ES256, domaine), accepté d’office', (u0.cles || []).length === 1 && u0.cles[0].acceptee === true && u0.cles[0].alg === -7 && u0.cles[0].rp === 'app.test' && !!u0.cles[0].cle && (await toasts()).some((x) => /Appareil enregistré : connexion simplifiée activée\./.test(x)), u0.cles);
+  let w = await wa();
+  ok('« Activer sur cet appareil » : authentificateur intégré demandé (empreinte, visage, code PIN — pas seulement USB / NFC / autre appareil), clé découvrable', w.length === 1 && w[0].sel.authenticatorAttachment === 'platform' && w[0].sel.residentKey === 'required' && w[0].sel.userVerification === 'required' && JSON.stringify(w[0].hints) === '["client-device"]', w);
+  ok('… clé enregistrée comme intégrée, avec ses transports (internal)', u0.cles[0].type === 'appareil' && (u0.cles[0].transports || []).includes('internal'), u0.cles[0]);
+  ok('… deux choix : cet appareil, ou clé de sécurité / autre téléphone', (await page.locator('[data-appareils] [data-cle-ajouter-externe]').count()) === 1 && /＋ Clé de sécurité ou autre téléphone/.test(await txt(page.locator('[data-appareils]'))));
   ok('… journal des accès : « Clé d’accès ajoutée »', (d.audit || []).some((a) => a.action === 'cle' && /Clé d’accès ajoutée/.test(a.resume)));
   // un opérateur : son appareil attend l'accord de l'administrateur
   await page.locator('main button', { hasText: '+ Nouvel utilisateur' }).first().click(); await page.waitForTimeout(400);
@@ -153,15 +162,19 @@ const init = () => {
   ok('opérateur connecté par mot de passe', (await page.locator('[data-utilisateur]').count()) === 1);
   await page.locator('[data-utilisateur]').click(); await page.waitForTimeout(300);
   const mc = ov().locator('[data-mes-cles]');
-  ok('« Mon compte » : connexion simplifiée, « ＋ Activer sur cet appareil (…) »', (await mc.count()) === 1 && /Connexion simplifiée \(clés d’accès\)/i.test(await txt(mc)) && (await mc.locator('[data-cle-ajouter]').count()) === 1);
-  await mc.locator('[data-cle-ajouter]').click(); await page.waitForTimeout(1800);
+  ok('« Mon compte » : connexion simplifiée, « ＋ Activer sur cet appareil (…) » et « ＋ Clé de sécurité ou autre téléphone »', (await mc.count()) === 1 && /Connexion simplifiée \(clés d’accès\)/i.test(await txt(mc)) && (await mc.locator('[data-cle-ajouter]').count()) === 1 && (await mc.locator('[data-cle-ajouter-externe]').count()) === 1);
+  await mc.locator('[data-cle-ajouter-externe]').click(); await page.waitForTimeout(1800);
   d = await db(); const opk = d.utilisateurs.find((u) => u.identifiant === 'chai').cles || [];
+  w = await wa();
+  ok('clé de sécurité : authentificateur externe demandé (USB, NFC, QR code), enregistrée comme externe', w[w.length - 1].sel.authenticatorAttachment === 'cross-platform' && opk.length === 1 && opk[0].type === 'externe' && opk[0].nom === 'Clé de sécurité' && (opk[0].transports || []).includes('usb'), [w[w.length - 1], opk]);
   ok('opérateur : appareil enregistré, en attente d’un administrateur', opk.length === 1 && opk[0].acceptee === false && (await toasts()).some((x) => /un administrateur doit l’accepter/.test(x)) && /en attente d’un administrateur/.test(await txt(ov().locator('[data-mes-cles]'))), opk);
   await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   await page.locator('[data-utilisateur]').click(); await page.waitForTimeout(250); await ov().locator('button:text-is("Se déconnecter")').click(); await page.waitForTimeout(600);
   // l'appareil de l'opérateur n'est pas encore accepté : bouton seulement si un appareil accepté existe pour ce domaine (administrateur, retiré du navigateur)
   await page.locator('[data-cle-connexion]').click(); await page.waitForTimeout(2500);
-  ok('… clé non acceptée : connexion refusée (« attend l’accord d’un administrateur » ou appareil inconnu)', (await page.locator('[data-utilisateur]').count()) === 0 && (await page.locator('[data-connexion] [role=alert], [data-connexion] .text-bad').count()) >= 1, await page.locator('[data-connexion]').innerText());
+  // la seule clé acceptée est intégrée à l'appareil de l'administrateur (transport internal) : la clé USB de l'opérateur n'est pas sollicitée,
+  // la demande reste ouverte (le système affiche « aucune clé d'accès ») ou échoue ; la demande suivante l'annule
+  ok('… clé non acceptée : connexion refusée (« attend l’accord d’un administrateur », appareil inconnu ou demande sans réponse)', (await page.locator('[data-utilisateur]').count()) === 0 && ((await page.locator('[data-connexion] [role=alert], [data-connexion] .text-bad').count()) >= 1 || /Vérification sur l’appareil/.test(await txt(page.locator('[data-cle-connexion]')))), await page.locator('[data-connexion]').innerText());
   // l'administrateur accepte l'appareil (connexion par mot de passe)
   await cx.locator('input[aria-label="Identifiant"]').fill('admin'); await cx.locator('input[aria-label="Mot de passe"]').fill(MDP); await cx.locator('button[type=submit]').click(); await page.waitForTimeout(1500);
   await params('Utilisateurs & droits');
@@ -173,6 +186,8 @@ const init = () => {
   await page.locator('[data-cle-connexion]').click(); await page.waitForTimeout(2500);
   d = await db();
   ok('connexion par empreinte, visage ou code PIN : l’opérateur est connecté sans mot de passe', (await page.locator('[data-utilisateur]').count()) === 1 && /Opérateur Essai/.test(await txt(page.locator('[data-utilisateur]'))), await page.locator('body').innerText().then((x) => x.slice(0, 300)));
+  w = await wa(); const wg = w.filter((x) => x.quoi === 'get').pop();
+  ok('… connexion : transports de chaque clé repris (internal pour l’appareil intégré, usb pour la clé)', !!wg && wg.transports.some((x) => x && x.includes('internal')) && wg.transports.some((x) => x && x.includes('usb')), wg);
   ok('… journal des accès : « Connexion par clé d’accès (Android|PC…) »', (d.audit || []).some((a) => /Connexion par clé d’accès \(/.test(a.resume || '')), (d.audit || []).slice(-3));
   // réglage : désactiver la connexion par clé → le bouton disparaît, le mot de passe reste
   await cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: auth2 });

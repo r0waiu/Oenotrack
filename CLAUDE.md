@@ -31,7 +31,12 @@ Mémoire du projet pour Claude et pour le vigneron. Œnotrack sert à la traçab
   - chiffrement optionnel AES-256-GCM avec PBKDF2 (`33b-chiffrement.js`, réglage commun).
 - **Authentification et verrouillage** (`34-acces.js`, `34b-cles-acces.js`, `48-acces.jsx`) :
   - comptes et profils de droits par module (`aucun` / `lecture` / `ecriture`) et droits spéciaux ; mots de passe hachés en PBKDF2 ;
-  - clés d'accès WebAuthn (empreinte, visage, code PIN) ; verrouillage automatique ; code de secours ;
+  - clés d'accès WebAuthn (`34b-cles-acces.js`, `48b-cles-acces.jsx`, 0.38.0-alpha.2 multiplateforme) ; verrouillage automatique ; code de secours :
+    - options construites par le moteur (`clesOptionsCreation`, `clesOptionsConnexion`) : mode `appareil` (« ＋ Activer sur cet appareil », `authenticatorAttachment: 'platform'`, `residentKey: 'required'`, indice `client-device` — sans cela Android ne proposait que USB / NFC / autre appareil), `externe` (« ＋ Clé de sécurité ou autre téléphone », `cross-platform`), `auto` quand `isUserVerifyingPlatformAuthenticatorAvailable()` répond non ;
+    - chaque clé garde `type` (`appareil` | `externe`) et `transports` (`CLES_TRANSPORTS`, repris dans `allowCredentials` à la connexion) ; anciennes clés sans ces champs inchangées ;
+    - clé publique : `getPublicKey()`, sinon lue dans l'objet d'attestation (`cleDepuisAttestation` : CBOR → COSE → SPKI, ES256 / RS256) ;
+    - jamais d'`await` entre le clic et `navigator.credentials.create/get` (Safari exige le geste de l'utilisateur) : disponibilité lue à l'affichage (`useClesIntegre`) ; une nouvelle demande annule la précédente (`cleSignal`, AbortController) ;
+    - t55 : authentificateurs virtuels CDP `internal` (cet appareil) et `usb` (clé de sécurité) ;
   - `gardeDroits(avant, après, uid)` contrôle **toute** modification et alimente le journal d'audit.
 - **Hors-ligne** : `sw.js` (précache) et `manifest.webmanifest` sont générés par `tools/paquet-web.py` et enregistrés dans `68j-installation.jsx` (PWA installable).
 - **Imports protégés** (`16e-garde.js`) : le type réel du fichier est vérifié, les PDF sont désarmés, les macros refusées et les formules CSV neutralisées (`csvSansFormule`).

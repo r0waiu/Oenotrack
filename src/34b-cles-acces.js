@@ -1,13 +1,23 @@
-/* ============ CLÉS D'ACCÈS : CONNEXION SIMPLIFIÉE PAR L'APPAREIL (0.28.0-alpha.1) ============
+/* ============ CLÉS D'ACCÈS : CONNEXION SIMPLIFIÉE PAR L'APPAREIL (0.28.0-alpha.1, multiplateforme 0.38.0-alpha.2) ============
    Empreinte digitale, visage ou code PIN de l'appareil (Windows Hello, Touch ID et Face ID sur Mac, iPhone et iPad, déverrouillage
    Android, Gestionnaire de mots de passe de Chrome sous Linux et ChromeOS, clé de sécurité USB/NFC, ou téléphone par QR code), grâce
    aux clés d'accès (norme WebAuthn). La clé privée ne quitte jamais l'appareil ; Œnotrack garde seulement la clé publique :
    db.utilisateurs[].cles [{ id (identifiant de la clé, base64url), nom, cle (clé publique SPKI, base64), alg (-7 ES256 | -257 RS256),
-   rp (domaine du site), creeLe, acceptee (false : en attente d'un administrateur), appareil }]
+   rp (domaine du site), creeLe, acceptee (false : en attente d'un administrateur), appareil,
+   type (0.38.0-alpha.2 : 'appareil' = empreinte, visage ou code PIN intégrés | 'externe' = clé de sécurité USB / NFC ou autre téléphone | '' inconnu),
+   transports (0.38.0-alpha.2 : moyens annoncés par l'appareil, CLES_TRANSPORTS ; repris à la connexion pour que le téléphone ou l'ordinateur
+   propose d'abord son propre déverrouillage) }]
+   Options WebAuthn (0.38.0-alpha.2, clesOptionsCreation / clesOptionsConnexion) : « cet appareil » demande l'authentificateur intégré
+   (authenticatorAttachment 'platform', clé d'accès découvrable, indice 'client-device') — sur Android, sans cela Chrome ne proposait que
+   les clés USB / NFC ou un autre appareil ; « clé de sécurité ou autre téléphone » demande un authentificateur externe ('cross-platform').
+   Navigateur sans getPublicKey() : la clé publique est lue dans l'objet d'attestation (CBOR, COSE → SPKI, cleDepuisAttestation).
    db.settings.securite.cles = { actif (vrai par défaut), validation : 'admin' (par défaut : un administrateur accepte chaque nouvel
    appareil) | 'libre' }. La vérification est locale, sans serveur : l'appareil signe un défi aléatoire, contrôlé avec la clé publique
    (origine, domaine, présence et vérification de l'utilisateur). Le mot de passe reste toujours possible. */
 const CLES_ALGS = [-7, -257];
+const CLES_TRANSPORTS = ['internal', 'hybrid', 'usb', 'nfc', 'ble', 'smart-card'];
+const clesTransports = (t) => (Array.isArray(t) ? [...new Set(t.map((x) => String(x || '')).filter((x) => CLES_TRANSPORTS.includes(x)))] : []);
+const clesType = (t) => (t === 'appareil' || t === 'externe' ? t : '');
 const clesB64 = (u8) => { let s = ''; const b = u8 instanceof Uint8Array ? u8 : new Uint8Array(u8); for (let i = 0; i < b.length; i += 1) s += String.fromCharCode(b[i]); return btoa(s); };
 const clesDeB64 = (s) => { const t = atob(String(s || '')); const o = new Uint8Array(t.length); for (let i = 0; i < t.length; i += 1) o[i] = t.charCodeAt(i); return o; };
 const clesB64u = (u8) => clesB64(u8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -27,6 +37,7 @@ function cleAjouter(db, uid, s) {
   if (!CLES_ALGS.includes(Number(s.alg))) return fail('Type de clé non pris en charge par Œnotrack (algorithmes ES256 ou RS256).');
   if ((db.utilisateurs || []).some((x) => x && (x.cles || []).some((k) => k && k.id === id))) return fail('Cette clé d’accès est déjà enregistrée.');
   const k = { id, nom: String((s && s.nom) || 'Appareil').trim().slice(0, 60) || 'Appareil', cle, alg: Number(s.alg), rp: String((s && s.rp) || '').slice(0, 253), creeLe: (s && s.le) || new Date().toISOString(), acceptee: clesReglages(db).validation === 'libre' || estAdmin(db, uid), appareil: String((s && s.appareil) || '').slice(0, 60) };
+  const tr = clesTransports(s && s.transports); if (tr.length) k.transports = tr; const ty = clesType(s && s.type); if (ty) k.type = ty;
   if (!Array.isArray(u.cles)) u.cles = []; u.cles.push(k); return okr({ id, acceptee: k.acceptee });
 }
 function cleModifier(db, uid, id, patch) {
@@ -70,4 +81,72 @@ async function cleVerifier(k, rep, att) {
     else if (Number(k.alg) === -257) { const cle = await S.importKey('spki', spki, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']); bon = await S.verify({ name: 'RSASSA-PKCS1-v1_5' }, cle, sig, donnees); }
     return bon ? { ok: true } : { ok: false, msg: 'Signature de l’appareil invalide.' };
   } catch (e) { return { ok: false, msg: `Vérification impossible : ${(e && e.message) || e}` }; }
+}
+
+// ---- options WebAuthn (0.38.0-alpha.2) : identiques sur Windows, macOS, iOS, Android, Linux ; le navigateur ignore les champs qu'il ne connaît pas
+// mode 'appareil' : authentificateur intégré (Windows Hello, Touch ID / Face ID, empreinte ou verrouillage Android, Gestionnaire de mots de passe)
+// mode 'externe' : clé de sécurité USB / NFC / Bluetooth ou téléphone par QR code ; mode 'auto' : au choix du navigateur (intégré d'abord)
+const clesDescripteur = (k) => { const d = { type: 'public-key', id: clesDeB64u(k.id) }; const t = clesTransports(k.transports); if (t.length) d.transports = t; return d; };
+function clesOptionsCreation(o) {
+  const mode = ['appareil', 'externe'].includes(o && o.mode) ? o.mode : 'auto'; const u = (o && o.user) || {};
+  const sel = { userVerification: 'required' };
+  if (mode === 'appareil') Object.assign(sel, { authenticatorAttachment: 'platform', residentKey: 'required', requireResidentKey: true });
+  else if (mode === 'externe') Object.assign(sel, { authenticatorAttachment: 'cross-platform', residentKey: 'preferred', requireResidentKey: false });
+  else Object.assign(sel, { residentKey: 'preferred', requireResidentKey: false });
+  return {
+    rp: { name: 'Œnotrack', id: o.rp }, user: { id: new TextEncoder().encode(String(u.id || '')).slice(0, 64), name: String(u.identifiant || u.id || ''), displayName: String(u.nom || u.identifiant || '') },
+    challenge: o.defi, pubKeyCredParams: CLES_ALGS.map((alg) => ({ type: 'public-key', alg })), timeout: 180000, attestation: 'none',
+    authenticatorSelection: sel, hints: mode === 'appareil' ? ['client-device'] : mode === 'externe' ? ['security-key', 'hybrid'] : ['client-device', 'hybrid', 'security-key'],
+    excludeCredentials: ((o && o.exclure) || []).filter((k) => k && k.id).map(clesDescripteur),
+  };
+}
+// connexion : clés acceptées avec leurs transports ; seulement des clés intégrées → l'appareil propose d'abord son propre déverrouillage
+function clesOptionsConnexion(o) {
+  const L = ((o && o.cles) || []).filter((k) => k && k.id).slice(0, 64);
+  const r = { challenge: o.defi, rpId: o.rp, userVerification: 'required', timeout: 120000, allowCredentials: L.map(clesDescripteur) };
+  if (L.length && L.every((k) => k.type === 'appareil' || clesTransports(k.transports).includes('internal'))) r.hints = ['client-device'];
+  else if (L.length && L.every((k) => k.type === 'externe')) r.hints = ['security-key', 'hybrid'];
+  return r;
+}
+// ---- lecture de la clé publique dans l'objet d'attestation (navigateurs sans getPublicKey : anciens Safari, Firefox, WebView)
+function clesCbor(u8) {
+  const b = u8 instanceof Uint8Array ? u8 : new Uint8Array(u8); let i = 0;
+  const lg = (inf) => { if (inf < 24) return inf; let n = 0; const t = inf === 24 ? 1 : inf === 25 ? 2 : inf === 26 ? 4 : inf === 27 ? 8 : -1; if (t < 0 || i + t > b.length) throw new Error('CBOR'); for (let j = 0; j < t; j += 1) n = n * 256 + b[i++]; return n; };
+  const lire = (prof) => {
+    if (prof > 16 || i >= b.length) throw new Error('CBOR'); const o = b[i++]; const maj = o >> 5; const n = lg(o & 31);
+    if (maj === 0) return n; if (maj === 1) return -1 - n;
+    if (maj === 2) { if (i + n > b.length) throw new Error('CBOR'); const v = b.slice(i, i + n); i += n; return v; }
+    if (maj === 3) { if (i + n > b.length) throw new Error('CBOR'); const v = new TextDecoder().decode(b.slice(i, i + n)); i += n; return v; }
+    if (maj === 4) { const a = []; for (let j = 0; j < n; j += 1) a.push(lire(prof + 1)); return a; }
+    if (maj === 5) { const m = new Map(); for (let j = 0; j < n; j += 1) { const k = lire(prof + 1); m.set(k, lire(prof + 1)); } return m; }
+    if (maj === 7) return n === 20 ? false : n === 21 ? true : null;
+    throw new Error('CBOR');
+  };
+  const v = lire(0); return { v, fin: i };
+}
+const clesDerLong = (n) => (n < 128 ? [n] : n < 256 ? [0x81, n] : [0x82, n >> 8, n & 255]);
+const clesDer = (tag, octets) => [tag, ...clesDerLong(octets.length), ...octets];
+const clesDerEntier = (u8) => { let v = Array.from(u8); while (v.length > 1 && v[0] === 0) v = v.slice(1); if (v[0] & 0x80) v = [0, ...v]; return clesDer(0x02, v); };
+// clé COSE (Map CBOR) → clé publique SPKI (DER), pour ES256 (EC2 P-256) et RS256
+function clesCoseVersSpki(m) {
+  if (!(m instanceof Map)) return null; const alg = m.get(3);
+  if (alg === -7 && m.get(1) === 2 && m.get(-1) === 1) {
+    const x = m.get(-2); const y = m.get(-3); if (!(x instanceof Uint8Array) || !(y instanceof Uint8Array) || x.length !== 32 || y.length !== 32) return null;
+    const ent = [0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07];
+    return { alg, spki: Uint8Array.from(clesDer(0x30, [...ent, ...clesDer(0x03, [0, 0x04, ...x, ...y])])) };
+  }
+  if (alg === -257 && m.get(1) === 3) {
+    const n = m.get(-1); const e = m.get(-2); if (!(n instanceof Uint8Array) || !(e instanceof Uint8Array) || n.length < 128) return null;
+    const ent = [0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00];
+    return { alg, spki: Uint8Array.from(clesDer(0x30, [...ent, ...clesDer(0x03, [0, ...clesDer(0x30, [...clesDerEntier(n), ...clesDerEntier(e)])])])) };
+  }
+  return null;
+}
+// objet d'attestation (CBOR { fmt, attStmt, authData }) → { alg, spki, flags } ; null si illisible
+function cleDepuisAttestation(att) {
+  try {
+    const m = clesCbor(att).v; const ad = m instanceof Map ? m.get('authData') : null; if (!(ad instanceof Uint8Array) || ad.length < 55) return null;
+    const flags = ad[32]; if (!(flags & 0x40)) return null; const l = (ad[53] << 8) | ad[54]; const p = 55 + l; if (p >= ad.length) return null;
+    const r = clesCoseVersSpki(clesCbor(ad.slice(p)).v); return r ? { ...r, flags } : null;
+  } catch (e) { return null; }
 }
