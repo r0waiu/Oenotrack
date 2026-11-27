@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.43.0-alpha.3 — 27/11/2026
+
+- Configuration guidée : à la toute première ouverture (après la page de présentation), ou depuis Paramètres › Affichage & application, un questionnaire Basique (l’essentiel, quelques minutes) ou Avancé (identifiants douaniers, cave et dégorgement, plan de vinification, alertes de conformité, opérateurs, campagne, onglet d’ouverture) règle l’application d’avance : profil viticole de la région, onglets affichés ou masqués, revendications et labels, base vide ou jeu d’exemple ; aperçu des changements avant de les appliquer, rien n’est supprimé, réponses reprises si on le relance.
+- Le questionnaire crée aussi le compte administrateur quand une équipe se connecte (code de secours affiché une fois) ; il se termine par une visite guidée de l’écran — bulles qui pointent les vrais onglets et boutons (Suivant, Précédent, Passer, flèches, Échap) — relançable à tout moment par « ❓ Visite guidée » dans l’en-tête.
+
 ## 0.43.0-alpha.2 — 27/11/2026
 
 - Vinification › Plan de vinification : le tableau se modifie directement sur la page, case par case (étapes, produits, doses, en-têtes ; ⋮ pour le type de ligne, l’étendue des doses, l’opération liée, déplacer, insérer ou retirer une ligne), sans bouton « Modifier » ; variantes du plan avec des conditions (partenaires, crus, échelle des crus, revendications, cépages, fractions, état sanitaire) : la plus précise qui correspond au lot l’emporte, sinon le plan général.
