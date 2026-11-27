@@ -289,7 +289,9 @@ function gardeDroits(avant, apres, uid) {
       if (sk.includes('dossierReseau')) { if (!sp('sauvegarde')) return refus(`le profil ${nomP} ne permet pas de régler le dossier réseau de l’entreprise`); audit.push({ uid, action: 'modification', type: 'parametres', resume: `Dossier réseau de l’entreprise : ${(B.dossierReseau || {}).chemin || 'retiré'}` }); }
       // assistant IA de l'espace de travail (0.38.0-alpha.1) : clé et modèle communs, droit d'ajouter ses propres clés — réservé aux administrateurs
       if (sk.includes('ia')) { if (!sp('utilisateurs')) return refus(`le profil ${nomP} ne permet pas de régler l’assistant IA de l’espace de travail`); const a0 = A.ia || {}, b0 = B.ia || {}; audit.push({ uid, action: 'securite', type: 'reglage', resume: `Assistant IA de l’espace de travail : ${[b0.cle !== a0.cle ? (b0.cle ? 'clé enregistrée' : 'clé retirée') : '', b0.fournisseur !== a0.fournisseur || b0.modele !== a0.modele ? `modèle ${b0.modele || '—'}` : '', b0.perso !== a0.perso || JSON.stringify(b0.persoUtilisateurs) !== JSON.stringify(a0.persoUtilisateurs) ? 'droits des clés personnelles modifiés' : ''].filter(Boolean).join(', ') || 'réglage modifié'}` }); }
-      const SPX = ['securite', 'chiffrement', 'dossierReseau', 'ia'];
+      // référentiel réglementaire (0.40.0-alpha.1) : activation et corrections de l'exploitation — droit d'écriture du module Intrants
+      if (sk.includes('referentiel')) { if (!ecr('intrants')) return refus(`le profil ${nomP} ne permet pas de corriger le référentiel réglementaire`); audit.push({ uid, action: 'modification', type: 'parametres', resume: 'Référentiel réglementaire des intrants modifié' }); }
+      const SPX = ['securite', 'chiffrement', 'dossierReseau', 'ia', 'referentiel'];
       if (sk.some((x) => !SPX.includes(x))) { if (!ecr('params')) return refus(`le profil ${nomP} ne permet pas de modifier les paramètres`); audit.push({ uid, action: 'modification', type: 'parametres', resume: `${GARDE_NOMS[k]} : ${sk.filter((x) => !SPX.includes(x)).slice(0, 6).join(', ')}` }); }
       continue;
     }

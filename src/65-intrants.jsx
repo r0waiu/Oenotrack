@@ -18,12 +18,12 @@ function ArrivageForm({ id, onClose, produitId0, onSaved }) {
 function ProduitForm({ id, onClose }) {
   const { db, act } = useApp(); const p = id ? db.produits.find((x) => x.id === id) : null;
   const [f, set, setF] = useDraft({ nom: p ? p.nom : '', categorie: p ? p.categorie : 'oeno', unite: p ? p.unite : 'g', fournisseurId: p ? p.fournisseurId : '', actif: p ? p.actif !== false : true, notes: p ? p.notes : '', reference: p ? p.reference || '' : '', lien: p ? p.lien || '' : '', fdsNonRequise: p ? !!p.fdsNonRequise : false, famille: p ? p.famille || '' : '', so2: p ? p.so2 || '' : '', ...Object.fromEntries(PRODUIT_INFOS.map(([k]) => [k, p ? p[k] || '' : ''])),
-    allergenesListe: p ? allergenesDe(p) : [], allergenesAucun: p ? !!p.allergenesAucun : false, rev: {} }); // 0.36.0-alpha.1 : allergènes à cocher, revendications Oui / Non
+    allergenesListe: p ? allergenesDe(p) : [], allergenesAucun: p ? !!p.allergenesAucun : false, rev: {}, composesL: composesVersChoix(p) }); // 0.40.0-alpha.1 : composés actifs // 0.36.0-alpha.1 : allergènes à cocher, revendications Oui / Non
   const [infosOuv, setInfosOuv] = useState(() => PRODUIT_INFOS.some(([k]) => p && p[k])); useSuiviFiche(p, setF, [...PRODUIT_INFOS.map((x) => x[0]), 'allergenesListe', 'allergenesAucun']);
   const { uid } = useApp();
   const [depot, setDepot] = useState(null); const [veille, setVeille] = useState(false);
   const nomCasse = nomProduitCasse(f.nom.trim()); // nouveau produit : casse du nom harmonisée (0.26.0-alpha.1)
-  const save = () => { const s = { ...f, nom: id ? f.nom : nomCasse, revendications: f.categorie === 'sec' ? null : f.rev, uid }; const r = act((d) => produitSave(d, s, id), id ? 'Produit modifié.' : 'Produit créé (autorisé en Conventionnel par défaut : ajustez les règles).'); if (r.ok) onClose(); };
+  const save = () => { const s = { ...f, nom: id ? f.nom : nomCasse, revendications: f.categorie === 'sec' ? null : f.rev, uid, composes: composesDepuisChoix(f.composesL) }; delete s.composesL; if (!id && s.composes === null) delete s.composes; const r = act((d) => produitSave(d, s, id), id ? 'Produit modifié.' : 'Produit créé (autorisé en Conventionnel par défaut : ajustez les règles).'); if (r.ok) onClose(); };
   const lienOk = lienNorm(f.lien); const foNom = (db.fournisseurs.find((x) => x.id === f.fournisseurId) || {}).nom || '';
   const fds = p ? prodFdsEtat(db, { ...p, categorie: f.categorie, fdsNonRequise: f.fdsNonRequise }) : null;
   return (
@@ -56,6 +56,9 @@ function ProduitForm({ id, onClose }) {
         <Group label="Allergènes"><AllergenesChoix liste={f.allergenesListe} aucun={f.allergenesAucun} onChange={(L, a) => setF((x) => ({ ...x, allergenesListe: L, allergenesAucun: !!a && !L.length }))} suggestions={allergenesSuggeres({ ...f, famille: f.famille, allergenesListe: f.allergenesListe })} /></Group>
         {f.categorie !== 'sec' ? <Group label="Revendications" className="mt-2"><RevendicationsChoix p={p} value={f.rev} onChange={(v) => set('rev', v)} /></Group> : null}
       </div>
+      {f.categorie !== 'sec' ? <div className="rounded-md border border-line px-3 py-2" data-produit-composes=""><div className="mb-1 text-sm font-semibold">Composés actifs (référentiel réglementaire)</div>
+        <p className="help">Servent aux doses maximales et aux teneurs dans le vin (acide sorbique, cuivre…) : indiquez la teneur des produits formulés (ex. citrate de cuivre à 2 %).</p>
+        <ComposesChoix auto={refComposesDe({ categorie: f.categorie, nom: f.nom, famille: f.famille, composition: f.composition })} liste={f.composesL} onChange={(L) => set('composesL', L)} /></div> : null}
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
       {p ? (<Group label={`Fiches techniques, FDS et certificats${fds ? ` — ${fds.label}` : ''}`}>
         <DocsPanel cible={{ type: 'produit', id: p.id }} kind="produit" deposer={setDepot} aide="Chaque fichier déposé est lu (type, date de révision) ; une version plus récente remplace la précédente, qui reste dans les versions archivées." />
@@ -86,10 +89,17 @@ function RuleCell({ pid, qid, unit }) {
     <div className="flex flex-wrap items-center gap-2"><Check checked={r.autorise} label={r.autorise ? 'Autorisé' : 'Interdit'} onChange={(c) => act((d) => regleSet(d, pid, qid, { autorise: c, ...vu }))} />
       {r.autorise && du ? <span className="flex items-center gap-1 text-xs text-ink2"><DoseInput value={r.doseMax} label={`Dose légale max ${qLabel(qid)}`} onCommit={(n) => act((d) => regleSet(d, pid, qid, { doseMax: n, ...vu }))} />{du}</span> : null}
       {r.aVerifier ? <><Chip tone="warn" title={r.source || ''}>{/lu dans/.test(r.source || '') ? 'lu dans un document : à vérifier' : 'exemple à vérifier'}</Chip><Btn size="sm" onClick={() => act((d) => regleSet(d, pid, qid, vu), 'Règle vérifiée.')}>✓ Vérifiée</Btn></> : null}
+      <RefAvisCellule pr={pr} qid={qid} r={r} />
       {subs.length ? <span className="text-xs text-bad"><span>cahier des charges :</span> <span translate="no">{subs.map((x) => x.libelle || x.mot).join(', ')}</span> → {eff.autorise ? <><span>max</span> <span translate="no">{fmt(eff.doseMax, 2)} {du}</span></> : <span>interdit</span>}</span> : null}</div>
   );
 }
 
+// avis du référentiel réglementaire dans la cellule (0.40.0-alpha.1) : chip, et « Aligner » si la règle du produit s'en écarte
+function RefAvisCellule({ pr, qid, r }) {
+  const { db, act, uid } = useApp(); const lect = useLectureSeule('intrants'); const ref = useMemo(() => refRegleProduit(db, pr, qid), [db, pr, qid]);
+  if (!ref) return null; const ecart = !!r.autorise === ref.interdit || (!ref.interdit && ref.doseMax != null && (!hasNum(r.doseMax) || num(r.doseMax) > ref.doseMax + 1e-9));
+  return <span className="flex flex-wrap items-center gap-1"><RefAvisChip avis={{ ...ref, du: doseUnit(pr.unite) }} />{ecart && !lect ? <Btn size="sm" onClick={() => act((d) => regleDepuisReferentiel(d, pr.id, qid, uid), 'Règle alignée sur le référentiel (à vérifier).')} data-ref-aligner={`${pr.id}|${qid}`}>Aligner</Btn> : null}</span>;
+}
 function TabIntrants() {
   const { db, R, act, confirm, camp, setTab } = useApp();
   const [sub, setSub] = useState('stocks'); const [form, setForm] = useState(null); const [recap, setRecap] = useState(false); const [view, setView] = useState('lots'); const [onlyStock, setOnlyStock] = useState(true); const [cat, setCat] = useState(''); const [q, setQ] = useState('');
@@ -109,10 +119,11 @@ function TabIntrants() {
       <div className="mb-5 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
         <Kpi label="Lots en stock" value={fmt(live.length)} sub={`${fmt(db.produits.length)} produits référencés`} /><Kpi label="DLUO dépassée" value={fmt(nExp)} tone={nExp ? 'bad' : undefined} sub="lots encore en stock" /><Kpi label="DLUO < 30 jours" value={fmt(nSoon)} tone={nSoon ? 'warn' : undefined} /><Kpi label="FDS à revoir" value={fmt(RF.manquantes + RF.anciennes)} tone={RF.manquantes ? 'bad' : RF.anciennes ? 'warn' : 'ok'} sub={RF.manquantes > 1 ? `${fmt(RF.manquantes)} manquantes · ${fmt(RF.anciennes)} de plus de ${PROD_FDS_ANS} ans` : `${fmt(RF.manquantes)} manquante · ${fmt(RF.anciennes)} de plus de ${PROD_FDS_ANS} ans`} /><Kpi label="Fournisseurs" value={fmt(db.fournisseurs.length)} />
       </div>
-      <SubNav value={sub} onChange={setSub} items={[{ id: 'stocks', label: 'Stocks & arrivages', badge: nExp + nSoon || null }, { id: 'regles', label: 'Produits & règles par revendication' }, { id: 'fiches', label: 'Fiches FT & FDS', badge: nFds || null }, { id: 'catalogues', label: 'Catalogues', badge: nCatV || null }, { id: 'plafonds', label: 'Revendications & plafonds', badge: nPlafV || null }, { id: 'fourn', label: 'Fournisseurs' }]} />
+      <SubNav value={sub} onChange={setSub} items={[{ id: 'stocks', label: 'Stocks & arrivages', badge: nExp + nSoon || null }, { id: 'regles', label: 'Produits & règles par revendication' }, { id: 'fiches', label: 'Fiches FT & FDS', badge: nFds || null }, { id: 'catalogues', label: 'Catalogues', badge: nCatV || null }, { id: 'plafonds', label: 'Revendications & plafonds', badge: nPlafV || null }, { id: 'referentiel', label: '⚖ Référentiel réglementaire' }, { id: 'fourn', label: 'Fournisseurs' }]} />
       {sub === 'fiches' ? <IntrantsFichesView /> : null}
       {sub === 'catalogues' ? <CataloguesView /> : null}
       {sub === 'plafonds' ? <PlafondsView /> : null}
+      {sub === 'referentiel' ? <ReferentielView /> : null}
       {['stocks', 'regles'].includes(sub) ? <div className="mb-3 flex flex-wrap items-center gap-2"><TI value={q} onChange={setQ} placeholder="Rechercher produit, n° de lot…" style={{ width: 240 }} aria-label="Rechercher" /><SI value={cat} onChange={setCat} placeholder="Toutes catégories" style={{ width: 'auto' }} options={Object.keys(CATEGORIES).map((k) => ({ value: k, label: CATEGORIES[k] }))} aria-label="Catégorie" />
         {sub === 'stocks' ? <><Check checked={onlyStock} onChange={setOnlyStock} label="En stock seulement" /><SI value={view} onChange={setView} style={{ width: 'auto' }} options={[{ value: 'lots', label: 'Par lot fournisseur' }, { value: 'prod', label: 'Par produit' }, { value: 'mouv', label: 'Historique des mouvements' }]} aria-label="Vue" /><span className="ml-auto" /><Btn onClick={() => setRecap(true)} data-recap-ouvrir="">🖨 Fiche récapitulative</Btn><Btn disabled={camp.figee} onClick={() => setForm({ t: 'regul' })} data-regul-ouvrir="">± Régulariser</Btn><Btn kind="primary" disabled={camp.figee} onClick={() => setForm({ t: 'arr' })}>+ Nouvel arrivage</Btn></> : <><span className="ml-auto" /><Btn onClick={() => setRecap(true)} data-recap-ouvrir="">🖨 Fiche récapitulative</Btn><Btn kind="primary" onClick={() => setForm({ t: 'prod' })}>+ Nouveau produit</Btn></>}</div> : null}
       {sub === 'stocks' && view === 'mouv' ? <MouvementsView onRegul={(o) => setForm({ t: 'regul', ...o })} /> : null}

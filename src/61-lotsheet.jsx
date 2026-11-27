@@ -123,6 +123,7 @@ function LotSheet({ id, onClose }) {
       </Sec>,
     intrants: <Sec title="Intrants cumulés par portion (avec n° de lots fournisseurs)" className="mb-5">
         <DosesCumuleesTable lotId={id} />
+        <TeneursTable lotId={id} />
         {Object.keys(byCont).length ? Object.keys(byCont).map((k) => (
           <div key={k} className="mb-3"><div className="mb-1 text-sm font-semibold">{k === '_tirage' ? 'Tirage (mixtion)' : <>Portion en <ContLink id={k} /></>}</div>
             <Tbl rows={byCont[k]} cols={[{ h: 'Date', r: (a) => fmtDate(a.date) }, { h: 'Opération', r: (a) => OP_LABELS[a.opSousType || a.opType] || OP_LABELS[a.opType] }, { h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> }, { h: 'Dose', cls: 'r', r: (a) => (a.dose != null ? <span className={cx('num', a.over && 'text-bad')}>{doseTexte(a.dose, a.unite)}</span> : '—') }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }, { h: '', r: (a) => (a.unauth ? <Chip tone="bad">non autorisé</Chip> : null) }]} /></div>
@@ -157,6 +158,7 @@ function LotSheet({ id, onClose }) {
       <div className="mb-5 flex flex-wrap items-center gap-2"><StadeChip id={lot.stade} /><CouleurChip id={lot.couleur} /><QChip id={lot.qualif} /><EChip info={echelleInfo(comp)} />{lot.fractionId ? <Chip tone="info">{fracLabel(db, lot.fractionId)}</Chip> : null}<Chip title="Nature du lot">{LOT_TYPES[lot.type]}</Chip><Chip>{fmtL(vol)} en cuves</Chip>{tir ? <Chip tone="info">{fmt(tir.nb)} bouteilles sur lattes{tir.deg ? ` · ${fmt(tir.deg)} dégorgées` : ''}</Chip> : null}{(R.opsByLot[id] || []).some((oid) => (R.warn[oid] || []).length) ? <Chip tone="warn">⚠ opérations à vérifier</Chip> : null}<span className="ml-auto flex flex-wrap gap-1 no-print"><Btn size="sm" onClick={() => setCalc('so2')} title="SO₂ moléculaire, enrichissement">🧪 Calculs</Btn><Btn size="sm" onClick={() => setPerso(true)} title="Rubriques affichées et leur ordre">⚙ Personnaliser la fiche</Btn></span></div>
 
 
+      <ConformiteBloc lotId={id} modifiable />
       <RubriquesRendu dispo={dispo} blocs={blocs} />
       {perso ? <FicheRubriquesSheet kind="lot" onClose={() => setPerso(false)} /> : null}
       {calc ? <CalculsSheet lotId={id} onglet={calc} onClose={() => setCalc(null)} /> : null}
@@ -179,6 +181,7 @@ function FiniSheet({ id, onClose }) {
       <Sec title="Liqueur d’expédition" className="mb-5"><Tbl rows={preps} empty="Aucune liqueur d’expédition enregistrée." cols={[{ h: 'Préparation', r: (p) => <b>{p.code}</b> }, { h: 'Type', r: (p) => PREP_TYPES[p.ptype] }, { h: 'Qualification', r: (p) => <QChip id={p.qualif} /> }, { h: 'Volume utilisé', cls: 'r', r: (p) => <span className="num">{fmtL(p.use)}</span> }]} />
         {preps.map((p) => { const pa = R.apps.filter((a) => a.prepId === p.id && a.produitId); return pa.length ? <div key={p.id} className="mt-2"><div className="lbl">Ingrédients de {p.code}</div><Tbl rows={pa} cols={[{ h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }]} /></div> : null; })}
       </Sec>
+      <ConformiteBloc lotId={f.id} modifiable />
       <Sec title="SO₂ total estimé (lot de tirage + liqueur d’expédition)" className="mb-5"><So2EstimeBloc lotId={f.id} /></Sec>
       <Sec title="Bouchon, muselet et autres matières sèches" className="mb-5"><Tbl rows={apps} empty="Aucune matière sèche enregistrée." cols={[{ h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 0)} {a.unite}</span> }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }]} /></Sec>
       <Sec title="Traçabilité amont (de la bouteille à la vendange)"><div className="tree"><ul style={{ borderLeft: 0, paddingLeft: 0 }}><AncTree lotId={f.sourceLotId} /></ul></div></Sec>

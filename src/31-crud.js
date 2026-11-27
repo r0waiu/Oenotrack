@@ -314,8 +314,10 @@ function produitSave(db, s, id) {
   if (s.so2 !== undefined) { const t = String(s.so2 || '').trim().replace(/\s+/g, ' '); if (t && !/^\d+(?:[.,]\d+)?\s*(g|mg)\s*\/\s*(L|mL|kg|g|u)$/i.test(t)) return fail('Teneur en SO₂ : indiquez par exemple « 150 g/L », « 0,5 g/g » ou « 5 g/u ».'); item.so2 = t; }
   // 0.36.0-alpha.1 : allergènes à cocher (liste ALLERGENES), « aucun allergène » ; choix Oui / Non par revendication = règles du produit
   if (s.allergenesListe !== undefined) { const L = (Array.isArray(s.allergenesListe) ? s.allergenesListe : []).filter((x) => allergeneDef(x)); item.allergenesListe = ALLERGENES.map((a) => a[0]).filter((x) => L.includes(x)); }
+  // 0.40.0-alpha.1 : composés actifs (référentiel réglementaire) choisis à la main ; null = devinés d'après le nom
+  if (s.composes !== undefined && s.composes !== null) { item.composes = uniq((Array.isArray(s.composes) ? s.composes : []).map((x) => x && x.id).filter((x) => typeof refCompose !== 'function' || refCompose(x))).map((cid) => { const x = s.composes.find((y) => y.id === cid); return hasNum(x.part) && num(x.part) > 0 && num(x.part) <= 1 ? { id: cid, part: num(x.part) } : { id: cid }; }); }
   if (s.allergenesAucun !== undefined) item.allergenesAucun = !!s.allergenesAucun && !(item.allergenesListe || []).length;
-  if (id) { const p = db.produits.find((x) => x.id === id); if (!p) return fail('Produit introuvable.'); Object.assign(p, item); if (s.revendications) revendicationsAppliquer(db, id, s.revendications, { uid: s.uid }); return okr({ id }); }
+  if (id) { const p = db.produits.find((x) => x.id === id); if (!p) return fail('Produit introuvable.'); Object.assign(p, item); if (s.composes === null) delete p.composes; if (s.revendications) revendicationsAppliquer(db, id, s.revendications, { uid: s.uid }); return okr({ id }); }
   const pid = nid(db, 'pr'); db.produits.push({ id: pid, ...item });
   QUALIFS.forEach((q) => db.regles.push({ produitId: pid, qualifId: q.id, autorise: q.id === 'conv', doseMax: null }));
   if (s.revendications) revendicationsAppliquer(db, pid, s.revendications, { uid: s.uid });
