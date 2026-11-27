@@ -251,6 +251,7 @@ const VISITE_CHAPITRES = [
     { cible: '[data-params-menu]', titre: 'Rubriques', texte: 'Exploitation, vin et cuverie, équipe et sécurité, données et application.', sub: 'entreprise' },
     { cible: '[data-region-societe]', titre: 'Région et types de vins', texte: 'Votre région et vos types de vins règlent les opérations, cépages, appellations et fractions proposés.' },
     { cible: '[data-params-item="listes"]', titre: 'Revendications', texte: 'Revendications et leur rang ; pour le bio, le code d’agrément de l’organisme certificateur.' },
+    { cible: '[data-params-item="crus"]', titre: 'Crus et parcelles', texte: 'Chaque parcelle porte son appellation et son niveau dans la hiérarchie de cette appellation.' },
     { cible: '[data-params-item="codification"]', titre: 'Codification des lots', texte: 'Vos règles de codes de lots, stade par stade.' },
     { cible: '[data-params-item="utilisateurs"]', titre: 'Utilisateurs & droits', texte: 'Comptes, profils de droits, clés d’accès et verrouillage.' },
     { cible: '[data-params-item="sauvegarde"]', titre: 'Sauvegardes et synchronisation', texte: 'Drive, dossier partagé ou réseau, chiffrement de l’équipe.' },

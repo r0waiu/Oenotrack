@@ -40,6 +40,22 @@ function CampagnesView() {
   );
 }
 
+// 0.47.0-alpha.1 : hiérarchie de chaque appellation (proposée d'après le nom et la région, à confirmer ou à changer)
+function AppEchellesSec() {
+  const { db, act, uid } = useApp(); const lect = useLectureSeule('params'); const A = db.lists.appellations || [];
+  if (!A.length) return null;
+  return (<div className="mt-3 border-t border-line pt-3" data-app-echelles="">
+    <div className="lbl">Hiérarchie de chaque appellation</div>
+    <ul className="space-y-2">{A.map((a) => { const e = appellationEchelle(db, a.id) || {}; const h = e.hierarchie || {};
+      return (<li key={a.id} className="flex flex-wrap items-center gap-2 text-sm" data-app-echelle={a.id}>
+        <b className="min-w-0" translate="no">{a.label}</b>
+        <select className="inp" style={{ width: 'auto' }} value={e.id || ''} disabled={lect} aria-label={`Hiérarchie de ${a.label}`} onChange={(ev) => act((d) => appellationEchelleSet(d, a.id, ev.target.value, uid), 'Hiérarchie enregistrée.')}>{ECHELLE_HIERARCHIES.map((x) => <option key={x.id} value={x.id}>{x.nom}</option>)}</select>
+        {e.confirmee ? <Chip tone="ok">confirmée</Chip> : <><Chip tone="warn">proposée</Chip>{lect ? null : <Btn size="sm" onClick={() => act((d) => appellationEchelleSet(d, a.id, e.id, uid), 'Hiérarchie confirmée.')} data-app-echelle-confirmer={a.id}>✓ Confirmer</Btn>}</>}
+        {h.aVerifier ? <Chip title="Repère réglementaire à vérifier pour votre appellation">à vérifier</Chip> : null}
+        <span className="w-full text-xs text-ink2">{(h.items || []).map((i) => i.label).join(' < ')}</span>
+      </li>); })}</ul>
+  </div>);
+}
 // 0.46.0-alpha.2 : ajout d'une appellation depuis le référentiel (France, UE, Suisse, États-Unis, Australie), la région du profil d'abord
 function AppRefAjout() {
   const { db, act } = useApp(); const lect = useLectureSeule('params'); const [q, setQ] = useState(''); const region = profilViticole(db).region;
@@ -64,7 +80,7 @@ function ListCard({ meta }) {
         <li key={it.id} className="flex items-center gap-2">{ed && ed.id === it.id ? <><TI value={ed.label} onChange={(v) => setEd({ ...ed, label: v })} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') ren(); if (e.key === 'Escape') setEd(null); }} /><Btn size="sm" kind="primary" onClick={ren}>OK</Btn><Btn size="sm" onClick={() => setEd(null)}>✕</Btn></>
           : <><span className="min-w-0 flex-1 truncate">{it.label}</span>{n ? <Chip title="Nombre d’utilisations">{n}×</Chip> : null}<Btn size="sm" kind="ghost" onClick={() => setEd({ id: it.id, label: it.label })}>Renommer</Btn><Btn size="sm" kind="ghost" disabled={n > 0} title={n > 0 ? 'Utilisé : renommez plutôt que supprimer' : 'Supprimer'} onClick={() => act((d) => listRemove(d, meta.key, it.id), 'Élément supprimé.')}>Supprimer</Btn></>}</li>); })}</ul>
       <div className="mt-3 flex gap-2"><TI value={nv} onChange={setNv} placeholder="Nouvel élément…" onKeyDown={(e) => { if (e.key === 'Enter') add(); }} aria-label={`Ajouter à ${meta.title}`} /><Btn onClick={add}>Ajouter</Btn></div>
-      {meta.key === 'appellations' ? <AppRefAjout /> : null}
+      {meta.key === 'appellations' ? <><AppEchellesSec /><AppRefAjout /></> : null}
     </div>
   );
 }

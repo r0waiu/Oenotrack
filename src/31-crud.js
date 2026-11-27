@@ -56,6 +56,13 @@ function parcelleSave(db, s, id) {
   if (!s.cruId || !db.crus.some((c) => c.id === s.cruId)) return fail('Choisissez le cru (village) de la parcelle.');
   if (db.parcelles.some((p) => p.id !== id && p.cruId === s.cruId && norm(p.nom).trim() === norm(nom).trim())) return fail(`La parcelle « ${nom} » existe déjà dans ce cru.`);
   const item = { nom, cruId: s.cruId, lieuDit: String(s.lieuDit || '').trim(), cadastre: String(s.cadastre || '').trim(), surface: hasNum(s.surface) ? num(s.surface) : null, cepageId: s.cepageId || '', annee: String(s.annee || '').trim(), apporteurId: s.apporteurId || '', notes: String(s.notes || '').trim(), masque: !!s.masque };
+  // 0.47.0-alpha.1 : appellation de la parcelle et son niveau dans la hiérarchie de l'appellation (absents du formulaire : gardés)
+  if ('appellationId' in s) {
+    const appId = s.appellationId && ((db.lists && db.lists.appellations) || []).some((a) => a && a.id === s.appellationId) ? s.appellationId : '';
+    if (s.appellationId && !appId) return fail('Appellation introuvable dans la liste.');
+    const niv = appId && s.niveau ? s.niveau : ''; if (niv && typeof appellationNiveaux === 'function' && !appellationNiveaux(db, appId).some((i) => i.id === niv)) return fail('Niveau inconnu dans la hiérarchie de cette appellation.');
+    item.appellationId = appId; item.niveau = niv;
+  }
   if (id) { const p = db.parcelles.find((x) => x.id === id); if (!p) return fail('Parcelle introuvable.'); Object.assign(p, item); return okr({ id }); }
   const nid_ = nid(db, 'parc'); db.parcelles.push({ id: nid_, ...item }); return okr({ id: nid_ });
 }

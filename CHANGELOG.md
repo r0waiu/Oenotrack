@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.47.0-alpha.1 — 27/11/2026
+
+- Échelle par appellation : chaque appellation de votre liste a sa hiérarchie, proposée d’après son nom et sa région puis confirmée ou changée (Paramètres › Listes) — Champagne, Bourgogne, Chablis, Alsace, Beaujolais, Côtes du Rhône, Saint-Émilion, Médoc, Sauternes et Barsac, Graves, Languedoc, Val de Loire, Italie, Espagne, Allemagne (loi de 2021), Autriche (DAC), Portugal, Suisse, générique ; repères réglementaires à vérifier.
+- Parcelles : appellation et niveau dans sa hiérarchie (par exemple Chablis premier cru) ; la fiche d’un lot montre ses appellations et niveaux au prorata de ses parcelles. L’échelle des crus de l’exploitation reste en place.
+
 ## 0.46.0-alpha.2 — 27/11/2026
 
 - Référentiel des appellations viticoles (relevé officiel du 27/11/2026) : France — 365 AOP et 74 IGP (INAO, registre de l’UE eAmbrosia, cahiers des charges), Italie, Espagne, Portugal, Allemagne, Autriche (registre eAmbrosia), Suisse (AOC), États-Unis (AVA) et Australie (indications géographiques), soit 1 692 appellations avec leurs catégories et couleurs de vins ; Paramètres › Listes › Appellations : recherche et ajout depuis le référentiel, la région du profil d’abord.
