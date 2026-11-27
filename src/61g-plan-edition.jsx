@@ -120,6 +120,9 @@ function PlanFeuille({ lotIds: ids0, opId, auto, onClose }) {
     return { x, plan, c, col, etapes, fk };
   });
   const nb = sum(prep, (p) => p.etapes.filter((e) => e.retenue).length);
+  /* proposition automatique : rien à proposer (aucun lot avec une colonne et des étapes) → fermée d'elle-même */
+  const rien = !!auto && !prep.some((p) => p.plan && p.col && p.etapes.length);
+  useEffect(() => { if (rien) onClose(); }, [rien]); // eslint-disable-line react-hooks/exhaustive-deps
   const item = (x, e) => {
     const f0 = opInit(e.base, null, db, x.date); if (e.def.id !== e.base) f0.sousType = e.def.id;
     if (e.base !== 'etape') f0.portionId = x.portion.id; else { f0.lotId = x.id; if (e.def.stadeAuto && e.def.stadeAuto.actif && stadeDef(db, e.def.stadeAuto.stade)) f0.newStade = e.def.stadeAuto.stade; }

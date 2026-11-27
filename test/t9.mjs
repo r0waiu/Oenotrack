@@ -33,8 +33,8 @@ log('aperçu:', (await sh.locator('[role=alert], .rounded-md.px-3').last().inner
 await sh.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(500);
 log('toast:', await page.locator('.toast').innerText().catch(() => '-'));
 // 0.31.0-alpha.1 : schéma de vinification proposé aux lots créés (moûts de Chardonnay cuvée) → « Plus tard »
-log('schéma proposé :', await page.locator('[data-schema-feuille]').count(), (await page.locator('[data-schema-lot] select[aria-label="Schéma"]').evaluateAll((L) => L.map((x) => x.options[x.selectedIndex].text))).join(' / '));
-if (await page.locator('[data-schema-feuille]').count()) { await page.locator('.overlay').last().locator('.sheet-f button', { hasText: 'Plus tard' }).click(); await page.waitForTimeout(300); }
+log('schéma proposé :', await page.locator('[data-plan-feuille]').count(), (await page.locator('[data-plan-lot] select[aria-label^="Plan du lot"]').evaluateAll((L) => L.map((x) => x.options[x.selectedIndex].text))).join(' / '));
+if (await page.locator('[data-plan-feuille]').count()) { await page.locator('.overlay').last().locator('.sheet-f button', { hasText: 'Plus tard' }).click(); await page.waitForTimeout(300); }
 for (const n of ['Bac D1', 'Bac D2']) log(n, '→', (await page.locator('.pitem', { hasText: n }).first().innerText()).replace(/\n/g, ' | '));
 // réouvrir l'entrée d'exemple en modification depuis l'onglet Opérations
 await page.click('#tab-ops'); await page.waitForTimeout(400);
