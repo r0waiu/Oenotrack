@@ -168,11 +168,13 @@ function prepCompo(R, prepId) {
 }
 // bilan d'un tirage : vin (mixtion + part de vin des levains), liqueur (liqueurs + part de liqueur des levains), volume tiré, VRTP
 function tirageBilan(db, R, op) {
-  const vinMix = sum(op.sources || [], (s) => s.volL); let vinLev = 0; let liq = 0; let eau = 0; let autre = 0;
+  let vinMix = 0; let vinLev = 0; let liq = 0; let eau = 0; let autre = 0;
+  (op.sources || []).forEach((s) => { const c = (R.lotCompo || {})[s.lotId]; const v = num(s.volL); if (!c) { vinMix += v; return; } vinMix += v * c.vin; liq += v * c.liqueur; eau += v * c.eau; autre += v * c.autre; }); // cuve de mixtion (0.42.0-alpha.2)
   (op.prepUses || []).forEach((u) => { const c = prepCompo(R, u.prepId); const v = num(u.volL); liq += v * c.liqueur; vinLev += v * c.vin; eau += v * c.eau; autre += v * c.autre; });
   const formats = Array.isArray(op.formats) && op.formats.length ? op.formats : [{ format: 'bouteille', nb: num(op.nbBouteilles), L: num(op.volBouteilleL) || 0.75 }];
   const tireL = tirageVolFormats(formats); const vin = vinMix + vinLev; const vrtpL = tireL - liq - vin;
-  return { tireL, vinMixL: vinMix, vinLevainL: vinLev, vinL: vin, liqueurL: liq, eauL: eau, autreL: autre, vrtpL, vrtpPct: vin > 0 ? vrtpL / vin * 100 : 0, depasse: vin > 0 && vrtpL / vin * 100 > TIRAGE_VRTP_MAX_PCT + 1e-9, formats };
+  const levL = sum(op.prepUses || [], (u) => (((R.preps || {})[u.prepId] || {}).ptype === 'levain' ? num(u.volL) : 0)); // levain sans composition saisie : son volume inconnu compte dans le VRTP
+  return { tireL, vinMixL: vinMix, vinLevainL: vinLev, vinL: vin, liqueurL: liq, eauL: eau, autreL: autre, vrtpL, vrtpPct: vin > 0 ? vrtpL / vin * 100 : 0, depasse: vin > 0 && vrtpL / vin * 100 > TIRAGE_VRTP_MAX_PCT + 1e-9, formats, compoIncomplete: levL > 0 && autre > 0.5 * levL };
 }
 const tirageVrtp = (cols75, liqueurL, vinL) => num(cols75) * 0.75 - num(liqueurL) - num(vinL); // formule de l'exploitation (L) : bouteilles × 0,0075 hL − liqueur − vin
 

@@ -211,7 +211,11 @@ function replay(db, upTo, opts) {
         const parts = []; (op.sources || []).forEach((s) => { const t = take(op, s.portionId, s.volL); if (t) { tot += t.vol; parts.push({ lotId: t.lotId, vol: t.vol }); } });
         const lossV = sum(op.pertes, (x) => x.volL);
         (op.pertes || []).forEach((x) => flow(op, 'perte', -num(x.volL), { typeId: x.typeId, lotId: op.lotId }));
-        const np = addPortion(op, op.lotId, op.destId, Math.max(0, tot - lossV), op.outPortionId, concDe(parts)); // intrants des lots d'origine au prorata
+        // cuve de mixtion (0.42.0-alpha.2) : levain et liqueur versés avec le vin ; composition (vin, liqueur, eau) gardée pour le VRTP
+        const pu = op.mixtion ? (op.prepUses || []).map((u) => ({ u, p: usePrep(op, u, op.lotId) })).filter((x) => x.p) : []; const vp = sum(pu, (x) => x.u.volL);
+        if (op.mixtion) { const cp = prepCompoVide(); parts.forEach((x) => { const c = (R.lotCompo || {})[x.lotId]; if (c) Object.keys(cp).forEach((k) => { cp[k] += x.vol * c[k]; }); else cp.vin += x.vol; }); pu.forEach((x) => { const c = prepCompo(R, x.p.id); Object.keys(cp).forEach((k) => { cp[k] += num(x.u.volL) * c[k]; }); }); const tt = sum(Object.values(cp)); R.lotCompo = R.lotCompo || {}; if (tt > 0) R.lotCompo[op.lotId] = Object.fromEntries(Object.entries(cp).map(([k, v]) => [k, v / tt])); }
+        const np = addPortion(op, op.lotId, op.destId, Math.max(0, tot + vp - lossV), op.outPortionId, concDe(parts)); // intrants des lots d'origine au prorata
+        if (np && pu.length) { let v0 = tot - lossV; pu.forEach((x) => { prepVerse(op, x.p.id, op.lotId, v0, num(x.u.volL)); v0 += num(x.u.volL); }); }
         checkCap(op, op.destId);
         if (np) applyLignes(op, op.lignes, { kind: 'portion', portionId: np.id, lotId: op.lotId, contenantId: op.destId, vol: np.vol, qualif: R.lots[op.lotId] && R.lots[op.lotId].qualif });
         break;
@@ -246,8 +250,10 @@ function replay(db, upTo, opts) {
         const parts = []; (op.sources || []).forEach((s) => { const t = take(op, s.portionId, s.volL); if (t) { flow(op, 'tirage', -t.vol, { lotId: t.lotId }); parts.push({ lotId: t.lotId, vol: t.vol }); } });
         { const v = sum(parts, (x) => x.vol); if (v > 0) { const v0 = R.tirVol[op.lotId] || 0; concMelange(op.lotId, v0, concDe(parts), v); R.tirVol[op.lotId] = v0 + v; } }
         (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, op.lotId); if (pr) { const v0 = R.tirVol[op.lotId] || 0; prepVerse(op, pr.id, op.lotId, v0, num(u.volL)); R.tirVol[op.lotId] = v0 + num(u.volL); } });
-        R.tir[op.lotId] = { lotId: op.lotId, nb: num(op.nbBouteilles), mis: num(op.nbBouteilles), date: op.date };
+        R.tir[op.lotId] = { lotId: op.lotId, nb: num(op.nbBouteilles), mis: num(op.nbBouteilles), date: op.date, ...(Array.isArray(op.formats) && op.formats.length ? { formats: op.formats.map((x) => ({ format: x.format, nb: num(x.nb), L: num(x.L) })) } : {}), ...(num(op.casse) > 0 ? { casse: num(op.casse) } : {}) };
         applyLignes(op, op.lignes, { kind: 'tirage', lotId: op.lotId, vol: num(op.nbBouteilles) * num(op.volBouteilleL || 0.75), qualif: R.lots[op.lotId] && R.lots[op.lotId].qualif });
+        // 0.42.0-alpha.3 : fournitures suivies par lot fournisseur sans décompte → tracées (quantité 0, quantité utilisée gardée à part)
+        (Array.isArray(op.fournitures) ? op.fournitures : []).filter((x) => x && !x.decompte && x.produitId && prod[x.produitId]).forEach((x) => { const a = arr[x.arrivageId]; R.apps.push({ opId: op.id, date: op.date, opType: op.type, opSousType: '', produitId: x.produitId, arrivageId: x.arrivageId || null, numLot: a ? a.numLot : '', qty: 0, nonDecompte: num(x.qty), unite: prod[x.produitId].unite, kind: 'tirage', portionId: null, lotId: op.lotId || null, contenantId: null, prepId: null, vol: null, dose: null, qualif: null, unauth: false, over: false, volLot: null, cumul: null, so2: 0 }); });
         break;
       }
       case 'degorgement': {

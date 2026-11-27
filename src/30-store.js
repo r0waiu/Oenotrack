@@ -240,7 +240,7 @@ function syncEntities(db, op) {
     const type = op.type === 'tirage' ? 'cuvee_tirage' : (sp.type || 'assemblage');
     const srcL = Object.keys(agg).map((k) => Rd.lots[k] || lotById(db, k) || {});
     const stade = op.stade || (op.type === 'tirage' ? stadeRole(db, 'tirage') : stadeAssemblage(db, srcL.map((l) => l.stade))) || 'assemble';
-    upsert(db.lots, { id: op.lotId, code: sp.code, designation: sp.designation, millesime: sp.millesime, type, qualif: q, parentIds: Object.keys(agg), sources: Object.keys(agg).map((k) => ({ lotId: k, volL: r2(agg[k]) })), opId: op.id, date: op.date, stade, couleur: op.couleur || mixCouleur(db, srcL.map((l) => l.couleur)) || couleurDefaut(db), ...(sp.codif ? { codif: sp.codif } : {}) });
+    upsert(db.lots, { id: op.lotId, code: sp.code, designation: sp.designation, millesime: sp.millesime, type, qualif: q, parentIds: Object.keys(agg), sources: Object.keys(agg).map((k) => ({ lotId: k, volL: r2(agg[k]) })), opId: op.id, date: op.date, stade, couleur: op.couleur || mixCouleur(db, srcL.map((l) => l.couleur)) || couleurDefaut(db), ...(sp.codif ? { codif: sp.codif } : {}), ...(op.mixtion ? { mixtion: true } : {}) });
   }
   if (op.type === 'reprise') {
     const sp = op.lotSpec || {};
