@@ -1,10 +1,11 @@
 /* ============ FICHE LOT (traçabilité) & FICHE LOT FINI ============ */
 function LotEditForm({ id, onClose }) {
-  const { db, act } = useApp(); const l = db.lots.find((x) => x.id === id);
-  const [f, set] = useDraft({ code: l.code, designation: l.designation || '', millesime: l.millesime || '' });
-  const save = () => { const r = act((d) => lotEdit(d, id, f), 'Lot modifié.'); if (r.ok) onClose(); };
+  const { db, act, uid } = useApp(); const l = db.lots.find((x) => x.id === id);
+  const [f, set] = useDraft({ code: l.code, designation: l.designation || '', millesime: l.millesime || '', motif: '' });
+  const save = () => { const r = act((d) => lotEdit(d, id, { ...f, par: uid }), 'Lot modifié.'); if (r.ok) onClose(); };
   return (<FormSheet title={`Modifier le lot ${l.code}`} onClose={onClose} onSave={save}>
     <Field label="Code du lot (unique)"><TI value={f.code} onChange={(v) => set('code', v)} /></Field>
+    {String(f.code).trim() !== l.code ? <Field label="Motif du changement de code" help="L’ancien code est gardé et reste cherchable en traçabilité."><TI value={f.motif} onChange={(v) => set('motif', v)} placeholder="ex. réétiquetage, erreur de saisie" aria-label="Motif du changement de code" /></Field> : null}
     <Field label="Désignation"><TI value={f.designation} onChange={(v) => set('designation', v)} /></Field>
     <Field label="Millésime"><TI value={f.millesime} onChange={(v) => set('millesime', v)} /></Field>
     <div className="help">Le stade, la couleur, la nature et la revendication évoluent uniquement par des opérations (changement de stade, déclassement validé) : l’historique reste tracé.</div>
@@ -158,6 +159,7 @@ function LotSheet({ id, onClose }) {
       <div className="mb-5 flex flex-wrap items-center gap-2"><StadeChip id={lot.stade} /><CouleurChip id={lot.couleur} /><QChip id={lot.qualif} /><EChip info={echelleInfo(comp)} />{lot.fractionId ? <Chip tone="info">{fracLabel(db, lot.fractionId)}</Chip> : null}<Chip title="Nature du lot">{LOT_TYPES[lot.type]}</Chip><Chip>{fmtL(vol)} en cuves</Chip>{tir ? <Chip tone="info">{fmt(tir.nb)} bouteilles sur lattes{tir.deg ? ` · ${fmt(tir.deg)} dégorgées` : ''}</Chip> : null}{(R.opsByLot[id] || []).some((oid) => (R.warn[oid] || []).length) ? <Chip tone="warn">⚠ opérations à vérifier</Chip> : null}<span className="ml-auto flex flex-wrap gap-1 no-print"><Btn size="sm" onClick={() => setCalc('so2')} title="SO₂ moléculaire, enrichissement">🧪 Calculs</Btn><Btn size="sm" onClick={() => setPerso(true)} title="Rubriques affichées et leur ordre">⚙ Personnaliser la fiche</Btn></span></div>
 
 
+      <CodesLot kind="lot" x={db.lots.find((y) => y.id === id) || lot} />
       <ConformiteBloc lotId={id} modifiable />
       <RubriquesRendu dispo={dispo} blocs={blocs} />
       {perso ? <FicheRubriquesSheet kind="lot" onClose={() => setPerso(false)} /> : null}
@@ -178,6 +180,8 @@ function FiniSheet({ id, onClose }) {
     <Sheet wide title={<span>🍾 {f.code} <span className="font-normal text-ink2">— {f.designation}</span></span>} sub={`Lot fini · dégorgé le ${fmtDate(f.date)}`} onClose={onClose}>
       <div className="mb-4 flex flex-wrap gap-2"><StadeChip id={f.stade || stadeRole(db, 'degorgement')} /><CouleurChip id={f.couleur || (R.lots[f.sourceLotId] || {}).couleur} /><QChip id={f.qualif} /><Chip tone="info">{fmt(f.nb)} bouteilles</Chip>{f.dosageGL != null ? <Chip>Dosage {fmt(f.dosageGL, 1)} g/L</Chip> : null}</div>
       <dl className="kv mb-5"><dt>Lot de tirage d’origine</dt><dd><LotLink id={f.sourceLotId} /> — {(R.lots[f.sourceLotId] || {}).designation}</dd><dt>Date du dégorgement</dt><dd>{fmtDate(f.date)}</dd>{operateursValides(db, op.operateurs).length ? <><dt>Dégorgé par</dt><dd><OperateursChips ids={op.operateurs} /></dd></> : null}</dl>
+      <CodesLot kind="fini" x={f} />
+      <HabillagesDuFini fini={f} />
       <Sec title="Liqueur d’expédition" className="mb-5"><Tbl rows={preps} empty="Aucune liqueur d’expédition enregistrée." cols={[{ h: 'Préparation', r: (p) => <b>{p.code}</b> }, { h: 'Type', r: (p) => PREP_TYPES[p.ptype] }, { h: 'Qualification', r: (p) => <QChip id={p.qualif} /> }, { h: 'Volume utilisé', cls: 'r', r: (p) => <span className="num">{fmtL(p.use)}</span> }]} />
         {preps.map((p) => { const pa = R.apps.filter((a) => a.prepId === p.id && a.produitId); return pa.length ? <div key={p.id} className="mt-2"><div className="lbl">Ingrédients de {p.code}</div><Tbl rows={pa} cols={[{ h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }]} /></div> : null; })}
       </Sec>

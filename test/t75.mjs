@@ -32,7 +32,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   const menu = await txt(page.locator('[data-params-menu]'));
   ok('Paramètres : quatre rubriques (Exploitation, Vin & cuverie, Équipe & sécurité, Données & application), menu latéral', groupes.join() === 'exploitation,vin,equipe,donnees' && /Exploitation/i.test(menu) && /Vin & cuverie/i.test(menu) && /Équipe & sécurité/i.test(menu) && /Données & application/i.test(menu), [groupes, menu]);
   const items = await page.locator('[data-params-item]').evaluateAll((L) => L.map((x) => x.getAttribute('data-params-item')));
-  ok('… toutes les rubriques d’avant présentes (aucun réglage perdu) + « 🧪 Calculs œnologiques »', ['entreprise', 'utilisateurs', 'modules', 'profil', 'sauvegarde', 'garde', 'campagnes', 'sites', 'contenants', 'jaugeage', 'crus', 'apporteurs', 'operations', 'schemas', 'listes', 'calculs', 'ia', 'base'].every((x) => items.includes(x)) && items.length === 18, items);
+  ok('… toutes les rubriques d’avant présentes (aucun réglage perdu) + « 🧪 Calculs œnologiques »', ['entreprise', 'utilisateurs', 'modules', 'profil', 'sauvegarde', 'garde', 'campagnes', 'sites', 'contenants', 'jaugeage', 'crus', 'apporteurs', 'operations', 'schemas', 'listes', 'calculs', 'ia', 'base'].every((x) => items.includes(x)) && items.length === 19 && items.includes('codification'), items); // 0.41.0-alpha.1 : + « 🏷 Codification des lots »
   await page.locator('[data-params-item="calculs"]').click(); await page.waitForTimeout(300);
   let t = await txt(page.locator('main'));
   ok('« 🧪 Calculs œnologiques » : sucre par point de densité, objectif de tirage, enrichissement', (await page.locator('[data-params-calculs]').count()) === 1 && /g\/L par point de densité/i.test(t) && /Enrichissement des moûts/i.test(t));
@@ -55,7 +55,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   ok('… journal toujours complet (tirage et dégorgement compris)', /Tirage/.test(journal) && /Dégorgement/.test(journal));
   await page.locator('[data-vers-module="cave"]').click(); await page.waitForTimeout(400); t = await txt(page.locator('main'));
   ok('Cave : remuage saisi ici ; colonne « Vins de base » (lots de la vinification)', /Remuage \/ mise sur pointes/.test(t) && /Vins de base/i.test(t) && (await page.locator('[data-vins-base]').count()) >= 1);
-  await page.locator('#tab-tirage').click(); await page.waitForTimeout(400); t = await txt(page.locator('main'));
+  await page.locator('#tab-tirage').click(); await page.waitForTimeout(400); await page.getByRole('tab', { name: /Tirer/ }).click(); await page.waitForTimeout(300); t = await txt(page.locator('main')); // 0.42.0-alpha.1 : sous-onglet « Tirer »
   ok('Tirages : préparations et tirage saisis ici ; suite de chaque tirage (en cave, dégorgées)', /Nouveau tirage/.test(t) && /Suite \(cave, dégorgement\)/i.test(t) && (await page.locator('[data-suite-tirage]').count()) >= 1 && /En cave : /.test(t));
   await page.locator('#tab-degorgement').click(); await page.waitForTimeout(400); t = await txt(page.locator('main'));
   ok('Dégorgement : saisi ici ; parcours du lot fini, vins de base', /Nouveau dégorgement/.test(t) && /Parcours de chaque lot fini/.test(t) && /Vins de base/i.test(t));

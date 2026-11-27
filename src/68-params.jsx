@@ -81,7 +81,8 @@ function CalculsView() {
   return (
     <div className="space-y-6" data-params-calculs="">
       <Sec title="Paramètres de calcul" right={moduleActif(db, 'tirage') && moduleAutorise(db, uid, 'tirage') ? <Btn size="sm" kind="ghost" onClick={() => setTab('tirage')}>🍾 Onglet Tirages</Btn> : null}><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
-        <Setting label="Sucre : g/L par point de densité" k="coefSucre" help="Sucre mixtion = (densité mixtion − densité base) × 1000 × ce coefficient (≈ 2,6)." /><Setting label="Objectif de sucre au tirage (g/L)" k="objectifTirageGL" /><Setting label="Volume d’une bouteille (L)" k="volBouteilleL" /></div></div></Sec>
+        <Setting label="Sucre : g/L par point de densité" k="coefSucre" help="Sucre mixtion = (densité mixtion − densité base) × 1000 × ce coefficient (≈ 2,6)." /><Setting label="Volume d’une bouteille (L)" k="volBouteilleL" /></div></div></Sec>
+      <Sec title="Tirage : levain, liqueur et calculateur"><TirageProfilCard /></Sec>
       <Sec title="Enrichissement des moûts (chaptalisation)"><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
         <Setting label="TAV visé après enrichissement (% vol)" k="chaptalTAV" defaut={10.5} help="Valeur proposée par défaut (10,5) ; modifiable sur chaque fiche de cuve." />
         <Setting label="Sucre pour 1 % vol (g/L)" k="chaptalCoef" defaut={17} help="Usage courant : 17 g/L pour 1 % vol (vins blancs) ; sert aussi à déduire le TAP des sucres." />
@@ -109,10 +110,10 @@ TABS_REG.registres = TabRegistres;
 /* 0.39.0-alpha.1 : rubriques regroupées (menu latéral sur ordinateur, rangées sur téléphone). Les réglages métier qui ont leur place
    ailleurs y sont déplacés (PARAMS_DEPLACES) : le lien de Paramètres y mène, et le réglage s'affiche ici si le module d'arrivée est
    désactivé ou interdit (rien n'est perdu). Les identifiants de rubriques sont inchangés : setTab('params', 'operations') marche toujours. */
-const PARAMS_ITEMS = [{ id: 'entreprise', label: 'Société & opérateurs' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Région & types de vins' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: 'Campagnes' }, { id: 'sites', label: 'Sites' }, { id: 'contenants', label: 'Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: 'Crus & parcelles' }, { id: 'apporteurs', label: 'Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '📋 Schémas de vinification' }, { id: 'listes', label: 'Revendications, stades & listes' }, { id: 'calculs', label: '🧪 Calculs œnologiques' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: '🖥 Affichage & application' }];
+const PARAMS_ITEMS = [{ id: 'entreprise', label: 'Société & opérateurs' }, { id: 'codification', label: '🏷 Codification des lots' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Région & types de vins' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: 'Campagnes' }, { id: 'sites', label: 'Sites' }, { id: 'contenants', label: 'Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: 'Crus & parcelles' }, { id: 'apporteurs', label: 'Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '📋 Schémas de vinification' }, { id: 'listes', label: 'Revendications, stades & listes' }, { id: 'calculs', label: '🧪 Calculs œnologiques' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: '🖥 Affichage & application' }];
 const PARAMS_GROUPES = [
   { id: 'exploitation', label: 'Exploitation', items: ['entreprise', 'sites', 'apporteurs', 'crus', 'campagnes'] },
-  { id: 'vin', label: 'Vin & cuverie', items: ['profil', 'listes', 'contenants', 'calculs', 'operations', 'schemas', 'jaugeage'] },
+  { id: 'vin', label: 'Vin & cuverie', items: ['profil', 'listes', 'codification', 'contenants', 'calculs', 'operations', 'schemas', 'jaugeage'] },
   { id: 'equipe', label: 'Équipe & sécurité', items: ['utilisateurs', 'garde', 'ia'] },
   { id: 'donnees', label: 'Données & application', items: ['sauvegarde', 'modules', 'base'] },
 ];
@@ -124,7 +125,7 @@ function ParamsLecture() {
   const { db, uid, secu } = useApp(); if (!secu || niveauModule(db, uid, 'params') !== 'lecture') return null;
   return <div className="mb-4"><Notice tone="info" title="Consultation des paramètres">Votre profil « {profilNom(db, uid)} » permet de consulter ces réglages, pas de les modifier.</Notice></div>;
 }
-const PARAMS_VUES = { utilisateurs: UtilisateursView, modules: ModulesView, profil: ProfilViticoleView, sauvegarde: SauvegardeView, garde: GardeView, campagnes: CampagnesView, listes: ListesView, operations: OperationsView, schemas: SchemasView, crus: CrusEtParcelles, apporteurs: ApporteursView, sites: SitesView, contenants: StudioView, jaugeage: BaremesView, base: BaseView, calculs: CalculsView, ia: IaView, entreprise: EntrepriseView };
+const PARAMS_VUES = { codification: CodificationView, utilisateurs: UtilisateursView, modules: ModulesView, profil: ProfilViticoleView, sauvegarde: SauvegardeView, garde: GardeView, campagnes: CampagnesView, listes: ListesView, operations: OperationsView, schemas: SchemasView, crus: CrusEtParcelles, apporteurs: ApporteursView, sites: SitesView, contenants: StudioView, jaugeage: BaremesView, base: BaseView, calculs: CalculsView, ia: IaView, entreprise: EntrepriseView };
 function TabParams() {
   const { db, uid, secu, setTab } = useApp();
   // identifiants activés : paramètres selon le profil (sauvegarde et utilisateurs : droits particuliers ; « Utilisateurs & droits » montre au moins son compte)

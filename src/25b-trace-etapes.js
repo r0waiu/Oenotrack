@@ -27,8 +27,11 @@ function traceChercher(db, R, q) {
     else if (o.type === 'entree_mout') { if (has(o.ref) || has(o.immat) || has(nomAp(o.apporteurId)) || moutPartenaires(o).some((p) => has(p.ref) || has(nomAp(p.apporteurId))) || (o.entrees || []).some((e) => ligneApporteurs(e, o).some((a) => has(nomAp(a.id)))) || (o.entrees || []).some((e) => has(e.numLot)) || dq === o.date) add({ etape: 'mout', type: 'op', id: o.id, titre: `Entrée de moûts${o.ref ? ` ${o.ref}` : ''}`, sous: nomAp(o.apporteurId), date: o.date }); }
     else if (o.type === 'degorgement' && dq === o.date && o.lotFiniId) { const f = (db.lotsFinis || []).find((x) => x.id === o.lotFiniId); if (f) add({ etape: 'fini', type: 'fini', id: f.id, titre: f.code, sous: f.designation, date: f.date }); }
   });
-  (db.lots || []).forEach((l) => { if (has(l.code) || has(l.designation) || (dq && dq === l.date)) add({ etape: etapeLot(l), type: 'lot', id: l.id, titre: l.code, sous: l.designation || LOT_TYPES[l.type] || '', date: l.date }); });
-  (db.lotsFinis || []).forEach((f) => { if (has(f.code) || has(f.designation)) add({ etape: 'fini', type: 'fini', id: f.id, titre: f.code, sous: f.designation, date: f.date }); });
+  const anc = (x) => (x.codesPrecedents || []).some((p) => p && has(p.code)) || has(x.codeFournisseur); // anciens codes, code du fournisseur (0.41.0-alpha.1)
+  (db.lots || []).forEach((l) => { if (has(l.code) || has(l.designation) || anc(l) || (dq && dq === l.date)) add({ etape: etapeLot(l), type: 'lot', id: l.id, titre: l.code, sous: l.designation || LOT_TYPES[l.type] || '', date: l.date }); });
+  (db.lotsFinis || []).forEach((f) => { if (has(f.code) || has(f.designation) || anc(f)) add({ etape: 'fini', type: 'fini', id: f.id, titre: f.code, sous: f.designation, date: f.date }); });
+  // habillages et mises en carton (0.41.0-alpha.1) : le lot fini d'origine
+  (db.habillages || []).forEach((h) => { if (!h || !(has(h.code) || anc(h) || has(h.ref) || (dq && dq === h.date))) return; const f = habillageFini(db, h); if (f) add({ etape: 'fini', type: 'fini', id: f.id, titre: f.code, sous: `${h.type === 'carton' ? 'Mise en carton' : 'Habillage'} ${h.code}`, date: f.date }); });
   // cuve : ce qu'elle contient aujourd'hui
   (db.contenants || []).forEach((c) => { const n = norm(c.nom || '').trim(); if (t.length >= 1 && (n === t || (t.length >= 3 && n.includes(t)))) contParts(R, c.id).forEach((p) => { const l = R.lots[p.lotId] || lotById(db, p.lotId); if (l) add({ etape: etapeLot(l), type: 'lot', id: l.id, titre: l.code, sous: `${l.designation || ''} — ${c.nom}`, date: l.date }); }); });
   // lot d'un produit (n° de lot du fournisseur) : les lots qui l'ont reçu

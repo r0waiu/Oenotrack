@@ -221,10 +221,24 @@ function replay(db, upTo, opts) {
       case 'preparation': {
         let srcLot = null;
         if (op.sourcePortionId && num(op.sourceVolL) > 0) { const t = take(op, op.sourcePortionId, op.sourceVolL); if (t) { flow(op, 'prelevement', -t.vol, { lotId: t.lotId }); srcLot = t.lotId; } }
-        R.preps[op.prepId] = { id: op.prepId, code: op.code, ptype: op.ptype, qualif: op.qualifId, vol: num(op.volL), remaining: num(op.volL), date: op.date, opId: op.id, srcLot };
+        // composition (0.42.0-alpha.1) : vin prélevé, liqueur utilisée (préparations), eau ; le reste (levures, sucre…) en « autre »
+        let liqUse = 0; (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, null); if (pr) liqUse += num(u.volL); });
+        const vinP = srcLot ? num(op.sourceVolL) : 0; const eauP = num(op.eauL);
+        R.preps[op.prepId] = { id: op.prepId, code: op.code, ptype: op.ptype, qualif: op.qualifId, vol: num(op.volL), remaining: num(op.volL), date: op.date, opId: op.id, srcLot,
+          compo: { vin: vinP, liqueur: liqUse, eau: eauP, autre: Math.max(0, num(op.volL) - vinP - liqUse - eauP) } };
         if (srcLot && num(op.volL) > 0) { const c = R.conc[srcLot] || {}; const f = Math.min(1, num(op.sourceVolL) / num(op.volL)); const k = {}; for (const x in c) k[x] = c[x] * f; R.concPrep[op.prepId] = k; }
         applyLignes(op, op.lignes, { kind: 'prep', prepId: op.prepId, vol: num(op.volL), qualif: op.qualifId });
         break;
+      }
+      case 'alimentation': { // levain (0.42.0-alpha.1) : étape, alimentation ou relevé — vin prélevé, liqueur utilisée, eau, autres ajouts ; volume mesuré
+        const p = R.preps[op.prepId]; if (!p) { warn(op, 'Préparation introuvable.'); break; }
+        let vin = 0; if (op.sourcePortionId && num(op.sourceVolL) > 0) { const t = take(op, op.sourcePortionId, op.sourceVolL); if (t) { flow(op, 'prelevement', -t.vol, { lotId: t.lotId }); vin = t.vol; } }
+        let liq = 0; (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, null); if (pr) liq += num(u.volL); });
+        const eau = num(op.eauL); const autre = num(op.autreL); const ajout = vin + liq + eau + autre;
+        p.vol += ajout; p.remaining += ajout; p.compo = p.compo || prepCompoVide(); p.compo.vin += vin; p.compo.liqueur += liq; p.compo.eau += eau; p.compo.autre += autre;
+        if (hasNum(op.volMesureL) && num(op.volMesureL) >= 0) { const ecart = num(op.volMesureL) - p.remaining; p.remaining = num(op.volMesureL); p.ecartL = (p.ecartL || 0) + ecart; }
+        applyLignes(op, op.lignes, { kind: 'prep', prepId: op.prepId, vol: p.remaining, qualif: p.qualif });
+        p.suivi = (p.suivi || 0) + 1; break;
       }
       case 'tirage': {
         touch(op, op.lotId);
@@ -402,6 +416,7 @@ function opRefs(op) {
   (op.charges || []).forEach((c) => r.apports.push(c.apportId));
   if (op.sourceLotId) r.lots.push(op.sourceLotId);
   if (op.type === 'etape' || op.type === 'declassement') r.lots.push(op.lotId);
+  if (op.type === 'alimentation' && op.prepId) r.preps.push(op.prepId); // suivi d'un levain (0.42.0-alpha.1)
   return r;
 }
 function dependentsOf(db, op) {

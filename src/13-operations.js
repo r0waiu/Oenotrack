@@ -14,7 +14,7 @@ const OP_COMPORTEMENTS = [
   ['sortie', 'Sortie de cave', 'vente en vrac, distillerie, destruction… volume retiré du stock'],
   ['etape', 'Étape sur un lot, sans mouvement', 'remuage, mise sur pointes, dégustation… avec changement de stade'],
 ];
-const OP_BASES_ICONES = { apport: '🍇', pressurage: '🍇', entree_mout: '🫗', debourbage: '≋', soutirage: '⇩', transfert: '⇢', intrant: '＋', froid: '❄', filtration: '⧖', jaugeage: '📏', assemblage: '⛙', etape: '⇄', declassement: '⚠', preparation: '⚗', tirage: '🍾', degorgement: '🍾', reprise: '📦', sortie: '🚚', suivi: '🌡' };
+const OP_BASES_ICONES = { alimentation: '🧫', apport: '🍇', pressurage: '🍇', entree_mout: '🫗', debourbage: '≋', soutirage: '⇩', transfert: '⇢', intrant: '＋', froid: '❄', filtration: '⧖', jaugeage: '📏', assemblage: '⛙', etape: '⇄', declassement: '⚠', preparation: '⚗', tirage: '🍾', degorgement: '🍾', reprise: '📦', sortie: '🚚', suivi: '🌡' };
 // menu : raccourci dans le menu d'une cuve (clic droit) · ficheId : modèle de fiche associé (sinon celui du comportement)
 // masque : proposé mais masqué par défaut (pratiques d'autres régions ou des vins rouges : à afficher dans Paramètres › Opérations)
 const DEFAULT_OPERATIONS = () => ([
@@ -65,6 +65,7 @@ const DEFAULT_OPERATIONS = () => ([
   { id: 'reprise', base: 'reprise', label: 'Reprise de stock', groupe: 'Assemblage & stock' },
   // Tirage & bouteilles
   { id: 'preparation', base: 'preparation', label: 'Préparation', groupe: 'Tirage & bouteilles' },
+  { id: 'alimentation', base: 'alimentation', label: 'Suivi du levain', groupe: 'Tirage & bouteilles', interne: true, aide: 'Étape, alimentation ou relevé d’un levain de tirage.' },
   { id: 'tirage', base: 'tirage', label: 'Tirage (mixtion)', groupe: 'Tirage & bouteilles', stadeAuto: { actif: true, stade: 'tire' } },
   { id: 'remuage', base: 'etape', label: 'Remuage', groupe: 'Tirage & bouteilles', icone: '↯', aide: 'Bouteilles remuées (gyropalettes ou pupitres) puis mises sur pointes : le dépôt est amené au col avant le dégorgement.', stadeAuto: { actif: true, stade: 'sur_pointes' } },
   { id: 'degorgement', base: 'degorgement', label: 'Dégorgement', groupe: 'Tirage & bouteilles' },
@@ -91,7 +92,7 @@ const opEtapePour = (db, stade) => { const v = opList(db).find((x) => x.base ===
 /* module où une opération se saisit (0.39.0-alpha.1) : préparations et mixtions au Tirage, remuage (et autres étapes « Tirage & bouteilles »)
    en Cave, dégorgement au Dégorgement ; le reste dans « Opérations & Assemblages » (vinification en cuve ou en fût). Le journal des
    opérations reste complet ; un module désactivé ou interdit rend la saisie à « Opérations & Assemblages ». */
-const OP_MODULES_SAISIE = { preparation: 'tirage', tirage: 'tirage', degorgement: 'degorgement' };
+const OP_MODULES_SAISIE = { preparation: 'tirage', alimentation: 'tirage', tirage: 'tirage', degorgement: 'degorgement' };
 function opModuleSaisie(db, x) {
   const d = typeof x === 'string' ? opDef(db, x) : x; if (!d) return 'ops';
   if (OP_MODULES_SAISIE[d.base]) return OP_MODULES_SAISIE[d.base];

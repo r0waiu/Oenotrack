@@ -65,6 +65,8 @@ function OpForm(props) {
   const { db } = useApp(); const via = opViaPressoir(db, props);
   if (via === 'pesee') return <PeseeOpForm id={props.editId || null} onClose={props.onClose} />;
   if (via === 'marc') return <MarcForm id={props.editId || null} preset={props.preset} onClose={props.onClose} />;
+  const o0 = props.editId ? db.ops.find((o) => o.id === props.editId) : null; // suivi d'un levain (0.42.0-alpha.1) : formulaire propre
+  if ((o0 && o0.type === 'alimentation') || props.type === 'alimentation') return <AlimentationForm prepId={(o0 && o0.prepId) || (props.preset || {}).prepId} editId={props.editId || null} preset={props.preset} onClose={props.onClose} />;
   return <OpFormSaisie {...props} />;
 }
 function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, fromPrev }) {
@@ -86,6 +88,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
     if (!old && plan0 && plan0.schema && s.portionId !== undefined) { const Rp = getR(db, s.date || defaultDate); if (!Rp.portions[s.portionId]) { const pp = Object.values(Rp.portions).filter((x) => x.lotId === plan0.schema.lotId && x.vol > 0.5).sort((a, b) => b.vol - a.vol)[0]; if (pp) s.portionId = pp.id; } }
     if (!old && !prevId) formulaireDefauts(db, cat.id, type, s, preset || {}); // valeurs par défaut réglées pour ce formulaire
     if (!old && !(Array.isArray(s.operateurs) && s.operateurs.length) && moi) s.operateurs = [moi]; // opérateur de cet appareil, sauf opérateurs déjà prévus
+    if (!old && preset && preset.code) s.codifAuto = null; // code imposé : la règle de codification ne le remplace pas (0.41.0-alpha.1)
     if (!old && !(preset && preset.code)) {
       if (type === 'entree_mout') s.code = nextCode(db, 'M', s.date); if (type === 'pressurage') s.code = nextCode(db, 'P', s.date); if (type === 'assemblage') s.code = nextCode(db, 'AS', s.date); if (type === 'tirage') s.code = nextCode(db, 'T', s.date);
       if (type === 'degorgement') s.code = nextFini(db, s.date); if (type === 'preparation') s.code = nextPrepCode(db, s.ptype, s.date);
@@ -129,8 +132,11 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
     if (r && r.ok) { engage.current = true; onClose(); }
   };
   // « Valider » : l'opération est réalisée, les stocks sont mis à jour
-  const valider = () => {
+  const valider = async () => {
     if (built.error) { toast(built.error, 'bad'); return; }
+    // revendication du levain ou de la liqueur plus basse que celle du vin tiré : accepté (alerte de déclassement), après confirmation (0.42.0-alpha.1)
+    if (!old && (type === 'tirage' || (type === 'preparation' && f.ptype === 'levain'))) { const qs = uniq((f.sources || []).map((s) => lotQ(s.portionId)).filter(Boolean)); const q = type === 'tirage' ? (qs.length ? minQualif(qs) : 'conv') : (f.qualifId || 'conv');
+      const al = tirageRevendicationAlertes(db, Rd, q, (f.prepUses || []).map((u) => u.prepId)); if (al.length && !(await confirm({ title: 'Revendication incompatible', body: al.join(' '), ok: 'Valider quand même', danger: true }))) return; }
     if (!old && champEffectif(fcfg, type, 'docs').obligatoire && !piecesRef.current.length && !(prevId && docsOf(db, 'prev', prevId).length)) { toast(`Joignez au moins un document : « ${champEffectif(fcfg, type, 'docs').libelle || 'Documents joints'} » est obligatoire pour cette opération.`, 'bad'); return; }
     const pvV = pvAJour(); const depsV = (pvV && pvV.ok && pvV.depassements) || []; if (pvV !== pv) setBuiltPv(built);
     if (depsV.length && !String(motifDep || '').trim()) { toast('Dépassement d’un plafond : indiquez le motif (il est tracé avec l’opération).', 'bad'); return; }
@@ -296,7 +302,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
                   <TI value={ov.designation || ''} onChange={(v) => setCode(t.contenantId, { designation: v })} placeholder={t.designationAuto} aria-label={`Désignation du lot en ${ct.nom}`} />
                 </div>
               </div>); })}</div> : <div className="help">Choisissez au moins une cuve de destination.</div>}
-            <div className="mt-2" style={{ maxWidth: 260 }}><CF k="code" label="Préfixe des codes de lots"><TI value={f.code} onChange={(v) => upd({ code: v })} placeholder="ex. M26-02" /></CF></div>
+            {codifActif(db, 'mout', f.date) ? <div className="mt-2"><CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} sansCode /></div> : <div className="mt-2" style={{ maxWidth: 260 }}><CF k="code" label="Préfixe des codes de lots"><TI value={f.code} onChange={(v) => upd({ code: v })} placeholder="ex. M26-02" /></CF></div>}
           </Group>
         </>);
       }
@@ -314,6 +320,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
           </div>
         </CF>
         <G n={3}><CF k="code" label="Code du lot parent"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation" className="sm:col-span-1"><TI value={f.designation} onChange={(v) => upd({ designation: v })} /></CF><CF k="millesime" label="Millésime"><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder={String(yearOf(f.date))} /></CF></G>
+        <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
         <CF k="qualifId" label="Revendication du lot" help="Proposée d’après le rang le plus bas des apports pressés."><SI value={f.qualifId} onChange={(v) => upd({ qualifId: v })} options={qualifOptions(db, f.qualifId)} /></CF>
         <EchNote info={echOf(f.charges.filter((c) => c.apportId && num(c.kg) > 0).map((c) => ({ cruId: (Rd.raisins[c.apportId] || {}).cruId, w: c.kg })))} what="des raisins pressés" />
         <CF k="frac" group label="Fractions obtenues (lots enfants)" help={totKg > 0 && totVol > 0 ? `Total ${fmtL(totVol)} pour ${fmt(totKg)} kg → ${fmtL((totVol / totKg) * 100)} / 100 kg` : 'Renseignez le volume de chaque fraction produite ; les autres restent vides.'}>
@@ -322,7 +329,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
               <div className="pb-2 text-sm font-semibold">{fr.label}</div>
               <VI value={f.frac[fr.id].volL} onChange={(v) => setF((x) => ({ ...x, frac: { ...x.frac, [fr.id]: { ...x.frac[fr.id], volL: v } } }))} placeholder="L" aria-label={`Volume ${fr.label}`} />
               <SI value={f.frac[fr.id].contenantId} onChange={(v) => setF((x) => ({ ...x, frac: { ...x.frac, [fr.id]: { ...x.frac[fr.id], contenantId: v } } }))} placeholder="Contenant…" options={contOptions(db)} aria-label={`Contenant ${fr.label}`} />
-              <TI value={f.frac[fr.id].code} onChange={(v) => setF((x) => ({ ...x, frac: { ...x.frac, [fr.id]: { ...x.frac[fr.id], code: v } } }))} placeholder={`${f.code || 'code'}-${fr.suffix}`} aria-label={`Code ${fr.label}`} />
+              <TI value={f.frac[fr.id].code} onChange={(v) => setF((x) => ({ ...x, frac: { ...x.frac, [fr.id]: { ...x.frac[fr.id], code: v } } }))} placeholder={pressFractionAuto(db, f, fr, f.code || 'code', Rd, old)} aria-label={`Code ${fr.label}`} />
             </div>))}
           </div>
           <div className="help mt-1">Les fractions proposées ici se règlent dans Paramètres › Listes modifiables › Fractions de moût. <button type="button" className="linkish" onClick={() => setFracEd(true)}>Personnaliser</button></div>
@@ -378,6 +385,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         <EchNote info={srcEch(f.sources)} what="du lot résultant (rang le plus bas des sources)" />
         <G><CF k="destId" label="Contenant de destination" help={f.destId && tot > 0 ? <NiveauAttendu contId={f.destId} volL={volDans(f.destId) + tot} /> : ''}><SI value={f.destId} onChange={(v) => upd({ destId: v })} placeholder="Destination…" options={contOptions(db)} /></CF><CF k="ltype" label="Nature du lot résultant" help="« Vin de réserve » pour un vin conservé pour les assemblages futurs."><SI plain value={f.ltype} onChange={(v) => upd({ ltype: v })} options={['assemblage', 'vin_reserve', 'vin_clair'].map((k) => ({ value: k, label: LOT_TYPES[k] }))} /></CF></G>
         <G n={3}><CF k="code" label="Code du nouveau lot"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation"><TI value={f.designation} onChange={(v) => upd({ designation: v })} /></CF><CF k="millesime" label="Millésime"><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder="2026 ou NV" /></CF></G>
+        <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
         <CF k="pertes" group label="Pertes à l’assemblage (facultatif)" help={`Volume obtenu : ${fmtL(Math.max(0, tot))}`}><PertesEditor db={db} pertes={f.pertes} onChange={(v) => upd({ pertes: v })} /></CF>
         <CF k="lignes" group label="Intrants ajoutés (facultatif)"><LignesEditor {...lignesProps} qualif={q} vol={Math.max(0, tot)} cats={['oeno', 'aux']} /></CF>
       </>); }
@@ -387,6 +395,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         <G n={3}><CF k="newStade" label="Nouveau stade"><SI plain value={f.newStade} onChange={(v) => upd({ newStade: v })} options={stadeOptions(db, f.newStade)} aria-label="Nouveau stade" /></CF>
           <CF k="couleur" label="Couleur du vin"><SI plain value={f.couleur} onChange={(v) => upd({ couleur: v })} options={[{ value: '', label: 'Inchangée' }, ...couleurOptions(db, f.couleur)]} aria-label="Nouvelle couleur" /></CF>
           <CF k="newType" label="Nature du lot"><SI plain value={f.newType} onChange={(v) => upd({ newType: v })} options={[{ value: '', label: 'Inchangée' }, ...['vin_clair', 'assemblage', 'vin_reserve'].map((k) => ({ value: k, label: LOT_TYPES[k] }))]} aria-label="Nouvelle nature" /></CF></G>
+        <CodifEtape db={db} Rd={Rd} f={f} upd={upd} old={old} />
         <p className="help">Repères : fin de FA quand la densité est stable et les sucres sous 2 g/L ; FML terminée quand l’acide malique est quasi nul ; vin clair après soutirage et clarification. Pensez à joindre l’analyse qui le justifie (📎 dans le journal).</p>
       </>); }
       case 'reprise': return (<>
@@ -395,14 +404,20 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         <CF k="apporteurId" label={f.sousType === 'entree_vin' ? 'Partenaire (vendeur de vins)' : 'Partenaire (vendeur), facultatif'} help="Le vin est rattaché à ce partenaire dans la composition et la traçabilité."><ApporteurSelect value={f.apporteurId || ''} role="vendeur" onChange={(v) => upd({ apporteurId: v })} /></CF>
         {f.kind === 'vin' ? <G><Field label="Contenant"><SI value={f.contenantId} onChange={(v) => upd({ contenantId: v })} placeholder="Contenant…" options={contOptions(db)} /></Field><Field label="Volume (hL)"><VI value={f.volL} onChange={(v) => upd({ volL: v })} /></Field></G> : <Field label="Nombre de bouteilles"><NI value={f.nbBouteilles} onChange={(v) => upd({ nbBouteilles: v })} /></Field>}
         <G n={3}><CF k="code" label="Code du lot"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation"><TI value={f.designation} onChange={(v) => upd({ designation: v })} /></CF><CF k="millesime" label="Millésime"><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder="2024 ou NV" /></CF></G>
+        <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
+        <Field label="Code du lot chez le fournisseur (facultatif)" help="Gardé à part, avec le code interne : cherchable en traçabilité."><TI value={f.codeFournisseur || ''} onChange={(v) => upd({ codeFournisseur: v })} aria-label="Code du lot chez le fournisseur" /></Field>
         <G>{f.kind === 'vin' ? <CF k="ltype" label="Nature du lot"><SI plain value={f.ltype} onChange={(v) => upd({ ltype: v })} options={['vin_clair', 'vin_reserve', 'assemblage'].map((k) => ({ value: k, label: LOT_TYPES[k] }))} /></CF> : <div />}<CF k="qualifId" label="Revendication"><SI value={f.qualifId} onChange={(v) => upd({ qualifId: v })} options={qualifOptions(db, f.qualifId)} /></CF></G>
         <CF k="crus" group label="Origine par crus (villages) — facultatif" help="Parts relatives (%) ; à défaut, parts égales. Sert à la composition par cru, au classement (échelle) et à la traçabilité."><CrusEditor crus={f.crus} onChange={(v) => upd({ crus: v })} echelle={f.echelle} onEchelle={(v) => upd({ echelle: v })} /></CF>
         <CF k="cepages" group label="Composition connue (% par cépage, facultatif)" help="Sert au calcul de composition du lot et de ses descendants."><div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))' }}>{db.lists.cepages.map((c) => <Field key={c.id} label={c.label}><NI value={f.cepages[c.id] || ''} onChange={(v) => setF((x) => ({ ...x, cepages: { ...x.cepages, [c.id]: v } }))} placeholder="%" /></Field>)}</div></CF>
       </>);
       case 'preparation': return (<>
-        <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="ptype" label="Type de préparation"><SI value={f.ptype} onChange={(v) => upd({ ptype: v, code: !f.code || /^(LEV|PDC|LT|LE)-/.test(f.code) ? nextPrepCode(db, v, f.date) : f.code })} options={Object.keys(PREP_TYPES).map((k) => ({ value: k, label: PREP_TYPES[k] }))} /></CF></G>
+        <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="ptype" label="Type de préparation"><SI value={f.ptype} onChange={(v) => upd({ ptype: v, code: !f.code || /^(LEV|PDC|LT|LE)-/.test(f.code) || (f.codifAuto && f.code === f.codifAuto) ? nextPrepCode(db, v, f.date) : f.code, ...(f.codifAuto && f.code === f.codifAuto ? { codifAuto: undefined } : {}) })} options={Object.keys(PREP_TYPES).map((k) => ({ value: k, label: PREP_TYPES[k] }))} /></CF></G>
         <G n={3}><CF k="code" label="Code"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="volL" label="Volume préparé (hL)"><VI value={f.volL} onChange={(v) => upd({ volL: v })} /></CF><CF k="qualifId" label="Revendication" help="Selon la revendication du vin à tirer."><SI value={f.qualifId} onChange={(v) => upd({ qualifId: v })} options={qualifOptions(db, f.qualifId)} /></CF></G>
+        <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
         <CF k="source" group label="Vin prélevé pour la préparation (facultatif)"><div className="grid2"><PortionSelect db={db} Rd={Rd} value={f.sourcePortionId} onChange={(v) => upd({ sourcePortionId: v })} placeholder="Aucun (pas de prélèvement)" /><VI value={f.sourceVolL} onChange={(v) => upd({ sourceVolL: v })} placeholder="Volume prélevé (hL)" /></div></CF>
+        {f.ptype === 'liqueur_tirage' ? <LiqueurFonteBox db={db} f={f} upd={upd} /> : null}
+        {f.ptype === 'levain' || f.ptype === 'pied_mlf' ? <G><CF k="eauL" label="Eau déchlorée (hL)" help="Comptée à part : elle entre dans le VRTP du tirage."><VI value={f.eauL} onChange={(v) => upd({ eauL: v })} /></CF><div /></G> : null}
+        {f.ptype === 'levain' ? <CF k="prepUses" group label="Liqueur de tirage utilisée"><PrepUsesEditor db={db} Rd={Rd} uses={f.prepUses || []} onChange={(v) => upd({ prepUses: v })} types={['liqueur_tirage']} /></CF> : null}
         <CF k="lignes" group label="Ingrédients (sucre, MCR, levures, SO₂…)"><LignesEditor {...lignesProps} qualif={f.qualifId} vol={num(f.volL)} cats={['oeno', 'aux']} hideDose /></CF>
       </>);
       case 'tirage': { const q = sourcesQ(f.sources, f.prepUses), mx = mixed(f.sources, f.prepUses); const sucre = hasNum(f.densBase) && hasNum(f.densMix) ? (num(f.densMix) - num(f.densBase)) * 1000 * num(db.settings.coefSucre) : null; return (<>
@@ -413,8 +428,9 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         {mx ? <Notice title="Déclassement automatique">Revendications mélangées ({mx.map(qLabel).join(' + ')}) : la cuvée de tirage sera <b>{qLabel(q)}</b>.</Notice> : null}
         <CF k="lignes" group label="Adjuvants et matières sèches (bouteilles, capsules…) avec n° de lot"><LignesEditor {...lignesProps} qualif={q} vol={num(f.nbBouteilles) * (num(f.volBouteilleL) || 0.75)} /></CF>
         <G n={3}><CF k="nbBouteilles" label="Bouteilles tirées"><NI value={f.nbBouteilles} onChange={(v) => upd({ nbBouteilles: v })} /></CF><CF k="volBouteilleL" label="Volume bouteille (L)"><NI value={f.volBouteilleL} onChange={(v) => upd({ volBouteilleL: v })} /></CF><div /></G>
-        <CF k="densites" label="Densités et sucre de la mixtion" bare><G n={3}><Field label="Densité vin de base seul"><NI value={f.densBase} onChange={(v) => upd({ densBase: v })} placeholder="ex. 0,9918" /></Field><Field label="Densité mixtion"><NI value={f.densMix} onChange={(v) => upd({ densMix: v })} placeholder="ex. 1,0010" /></Field><Group label="Sucre de la mixtion"><div className="num pt-2 text-lg font-semibold">{sucre != null ? `${fmt(sucre, 1)} g/L` : '—'}</div><div className="help">(mixtion − base) × 1000 × {fmt(db.settings.coefSucre, 2)} g/L par point de densité ; objectif {fmt(db.settings.objectifTirageGL)} g/L.</div></Group></G></CF>
+        <CF k="densites" label="Densités et sucre de la mixtion" bare><G n={3}><Field label="Densité vin de base seul"><NI value={f.densBase} onChange={(v) => upd({ densBase: v })} placeholder="ex. 0,9918" /></Field><Field label="Densité mixtion"><NI value={f.densMix} onChange={(v) => upd({ densMix: v })} placeholder="ex. 1,0010" /></Field><Group label="Sucre de la mixtion"><div className="num pt-2 text-lg font-semibold">{sucre != null ? `${fmt(sucre, 1)} g/L` : '—'}</div><div className="help">(mixtion − base) × 1000 × {fmt(db.settings.coefSucre, 2)} g/L par point de densité.</div></Group></G></CF>
         <G n={3}><CF k="code" label="Code du lot de tirage"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation"><TI value={f.designation} onChange={(v) => upd({ designation: v })} /></CF><CF k="millesime" label="Millésime"><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder={String(yearOf(f.date))} /></CF></G>
+        <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
       </>); }
       case 'degorgement': return (<>
         <G><CF k="date" label="Date du dégorgement"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="sourceLotId" label="Lot de tirage (bouteilles en stock)"><SI value={f.sourceLotId} onChange={(v) => upd({ sourceLotId: v, nb: f.nb || (Rd.tir[v] ? String(Rd.tir[v].nb) : '') })} placeholder="Lot de tirage…" options={Object.values(Rd.tir).filter((t) => t.nb > 0).map((t) => ({ value: t.lotId, label: `${lotCode(db, Rd, t.lotId)} · ${fmt(t.nb)} bouteilles en stock` }))} /></CF></G>
@@ -422,6 +438,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         <CF k="prepUses" group label="Liqueur d’expédition utilisée"><PrepUsesEditor db={db} Rd={Rd} uses={f.prepUses} onChange={(v) => upd({ prepUses: v })} types={['liqueur_exp']} /></CF>
         <CF k="lignes" group label="Bouchon, muselet… (avec n° de lot fournisseur)"><LignesEditor {...lignesProps} qualif={null} vol={0} hideDose cats={['sec', 'oeno', 'aux']} /></CF>
         <G n={3}><CF k="code" label="Code du lot fini"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation"><TI value={f.designation} onChange={(v) => upd({ designation: v })} placeholder="Brut – dégorgé…" /></CF><CF k="dosageGL" label="Dosage (g/L)"><NI value={f.dosageGL} onChange={(v) => upd({ dosageGL: v })} placeholder="facultatif" /></CF></G>
+        <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
       </>);
       default: return null;
     }

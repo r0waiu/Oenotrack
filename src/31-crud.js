@@ -606,6 +606,8 @@ function lotEdit(db, id, s) {
   const l = db.lots.find((x) => x.id === id); if (!l) return fail('Lot introuvable.');
   const code = String(s.code || '').trim(); if (!code) return fail('Le code lot est obligatoire.');
   if (nameTaken(db.lots, code, id, 'code')) return fail(`Le code « ${code} » est déjà utilisé par un autre lot.`);
+  // 0.41.0-alpha.1 : l'ancien code est gardé (cherchable) et écrit dans l'opération qui a créé le lot (sinon la réenregistrer le remettrait)
+  if (code !== l.code && l.code) { l.codesPrecedents = [...(l.codesPrecedents || []), { code: l.code, jusquau: todayISO(), motif: String(s.motif || '').trim() || 'Modification manuelle', par: s.par || '', le: new Date().toISOString() }]; if (l.codif) l.codif = { ...l.codif, manuel: true }; if (typeof codifCodeDansOp === 'function') codifCodeDansOp(db, 'lot', id, code); }
   Object.assign(l, { code, designation: s.designation || '', millesime: s.millesime || '' }); return okr();
 }
 
