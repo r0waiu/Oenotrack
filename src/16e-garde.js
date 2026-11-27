@@ -23,9 +23,10 @@ const GARDE_USAGES = {
   tracabilite: { max: 20 * GARDE_MO, familles: ['json'] },
   catalogue: { max: 60 * GARDE_MO, familles: ['pdf', 'office', 'texte'] }, // catalogues de produits, cahiers des charges (0.30.0-alpha.1)
   cahier: { max: 60 * GARDE_MO, familles: ['pdf', 'office', 'texte'] },
+  codification: { max: 5 * GARDE_MO, familles: ['json'] }, // codification des lots exportée (0.41.0-alpha.1)
 };
-const GARDE_USAGE_ICI = { document: 'documents joints', fiche: 'fiches produits', bareme: 'barèmes de jaugeage', bulletin: 'bulletins d’analyses', logo: 'logo', sauvegarde: 'sauvegardes', tracabilite: 'fichiers de traçabilité', catalogue: 'catalogues de produits', cahier: 'cahiers des charges' };
-const GARDE_USAGE_LIB = { document: 'Document joint', fiche: 'Fiche produit (FT, FDS)', bareme: 'Barème de jaugeage', bulletin: 'Bulletin d’analyses', logo: 'Logo', sauvegarde: 'Sauvegarde ou base', tracabilite: 'Fichier de traçabilité', catalogue: 'Catalogue de produits', cahier: 'Cahier des charges' };
+const GARDE_USAGE_ICI = { codification: 'codifications des lots', document: 'documents joints', fiche: 'fiches produits', bareme: 'barèmes de jaugeage', bulletin: 'bulletins d’analyses', logo: 'logo', sauvegarde: 'sauvegardes', tracabilite: 'fichiers de traçabilité', catalogue: 'catalogues de produits', cahier: 'cahiers des charges' };
+const GARDE_USAGE_LIB = { codification: 'Codification des lots', document: 'Document joint', fiche: 'Fiche produit (FT, FDS)', bareme: 'Barème de jaugeage', bulletin: 'Bulletin d’analyses', logo: 'Logo', sauvegarde: 'Sauvegarde ou base', tracabilite: 'Fichier de traçabilité', catalogue: 'Catalogue de produits', cahier: 'Cahier des charges' };
 const GARDE_EXT_DANGER = new Set(('exe com scr pif bat cmd vbs vbe js jse mjs cjs wsf wsh wsc ps1 psm1 psd1 ps1xml msi msp mst msix appx jar hta htm html xhtml '
   + 'mht mhtml shtml svgz lnk url reg dll sys cpl ocx scf inf iso img vhd vhdx apk ipa app dmg pkg deb rpm sh bash zsh csh ksh command py pyw pyc '
   + 'pl rb php phtml asp aspx jsp chm gadget application appref-ms xbap website library-ms settingcontent-ms ade adp mde accde accda mda mdb accdb crx xpi swf').split(' '));

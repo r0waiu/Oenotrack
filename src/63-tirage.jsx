@@ -171,6 +171,7 @@ function TabDegorgement() {
         { h: 'Bouteilles', cls: 'r', r: (f) => <span className="num">{fmt(f.nb)}</span> }, { h: 'Dosage', cls: 'r', r: (f) => <span className="num">{f.dosageGL != null ? `${fmt(f.dosageGL, 1)} g/L` : '—'}</span> }, { h: 'Revendication', r: (f) => <QChip id={f.qualif} /> },
         { h: 'Liqueur d’expédition', r: (f) => (f.prepIds || []).map((id) => prepOf(R, id).code).filter(Boolean).join(', ') || '—' }, { h: 'Bouchon, muselet…', r: (f) => <span className="text-xs">{lignesText(db, (opOf(f.opId) || {}).lignes) || '—'}</span> }, { h: 'Opérateur(s)', r: (f) => <OperateursChips ids={(opOf(f.opId) || {}).operateurs} /> },
         { h: '', r: (f) => (opOf(f.opId) ? <div onClick={(e) => e.stopPropagation()}><OpBtns op={opOf(f.opId)} onEdit={edit} /></div> : null) }]} /></Sec>
+      <HabillageSec />
       <Sec title="Liqueurs d’expédition"><PrepsTable rows={pD} onEdit={edit} empty="Aucune liqueur d’expédition enregistrée." /></Sec>
       {form ? <OpForm type={form.type} editId={form.editId} preset={form.preset} onClose={() => setForm(null)} /> : null}
     </div>

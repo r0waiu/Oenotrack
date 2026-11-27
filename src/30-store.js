@@ -228,8 +228,8 @@ function syncEntities(db, op) {
     const ps = op.parentSpec || {};
     const apports = (op.charges || []).map((c) => { const a = db.ops.find((o) => o.id === c.apportId); return a ? { apportId: a.id, cepageId: a.cepageId, kg: num(c.kg), qualifId: a.qualifId, cruId: a.cruId || '', apporteurId: a.apporteurId || '', parcelleId: a.parcelleId || '' } : null; }).filter(Boolean);
     const vin = { stade: op.stade || stadeRole(db, 'entree') || 'mout', couleur: op.couleur || couleurDefaut(db) };
-    upsert(db.lots, { id: op.parentLotId, code: ps.code, designation: ps.designation, millesime: ps.millesime, type: 'pressee', qualif: ps.qualifId, parentIds: [], sources: [], apports, opId: op.id, date: op.date, ...vin });
-    (op.fractions || []).forEach((f) => upsert(db.lots, { id: f.lotId, code: f.code, designation: `${ps.designation || ps.code} – ${fracLabel(db, f.fractionId)}`, millesime: ps.millesime, type: 'fraction', qualif: ps.qualifId, parentIds: [op.parentLotId], sources: [], fractionId: f.fractionId, opId: op.id, date: op.date, ...vin }));
+    upsert(db.lots, { id: op.parentLotId, code: ps.code, designation: ps.designation, millesime: ps.millesime, type: 'pressee', qualif: ps.qualifId, parentIds: [], sources: [], apports, opId: op.id, date: op.date, ...vin, ...(ps.codif ? { codif: ps.codif } : {}) });
+    (op.fractions || []).forEach((f) => upsert(db.lots, { id: f.lotId, code: f.code, designation: `${ps.designation || ps.code} – ${fracLabel(db, f.fractionId)}`, millesime: ps.millesime, type: 'fraction', qualif: ps.qualifId, parentIds: [op.parentLotId], sources: [], fractionId: f.fractionId, opId: op.id, date: op.date, ...vin, ...(f.codif ? { codif: f.codif } : {}) }));
   }
   if (op.type === 'assemblage' || op.type === 'tirage') {
     const sp = op.lotSpec || {}; const srcs = (op.sources || []);
@@ -240,12 +240,12 @@ function syncEntities(db, op) {
     const type = op.type === 'tirage' ? 'cuvee_tirage' : (sp.type || 'assemblage');
     const srcL = Object.keys(agg).map((k) => Rd.lots[k] || lotById(db, k) || {});
     const stade = op.stade || (op.type === 'tirage' ? stadeRole(db, 'tirage') : stadeAssemblage(db, srcL.map((l) => l.stade))) || 'assemble';
-    upsert(db.lots, { id: op.lotId, code: sp.code, designation: sp.designation, millesime: sp.millesime, type, qualif: q, parentIds: Object.keys(agg), sources: Object.keys(agg).map((k) => ({ lotId: k, volL: r2(agg[k]) })), opId: op.id, date: op.date, stade, couleur: op.couleur || mixCouleur(db, srcL.map((l) => l.couleur)) || couleurDefaut(db) });
+    upsert(db.lots, { id: op.lotId, code: sp.code, designation: sp.designation, millesime: sp.millesime, type, qualif: q, parentIds: Object.keys(agg), sources: Object.keys(agg).map((k) => ({ lotId: k, volL: r2(agg[k]) })), opId: op.id, date: op.date, stade, couleur: op.couleur || mixCouleur(db, srcL.map((l) => l.couleur)) || couleurDefaut(db), ...(sp.codif ? { codif: sp.codif } : {}) });
   }
   if (op.type === 'reprise') {
     const sp = op.lotSpec || {};
     const stade = op.stade || (num(op.nbBouteilles) > 0 ? stadeRole(db, 'tirage') : stadeRole(db, 'clair')) || stadeFromType(sp.type);
-    upsert(db.lots, { id: op.lotId, code: sp.code, designation: sp.designation, millesime: sp.millesime, type: sp.type || 'vin_clair', qualif: sp.qualifId || 'conv', parentIds: [], sources: [], origine: { cepages: sp.cepages || {}, crus: sp.crus || {}, echelle: sp.echelle || '', ...(op.apporteurId ? { apporteurs: { [op.apporteurId]: 1 } } : {}) }, opId: op.id, date: op.date, reprise: true, stade, couleur: op.couleur || couleurDefaut(db) });
+    upsert(db.lots, { id: op.lotId, code: sp.code, designation: sp.designation, millesime: sp.millesime, type: sp.type || 'vin_clair', qualif: sp.qualifId || 'conv', parentIds: [], sources: [], origine: { cepages: sp.cepages || {}, crus: sp.crus || {}, echelle: sp.echelle || '', ...(op.apporteurId ? { apporteurs: { [op.apporteurId]: 1 } } : {}) }, opId: op.id, date: op.date, reprise: true, ...(sp.codif ? { codif: sp.codif } : {}), ...(sp.codeFournisseur ? { codeFournisseur: sp.codeFournisseur } : {}), stade, couleur: op.couleur || couleurDefaut(db) });
   }
   if (op.type === 'entree_mout') { // un lot « Moût » par cuve : mélange (au prorata des volumes) des moûts qui y sont versés
     const add = (m, k, v) => { m[k] = (m[k] || 0) + v; }; const keep = [];
@@ -256,16 +256,18 @@ function syncEntities(db, op) {
       const fr = Object.keys(fra).filter((k) => k !== '?');
       upsert(db.lots, { id: l.lotId, code: l.code, designation: l.designation || l.code, millesime: Object.keys(mil).sort().join(' + '), type: 'mout', qualif: minQualif(l.qualifs), parentIds: [], sources: [], origine: { cepages: cep, crus: cru, apporteurs: app, fractions: fra, qualifs: qua, millesimes: mil, parcelles: par }, fractionId: fr.length === 1 ? fr[0] : '', contenantId: l.contenantId, opId: op.id, date: op.date, mout: true,
         stade: op.stade || stadeRole(db, 'entree') || 'mout', couleur: mixCouleur(db, l.parts.map((p) => p.e.couleur || op.couleur || couleurDefaut(db))) || couleurDefaut(db) });
+      { const lc = (op.lots || []).find((x) => x.lotId === l.lotId); const lo = db.lots.find((x) => x.id === l.lotId); if (lo && lc && lc.codif) lo.codif = lc.codif; } // codification (0.41.0-alpha.1)
       keep.push(l.lotId);
     });
     db.lots = db.lots.filter((x) => !(x.opId === op.id && x.type === 'mout' && !keep.includes(x.id))); // cuve retirée de l'entrée : son lot disparaît
   }
+  if (op.type === 'etape') codifEtapeAppliquer(db, op); // nouveau code au changement de stade (0.41.0-alpha.1)
   if (op.type === 'degorgement') {
     const sp = op.lotFiniSpec || {};
     const prepQ = (op.prepUses || []).map((u) => (Rd.preps[u.prepId] || {}).qualif).filter(Boolean);
     const q = minQualif([lq(op.sourceLotId), ...prepQ]);
     if (!db.lotsFinis) db.lotsFinis = [];
-    upsert(db.lotsFinis, { id: op.lotFiniId, code: sp.code, designation: sp.designation, sourceLotId: op.sourceLotId, date: op.date, nb: num(op.nb), qualif: q, dosageGL: sp.dosageGL, prepIds: (op.prepUses || []).map((u) => u.prepId), opId: op.id, couleur: (Rd.lots[op.sourceLotId] || {}).couleur || couleurDefaut(db), stade: stadeRole(db, 'degorgement') || 'degorge' });
+    upsert(db.lotsFinis, { id: op.lotFiniId, code: sp.code, designation: sp.designation, sourceLotId: op.sourceLotId, date: op.date, nb: num(op.nb), qualif: q, dosageGL: sp.dosageGL, prepIds: (op.prepUses || []).map((u) => u.prepId), opId: op.id, couleur: (Rd.lots[op.sourceLotId] || {}).couleur || couleurDefaut(db), stade: stadeRole(db, 'degorgement') || 'degorge', ...(sp.codif ? { codif: sp.codif } : {}) });
   }
 }
 
@@ -355,6 +357,9 @@ function opDelete(db, id, opts) {
   if (op.type !== 'declassement' && db.alertes.some((a) => a.opId === op.id && a.statut === 'valide' && a.decisionOpId)) return fail('Un déclassement validé dépend de cette opération : supprimez d’abord l’opération « Déclassement validé » correspondante.');
   const rg = registreAvantSupprimer(db, op, opts); if (!rg.ok) return rg;
   const made = opCreates(op);
+  const hab = (db.habillages || []).filter((h) => h && h.source && h.source.type === 'fini' && made.finis.includes(h.source.id)); // habillages du lot fini (0.41.0-alpha.1)
+  if (hab.length) return fail(`Suppression impossible : ${hab.length} habillage(s) en dépendent (${hab.slice(0, 3).map((h) => h.code).join(', ')}). Supprimez-les d’abord.`);
+  if (op.type === 'etape') codifEtapeAnnuler(db, op);
   db.ops = db.ops.filter((o) => o.id !== id);
   // l'opération réalisait une opération à réaliser : celle-ci revient « à réaliser » et récupère les documents joints
   const prevs = (db.previsions || []).filter((p) => p.opId === id); prevs.forEach((p) => { p.statut = 'prevue'; p.opId = null; delete p.realiseLe; });

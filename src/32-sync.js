@@ -27,6 +27,7 @@ const SYNC_NOMS = {
   catalogues: ['catalogue importé', 'catalogues importés'], catalogueReglage: ['réglage des catalogues', 'réglages des catalogues'], plafonds: ['plafond de revendication', 'plafonds des revendications'], // 0.30.0-alpha.1
   schemas: ['schéma de vinification', 'schémas de vinification'], // 0.31.0-alpha.1
   plansVinif: ['plan de vinification', 'plans de vinification'], // 0.39.0-alpha.1
+  codifRegles: ['règle de codification', 'règles de codification'], codifTables: ['table de codification', 'tables de codification'], habillages: ['habillage ou mise en carton', 'habillages et mises en carton'], // 0.41.0-alpha.1
   regulStocks: ['régularisation de stock', 'régularisations de stock'], produitsMaintenance: ['produit de maintenance', 'produits de maintenance'], mouvementsMaintenance: ['mouvement de stock de maintenance', 'mouvements de stock de maintenance'], // 0.36.0-alpha.1
   drmProduits: ['produit de la DRM', 'produits de la DRM'], drmRattachements: ['rattachement à la DRM', 'rattachements à la DRM'], drmSorties: ['saisie de la DRM', 'saisies de la DRM'], drmDeclarations: ['DRM déposée', 'DRM déposées'], // 0.32.0-alpha.1
   baremes: ['barème de jaugeage', 'barèmes de jaugeage'], produitsHygiene: ['produit d’hygiène', 'produits d’hygiène'], lists: ['élément de liste', 'éléments de listes'], settings: ['réglage', 'réglages'], entreprise: ['information de l’entreprise', 'informations de l’entreprise'], apparence: ['réglage d’apparence', 'réglages d’apparence'],

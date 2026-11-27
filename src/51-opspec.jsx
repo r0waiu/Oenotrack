@@ -1,6 +1,8 @@
 /* ============ OPÉRATIONS : état initial des formulaires et construction des spécifications ============ */
 const S_ = (x) => (x === null || x === undefined ? '' : String(x));
 const err = (error) => ({ error });
+// unicité (0.41.0-alpha.1) : refusée sauf si la règle du stade autorise les doublons
+const codePris = (db, stade, date, code, own) => codifUnicite(db, stade, date) === 'refus' && takenCode(db, code, own);
 const takenCode = (db, code, exceptIds) => db.lots.some((l) => norm(l.code).trim() === norm(code).trim() && !(exceptIds || []).includes(l.id));
 function nextCode(db, prefix, date) {
   const yy = pad(yearOf(date) % 100); let n = db.lots.filter((l) => String(l.code).startsWith(`${prefix}${yy}-`)).length + 1;
@@ -21,11 +23,18 @@ const moutStockCuve = (Rd, cid) => sum(Object.values((Rd && Rd.portions) || {}).
 // contenu d'une cuve avant la destination j du moût i : stock à la date + volumes des moûts précédents de la même entrée vers cette cuve
 function moutVolAvant(Rd, f, i, j) { const cid = (((f.entrees || [])[i] || {}).dests || [])[j] ? f.entrees[i].dests[j].contenantId : ''; if (!cid) return 0; let v = moutStockCuve(Rd, cid); (f.entrees || []).forEach((e, k) => (e.dests || []).forEach((d, l) => { if ((k < i || (k === i && l < j)) && d.contenantId === cid) v += num(d.volL); })); return v; }
 // Plan des lots créés : un par cuve de destination (codes automatiques : préfixe + suffixe de fraction, numérotés si besoin)
-function moutPlan(db, f) {
+// contexte de codification d'une cuve de l'entrée de moûts (0.41.0-alpha.1) : moûts versés, au prorata des volumes
+function moutCodifCtx(db, f, t) {
+  const add = (m, k, v) => { if (k) m[k] = (m[k] || 0) + v; }; const comp = { cepages: {}, fractions: {}, crus: {}, qualifs: {}, apporteurs: {}, echelles: {} }; const mil = {};
+  t.parts.forEach((p) => { add(comp.cepages, p.e.cepageId, p.vol); add(comp.fractions, p.e.fractionId, p.vol); add(comp.crus, p.e.cruId, p.vol); add(comp.qualifs, p.e.qualifId || 'conv', p.vol); add(comp.echelles, cruEchelle(db, p.e.cruId) || 'inconnu', p.vol); add(mil, String(p.e.millesime || f.millesime || yearOf(f.date)), p.vol); ((p.e.apporteurs || []).length ? p.e.apporteurs : [{ id: p.e.apporteurId || f.apporteurId }]).forEach((a) => add(comp.apporteurs, a && a.id, p.vol)); });
+  return { date: f.date, comp, millesimes: mil, qualif: minQualif(uniq(t.parts.map((p) => p.e.qualifId || 'conv'))), couleur: (t.parts[0] && t.parts[0].e.couleur) || '', contenantId: t.contenantId, fractionId: t.fractions && t.fractions.length === 1 ? t.fractions[0] : '', choix: f.codifChoix || {} };
+}
+function moutPlan(db, f, own) {
   const tanks = []; const by = {};
   (f.entrees || []).forEach((e, i) => (e.dests || []).forEach((d) => { if (!d.contenantId) return; let t = by[d.contenantId]; if (!t) { t = by[d.contenantId] = { contenantId: d.contenantId, vol: 0, parts: [] }; tanks.push(t); } t.vol += num(d.volL); t.parts.push({ e, i, vol: num(d.volL) }); }));
-  const base = String(f.code || '').trim();
-  tanks.forEach((t) => { t.fractions = uniq(t.parts.map((p) => p.e.fractionId).filter(Boolean)); t.qualifs = uniq(t.parts.map((p) => p.e.qualifId || 'conv')); const sfx = t.fractions.length === 1 ? ((fracDef(db, t.fractions[0]) || {}).suffix || '') : ''; t.auto = sfx && base ? `${base}-${sfx}` : base; });
+  const base = String(f.code || '').trim(); const regle = codifActif(db, 'mout', f.date); const reserves = [];
+  tanks.forEach((t) => { t.fractions = uniq(t.parts.map((p) => p.e.fractionId).filter(Boolean)); t.qualifs = uniq(t.parts.map((p) => p.e.qualifId || 'conv')); const sfx = t.fractions.length === 1 ? ((fracDef(db, t.fractions[0]) || {}).suffix || '') : ''; t.auto = sfx && base ? `${base}-${sfx}` : base;
+    if (regle) { t.gen = codifGenerer(db, 'mout', { ...moutCodifCtx(db, f, t), reserves, exclure: own || [] }); if (t.gen.ok && t.gen.code) { t.auto = t.gen.code; reserves.push({ cle: t.gen.cle, cpt: t.gen.cpt, code: t.gen.code }); } } }); // codification (0.41.0-alpha.1)
   const cnt = {}; tanks.forEach((t) => { cnt[t.auto] = (cnt[t.auto] || 0) + 1; }); const seen = {};
   tanks.forEach((t) => { if (cnt[t.auto] > 1) { seen[t.auto] = (seen[t.auto] || 0) + 1; t.auto = `${t.auto}-${seen[t.auto]}`; } });
   tanks.forEach((t) => {
@@ -40,7 +49,8 @@ function moutPlan(db, f) {
 function opInit(type, old, db, date) {
   const o = old || {}; const base = { date: o.date || date, notes: o.notes || '', operateurs: Array.isArray(o.operateurs) ? [...o.operateurs] : [], champs: champsEtat(o), jauges: Array.isArray(o.jauges) ? o.jauges.filter((j) => j && j.champ) : [], sousType: o.sousType || '', stade: o.stade || '', couleur: o.couleur || '', stadeManuel: !!(old && o.stade), couleurManuel: !!(old && o.couleur),
     amont: Array.isArray(o.amont) ? o.amont : [], traceExports: Array.isArray(o.traceExports) ? o.traceExports : [], // 0.27.0-alpha.1 : traçabilité amont reçue, fichiers de traçabilité exportés
-    enrichissement: o.enrichissement && typeof o.enrichissement === 'object' ? o.enrichissement : null }; // 0.29.0-alpha.1 : calcul de l'enrichissement (simulateur)
+    enrichissement: o.enrichissement && typeof o.enrichissement === 'object' ? o.enrichissement : null,
+    codifChoix: { ...((((o.lotSpec || o.lotFiniSpec || o.parentSpec || o).codif) || ((o.lots || [])[0] || {}).codif || {}).choix || {}) } }; // choix de la codification des lots (0.41.0-alpha.1) // 0.29.0-alpha.1 : calcul de l'enrichissement (simulateur)
   switch (type) {
     case 'apport': return { ...base, cepageId: o.cepageId || (db.lists.cepages[0] || {}).id, kg: S_(o.kg), qualifId: o.qualifId || 'conv', apporteurId: o.apporteurId || '', cruId: o.cruId || '', parcelleId: o.parcelleId || '', ref: o.ref || '', heurePesee: (o.pesee || {}).heure || '' };
     case 'entree_mout': { const codes = {}; (o.lots || []).forEach((l) => { codes[l.contenantId] = { code: l.code || '', designation: l.designation || '' }; });
@@ -66,8 +76,8 @@ function opInit(type, old, db, date) {
     case 'filtration': return { ...base, portionId: o.portionId || '', methodeId: o.methodeId || (db.lists.methodesFiltration[0] || {}).id, equipementIds: o.equipementIds || [], lignes: LGN(o.lignes), pertes: PRT(o.pertes) };
     case 'jaugeage': return { ...base, portionId: o.portionId || '', volMesure: S_(o.volMesure), typeId: o.typeId || pickPerte(db, 'ecart'), hauteurMesure: S_(o.hauteurMesure), baremeId: o.baremeId || '', mesureJauge: o.mesureJauge || '' };
     case 'assemblage': { const ls = o.lotSpec || {}; return { ...base, sources: (o.sources || [{}, {}]).map((s) => ({ portionId: s.portionId || '', volL: S_(s.volL) })), destId: o.destId || '', pertes: PRT(o.pertes), lignes: LGN(o.lignes), code: ls.code || '', designation: ls.designation || '', millesime: ls.millesime || '', ltype: ls.type || 'assemblage' }; }
-    case 'etape': return { ...base, lotId: o.lotId || '', newStade: o.newStade || (o.newType ? stadeFromType(o.newType) : ''), couleur: o.couleur || '', newType: o.newType || '' };
-    case 'reprise': { const ls = o.lotSpec || {}; base.apporteurId = o.apporteurId || ''; const cp = {}; Object.keys(ls.cepages || {}).forEach((k) => { cp[k] = S_(ls.cepages[k]); }); const cr = Object.keys(ls.crus || {}).filter((k) => k !== '?').map((k) => ({ cruId: k, pct: S_(ls.crus[k]) })); return { ...base, crus: cr.length ? cr : [{ cruId: '', pct: '' }], echelle: ls.echelle || '', kind: num(o.nbBouteilles) > 0 ? 'bouteilles' : 'vin', contenantId: o.contenantId || '', volL: S_(o.volL), nbBouteilles: S_(o.nbBouteilles), code: ls.code || '', designation: ls.designation || '', millesime: ls.millesime || '', ltype: ls.type || 'vin_reserve', qualifId: ls.qualifId || 'conv', cepages: cp }; }
+    case 'etape': return { ...base, lotId: o.lotId || '', newStade: o.newStade || (o.newType ? stadeFromType(o.newType) : ''), couleur: o.couleur || '', newType: o.newType || '', ...(o.nouveauCode ? { nouveauCode: o.nouveauCode, codifAttribuer: true } : {}) };
+    case 'reprise': { const ls = o.lotSpec || {}; base.apporteurId = o.apporteurId || ''; const cp = {}; Object.keys(ls.cepages || {}).forEach((k) => { cp[k] = S_(ls.cepages[k]); }); const cr = Object.keys(ls.crus || {}).filter((k) => k !== '?').map((k) => ({ cruId: k, pct: S_(ls.crus[k]) })); return { ...base, crus: cr.length ? cr : [{ cruId: '', pct: '' }], echelle: ls.echelle || '', kind: num(o.nbBouteilles) > 0 ? 'bouteilles' : 'vin', contenantId: o.contenantId || '', volL: S_(o.volL), nbBouteilles: S_(o.nbBouteilles), code: ls.code || '', designation: ls.designation || '', millesime: ls.millesime || '', ltype: ls.type || 'vin_reserve', qualifId: ls.qualifId || 'conv', cepages: cp, codeFournisseur: ls.codeFournisseur || '' }; }
     case 'preparation': return { ...base, ptype: o.ptype || 'liqueur_tirage', qualifId: o.qualifId || 'conv', code: o.code || '', volL: S_(o.volL), sourcePortionId: o.sourcePortionId || '', sourceVolL: S_(o.sourceVolL), lignes: LGN(o.lignes) };
     case 'tirage': { const ls = o.lotSpec || {}; return { ...base, sources: (o.sources || [{}]).map((s) => ({ portionId: s.portionId || '', volL: S_(s.volL) })), prepUses: PRU(o.prepUses), lignes: LGN(o.lignes), nbBouteilles: S_(o.nbBouteilles), volBouteilleL: S_(o.volBouteilleL || db.settings.volBouteilleL), densBase: S_(o.densBase), densMix: S_(o.densMix), code: ls.code || '', designation: ls.designation || '', millesime: ls.millesime || '' }; }
     case 'degorgement': { const ls = o.lotFiniSpec || {}; return { ...base, sourceLotId: o.sourceLotId || '', nb: S_(o.nb), prepUses: PRU(o.prepUses), lignes: LGN(o.lignes), code: ls.code || '', designation: ls.designation || '', dosageGL: S_(ls.dosageGL) }; }
@@ -119,6 +129,7 @@ function buildSpec(type, f, db, Rd, old) {
   const r = buildSpec0(type, f, db, Rd, old); if (!r.spec) return r;
   if (VIN_CREE.includes(type) || VIN_APRES.includes(type)) { const v = vinChoix(type, f, db, Rd); if (v.stade) r.spec.stade = v.stade; if (v.couleur) r.spec.couleur = v.couleur; }
   if (f.sousType && f.sousType !== type) r.spec.sousType = f.sousType;
+  const cx = codifAttacher(type, f, db, Rd, old, r.spec); if (cx) return err(cx); // codification des lots (0.41.0-alpha.1)
   // formulaire personnalisé (0.16.0-alpha.1) : champs rendus obligatoires, valeurs des champs personnalisés (calculs compris)
   const catId = f.sousType || type; const pb = champsErreurs(db, catId, type, f, { nouveau: !old }); if (pb) return err(pb);
   const ch = champsValeurs(formulaireDe(db, catId).perso, f.champs, formuleVarsStd(type, f), old && old.champs); if (ch.length) r.spec.champs = ch;
@@ -180,11 +191,11 @@ function buildSpec0(type, f, db, Rd, old) {
       const nums = lines.map((l) => norm(l.numLot || '')).filter(Boolean);
       if (new Set(nums).size !== nums.length) return err('Deux moûts ont le même n° de lot : chaque compartiment reçu doit avoir son propre numéro.');
       if (!lines.length) return err('Ajoutez au moins un moût reçu : cépage, fraction, volume et cuve de destination.');
-      const plan = moutPlan(db, { ...f, entrees: lines });
+      const plan = moutPlan(db, { ...f, entrees: lines }, own);
       if (plan.some((t) => !t.code)) return err('Indiquez le code de chaque lot créé (un par cuve).');
       const codes = plan.map((t) => t.code);
       if (new Set(codes.map((c) => norm(c).trim())).size !== codes.length) return err('Chaque cuve de destination doit recevoir un code de lot différent.');
-      const tk = codes.find((c) => takenCode(db, c, own)); if (tk) return err(`Le code de lot « ${tk} » existe déjà.`);
+      const tk = codes.find((c) => codePris(db, 'mout', f.date, c, own)); if (tk) return err(`Le code de lot « ${tk} » existe déjà.`);
       // onglets gardés : ceux qui ont un moût, un partenaire ou un n° de bon ; op.apporteurId et op.ref restent remplis pour les versions antérieures
       const PG = PF.filter((p, k) => k === 0 || p.apporteurId || String(p.ref || '').trim() || lines.some((l) => l.partId === p.id));
       const parts = PG.length > 1 ? { partenaires: PG.map((p) => ({ id: p.id, apporteurId: p.apporteurId || '', ref: String(p.ref || '').trim(), lignes: lines.filter((l) => l.partId === p.id).map(cleLigne) })) } : {};
@@ -198,12 +209,12 @@ function buildSpec0(type, f, db, Rd, old) {
       const code = String(f.code).trim();
       if (!charges.length) return err('Sélectionnez au moins un apport de vendange pressé.');
       if (!code) return err('Le code du lot parent (pressée) est obligatoire.');
-      const fractions = Object.keys(f.frac).map((fid) => fracDef(db, fid) || { id: fid, suffix: fid }).map((fr) => ({ fractionId: fr.id, volL: num(f.frac[fr.id].volL), contenantId: f.frac[fr.id].contenantId, code: (f.frac[fr.id].code || '').trim() || `${code}-${fr.suffix}` })).filter((x) => x.volL > 0);
+      const fractions = Object.keys(f.frac).map((fid) => fracDef(db, fid) || { id: fid, suffix: fid }).map((fr) => ({ fractionId: fr.id, volL: num(f.frac[fr.id].volL), contenantId: f.frac[fr.id].contenantId, code: (f.frac[fr.id].code || '').trim() || pressFractionAuto(db, f, fr, code, Rd) })).filter((x) => x.volL > 0);
       if (!fractions.length) return err('Indiquez le volume d’au moins une fraction (cuvée, taille, rebêche).');
       if (fractions.some((x) => !x.contenantId)) return err('Choisissez un contenant pour chaque fraction renseignée.');
       const codes = [code, ...fractions.map((x) => x.code)];
       if (new Set(codes.map(norm)).size !== codes.length) return err('Les codes de lots de cette pressée doivent être différents.');
-      const t = codes.find((c) => takenCode(db, c, own)); if (t) return err(`Le code de lot « ${t} » existe déjà.`);
+      const t = codes.find((c, k) => codePris(db, k ? 'fraction' : 'marc', f.date, c, own)); if (t) return err(`Le code de lot « ${t} » existe déjà.`);
       if (f.heureDebut && !heureOK(f.heureDebut)) return err('Heure du début du pressurage invalide (hh:mm).');
       return { spec: { ...base, equipementId: f.equipementId, charges, parentSpec: { code, designation: f.designation.trim() || code, millesime: f.millesime || String(yearOf(f.date)), qualifId: f.qualifId }, fractions,
         ...(f.heureDebut || (old && old.marc) ? { marc: { ...((old && old.marc) || {}), ...(f.heureDebut ? { heureDebut: f.heureDebut } : {}) } } : {}) } }; // carnet de pressoir (0.24.0-alpha.1)
@@ -230,7 +241,7 @@ function buildSpec0(type, f, db, Rd, old) {
       if (sources.length < 1) return err('Sélectionnez au moins une portion source avec un volume.');
       if (sources.some((s) => !s.lotId)) return err('Une portion source n’existe plus à cette date.');
       if (!f.destId) return err('Choisissez le contenant de destination.'); const code = String(f.code).trim(); if (!code) return err('Le code du lot résultant est obligatoire.');
-      if (takenCode(db, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
+      if (codePris(db, 'assemblage', f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
       return { spec: { ...base, sources, destId: f.destId, pertes: cleanPertes(f.pertes), lignes: cleanLignes(f.lignes), lotSpec: { code, designation: f.designation.trim() || code, millesime: f.millesime || String(yearOf(f.date)), type: f.ltype } } };
     }
     case 'etape': {
@@ -241,7 +252,7 @@ function buildSpec0(type, f, db, Rd, old) {
     }
     case 'reprise': {
       const code = String(f.code).trim(); if (!code) return err('Le code du lot repris est obligatoire.');
-      if (takenCode(db, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
+      if (codePris(db, codifStadePourOp(db, 'reprise', f), f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
       const cepages = {}; Object.keys(f.cepages || {}).forEach((k) => { if (num(f.cepages[k]) > 0) cepages[k] = num(f.cepages[k]); });
       const crus = {}; (f.crus || []).forEach((x) => { if (x.cruId) crus[x.cruId] = (crus[x.cruId] || 0) + (num(x.pct) > 0 ? num(x.pct) : 1); });
       const lotSpec = { code, designation: f.designation.trim() || code, millesime: f.millesime || 'NV', type: f.kind === 'bouteilles' ? 'cuvee_tirage' : f.ltype, qualifId: f.qualifId, cepages, crus, echelle: Object.keys(crus).length ? '' : (f.echelle || '') };
@@ -260,14 +271,14 @@ function buildSpec0(type, f, db, Rd, old) {
       const sources = f.sources.filter((s) => s.portionId && num(s.volL) > 0).map((s) => ({ portionId: s.portionId, lotId: (Rd.portions[s.portionId] || {}).lotId, volL: num(s.volL) }));
       if (!sources.length) return err('Sélectionnez le vin de base (portion + volume).'); if (sources.some((s) => !s.lotId)) return err('Une portion source n’existe plus à cette date.');
       if (!(num(f.nbBouteilles) > 0)) return err('Indiquez le nombre de bouteilles tirées.'); const code = String(f.code).trim(); if (!code) return err('Le code du lot de tirage est obligatoire.');
-      if (takenCode(db, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
+      if (codePris(db, 'tirage', f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
       const sucre = hasNum(f.densBase) && hasNum(f.densMix) ? r2((num(f.densMix) - num(f.densBase)) * 1000 * num(db.settings.coefSucre)) : null;
       return { spec: { ...base, sources, prepUses: cleanPrepUses(f.prepUses), lignes: cleanLignes(f.lignes), nbBouteilles: num(f.nbBouteilles), volBouteilleL: num(f.volBouteilleL) || 0.75, densBase: hasNum(f.densBase) ? num(f.densBase) : null, densMix: hasNum(f.densMix) ? num(f.densMix) : null, sucreGL: sucre, lotSpec: { code, designation: f.designation.trim() || code, millesime: f.millesime || String(yearOf(f.date)) } } };
     }
     case 'degorgement': {
       if (!f.sourceLotId) return err('Choisissez le lot de tirage à dégorger.'); if (!(num(f.nb) > 0)) return err('Indiquez le nombre de bouteilles dégorgées.');
       const code = String(f.code).trim(); if (!code) return err('Le code du lot fini est obligatoire.');
-      if ((db.lotsFinis || []).some((x) => norm(x.code) === norm(code) && !(old && x.id === old.lotFiniId))) return err(`Le code de lot fini « ${code} » existe déjà.`);
+      if (codifUnicite(db, 'degorgement', f.date) === 'refus' && (db.lotsFinis || []).some((x) => norm(x.code) === norm(code) && !(old && x.id === old.lotFiniId))) return err(`Le code de lot fini « ${code} » existe déjà.`);
       return { spec: { ...base, sourceLotId: f.sourceLotId, nb: num(f.nb), prepUses: cleanPrepUses(f.prepUses), lignes: cleanLignes(f.lignes), lotFiniSpec: { code, designation: f.designation.trim() || code, dosageGL: hasNum(f.dosageGL) ? num(f.dosageGL) : null } } };
     }
     default: return err('Type d’opération inconnu.');
