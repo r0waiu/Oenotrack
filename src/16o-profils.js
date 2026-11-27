@@ -14,7 +14,7 @@
 const PROFIL_TYPES = [
   ['blanc', 'Vins tranquilles blancs'], ['rose', 'Vins tranquilles rosés'], ['rouge', 'Vins tranquilles rouges'],
   ['effervescent', 'Vins effervescents (méthode traditionnelle)'], ['ancestrale', 'Effervescents en méthode ancestrale (pétillant naturel)'],
-  ['doux', 'Vins moelleux, liquoreux, vins doux naturels'],
+  ['doux', 'Vins moelleux, liquoreux, vins doux naturels et vins de liqueur'],
 ];
 const PROFIL_RACCOURCIS = [
   { id: 'champagne', label: 'Champagne', region: 'champagne', types: ['effervescent', 'blanc'] },
@@ -51,6 +51,9 @@ const PROFIL_REGIONS = [
     cepages: PROFIL_C('malbec:Malbec (Côt)|tannat:Tannat|negrette:Négrette|fer_servadou:Fer Servadou|colombard:Colombard|gros_manseng:Gros Manseng|petit_manseng:Petit Manseng'), appellations: ['Cahors', 'Madiran', 'Jurançon', 'Gaillac', 'Bergerac'] },
   { id: 'jura_savoie', nom: 'Jura et Savoie', pays: 'France', types: ['blanc', 'rouge'], echelle: 'generique', enrichMax: 2,
     cepages: PROFIL_C('savagnin:Savagnin|chard:Chardonnay|poulsard:Poulsard|trousseau:Trousseau|pn:Pinot Noir|jacquere:Jacquère|mondeuse:Mondeuse|altesse:Altesse'), appellations: ['Côtes du Jura', 'Arbois', 'Château-Chalon', 'Crémant du Jura', 'Savoie', 'Roussette de Savoie'] },
+  // 0.46.0-alpha.2 : bassin Charentes-Cognac (Pineau des Charentes, IGP Charentais) ; zone viticole de l'UE à vérifier (C I supposée)
+  { id: 'charentes', nom: 'Charentes', pays: 'France', types: ['blanc', 'doux'], echelle: 'generique', enrichMax: 1.5,
+    cepages: PROFIL_C('ugni_blanc:Ugni blanc|colombard:Colombard|folle_blanche:Folle blanche|montils:Montils|merlot:Merlot|cab_sauv:Cabernet-Sauvignon|cab_franc:Cabernet Franc'), appellations: ['Pineau des Charentes', 'Charentais'] },
   { id: 'corse', nom: 'Corse', pays: 'France', types: ['rouge', 'rose', 'blanc'], echelle: 'generique', enrichMax: 1.5,
     cepages: PROFIL_C('nielluccio:Nielluccio|sciaccarellu:Sciaccarellu|rolle:Rolle (Vermentino)'), appellations: ['Corse', 'Patrimonio', 'Ajaccio'] },
   { id: 'italie', nom: 'Italie', pays: 'Étranger', types: ['rouge', 'blanc'], echelle: 'generique', enrichMax: 1.5,

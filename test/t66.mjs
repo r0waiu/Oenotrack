@@ -17,7 +17,7 @@ const toast = async () => page.locator('.toast').last().innerText().catch(() => 
 await page.click('#tab-params'); await page.waitForTimeout(400); await sous('Région & types de vins');
 let t = await txt(page.locator('main'));
 ok('écran : région (Champagne), 6 types (effervescents et blancs cochés), raccourcis ; aperçu : les 3 appellations champenoises', /Région et types de vins produits/.test(t) && (await page.locator('select[aria-label="Région viticole"]').inputValue()) === 'champagne' && (await page.locator('[data-profil-types] input:checked').count()) === 2 && (await page.locator('[data-raccourci]').count()) === 4 && (await plan()).join() === 'appellation:Champagne,appellation:Coteaux champenois,appellation:Rosé des Riceys', await plan());
-ok('… régions groupées : France (12), Étranger (8), Autre', (await page.locator('select[aria-label="Région viticole"] optgroup').count()) === 3 && (await page.locator('select[aria-label="Région viticole"] option').count()) === 21);
+ok('… régions groupées : France (13), Étranger (8), Autre', (await page.locator('select[aria-label="Région viticole"] optgroup').count()) === 3 && (await page.locator('select[aria-label="Région viticole"] option').count()) === 22);
 // 2. Bordeaux, rouges et blancs : aperçu détaillé ; on décoche une appellation et l'enrichissement
 await page.locator('select[aria-label="Région viticole"]').selectOption('bordeaux'); await page.waitForTimeout(300);
 await page.locator('[data-type=effervescent]').uncheck(); await page.locator('[data-type=rouge]').check(); await page.waitForTimeout(300);

@@ -40,6 +40,20 @@ function CampagnesView() {
   );
 }
 
+// 0.46.0-alpha.2 : ajout d'une appellation depuis le référentiel (France, UE, Suisse, États-Unis, Australie), la région du profil d'abord
+function AppRefAjout() {
+  const { db, act } = useApp(); const lect = useLectureSeule('params'); const [q, setQ] = useState(''); const region = profilViticole(db).region;
+  const R = useMemo(() => appChercher(q, { region, limite: 25 }), [q, region]);
+  const pris = new Set((db.lists.appellations || []).map((x) => norm(x.label)));
+  if (lect) return null;
+  return (<div className="mt-3 border-t border-line pt-3" data-appref="">
+    <label className="lbl" htmlFor="appref-q">Ajouter depuis le référentiel officiel</label>
+    <input id="appref-q" className="inp" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ex. Chablis, Rioja, Napa…" aria-label="Chercher une appellation" />
+    {q.trim() ? <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto" data-appref-resultats="">{R.length ? R.map((a) => <li key={a.id} className="flex flex-wrap items-center gap-2 text-sm">
+      <span translate="no"><b>{a.nom}</b></span><span className="text-xs text-ink2" translate="no">{[a.signe, a.sousRegion, (PROFIL_REGIONS.find((x) => x.id === a.region) || {}).nom].filter(Boolean).join(' · ')}</span>{a.etat ? <Chip tone="warn">{APP_ETATS[a.etat] || a.etat}</Chip> : null}
+      <span className="ml-auto" />{pris.has(norm(a.nom)) ? <Chip tone="ok">déjà dans la liste</Chip> : <Btn size="sm" onClick={() => act((d) => appellationDepuisRef(d, a.id), 'Appellation ajoutée.')} data-appref-ajouter={a.id}>＋ Ajouter</Btn>}</li>) : <li className="help">Aucune appellation trouvée.</li>}</ul> : <p className="help mt-1">{`${appRef().length} appellations : France (AOP, IGP), Italie, Espagne, Portugal, Allemagne, Autriche, Suisse, États-Unis, Australie — relevé officiel du 27/11/2026.`}</p>}
+  </div>);
+}
 function ListCard({ meta }) {
   const { db, act } = useApp(); const [nv, setNv] = useState(''); const [ed, setEd] = useState(null); const items = db.lists[meta.key] || [];
   const add = () => { const r = act((d) => listAdd(d, meta.key, nv), 'Élément ajouté.'); if (r.ok) setNv(''); };
@@ -50,6 +64,7 @@ function ListCard({ meta }) {
         <li key={it.id} className="flex items-center gap-2">{ed && ed.id === it.id ? <><TI value={ed.label} onChange={(v) => setEd({ ...ed, label: v })} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') ren(); if (e.key === 'Escape') setEd(null); }} /><Btn size="sm" kind="primary" onClick={ren}>OK</Btn><Btn size="sm" onClick={() => setEd(null)}>✕</Btn></>
           : <><span className="min-w-0 flex-1 truncate">{it.label}</span>{n ? <Chip title="Nombre d’utilisations">{n}×</Chip> : null}<Btn size="sm" kind="ghost" onClick={() => setEd({ id: it.id, label: it.label })}>Renommer</Btn><Btn size="sm" kind="ghost" disabled={n > 0} title={n > 0 ? 'Utilisé : renommez plutôt que supprimer' : 'Supprimer'} onClick={() => act((d) => listRemove(d, meta.key, it.id), 'Élément supprimé.')}>Supprimer</Btn></>}</li>); })}</ul>
       <div className="mt-3 flex gap-2"><TI value={nv} onChange={setNv} placeholder="Nouvel élément…" onKeyDown={(e) => { if (e.key === 'Enter') add(); }} aria-label={`Ajouter à ${meta.title}`} /><Btn onClick={add}>Ajouter</Btn></div>
+      {meta.key === 'appellations' ? <AppRefAjout /> : null}
     </div>
   );
 }

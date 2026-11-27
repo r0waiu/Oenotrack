@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.46.0-alpha.2 — 27/11/2026
+
+- Référentiel des appellations viticoles (relevé officiel du 27/11/2026) : France — 365 AOP et 74 IGP (INAO, registre de l’UE eAmbrosia, cahiers des charges), Italie, Espagne, Portugal, Allemagne, Autriche (registre eAmbrosia), Suisse (AOC), États-Unis (AVA) et Australie (indications géographiques), soit 1 692 appellations avec leurs catégories et couleurs de vins ; Paramètres › Listes › Appellations : recherche et ajout depuis le référentiel, la région du profil d’abord.
+- Région et types de vins : un type qu’aucune appellation de la région n’autorise est signalé « hors appellation » (vin sans indication géographique, toujours choisissable), par exemple la méthode ancestrale et les vins moelleux en Champagne ; nouvelle région Charentes (Pineau des Charentes, IGP Charentais).
+
 ## 0.46.0-alpha.1 — 27/11/2026
 
 - Opérations des autres vins : vinification en rouge et rosé (éraflage / foulage, macération préfermentaire à froid, macérations carbonique et semi-carbonique, thermovinification, flash-détente, pigeage séparé du remontage, macération finale à chaud, pressurage des marcs), vins doux (arrêt de fermentation, mutage), élevage (contrôle d’élevage sous bois, élevage sous voile, micro-oxygénation, morceaux de bois de chêne), stabilisation (électrodialyse, échangeurs de cations, stabilisation protéique) et assemblage de millésimes ; proposées par le profil viticole selon vos types de vins.

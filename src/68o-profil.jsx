@@ -5,7 +5,7 @@ function ProfilViticoleView() {
   const { db, act, uid } = useApp(); const lect = useLectureSeule('params'); const pv = profilViticole(db); useLangue();
   const [region, setRegion] = useState(pv.region); const [types, setTypes] = useState(pv.types); const [decoches, setDecoches] = useState([]);
   const plan = useMemo(() => profilPlan(db, region, types), [db, region, types]);
-  const R = profilRegionDef(region) || {};
+  const R = profilRegionDef(region) || {}; const AT = useMemo(() => appTypesRegion(region), [region]); /* 0.46.0-alpha.2 : types hors appellation */
   const pris = plan.filter((x) => !decoches.includes(x.id));
   const basculer = (t) => { setTypes((L) => (L.includes(t) ? L.filter((x) => x !== t) : [...L, t])); setDecoches([]); };
   const choisirRegion = (r) => { setRegion(r); setDecoches([]); const d = profilRegionDef(r); if (d && !pv.defini) setTypes(d.types); };
@@ -30,7 +30,8 @@ function ProfilViticoleView() {
           </select>
         </Field>
         <div><span className="lbl">Types de vins produits</span>
-          <div className="space-y-1" data-profil-types="">{PROFIL_TYPES.map(([t, l]) => <label key={t} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={types.includes(t)} disabled={lect} onChange={() => basculer(t)} data-type={t} /><span>{l}</span></label>)}</div>
+          <div className="space-y-1" data-profil-types="">{PROFIL_TYPES.map(([t, l]) => { const hors = !AT.libre && !AT.possibles.includes(t); return <label key={t} className="flex flex-wrap items-center gap-2 text-sm"><input type="checkbox" checked={types.includes(t)} disabled={lect} onChange={() => basculer(t)} data-type={t} /><span>{l}</span>{hors ? <Chip tone={types.includes(t) ? 'warn' : ''} title="Aucune appellation de la région n’autorise ce type de vin : vin sans indication géographique." data-hors-appellation={t}>hors appellation</Chip> : null}</label>; })}</div>
+          <p className="help mt-2" data-profil-appellations="">{AT.nb.total ? (AT.libre ? `${AT.nb.total} appellation(s) dans le référentiel ; elles ne restreignent pas le type de vin.` : `${AT.nb.total} appellation(s) dans le référentiel (AOP : ${AT.nb.aop}, IGP : ${AT.nb.igp}) : un type qu’aucune n’autorise est signalé « hors appellation » (vins sans IG), sans être interdit.`) : 'Aucune appellation de cette région dans le référentiel.'}</p>
         </div>
       </div>
       <Sec title={`Changements proposés (${plan.length})`}>
