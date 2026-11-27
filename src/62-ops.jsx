@@ -95,7 +95,7 @@ function TabDeclass() {
   const pending = db.alertes.filter((a) => a.statut === 'attente'); const done = db.alertes.filter((a) => a.statut !== 'attente').sort((a, b) => ((a.decidedOn || '') < (b.decidedOn || '') ? 1 : -1));
   const dateOf = (a) => dates[a.id] || defaultDate;
   return (
-    <div>
+    <div data-vg="declass">
       <Notice tone="info" title="Un déclassement n’est jamais appliqué sans votre validation">Quand un intrant non autorisé est ajouté à une portion, ou qu’une préparation de rang inférieur y est incorporée, une alerte est créée ici. La revendication du lot ne change qu’au moment où vous la validez ; elle est alors tracée comme une opération « Déclassement validé ».</Notice>
       <Sec className="mt-5" title={`À valider (${pending.length})`}>
         {!pending.length ? <Empty>Aucune alerte en attente.</Empty> : <div className="space-y-3">{pending.map((a) => { const lot = R.lots[a.lotId] || {}; const op = db.ops.find((o) => o.id === a.opId);

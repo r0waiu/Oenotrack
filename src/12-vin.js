@@ -138,8 +138,32 @@ const qualifDef = (db, id) => qualifList(db).find((x) => x.id === id) || null;
 // options des listes de choix : revendications visibles (+ la valeur actuelle si elle est masquée)
 const qualifOptions = (db, keep) => QUALIFS.filter((q) => !q.masque || q.id === keep).map((q) => ({ value: q.id, label: `${q.code} (rang ${q.rang})` }))
   .concat(keep && !qConnu(keep) ? [{ value: keep, label: `(${keep})` }] : []);
+/* 0.45.0-alpha.1 — revendication bio : nom « BIO » et code d'agrément de l'organisme certificateur (q.codeAgrement, q.organisme) ;
+   le code d'agrément est la revendication affichée partout (qLabel, listes, fiches, déclarations, exports) mais la revendication reste du bio
+   (règles, référentiel Bio UE). Bio = référentiel « bio-ue » choisi, ou deviné d'après le nom ; Demeter, Biodyvin… (qui en héritent) n'en ont pas. */
+const qualifEstBio = (q) => !!q && (Array.isArray(q.referentiels) ? q.referentiels.includes('bio-ue') : (q.id === 'bio' || (typeof refDeviner === 'function' && refDeviner(q).includes('bio-ue'))));
+const CODE_AGREMENT_RE = /^[A-Z]{2}-[A-ZÄÖÜ]{2,4}-\d{2,3}$/; // format européen : pays-terme-numéro (ex. FR-BIO-01), règlement (UE) 2018/848
+const codeAgrementNorm = (v) => String(v == null ? '' : v).trim().toUpperCase().replace(/\s+/g, '').replace(/–|—/g, '-');
+const codeAgrementValide = (v) => { const c = codeAgrementNorm(v); return !c || CODE_AGREMENT_RE.test(c); };
+const qualifAffiche = (q) => (q ? String((qualifEstBio(q) && q.codeAgrement) || q.label || q.code || q.id) : '');
+function qualifCodeAgrementSet(db, id, s, uid) {
+  if (!Array.isArray(db.lists.qualifs) || !db.lists.qualifs.length) db.lists.qualifs = qualifList(db).map((x) => ({ ...x }));
+  const q = db.lists.qualifs.find((x) => x && x.id === id); if (!q) return fail('Revendication introuvable.');
+  if (!qualifEstBio(q)) return fail('Le code d’agrément de l’organisme certificateur ne concerne que les revendications bio.');
+  const code = codeAgrementNorm(s.codeAgrement); if (!codeAgrementValide(code)) return fail(`Code d’agrément « ${String(s.codeAgrement).trim()} » invalide : pays, terme et numéro, ex. FR-BIO-01.`);
+  const org = String(s.organisme == null ? (q.organisme || '') : s.organisme).trim().slice(0, 80);
+  if (code) q.codeAgrement = code; else delete q.codeAgrement; if (org) q.organisme = org; else delete q.organisme;
+  q.agrementPar = uid || ''; q.agrementLe = new Date().toISOString(); return okr({ code });
+}
+// migration (une fois) : le nom d'exemple « FR-BIO-01 » (code d'Ecocert) devient « BIO », sans code d'agrément ; un autre nom n'est pas touché
+function bioMigrerLibelle(db) {
+  if (!db.settings) db.settings = {}; if (db.settings.bioLibelle) return false;
+  const q = Array.isArray(db.lists && db.lists.qualifs) ? db.lists.qualifs.find((x) => x && x.id === 'bio') : null; let fait = false;
+  if (q && String(q.label || '').trim().toUpperCase() === 'FR-BIO-01' && !q.codeAgrement) { q.label = 'BIO'; fait = true; }
+  db.settings.bioLibelle = { de: fait ? 'FR-BIO-01' : '', le: new Date().toISOString(), version: typeof APP_VERSION === 'string' ? APP_VERSION : '' }; return fait;
+}
 function syncQualifs(db) {
-  const L = qualifList(db).map((x, i) => ({ id: String(x.id), code: String(x.label || x.code || x.id), court: String(x.court || x.label || x.id).slice(0, 8), rang: i + 1, masque: x.id !== 'conv' && !!x.masque }));
+  const L = qualifList(db).map((x, i) => ({ id: String(x.id), code: qualifAffiche(x), nom: String(x.label || x.code || x.id), court: String(x.court || x.label || x.id).slice(0, 8), rang: i + 1, masque: x.id !== 'conv' && !!x.masque, ...(qualifEstBio(x) ? { bio: true } : {}), ...(x.codeAgrement ? { codeAgrement: x.codeAgrement, organisme: x.organisme || '' } : {}) }));
   QUALIFS.splice(0, QUALIFS.length, ...L);
 }
 

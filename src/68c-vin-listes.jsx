@@ -90,6 +90,18 @@ function EchellesEditor() {
   );
 }
 
+// 0.45.0-alpha.1 : revendication bio — code d'agrément de l'organisme certificateur (affiché comme revendication partout) et nom de l'organisme
+function QualifAgrement({ q }) {
+  const { act, uid } = useApp(); const lect = useLectureSeule('params');
+  const enr = (patch) => { const s = { codeAgrement: q.codeAgrement || '', organisme: q.organisme || '', ...patch }; if (codeAgrementNorm(s.codeAgrement) === (q.codeAgrement || '') && String(s.organisme).trim() === (q.organisme || '')) return; act((d) => qualifCodeAgrementSet(d, q.id, s, uid), 'Code d’agrément enregistré.'); };
+  return (<div className="flex w-full flex-wrap items-end gap-2 pl-8" data-qualif-agrement={q.id}>
+    <Field label="Code d’agrément de l’organisme certificateur" help={q.codeAgrement ? `Affiché comme revendication : ${q.codeAgrement} (reste du bio).` : `Vide : « ${q.label} » est affiché.`}>
+      <input className="inp" style={{ width: 160 }} defaultValue={q.codeAgrement || ''} key={`a${q.codeAgrement || ''}`} placeholder="ex. FR-BIO-01" disabled={lect} aria-label={`Code d’agrément de ${q.label}`} translate="no"
+        onBlur={(e) => enr({ codeAgrement: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} /></Field>
+    <Field label="Organisme certificateur"><input className="inp" style={{ width: 200 }} defaultValue={q.organisme || ''} key={`o${q.organisme || ''}`} placeholder="ex. Ecocert" disabled={lect} aria-label={`Organisme certificateur de ${q.label}`} translate="no"
+      onBlur={(e) => enr({ organisme: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} /></Field>
+  </div>);
+}
 // Revendications (0.18.0-alpha.1) : du rang le plus bas (en haut) au plus élevé ; un mélange prend la plus basse ; le rang 1 reste en tête
 function QualifsEditor() {
   const { db, act, toast, confirm } = useApp(); const L = qualifList(db);
@@ -119,6 +131,7 @@ function QualifsEditor() {
             <Btn size="sm" disabled={conv || i === L.length - 1} aria-label={`Descendre ${x.label}`} onClick={() => act((d) => richListCont(d, 'qualifs', 'down', x.id))}>↓</Btn>
             <Btn size="sm" kind="danger" disabled={conv || n > 0} title={conv ? 'Rang 1 : se renomme mais ne se supprime pas' : n ? 'Utilisée : masquez-la plutôt' : 'Supprimer'} aria-label={`Supprimer ${x.label}`} onClick={() => del(x)}>✕</Btn>
           </div>
+          {qualifEstBio(x) ? <QualifAgrement q={x} /> : null}
         </div>); })}
       <div className="rounded-md border border-dashed border-line p-3" data-qualif-ajout="">
         <div className="mb-2 text-sm font-semibold">Ajouter une revendication</div>
@@ -133,7 +146,7 @@ function QualifsEditor() {
           <Btn kind="primary" onClick={add}>+ Ajouter</Btn>
         </div>
       </div>
-      <Btn size="sm" onClick={() => act((d) => { const r = richListReset(d, 'qualifs'); syncConfig(d); return r; }, 'Revendications d’origine réajoutées (en fin de liste).')}>Réajouter Conventionnel, FR-BIO-01 et Demeter s’ils manquent</Btn>
+      <Btn size="sm" onClick={() => act((d) => { const r = richListReset(d, 'qualifs'); syncConfig(d); return r; }, 'Revendications d’origine réajoutées (en fin de liste).')}>Réajouter Conventionnel, BIO et Demeter s’ils manquent</Btn>
     </div>
   );
 }

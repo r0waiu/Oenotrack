@@ -100,7 +100,7 @@ function normalizeDb(d) {
   if (!Array.isArray(dlists.echelles) || !dlists.echelles.length) out.lists.echelles = DEFAULT_ECHELLES().map((x) => ({ ...x, couleur: (ap.echelleColors || {})[x.id] || x.couleur }));
   if (!Array.isArray(dlists.stades) || !dlists.stades.length) out.lists.stades = DEFAULT_STADES();
   if (!Array.isArray(dlists.couleursVin) || !dlists.couleursVin.length) out.lists.couleursVin = DEFAULT_COULEURS_VIN();
-  // revendications (0.18.0-alpha.1) : bases antérieures → Conventionnel, FR-BIO-01, Demeter avec leurs couleurs ; « conv » toujours en tête
+  // revendications (0.18.0-alpha.1) : bases antérieures → Conventionnel, BIO (FR-BIO-01 avant 0.45.0-alpha.1), Demeter avec leurs couleurs ; « conv » toujours en tête
   out.lists.qualifs = !Array.isArray(dlists.qualifs) || !dlists.qualifs.some((x) => x && x.id) ? DEFAULT_QUALIFS().map((x) => ({ ...x, couleur: (ap.qualifColors || {})[x.id] || x.couleur })) : qualifList(out);
   out.lists.stades = out.lists.stades.map((x) => ({ phase: 'vin', role: '', ...x }));
   if (!out.settings.suiviV3) { // une seule fois : paramètres et modèles de suivi des fermentations
@@ -130,6 +130,7 @@ function normalizeDb(d) {
   out.meta = { ...out.meta, creeAvec: dm.creeAvec || (old ? 'Cuverie champenoise' : vs[0] || '0.7.0-alpha.1 ou antérieure'), appVersion: APP_VERSION, versions: vs.includes(APP_VERSION) ? vs : [...vs, APP_VERSION].slice(-30) };
   if (typeof plansVinifConvertirSchemas === 'function') plansVinifConvertirSchemas(out); // 0.43.0-alpha.2 : schémas → variantes du plan de vinification (une fois)
   if (typeof refMigrerLabels === 'function') refMigrerLabels(out); // 0.43.0-alpha.1 : AVN → VMN (Vin Méthode Nature), bascule tracée
+  bioMigrerLibelle(out); // 0.45.0-alpha.1 : nom d'exemple « FR-BIO-01 » → « BIO » (une fois, tracé dans settings.bioLibelle)
   syncConfig(out);
   return out;
 }

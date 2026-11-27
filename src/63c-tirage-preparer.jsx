@@ -197,7 +197,7 @@ function TiragePreparer({ onForm }) {
   const L = Object.values(R.preps).filter((p) => p.ptype === 'levain').sort(desc_); const Q = Object.values(R.preps).filter((p) => p.ptype === 'liqueur_tirage').sort(desc_);
   return (<div data-tirage-preparer="">
     <Sec title="Calculer"><TirageCalculateur onPreparer={onForm} /></Sec>
-    <Sec title="Levains de tirage" right={<Btn kind="primary" onClick={() => onForm({ type: 'preparation', preset: { ptype: 'levain' } })}>＋ Levain</Btn>}>
+    <Sec title="Levains de tirage" data-vg="levains" right={<Btn kind="primary" onClick={() => onForm({ type: 'preparation', preset: { ptype: 'levain' } })}>＋ Levain</Btn>}>
       <Tbl rows={L} empty="Aucun levain : partez du calculateur ou créez-en un." onRow={(p) => setLev(p.id)} cols={[{ h: 'Levain', r: (p) => <b translate="no">{p.code}</b> }, { h: 'Revendication', r: (p) => <QChip id={p.qualif} /> }, { h: 'Préparé le', r: (p) => <span className="num">{fmtDate(p.date)}</span> },
         { h: 'Disponible', cls: 'r', r: (p) => <b className={cx('num', p.remaining < -0.01 && 'text-bad')}>{litres(p.remaining)}</b> }, { h: 'Lots servis', r: (p) => <span className="flex flex-wrap gap-x-2">{uniq(R.prepUse.filter((u) => u.prepId === p.id).map((u) => u.lotId).filter(Boolean)).map((id) => <LotLink key={id} id={id} />)}</span> },
         { h: 'Suivi', r: (p) => `${levainSuivi(db, p.id).length} étape(s)` }, { h: '', r: (p) => <Btn size="sm" onClick={(e) => { e.stopPropagation(); setLev(p.id); }}>Ouvrir</Btn> }]} />

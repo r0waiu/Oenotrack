@@ -45,12 +45,16 @@ const repondre = async (page, ov, reponses) => {
   ok('base vide (plus de lots d’exemple), nom de l’exploitation, onglet Pressoir masqué', (d.lots || []).length === 0 && d.entreprise.nom === 'Domaine fictif T84' && (await page.locator('#tab-pressoir').count()) === 0, { lots: (d.lots || []).length, nom: d.entreprise.nom });
   ok('revendications : VMN ajoutée avec son référentiel ; identifiants activés, administrateur connecté', d.lists.qualifs.some((q) => q.id === 'vmn' && q.referentiels[0] === 'vmn') && d.settings.securite.actif === true && d.utilisateurs.some((u) => u.identifiant === 'fictif' && u.profilId === 'pf_admin') && (await page.locator('[data-utilisateur]').count()) === 1);
   ok('réponses gardées sans le mot de passe', d.settings.personnalisation.mode === 'basique' && !JSON.stringify(d.settings.personnalisation).includes('MotDePasse') && d.settings.personnalisation.reponses.nom === 'Domaine fictif T84');
-  // visite guidée
+  // visite guidée (0.45.0-alpha.1 : par chapitres)
   await page.locator('[data-perso-visite]').click(); await page.waitForTimeout(700);
-  ok('visite guidée lancée : bulle « Étape 1 / n » pointant le logo', (await page.locator('[data-visite="1"]').count()) === 1 && /Étape 1 \/ \d+/.test(await txt(page.locator('.visite-bulle'))));
-  await page.locator('[data-visite-suivant]').click(); await page.waitForTimeout(300); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(300);
+  const chaps = await page.locator('[data-visite-chapitre]').evaluateAll((e) => e.map((x) => x.getAttribute('data-visite-chapitre')));
+  ok('visite guidée : sommaire des chapitres ; l’onglet masqué (Pressoir) n’est pas présenté', chaps[0] === 'prise' && chaps.includes('cuverie') && chaps.includes('params') && !chaps.includes('pressoir'), chaps);
+  await page.locator('[data-visite-chapitre="prise"]').click(); await page.waitForTimeout(700);
+  ok('chapitre « Prise en main » : bulle « étape 1 / n » pointant le logo', (await page.locator('[data-visite="1"]').count()) === 1 && /étape 1 \/ \d+/.test(await txt(page.locator('.visite-bulle'))) && /Œnotrack/.test(await txt(page.locator('.visite-bulle'))));
+  await page.locator('[data-visite-suivant]').click(); await page.waitForTimeout(400); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400);
   ok('… Suivant et flèche → : étape 3', (await page.locator('[data-visite="3"]').count()) === 1);
-  ok('… l’onglet masqué (Pressoir) n’est pas présenté', !(await (async () => { for (let k = 0; k < 15; k++) { if (/Registre des pesées/.test(await txt(page.locator('.visite-bulle')))) return true; if (!(await page.locator('[data-visite-suivant]').count())) return false; await page.locator('[data-visite-suivant]').click(); await page.waitForTimeout(150); } return false; })()));
+  await page.locator('[data-visite-retour]').click(); await page.waitForTimeout(300);
+  ok('… retour au sommaire', (await page.locator('[data-visite-sommaire]').count()) === 1);
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   ok('Échap : visite fermée ; bouton « ❓ Visite guidée » dans l’en-tête', (await page.locator('.visite').count()) === 0 && (await page.locator('[data-visite-bouton]').count()) === 1);
   ok('aucune erreur dans la page', errors.length === 0, errors);

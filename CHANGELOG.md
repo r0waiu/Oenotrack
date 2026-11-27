@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.45.0-alpha.1 — 27/11/2026
+
+- Revendication bio : nommée « BIO » (et non plus « FR-BIO-01 », le code d’Ecocert) ; Paramètres › Revendications, stades & listes accueille le code d’agrément de votre organisme certificateur (et son nom) : ce code est la revendication affichée partout (cuverie, lots, fiches, déclarations, traçabilité, exports) mais la revendication reste du bio (règles d’intrants, référentiel Bio UE). Aussi demandé par la configuration guidée. Les bases qui portaient le nom d’exemple « FR-BIO-01 » passent à « BIO », sans code.
+- Visite guidée par chapitres : un sommaire propose un chapitre par module affiché (cuverie, pressoir, opérations, à réaliser, plan de vinification, tirages, cave, dégorgement, analyses, intrants, hygiène, équipements, traçabilité, registres et DRM, paramètres) ou « Tout voir » ; chaque étape ouvre l’onglet voulu et présente la fonctionnalité.
+
 ## 0.44.0-alpha.3 — 27/11/2026
 
 - Configuration guidée : la revendication VDC (Viticulture Durable en Champagne) est proposée à côté de HVE ; ces certifications de durabilité s’ajoutent juste après Conventionnel, sous Bio et les autres labels, pour qu’un assemblage garde la revendication la plus basse.

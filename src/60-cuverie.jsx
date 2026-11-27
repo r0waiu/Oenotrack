@@ -269,7 +269,7 @@ function TabCuverie() {
             {sub === 'plan' ? (edit
               ? <><Btn onClick={() => setZoneForm({ siteId: (sitesShown[0] || db.sites[0]).id, zone: null })}>+ Zone</Btn><Btn onClick={reorg}>Réorganiser</Btn><Btn kind="primary" onClick={() => setEdit(false)}>🔒 Verrouiller le plan</Btn></>
               : <><Btn onClick={() => setPrintPlan(true)} title="Plan imprimable (PDF) avec les légendes de votre choix">🖨 Imprimer le plan</Btn><Btn onClick={() => setEdit(true)} title="Déplacer les contenants pour reproduire l’organisation réelle de la cuverie">🔓 Modifier le plan</Btn></>) : null}
-            <Btn kind="primary" onClick={() => setForm('new')}>+ Nouveau contenant</Btn>
+            <Btn kind="primary" onClick={() => setForm('new')} data-vg="cuverie-nouveau">+ Nouveau contenant</Btn>
           </div>
         </div>
       ) : null}

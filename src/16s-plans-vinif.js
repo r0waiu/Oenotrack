@@ -1,7 +1,7 @@
 /* ============ PLAN DE VINIFICATION (0.39.0-alpha.1) ============
    Instruction de travail de la cave (ex. « Schéma de vinifications », document qualité) : un tableau qui donne, pour chaque étape
    (sulfitage, enzymage, débourbage, levurage, chaptalisation, FML, passage au froid, filtration, tirage…) et chaque produit, la dose
-   à appliquer selon le groupe de cépages (blancs, noirs), la revendication (conventionnel, FR-BIO-01, Demeter) et la fraction (cuvée,
+   à appliquer selon le groupe de cépages (blancs, noirs), la revendication (conventionnel, BIO, Demeter) et la fraction (cuvée,
    tailles). Il complète les schémas de vinification (16m-schemas : étapes datées proposées à la création d'un lot).
    db.plansVinif (absent : un exemple ci-dessous, « à vérifier », copié dans la base à la 1re modification ; champs inconnus gardés) :
      { id, nom, reference (ex. OE-INS-01), version (ex. V1.2), sousTitre, note, actif,
@@ -20,7 +20,7 @@ const PLANV_CHAMPS = ['nom', 'reference', 'version', 'sousTitre', 'note', 'actif
 // exemple : même structure que les plans des caves champenoises (12 colonnes), doses génériques à vérifier
 function PLANV_EXEMPLE() {
   const G = [{ id: 'blanc', label: 'Cépage blanc', cepages: ['chard'] }, { id: 'noirs', label: 'Cépages noirs', cepages: ['pn', 'pm'] }];
-  const Rv = [{ id: 'conv', label: 'Conventionnel' }, { id: 'bio', label: 'FR-BIO-01' }, { id: 'dem', label: 'Demeter' }];
+  const Rv = [{ id: 'conv', label: 'Conventionnel' }, { id: 'bio', label: 'BIO' }, { id: 'dem', label: 'Demeter' }];
   const F = [{ id: 'cuvee', label: 'Cuvée', fractions: ['cuvee'] }, { id: 'tailles', label: 'Tailles', fractions: ['taille1', 'taille2', 'taille'] }];
   // v(c, t) : même dose partout (cuvée c, tailles t) ; seulement certaines revendications : revs
   const tous = (c, t, revs) => { const o = {}; G.forEach((g) => Rv.forEach((r) => { if (!revs || revs.includes(r.id)) { o[`${g.id}|${r.id}|cuvee`] = c; if (t != null) o[`${g.id}|${r.id}|tailles`] = t; } })); return o; };
@@ -160,7 +160,7 @@ function planVinifDepuisFeuille(db, rows0, merges0, o) {
   const cepDe = (label) => { const n = norm(label); const blanc = /blanc/.test(n) && !/noir/.test(n); const noir = /noir|rouge/.test(n);
     return cepNoms.filter((c) => (blanc && /chard|blanc|arbane|meslier/.test(c.n)) || (noir && /noir|meunier/.test(c.n)) || (!blanc && !noir && n.includes(c.n))).map((c) => c.id); };
   const qualifs = ((db && db.lists && db.lists.qualifs) || DEFAULT_QUALIFS());
-  const revDe = (label, i) => { const n = norm(label); const q = qualifs.find((x) => norm(x.label) === n || norm(x.court) === n || norm(x.id) === n || (/bio/.test(n) && x.id === 'bio')); return { id: q ? q.id : `r${i + 1}`, label: label || (q ? q.label : `Revendication ${i + 1}`) }; };
+  const revDe = (label, i) => { const n = norm(label); const q = qualifs.find((x) => norm(x.label) === n || norm(x.court) === n || norm(x.id) === n || (x.codeAgrement && norm(x.codeAgrement) === n) || (/bio/.test(n) && x.id === 'bio')); return { id: q ? q.id : `r${i + 1}`, label: label || (q ? q.label : `Revendication ${i + 1}`) }; };
   const fracDe = (label, i) => { const n = norm(label); const role = /rebech/.test(n) ? 'rebeche' : /taille/.test(n) ? 'taille' : /cuvee/.test(n) ? 'cuvee' : '';
     const ids = role && typeof fracRole === 'function' ? fracList(db).filter((x) => fracRole(db, x.id) === role).map((x) => x.id) : [];
     return { id: role === 'taille' ? 'tailles' : role || `f${i + 1}`, label: label || `Fraction ${i + 1}`, fractions: ids }; };

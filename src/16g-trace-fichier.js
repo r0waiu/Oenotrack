@@ -108,7 +108,7 @@ function traceVersEntree(db, data, type) {
   const cep = (nom) => { const c = cherche(db.lists.cepages, nom, (x) => x.label); if (!c && nom) manquants.push(`cépage « ${nom} »`); return c ? c.id : ''; };
   const cru = (nom) => { if (!nom || /non renseign/i.test(nom)) return ''; const c = cherche(db.crus, nom, (x) => x.nom); if (!c) manquants.push(`cru « ${nom} »`); return c ? c.id : ''; };
   const frac = (nom) => { const c = cherche(fracList(db), nom, (x) => x.label); if (!c && nom && !/non pr/i.test(nom)) manquants.push(`fraction « ${nom} »`); return c ? c.id : ''; };
-  const qualif = (code) => { const q = QUALIFS.find((x) => norm(x.code) === norm(code) || norm(x.court) === norm(code) || norm(x.id) === norm(code)); return q ? q.id : 'conv'; };
+  const qualif = (code) => { const q = QUALIFS.find((x) => norm(x.code) === norm(code) || norm(x.nom || '') === norm(code) || norm(x.court) === norm(code) || norm(x.id) === norm(code)); return q ? q.id : 'conv'; };
   const exp = data.expediteur && data.expediteur.nom ? cherche(db.apporteurs, data.expediteur.nom, (x) => x.nom) : null; if (data.expediteur && data.expediteur.nom && !exp) manquants.push(`partenaire « ${data.expediteur.nom} » (à créer dans Paramètres › Partenaires)`);
   const partenaire = !exp && data.expediteur && data.expediteur.nom ? { nom: data.expediteur.nom, adresse: data.expediteur.adresse || '' } : null; // à créer chez le receveur (bouton du formulaire)
   const mil = /^\d{4}$/.test(P.millesime || '') ? P.millesime : ((C.millesimes || []).length === 1 && /^\d{4}$/.test(C.millesimes[0].nom) ? C.millesimes[0].nom : '');

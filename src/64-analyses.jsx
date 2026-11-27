@@ -60,7 +60,7 @@ function TabAnalyses() {
         <Sec title={`Analyses (${rows.length})`} right={<><SI value={lotF} onChange={setLotF} placeholder="Tous les lots" style={{ width: 'auto', maxWidth: 220 }} options={Object.values(R.lots).sort((a, b) => a.code.localeCompare(b.code, 'fr', { numeric: true })).map((l) => ({ value: l.id, label: l.code }))} aria-label="Lot" />
           <SI value={modF} onChange={setModF} placeholder="Tous les modèles" style={{ width: 'auto' }} options={db.analysesModeles.map((m) => ({ value: m.id, label: m.nom }))} aria-label="Modèle" />
           <SI value={contF} onChange={setContF} placeholder="Tous les contenants" style={{ width: 'auto' }} options={contOptions(db, true)} aria-label="Contenant" />
-          <Btn kind="primary" onClick={() => setForm({})}>+ Nouvelle analyse</Btn></>}>
+          <Btn kind="primary" onClick={() => setForm({})} data-vg="analyse-nouvelle">+ Nouvelle analyse</Btn></>}>
           <Tbl rows={rows} empty="Aucune analyse pour ces critères." cols={[
             { h: 'Date', r: (a) => <span className="num">{fmtDate(a.date)}</span> }, { h: 'Lot', r: (a) => <LotLink id={a.lotId} /> }, { h: 'Contenant prélevé', r: (a) => (a.contenantId ? <ContLink id={a.contenantId} /> : '—') },
             { h: 'Modèle', r: (a) => { const b = analyseBulletin(db, a); return <span className="inline-flex flex-wrap items-center gap-1">{(db.analysesModeles.find((m) => m.id === a.modeleId) || {}).nom || 'Libre'}{b ? <button type="button" className="chip" style={{ cursor: 'pointer' }} onClick={() => setVueDoc(b)} title={`Bulletin d’analyses : ${b.nom}`} data-bulletin-doc="">📄 bulletin</button> : null}</span>; } },

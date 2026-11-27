@@ -114,7 +114,7 @@ function HygJournal({ onAFaire }) {
   return (
     <div>
       {T.length ? <Notice tone={nT('nonconforme') ? 'bad' : nT('retard') ? 'warn' : 'info'} title="Plans de nettoyage et de maintenance : tâches en attente"><span className="inline-flex flex-wrap items-center gap-2" data-hyg-resume="">{nT('nonconforme') ? <Chip tone="bad"><b>{nT('nonconforme')}</b> non-conformité(s)</Chip> : null}{nT('retard') ? <Chip tone="warn"><b>{nT('retard')}</b> en retard</Chip> : null}{nT('afaire') ? <Chip tone="info"><b>{nT('afaire')}</b> à faire</Chip> : null}{onAFaire ? <button type="button" className="linkish" onClick={onAFaire}>Voir « À faire »</button> : null}</span></Notice> : null}
-      <Sec title="Dernière action par cuve, équipement et local" right={<Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})}>+ Nouvelle entrée</Btn>}>
+      <Sec title="Dernière action par cuve, équipement et local" right={<Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-vg="hygiene-nouvelle">+ Nouvelle entrée</Btn>}>
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))' }}>{cards.map((x) => { const d = x.last ? daysBetween(x.last.date, today) : null;
           return (<button key={x.key} type="button" className="card p-2 text-left hover:border-ink2" disabled={camp.figee} onClick={() => setForm({ preset: { cibleType: x.type, cibleId: x.id } })} title="Ajouter une entrée pour cette cible">
             <div className="flex items-center justify-between gap-1"><b className="truncate">{x.nom}</b>{x.type === 'equipement' ? <Chip>équipement</Chip> : x.type === 'local' ? <Chip>local</Chip> : x.full ? <Chip tone="info">plein</Chip> : null}</div>
