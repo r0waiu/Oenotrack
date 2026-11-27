@@ -10,7 +10,9 @@
    script n'a pas trouvé. Tout est vérifié par l'utilisateur avant l'enregistrement (onglet Analyses).
    0.37.0-alpha.1 : rapports à plusieurs échantillons (une ligne par échantillon, en-tête de colonnes sur plusieurs lignes, n° d'échantillon
    du laboratoire et référence du client, valeurs « x / incertitude » : bulletinColonnes), exports en format long (bulletinFormatLong),
-   n° d'échantillon (e.numero) jusque dans l'IA ; entrée de moûts : rapprochement noté (e.sur) et affectation guidée (bulletinAffectationDouteuse). */
+   n° d'échantillon (e.numero) jusque dans l'IA ; entrée de moûts : rapprochement noté (e.sur) et affectation guidée (bulletinAffectationDouteuse).
+   0.40.0-alpha.2 : paramètres répartis sur plusieurs tableaux et plusieurs pages (un en-tête par tableau, morceaux d'un même échantillon réunis
+   par n° de laboratoire : bulletinColonnesReunir), azote ammoniacal et alpha-aminé, chaptalisation calculée, renvois « (**) » après une valeur. */
 const BULLETIN_CATALOGUE = [
   { cle: 'tap', nom: 'TAP', unite: '% vol.', dec: 1, motifs: [/\btap\b/, /\btavn\b/, /titre alcoometrique (?:volumique )?(?:potentiel|naturel)/, /alcool (?:probable|potentiel)/, /degre (?:probable|potentiel)/] },
   { cle: 'tav', nom: 'TAV acquis', unite: '% vol.', dec: 2, motifs: [/\btava?\b/, /titre alcoometrique/, /alcool (?:acquis|reel)/, /degre alcoolique/, /^alcool\b/] },
@@ -22,6 +24,10 @@ const BULLETIN_CATALOGUE = [
   { cle: 'so2l', nom: 'SO₂ libre', unite: 'mg/L', dec: 0, motifs: [/so2 ?libre/, /^so2l\b/, /(?:anhydride|dioxyde de) ?(?:soufre|sulfureux) libre/, /sulfureux libre/, /\bso2 ?l\b/] },
   { cle: 'so2t', nom: 'SO₂ total', unite: 'mg/L', dec: 0, motifs: [/so2 ?total/, /^so2t\b/, /(?:anhydride|dioxyde de) ?(?:soufre|sulfureux) total/, /sulfureux total/, /\bso2 ?t\b/] },
   { cle: 'azote', nom: 'Azote assimilable', unite: 'mg/L', dec: 0, motifs: [/azote (?:assimilable|facilement assimilable)/, /\bapa\b/, /\byan\b/] },
+  // 0.40.0-alpha.2 : formes de l'azote et sucre à ajouter calculé par le laboratoire (rapports de moûts)
+  { cle: 'azoteAmmoniacal', nom: 'Azote ammoniacal', unite: 'mg/L', dec: 0, motifs: [/azote ammoniacal/, /\bammonium\b/, /\bnh4\b/] },
+  { cle: 'azoteAmine', nom: 'Azote alpha-aminé', unite: 'mg/L', dec: 0, motifs: [/azote (?:alpha )?amine/, /\bnopa\b/] },
+  { cle: 'chaptalisation', nom: 'Chaptalisation (calcul du laboratoire)', unite: 'kg/hL', dec: 3, motifs: [/^chaptalisation\b/] },
   { cle: 'malique', nom: 'Acide malique', unite: 'g/L', dec: 2, motifs: [/acide l? ?malique/, /^malique\b/] },
   { cle: 'lactique', nom: 'Acide lactique', unite: 'g/L', dec: 2, motifs: [/acide l? ?lactique/, /^lactique\b/] },
   { cle: 'tartrique', nom: 'Acide tartrique', unite: 'g/L', dec: 2, motifs: [/^acide tartrique/] },
@@ -54,8 +60,9 @@ function bulletinParam(db, label) {
 // nombre écrit dans une case : « 3,45 », « < 0,1 », « 1 234,5 », « 0.99255 »
 function bulletinNombre(s0) {
   const s = String(s0 == null ? '' : s0).trim().replace(/[  ]/g, ' ');
-  // incertitude écrite après la valeur : « 3,25 ± 0,05 », « 3,25 / », « 12,06 / 0,13 » (rapports multi-échantillons, 0.37.0-alpha.1)
-  const m = /^([<>≤≥]=?)?\s*([-+]?\d{1,7}(?: \d{3})*(?:[.,]\d+)?)(?:\s*[±]\s*\d+(?:[.,]\d+)?|\s+\/(?:\s*\d+(?:[.,]\d+)?\s*%?)?)?$/.exec(s); if (!m) return null;
+  // incertitude écrite après la valeur : « 3,25 ± 0,05 », « 3,25 / », « 12,06 / 0,13 » (rapports multi-échantillons, 0.37.0-alpha.1) ;
+  // 0.40.0-alpha.2 : « 6,9/ (**) », « 36 (*) » (barre collée, renvoi à une note du laboratoire) — « 12/09 » reste refusé
+  const m = /^([<>≤≥]=?)?\s*([-+]?\d{1,7}(?: \d{3})*(?:[.,]\d+)?)(?:\s*[±]\s*\d+(?:[.,]\d+)?|\s+\/(?:\s*\d+(?:[.,]\d+)?\s*%?)?|\/(?:\s+\d+(?:[.,]\d+)?\s*%?)?(?=\s|$))?(?:\s*\(\*{1,3}\)|\s*\*{1,3})?$/.exec(s); if (!m) return null;
   const v = parseFloat(m[2].replace(/ /g, '').replace(',', '.')); if (!Number.isFinite(v)) return null;
   return { v, op: m[1] ? m[1].replace('≤', '<').replace('≥', '>').replace('=', '') : '' };
 }
@@ -179,14 +186,23 @@ function bulletinValeursColonnes(db, cells, cols) {
    Libellé, méthode et unité de chaque paramètre empilés sur plusieurs lignes au-dessus de sa colonne ; en marge gauche, le n° d'échantillon
    du laboratoire (« 26LAB000123 ») et la référence du client (« M1 5002 », « Cuve 12 »), avant, sur ou après la ligne des valeurs ;
    valeurs suivies de leur incertitude (« 3,25 / », « 12,06 / 0,13 »). Lu d'après la position des mots (PDF, scans). */
+const BUL_ENTETE_PARAM = /^(?:parametres?|analyses?|determinations?|criteres?)\b/; // ligne qui ouvre l'en-tête d'un tableau de paramètres
 const BUL_NUM_ECH = /^(?=[a-z0-9\-/.]*\d{4})[a-z0-9][a-z0-9\-/.]{6,24}$/i; // n° d'échantillon du laboratoire : un seul mot, au moins 4 chiffres de suite
 const bulEstValeur = (c) => !!bulletinNombre(c.s) && !/^\d{1,2}[/.]\d{1,2}[/.]\d{2,4}$/.test(String(c.s).trim());
 const bulMotsDe = (el) => { const L = el.s.length || 1; const out = []; const re = /\S+/g; let m; while ((m = re.exec(el.s))) out.push({ s: m[0], xc: el.x + (el.w * (m.index + m[0].length / 2)) / L }); return out; };
 function bulletinColonnes(db, lignes, cands) {
   const pos = (lignes || []).filter((l) => Array.isArray(l.mots) && Number.isFinite(l.y)); if (pos.length < 3) return null;
   const out = [];
+  // 0.40.0-alpha.2 : une page peut porter plusieurs tableaux (la suite des paramètres sous le premier) : chacun, ouvert par sa ligne
+  // « Paramètre », est lu avec son propre en-tête ; les morceaux d'un même échantillon (autres tableaux, autres pages) sont réunis à la fin
+  const tableaux = [];
   uniq(pos.map((l) => l.page || 1)).forEach((pg) => {
-    const LP = pos.filter((l) => (l.page || 1) === pg).sort((a, b) => a.y - b.y); const hm = mediane(LP.map((l) => l.h || 8)) || 8;
+    const LPg = pos.filter((l) => (l.page || 1) === pg).sort((a, b) => a.y - b.y);
+    const hs = LPg.map((l, i) => (BUL_ENTETE_PARAM.test(bulNorm(l.cells[0].s)) ? i : -1)).filter((i) => i > 0);
+    const bornes = [0, ...hs, LPg.length]; for (let k = 0; k < bornes.length - 1; k += 1) if (bornes[k + 1] > bornes[k]) tableaux.push(LPg.slice(bornes[k], bornes[k + 1]));
+  });
+  tableaux.forEach((LP, tab) => {
+    const hm = mediane(LP.map((l) => l.h || 8)) || 8;
     const rows = LP.map((l, i) => (l.cells.filter(bulEstValeur).length >= 2 ? i : -1)).filter((i) => i >= 0); if (!rows.length) return;
     // colonnes : abscisses des valeurs, regroupées
     const xs = rows.flatMap((i) => LP[i].cells.filter(bulEstValeur).map((c) => c.xc)).sort((a, b) => a - b); const tol = Math.max(hm * 2.2, 10); const grp = [];
@@ -197,14 +213,15 @@ function bulletinColonnes(db, lignes, cands) {
     const gauche = cols[0].g; const colDe = (x) => cols.findIndex((c) => x >= c.g && x < c.d); const dansCols = (l) => l.mots.some((m) => colDe(m.xc) >= 0);
     // en-tête : de la ligne « Paramètre » (ou équivalent) à la première ligne de valeurs ; sinon les lignes alignées sur les colonnes juste au-dessus
     const r0 = rows[0]; let h0 = -1;
-    for (let i = r0 - 1; i >= Math.max(0, r0 - 14); i -= 1) if (/^(?:parametres?|analyses?|determinations?|criteres?)\b/.test(bulNorm(LP[i].cells[0].s))) { h0 = i; break; }
+    for (let i = r0 - 1; i >= Math.max(0, r0 - 14); i -= 1) if (BUL_ENTETE_PARAM.test(bulNorm(LP[i].cells[0].s))) { h0 = i; break; }
     if (h0 < 0) { h0 = r0; for (let i = r0 - 1; i >= Math.max(0, r0 - 7); i -= 1) { if (LP[i].cells.some(bulEstValeur)) break; if (dansCols(LP[i])) h0 = i; else if (h0 < r0) break; } }
     const labels = cols.map(() => []); const unites = cols.map(() => []);
     // une case d'en-tête du PDF va à la colonne de son centre ; trop large (plusieurs colonnes réunies), elle est répartie mot par mot
     const morceaux = (l) => (Array.isArray(l.elems) && l.elems.length ? l.elems.flatMap((el) => (el.w <= pas * 1.3 ? [el] : bulMotsDe(el))) : l.mots);
     LP.slice(h0, r0).filter((l) => !l.cells.some(bulEstValeur)).forEach((l) => { const u = /^unites?\b/.test(bulNorm(l.cells[0].s)); morceaux(l).forEach((m) => { const k = colDe(m.xc); if (k >= 0) (u ? unites : labels)[k].push(m.s); }); });
     cols.forEach((c, k) => { c.label = labels[k].join(' '); c.unite = unites[k].join(' '); const w = labels[k]; for (let i = 0; i < w.length && !c.p; i += 1) c.p = bulletinParam(db, w.slice(i).join(' ')); });
-    if (uniq(cols.filter((c) => c.p).map((c) => c.p.paramId || c.p.cat.cle)).length < 2) return; // pas un tableau de paramètres (une colonne par échantillon, liste…)
+    // pas un tableau de paramètres (une colonne par échantillon, liste…) ; un seul paramètre reconnu suffit sous une ligne « Paramètre » (suite d'un tableau)
+    if (uniq(cols.filter((c) => c.p).map((c) => c.p.paramId || c.p.cat.cle)).length < (h0 < r0 && BUL_ENTETE_PARAM.test(bulNorm(LP[h0].cells[0].s)) ? 1 : 2)) return;
     // marge gauche : n° d'échantillon et référence de chaque ligne de valeurs
     const r1 = rows[rows.length - 1]; let fin = r1; for (let i = r1 + 1; i < Math.min(LP.length, r1 + 4); i += 1) { if (dansCols(LP[i]) || LP[i].y - LP[i - 1].y > hm * 4) break; fin = i; }
     let debut = r0; for (let i = r0 - 1; i >= Math.max(h0, r0 - 3); i -= 1) { if (dansCols(LP[i])) break; debut = i; }
@@ -218,10 +235,25 @@ function bulletinColonnes(db, lignes, cands) {
     blocs.forEach((b) => {
       const l = LP[b.i]; const ref = b.refs.join(' ').trim(); const vals = [];
       l.cells.filter((c) => c.xc >= gauche && bulEstValeur(c)).forEach((c) => { const k = colDe(c.xc); if (k < 0 || !cols[k].p) return; vals.push({ ...cols[k].p, ...bulletinNombre(c.s), label: cols[k].label, unite: `${cols[k].unite} ${cols[k].label}` }); });
-      if (vals.length) out.push({ ref: ref || b.num, numero: b.num, trouve: bulletinTrouver(`${ref} ${b.num}`, cands)[0] || null, vals, lignes: [l.texte] });
+      if (vals.length) out.push({ ref: ref || b.num, numero: b.num, trouve: bulletinTrouver(`${ref} ${b.num}`, cands)[0] || null, vals, lignes: [l.texte], tab });
     });
   });
-  return out.length ? out : null;
+  return out.length ? bulletinColonnesReunir(out) : null;
+}
+// 0.40.0-alpha.2 : un échantillon dont les paramètres sont répartis sur plusieurs tableaux ou plusieurs pages = un seul échantillon.
+// Rapprochement par n° d'échantillon du laboratoire (deux n° différents restent deux échantillons, même avec la même référence du client),
+// sinon par référence ; jamais deux morceaux d'un même tableau (un échantillon analysé deux fois reste en double).
+function bulletinColonnesReunir(morceaux) {
+  const out = [];
+  morceaux.forEach((m) => {
+    const cle = bulNorm(m.numero) ? `n:${bulNorm(m.numero)}` : `r:${bulNorm(m.ref)}`;
+    const e = cle.length > 2 && out.find((x) => x.cle === cle && !x.tabs.includes(m.tab) && (!m.numero || !x.ref || !m.ref || bulNorm(x.ref) === bulNorm(m.ref) || x.ref === x.numero || m.ref === m.numero));
+    if (!e) { out.push({ ...m, cle, tabs: [m.tab] }); return; }
+    e.tabs.push(m.tab); if ((!e.ref || e.ref === e.numero) && m.ref) e.ref = m.ref; if (!e.trouve && m.trouve) e.trouve = m.trouve;
+    m.vals.forEach((v) => { const k = v.paramId || (v.cat && v.cat.cle); if (!e.vals.some((x) => (x.paramId || (x.cat && x.cat.cle)) === k)) e.vals.push(v); });
+    e.lignes = [...e.lignes, ...m.lignes];
+  });
+  return out.map(({ cle, tabs, tab, ...x }) => x);
 }
 /* ---------- export de laboratoire en format long (0.37.0-alpha.1) : une ligne par résultat (échantillon, paramètre, résultat, unité) ---------- */
 function bulletinFormatLong(db, lignes) {
