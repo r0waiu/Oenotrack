@@ -153,6 +153,11 @@ ok('après rechargement : toujours connecté', (await page.locator('[data-utilis
 await page.evaluate(() => { const k = 'oenotrack-session'; const s = JSON.parse(sessionStorage.getItem(k)); s.t = Date.now() - 3600 * 1000; sessionStorage.setItem(k, JSON.stringify(s)); });
 await page.reload(); await page.waitForTimeout(1500);
 ok('inactivité (> 15 min) : ouverture verrouillée', (await page.locator('[data-verrou] [data-connexion]').innerText().catch(() => '')).includes('Session verrouillée'));
+// 0.45.0-alpha.1 : le logo de l'écran verrouillé ouvre la présentation ; au retour, toujours verrouillé
+await page.locator('[data-verrou] [data-brand-presentation]').click(); await page.waitForTimeout(500);
+ok('logo de « Session verrouillée » → page de présentation (rien de l’application affiché)', (await page.locator('[data-accueil="revoir"]').count()) === 1 && (await page.locator('main[role=tabpanel]').count()) === 0 && (await page.locator('[data-utilisateur]').count()) === 0);
+await page.locator('[data-accueil-ouvrir]').first().click(); await page.waitForTimeout(600);
+ok('… retour : session toujours verrouillée', (await page.locator('[data-verrou] [data-connexion]').innerText().catch(() => '')).includes('Session verrouillée'));
 await page.locator('[data-verrou] input[aria-label="Mot de passe"]').fill(MDP_ADMIN); await page.locator('[data-verrou] button[type=submit]').click(); await page.waitForTimeout(900);
 await deconnexion();
 // compte désactivé : connexion refusée

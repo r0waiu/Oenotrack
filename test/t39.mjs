@@ -30,7 +30,7 @@ const echap = async (n = 1) => { for (let i = 0; i < n; i += 1) { await page.key
 await page.click('#tab-params'); await page.waitForTimeout(300);
 await page.locator('main button', { hasText: 'Revendications, stades & listes' }).click(); await page.waitForTimeout(300);
 const ed = page.locator('[data-qualifs-editor]');
-ok('éditeur des revendications : 3 revendications d’origine', (await ed.locator('[data-qualif]').count()) === 3 && (await ed.innerText()).includes('FR-BIO-01'));
+ok('éditeur des revendications : 3 revendications d’origine', (await ed.locator('[data-qualif]').count()) === 3 && (await ed.innerText()).includes('BIO'));
 ok('Conventionnel : ni supprimable ni déplaçable', await ed.locator('[data-qualif="conv"] button[aria-label^="Supprimer"]').isDisabled() && await ed.locator('[data-qualif="conv"] button[aria-label^="Monter"]').isDisabled());
 await ed.locator('input[aria-label="Nom de la nouvelle revendication"]').fill('HVE');
 await ed.locator('select[aria-label="Rang de la nouvelle revendication"]').selectOption('conv');
@@ -39,7 +39,7 @@ await ed.locator('button', { hasText: '+ Ajouter' }).click(); await page.waitFor
 let d = await dbj();
 ok('HVE ajoutée au rang 2 avec les règles de Conventionnel', d.lists.qualifs.map((q) => q.id).join() === 'conv,hve,bio,dem' && d.regles.filter((r) => r.qualifId === 'hve').length === d.regles.filter((r) => r.qualifId === 'conv').length && (await toast()).includes('reprises'), d.lists.qualifs.map((q) => q.id).join());
 ok('variable de couleur posée pour la nouvelle revendication', (await page.evaluate(() => document.documentElement.style.getPropertyValue('--qhve'))).trim() === '#2f7d8c' || (await page.evaluate(() => document.documentElement.style.getPropertyValue('--qhve'))).trim().toLowerCase() === '#2f7d8c');
-const nomBio = ed.locator('input[aria-label="Nom de la revendication FR-BIO-01"]'); await nomBio.fill('Agriculture biologique'); await nomBio.press('Enter'); await page.waitForTimeout(300);
+const nomBio = ed.locator('input[aria-label="Nom de la revendication BIO"]'); await nomBio.fill('Agriculture biologique'); await nomBio.press('Enter'); await page.waitForTimeout(300);
 const abHve = ed.locator('input[aria-label="Abréviation de HVE"]'); await abHve.fill('hve2'); await abHve.press('Enter'); await page.waitForTimeout(300);
 d = await dbj(); ok('renommée et abréviation', d.lists.qualifs.find((q) => q.id === 'bio').label === 'Agriculture biologique' && d.lists.qualifs.find((q) => q.id === 'hve').court === 'HVE2');
 await ed.locator('[data-qualif="hve"] button[aria-label^="Descendre"]').click(); await page.waitForTimeout(200);

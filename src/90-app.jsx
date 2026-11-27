@@ -274,7 +274,7 @@ function App() {
   }
   return (
     <Ctx.Provider value={ctx}>
-      {verrouille ? ReactDOM.createPortal(<div className="login-voile" data-verrou=""><EcranConnexion key={`verrou-${session.uid}`} verrou={session} onConnecte={connecter} onChanger={deconnecter} />{toastMsg ? <div className={`toast ${toastMsg.kind === 'bad' ? 'bad' : ''}`} role="status" aria-live="polite">{toastMsg.msg}</div> : null}</div>, document.body) : null}
+      {verrouille ? ReactDOM.createPortal(<div className="login-voile" data-verrou=""><EcranConnexion key={`verrou-${session.uid}`} verrou={session} onConnecte={connecter} onChanger={deconnecter} onPresentation={revoirAccueil} />{toastMsg ? <div className={`toast ${toastMsg.kind === 'bad' ? 'bad' : ''}`} role="status" aria-live="polite">{toastMsg.msg}</div> : null}</div>, document.body) : null}
       {uid && uSession.doitChanger ? <ChangerMdpSheet force onClose={() => {}} /> : null}
       <header className="topbar">
         <div className="wrap flex flex-wrap items-center gap-x-6 gap-y-3 py-3">
