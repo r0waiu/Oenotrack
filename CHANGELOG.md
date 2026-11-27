@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.42.0-alpha.2 — 27/11/2026
+
+- Tirages › « 🍾 Tirer » : chantiers de tirage — interne ou prestataire sur site (fournisseur au rôle « Prestataire de tirage »), composition de la ligne (dépalettiseur, tireuse et ses becs, injecteuse, biduleuse, capsuleuse, marquage laser ou jet d’encre, emboxeur, robot, vision), lots tirés et bilan (cols par format, équivalent bouteilles, volume, casse, VRTP par lot), documents de prestation (ordre de fabrication, attestation de nettoyage et de désinfection, fiche de chantier signée, bon d’intervention).
+- Lot de tirage : mode exclusif — mixtion en cuve (cuve de mixtion : vin, liqueur, levain et adjuvants assemblés, point de tirage de la cuvée, densités et liqueur à ajouter) ou pompe doseuse / injecteuse en ligne (consignes en % du volume converties en mL par col pour chaque format, débit, tolérance, contrôles horodatés à l’éprouvette ou par pesée, théorique comparé au réellement consommé) — jamais les deux pour un même lot ; plusieurs formats par lot (de la demie au nabuchodonosor), casse, point de tirage du lot, VRTP du lot (composition des levains et des cuves de mixtion).
+
 ## 0.42.0-alpha.1 — 27/11/2026
 
 - Tirages › « ⚗ Préparer » : calculateur de tirage dans les deux sens — à partir d’un volume de vin de base, le volume de mixtion et l’équivalent bouteilles ; à partir des cols à tirer (plusieurs formats, de la demie au nabuchodonosor), le vin, la liqueur (sucre et vin de fonte, augmentation de volume du saccharose comprise), le levain et les adjuvants — avec le VRTP prévisionnel (volume tiré − liqueur − vin du levain et de la mixtion ; au plus 1 % des volumes mis en œuvre, cahier des charges AOC Champagne) ; fonte de liqueur de tirage (titre, sucre, vin, acide citrique, densités) ; point de tirage choisi pour chaque cuvée ; profil de tirage (levain, liqueur, étapes, propagation) réglable dans Paramètres › Calculs œnologiques (valeurs à vérifier).

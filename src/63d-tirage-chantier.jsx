@@ -49,7 +49,7 @@ function TiragePompeBox({ db, Rd, f, upd }) {
 // bilan d'un tirage enregistré : volumes, VRTP
 function TirageBilanBox({ db, R, op }) {
   const b = tirageBilan(db, R, { ...op, formats: tirageFormatsDe(op) });
-  return <span className={cx('num text-sm', b.depasse && 'text-bad')} data-vrtp={op.id}>{`${fmtL(b.tireL)} · VRTP ${fmt(b.vrtpL, 1)} L (${fmt(b.vrtpPct, 2)} %)`}</span>;
+  return <span className={cx('num text-sm', b.depasse && 'text-bad')} data-vrtp={op.id}>{`${fmtL(b.tireL)} · VRTP ${fmt(b.vrtpL, 1)} L (${fmt(b.vrtpPct, 2)} %)`}{b.compoIncomplete ? <span className="block text-xs text-warn">composition du levain incomplète (vin, liqueur, eau non saisis)</span> : null}</span>;
 }
 
 function ChantierForm({ id, onClose }) {
@@ -120,7 +120,7 @@ function MixtionBox({ db, Rd, f, upd }) {
       <Field label="Densité du vin de base"><NI value={f.densBase ?? ''} onChange={(v) => upd({ densBase: v })} placeholder="ex. 993" aria-label="Densité du vin de base" /></Field>
       <Field label="Densité de la mixtion"><NI value={f.densMix ?? ''} onChange={(v) => upd({ densMix: v })} placeholder="ex. 1002,6" aria-label="Densité de la mixtion" /></Field>
     </div>
-    <p className="text-sm" data-mixtion-volume="">{`Mixtion : ${fmtL(vin + prep)} (vin ${fmtL(vin)}, préparations ${fmtL(prep)})`}{k ? (k.liqueurL > 0.05 ? ` · densité visée ${fmt(k.densTheo, 1)} : il manque ${fmt(k.manqueGL, 1)} g/L, ajouter ${fmt(k.liqueurL, 1)} L de liqueur.` : k.excesGL > 0 ? ` · densité visée ${fmt(k.densTheo, 1)} : ${fmt(k.excesGL, 1)} g/L de trop.` : ` · densité visée ${fmt(k.densTheo, 1)} atteinte.`) : ''}</p>
+    <p className="text-sm" data-mixtion-volume=""><span>{`Mixtion : ${fmtL(vin + prep)} (vin ${fmtL(vin)}, préparations ${fmtL(prep)}).`}</span> {k ? <span>{k.manqueGL > 0.05 ? (k.liqueurL > 0.05 ? `Densité visée ${fmt(k.densTheo, 1)} : il manque ${fmt(k.manqueGL, 1)} g/L, ajouter ${fmt(k.liqueurL, 1)} L de liqueur.` : `Densité visée ${fmt(k.densTheo, 1)} : il manque ${fmt(k.manqueGL, 1)} g/L.`) : k.excesGL > 0.05 ? `Densité visée ${fmt(k.densTheo, 1)} : ${fmt(k.excesGL, 1)} g/L de trop.` : `Densité visée ${fmt(k.densTheo, 1)} atteinte.`}</span> : null}</p>
     <p className="help">Une correction de liqueur se saisit ensuite comme ajout sur la cuve (préparation versée), avec le contrôle de densité.</p>
   </div>);
 }

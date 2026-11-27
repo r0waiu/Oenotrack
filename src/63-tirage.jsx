@@ -84,7 +84,7 @@ function TabTirageTirer() {
       <Sec title="Saisir" right={camp.figee ? <Chip tone="bad">Campagne figée : saisie impossible</Chip> : null}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
           <div className="card p-3"><div className="lbl">Préparations qualifiées</div><div className="flex flex-wrap gap-2">{Object.keys(PREP_TYPES).filter((k) => !PREPS_DEGORGEMENT.includes(k)).map((k) => <Btn key={k} disabled={camp.figee} onClick={() => setForm({ type: 'preparation', preset: { ptype: k } })}>+ {PREP_TYPES[k]}</Btn>)}</div></div>
-          <div className="card p-3"><div className="lbl">Tirage (mixtion sans cuve dédiée)</div><Btn kind="primary" disabled={camp.figee} onClick={() => setForm({ type: 'tirage' })}>Nouveau tirage</Btn><p className="help">Vin de base + liqueur + levain + adjuvants + matières sèches → lot de tirage, en bouteilles sur lattes.</p></div>
+          <div className="card p-3"><div className="lbl">Lot de tirage</div><Btn kind="primary" disabled={camp.figee} onClick={() => setForm({ type: 'tirage' })}>Nouveau tirage</Btn><p className="help">Mixtion en cuve ou pompe doseuse (jamais les deux) → lot de tirage, en bouteilles sur lattes ; à rattacher de préférence à un chantier.</p></div>
           <AutresOpsModule mod="tirage" sauf={['tirage', 'preparation']} onForm={setForm} />
         </div>
         <p className="help mt-2">Les bouteilles tirées se suivent ensuite dans <VersModule id="cave">la Cave</VersModule>{moduleActif(db, 'cave') ? null : 'la Cave'} puis au <VersModule id="degorgement">Dégorgement</VersModule>{moduleActif(db, 'degorgement') ? null : 'Dégorgement'}.</p>
