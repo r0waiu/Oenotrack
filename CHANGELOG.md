@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.43.0-alpha.2 — 27/11/2026
+
+- Vinification › Plan de vinification : le tableau se modifie directement sur la page, case par case (étapes, produits, doses, en-têtes ; ⋮ pour le type de ligne, l’étendue des doses, l’opération liée, déplacer, insérer ou retirer une ligne), sans bouton « Modifier » ; variantes du plan avec des conditions (partenaires, crus, échelle des crus, revendications, cépages, fractions, état sanitaire) : la plus précise qui correspond au lot l’emporte, sinon le plan général.
+- À la création d’un lot (pressurage, marc validé, entrée de moûts), les étapes de la colonne du lot dans le plan retenu sont proposées dans l’ordre du tableau, sans jours, avec l’opération, le produit en stock et la quantité pour le volume du lot : elles deviennent des opérations à réaliser (« Étape 2 / 8 »), jamais en retard ; les schémas de vinification enregistrés deviennent des variantes du plan (sous-onglet « Schémas par lot » retiré, données d’origine gardées pour les versions antérieures).
+
 ## 0.43.0-alpha.1 — 27/11/2026
 
 - Intrants › « ⚖ Labels & cahiers des charges » réunit « Revendications & plafonds » et « Référentiel réglementaire » : revendications et labels appliqués, SO₂ total (plafond de l’exploitation, plafond des labels et plafond retenu côte à côte), substances et composés actifs, produits par revendication, textes de référence ; chaque plafond et chaque composé est lié aux produits des catalogues (d’office d’après le mot-clé, le composé ou l’apport de SO₂, ajustable produit par produit), et un produit mis en stock depuis un catalogue reprend ces liens.

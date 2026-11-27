@@ -15,14 +15,14 @@ const schemaLignesDef = (db, s) => [...(s.etapes || [])].sort((a, b) => a.jour -
 // produit : nom du produit (donnée, non traduite) ou famille du catalogue (l.fam, traduite)
 const schemaProduitEl = (l) => (!l.produit ? '' : l.fam ? <span>{l.produit}</span> : <span translate="no">{l.produit}</span>);
 function schemaRendu(lignes, forme, o) {
-  o = o || {}; const det = (l) => [l.produit || l.dose ? <>{schemaProduitEl(l)}{l.produit && l.dose ? ' — ' : null}{l.dose ? <span>{l.dose}</span> : null}</> : '', l.qte ? <span translate="no">{l.qte}</span> : '', l.note, l.statut];
-  if (forme === 'logigramme') return <Logigramme colonnes={[{ titre: o.titreCol || '', boites: lignes.map((l) => ({ haut: <><span>{`J+${l.jour}`}</span>{l.date ? <> · <span translate="no">{fmtDate(l.date)}</span></> : null}</>, titre: l.label, lignes: det(l) })) }]} />;
+  o = o || {}; const jl = (j) => (o.etapes ? `Étape n° ${j}` : `J+${j}`); /* 0.43.0-alpha.2 : plan de vinification, étapes sans jour */ const det = (l) => [l.produit || l.dose ? <>{schemaProduitEl(l)}{l.produit && l.dose ? ' — ' : null}{l.dose ? <span>{l.dose}</span> : null}</> : '', l.qte ? <span translate="no">{l.qte}</span> : '', l.note, l.statut];
+  if (forme === 'logigramme') return <Logigramme colonnes={[{ titre: o.titreCol || '', boites: lignes.map((l) => ({ haut: <><span>{jl(l.jour)}</span>{l.date ? <> · <span translate="no">{fmtDate(l.date)}</span></> : null}</>, titre: l.label, lignes: det(l) })) }]} />;
   if (forme === 'frise') {
     const jours = uniq(lignes.map((l) => l.jour)).sort((a, b) => a - b);
-    return <Frise colonnes={jours.map((j) => { const L = lignes.filter((l) => l.jour === j); return { haut: `J+${j}`, sous: L[0].date ? fmtDate(L[0].date) : '', boites: L.map((l) => ({ titre: l.label, lignes: det(l) })) }; })} />;
+    return <Frise colonnes={jours.map((j) => { const L = lignes.filter((l) => l.jour === j); return { haut: jl(j), sous: L[0].date ? fmtDate(L[0].date) : '', boites: L.map((l) => ({ titre: l.label, lignes: det(l) })) }; })} />;
   }
-  return <TableauVis entetes={o.avecDates ? ['Jour', 'Date', 'Opération', 'Produit', 'Dose', 'Quantité', 'Consignes', 'Fait le / visa'] : ['Jour', 'Opération', 'Famille de produit', 'Dose', 'Consignes']}
-    lignes={lignes.map((l) => (o.avecDates ? [`J+${l.jour}`, l.date ? <span translate="no">{fmtDate(l.date)}</span> : '', l.label, schemaProduitEl(l), l.dose, l.qte ? <span translate="no">{l.qte}</span> : '', l.note, l.statut || ''] : [`J+${l.jour}`, l.label, schemaProduitEl(l), l.dose, l.note]))} />;
+  return <TableauVis entetes={o.avecDates ? [o.etapes ? 'Étape' : 'Jour', 'Date', 'Opération', 'Produit', 'Dose', 'Quantité', 'Consignes', 'Fait le / visa'] : ['Jour', 'Opération', 'Famille de produit', 'Dose', 'Consignes']}
+    lignes={lignes.map((l) => (o.avecDates ? [jl(l.jour), l.date ? <span translate="no">{fmtDate(l.date)}</span> : '', l.label, schemaProduitEl(l), l.dose, l.qte ? <span translate="no">{l.qte}</span> : '', l.note, l.statut || ''] : [`J+${l.jour}`, l.label, schemaProduitEl(l), l.dose, l.note]))} />;
 }
 // lots d'une opération qui en crée : fractions d'un pressurage, lots d'une entrée de moûts (avec du volume)
 const lotsCreesPar = (op) => (!op ? [] : op.type === 'pressurage' ? (op.fractions || []).filter((x) => num(x.volL) > 0).map((x) => x.lotId) : op.type === 'entree_mout' ? moutLots(op).filter((l) => l.vol > 0).map((l) => l.lotId) : []).filter(Boolean);
@@ -101,27 +101,27 @@ function SchemaFeuille({ lotIds: ids0, opId, auto, onClose }) {
 function SchemaLotBloc({ lotId }) {
   const { db, R, act, confirm, openSchema } = useApp(); const lect = useLectureSeule('previsions'); const [imp, setImp] = useState(false);
   const P = schemaPrevsDuLot(db, lotId); const l = R.lots[lotId] || {}; const d0 = l.date || (P[0] && P[0].date) || todayISO();
-  if (!P.length) return <div className="flex flex-wrap items-center gap-2 text-sm" data-schema-bloc={lotId}><span className="text-ink2">Aucun schéma appliqué à ce lot.</span>{lect ? null : <Btn size="sm" onClick={() => openSchema({ lotIds: [lotId] })}>📋 Appliquer un schéma…</Btn>}</div>;
-  const nom = P[0].schema.nom; const aFaire = P.filter((p) => p.statut === 'prevue');
+  if (!P.length) return <div className="flex flex-wrap items-center gap-2 text-sm" data-schema-bloc={lotId}><span className="text-ink2">Aucun plan de vinification appliqué à ce lot.</span>{lect ? null : <Btn size="sm" onClick={() => openSchema({ lotIds: [lotId] })}>🗂 Appliquer le plan de vinification…</Btn>}</div>;
+  const nom = P[0].schema.nom; const aFaire = P.filter((p) => p.statut === 'prevue'); const estPlan = !!P[0].schema.plan;
   // lignes à imprimer : produit et quantité prévus (1re ligne d'intrant), dose et consigne de l'étape du schéma (s'il existe encore)
   const S0 = schemasDe(db).find((x) => x.id === P[0].schema.id);
   const lignes = P.map((p) => { const li = ((p.f || {}).lignes || [])[0]; const pr = li && (db.produits || []).find((x) => x.id === li.produitId); const et = S0 && S0.etapes.find((e) => e.id === p.schema.etapeId);
-    return { jour: joursEcart(d0, p.date), date: p.date, label: opNom(p), produit: pr ? pr.nom : '', dose: et ? schemaDoseTexte(et) : '', qte: pr && li.qty !== '' && li.qty != null ? `${fmt(num(li.qty), 2)} ${pr.unite}` : '', note: p.notes || '', statut: (PREV_STATUT[p.statut] || {}).label }; });
+    return { jour: estPlan ? p.schema.rang : joursEcart(d0, p.date), date: estPlan ? '' : p.date, label: opNom(p), produit: pr ? pr.nom : '', dose: et ? schemaDoseTexte(et) : '', qte: pr && li.qty !== '' && li.qty != null ? `${fmt(num(li.qty), 2)} ${pr.unite}` : '', note: p.notes || '', statut: (PREV_STATUT[p.statut] || {}).label }; });
   const retirer = async () => { if (!(await confirm({ title: 'Retirer les étapes à réaliser ?', body: `${aFaire.length} opération(s) à réaliser du schéma « ${nom} » seront supprimées ; les opérations déjà validées restent.`, ok: 'Retirer', danger: true }))) return; act((d) => schemaRetirer(d, lotId), 'Étapes à réaliser retirées.'); };
   return (
     <div data-schema-bloc={lotId}>
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-sm"><span>📋</span><b>{nom}</b><span className="text-ink2"><span translate="no">{fmt(P.length - aFaire.length)} / {fmt(P.length)}</span> <span>étape(s) validée(s)</span></span>
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-sm"><span>{estPlan ? '🗂' : '📋'}</span><b>{nom}</b><span className="text-ink2"><span translate="no">{fmt(P.length - aFaire.length)} / {fmt(P.length)}</span> <span>étape(s) validée(s)</span></span>
         <span className="ml-auto flex flex-wrap gap-1"><Btn size="sm" onClick={() => setImp(true)}>🖨 Imprimer…</Btn>{!lect && aFaire.length ? <Btn size="sm" kind="danger" onClick={retirer}>Retirer les étapes à réaliser</Btn> : null}</span></div>
-      <Tbl rows={P.map((p, i) => ({ ...p, l: lignes[i] }))} cols={[{ h: 'Date', r: (p) => <span className="num whitespace-nowrap"><span>{`J+${joursEcart(d0, p.date)}`}</span> <span className="text-xs text-ink2" translate="no">{fmtDate(p.date)}</span></span> },
+      <Tbl rows={P.map((p, i) => ({ ...p, l: lignes[i] }))} cols={[{ h: estPlan ? 'Étape' : 'Date', r: (p) => (estPlan ? <span className="num whitespace-nowrap">{`${p.schema.rang} / ${p.schema.nb}`}</span> : <span className="num whitespace-nowrap"><span>{`J+${joursEcart(d0, p.date)}`}</span> <span className="text-xs text-ink2" translate="no">{fmtDate(p.date)}</span></span>) },
         { h: 'Étape', r: (p) => <><b>{p.l.label}</b>{p.l.produit ? <> · <span translate="no">{p.l.produit}{p.l.qte ? ` ${p.l.qte}` : ''}</span></> : null}{p.l.note ? <div className="text-xs text-ink2">{p.l.note}</div> : null}</> },
         { h: 'Statut', r: (p) => <Chip tone={(PREV_STATUT[p.statut] || {}).tone}>{(PREV_STATUT[p.statut] || {}).label}</Chip> }]} />
       {imp ? <ImpressionVisuelle cle="schema-lot" titre={`${nom} — ${l.code || ''}`} sous="Opérations prévues et réalisées" nomFichier={`schema-${l.code || 'lot'}`}
-        rendu={(f) => schemaRendu(lignes, f, { avecDates: true, titreCol: l.code })} onClose={() => setImp(false)} /> : null}
+        rendu={(f) => schemaRendu(lignes, f, { avecDates: true, titreCol: l.code, etapes: estPlan })} onClose={() => setImp(false)} /> : null}
     </div>
   );
 }
 // pastille dans « À réaliser » et dans le journal : étape d'un schéma
-function SchemaChip({ x }) { if (!x || !x.schema || !x.schema.nom) return null; return <Chip title={x.schema.nom} data-schema-chip=""><span>📋 schéma</span></Chip>; }
+function SchemaChip({ x }) { if (!x || !x.schema || !x.schema.nom) return null; return <Chip title={x.schema.nom} data-schema-chip=""><span>{x.schema.plan ? '🗂 plan de vinification' : '📋 schéma'}</span></Chip>; }
 
 /* ---------- Schémas de vinification (0.39.0-alpha.1 : Vinification › Plan de vinification › Schémas par lot) ---------- */
 function SchemasView() {

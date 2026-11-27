@@ -294,7 +294,8 @@ function gardeDroits(avant, apres, uid) {
       // contrôle de réception de la verrerie (0.42.0-alpha.3) : module Intrants ; réglages des déclarations de tirage (0.42.0-alpha.4) : module Tirages
       if (sk.includes('controleVerre')) { if (!ecr('intrants')) return refus(`le profil ${nomP} ne permet pas de régler le contrôle de réception de la verrerie`); audit.push({ uid, action: 'modification', type: 'parametres', resume: 'Contrôle de réception de la verrerie : réglages' }); }
       if (sk.includes('declarationTirage')) { if (!ecr('tirage')) return refus(`le profil ${nomP} ne permet pas de régler les déclarations de tirage`); audit.push({ uid, action: 'modification', type: 'parametres', resume: 'Déclarations de tirage : réglages' }); }
-      const SPX = ['securite', 'chiffrement', 'dossierReseau', 'ia', 'referentiel', 'controleVerre', 'declarationTirage'];
+      if (sk.includes('schemas')) { if (!ecr('plan') && !ecr('params')) return refus(`le profil ${nomP} ne permet pas de régler la proposition du plan de vinification`); audit.push({ uid, action: 'modification', type: 'parametres', resume: 'Plan de vinification : proposition à la création des lots' }); } // 0.43.0-alpha.2
+      const SPX = ['securite', 'chiffrement', 'dossierReseau', 'ia', 'referentiel', 'controleVerre', 'declarationTirage', 'schemas'];
       if (sk.some((x) => !SPX.includes(x))) { if (!ecr('params')) return refus(`le profil ${nomP} ne permet pas de modifier les paramètres`); audit.push({ uid, action: 'modification', type: 'parametres', resume: `${GARDE_NOMS[k]} : ${sk.filter((x) => !SPX.includes(x)).slice(0, 6).join(', ')}` }); }
       continue;
     }

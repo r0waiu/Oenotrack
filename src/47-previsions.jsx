@@ -9,8 +9,8 @@ function PrevisionsView() {
   const all = db.previsions || []; const quiDe = (p) => operateursValides(db, (p.f || {}).operateurs);
   const quiOK = (p) => !oprF || (oprF === '-' ? !quiDe(p).length : quiDe(p).includes(oprF));
   const list = all.filter((p) => (statut === 'toutes' || p.statut === statut) && quiOK(p) && (!q || norm(`${opNom(p)} ${p.resume} ${p.notes || ''} ${p.ficheOrdre || ''} ${operateursNoms(db, quiDe(p), ' ')}`).includes(norm(q))))
-    .sort((a, b) => (statut === 'prevue' ? (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) : (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)));
-  const late = all.filter((p) => p.statut === 'prevue' && p.date < today).length;
+    .sort((a, b) => (statut === 'prevue' ? (a.date < b.date ? -1 : a.date > b.date ? 1 : (num(a.ordre) - num(b.ordre))) : (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))); // 0.43.0-alpha.2 : étapes d'un plan dans l'ordre
+  const late = all.filter((p) => p.statut === 'prevue' && !p.sansDate && p.date < today).length;
   const tog = (id) => setSel(sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]);
   const del = async (p) => {
     const nd = docsOf(db, 'prev', p.id).length;
@@ -41,7 +41,7 @@ function PrevisionsView() {
       </div>
       <Tbl rows={list} empty={statut === 'prevue' ? 'Rien à réaliser. Dans un formulaire d’opération, « 📋 Planifier (à réaliser) » l’ajoute ici.' : 'Aucune opération.'} cols={[
         { h: '', r: (p) => <input type="checkbox" className="h-4 w-4" style={{ accentColor: 'var(--accent)' }} checked={sel.includes(p.id)} onChange={() => tog(p.id)} aria-label={`Sélectionner ${OP_LABELS[p.type]} du ${fmtDate(p.date)}`} /> },
-        { h: 'Date prévue', r: (p) => <div className="whitespace-nowrap"><span className="num">{fmtDate(p.date)}</span>{p.statut === 'prevue' && p.date < today ? <Chip tone="warn" className="ml-1">en retard</Chip> : null}{p.statut === 'prevue' ? <div><button type="button" className="linkish text-xs" onClick={() => sameDay(p.date)}>+ toute la journée</button></div> : null}</div> },
+        { h: 'Date prévue', r: (p) => <div className="whitespace-nowrap">{p.sansDate ? <span data-prev-ordre="">{`Étape ${p.ordre || (p.schema || {}).rang || ''} / ${(p.schema || {}).nb || ''}`}</span> : <span className="num">{fmtDate(p.date)}</span>}{p.statut === 'prevue' && !p.sansDate && p.date < today ? <Chip tone="warn" className="ml-1">en retard</Chip> : null}{p.statut === 'prevue' ? <div><button type="button" className="linkish text-xs" onClick={() => sameDay(p.date)}>+ toute la journée</button></div> : null}</div> },
         { h: 'Opération', r: (p) => <div className="flex flex-wrap items-center gap-1"><Chip tone={OP_TONE[p.type]}>{opNom(p)}</Chip><GroupeChip x={p} /><SchemaChip x={p} /></div> },
         { h: 'Détail prévu', r: (p) => <div className="text-sm">{p.resume || '—'}{p.notes ? <div className="text-xs text-ink2">{p.notes}</div> : null}</div> },
         { h: 'Opérateur(s)', r: (p) => <OperateursChips ids={quiDe(p)} vide="non attribuée" /> },

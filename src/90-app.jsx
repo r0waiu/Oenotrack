@@ -240,7 +240,7 @@ function App() {
   // 0.38.0-alpha.3 : un seul parcours des opérations (plus une recherche par avertissement), refait seulement quand la base change
   const toCheck = useMemo(() => db.ops.filter((o) => (R.warn[o.id] || []).length && !o.verifie && o.date >= camp.debut && o.date <= camp.fin).length, [db, R, camp.debut, camp.fin]);
   const dluoIssues = db.arrivages.filter((a) => { const rest = arrivalRest(R, a); const k = dluoState(a.dluo).k; return rest > 0.0001 && (k === 'expire' || k === 'bientot'); }).length;
-  const prevLate = (db.previsions || []).filter((p) => p.statut === 'prevue' && p.date <= todayISO()).length;
+  const prevLate = (db.previsions || []).filter((p) => previsionEnRetard(p)).length; // 0.43.0-alpha.2 : étapes d'un plan (sans date) jamais en retard
   const hygT = hygTachesBadge; // plans de nettoyage et de maintenance (0.26.0-alpha.1)
   const badge = { hygiene: hygT.n ? { n: hygT.n, tone: hygT.nc ? 'bad' : 'warn' } : null, previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, ops: pendingAlerts && moduleActif(db, 'declass') && moduleAutorise(db, uid, 'declass') ? { n: pendingAlerts, tone: 'bad' } : toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null, equipements: equipBadge };
   const Cmp = TABS_REG[nav.tab];
@@ -330,7 +330,7 @@ function App() {
       {apparence ? <ApparenceSheet onClose={() => setApparence(false)} /> : null}
       {docsDlg ? <DocsSheet key={docsDlg.k} cible={docsDlg.cible} kind={docsDlg.kind} title={docsDlg.title} onClose={() => setDocsDlg(null)} /> : null}
       {ficheDlg ? <FicheDialog key={ficheDlg.k} sources={ficheDlg.sources} onClose={() => setFicheDlg(null)} /> : null}
-      {schemaDlg ? <SchemaFeuille key={schemaDlg.k} lotIds={schemaDlg.lotIds} opId={schemaDlg.opId} auto={!!schemaDlg.auto} onClose={() => setSchemaDlg(null)} /> : null}
+      {schemaDlg ? <PlanFeuille key={schemaDlg.k} lotIds={schemaDlg.lotIds} opId={schemaDlg.opId} auto={!!schemaDlg.auto} onClose={() => setSchemaDlg(null)} /> : null}
       {groupeDlg && groupeDlg.gid ? <GroupeSheet key={groupeDlg.k} gid={groupeDlg.gid} onClose={() => setGroupeDlg(null)} /> : null}
       {groupeDlg && groupeDlg.form ? <GroupeForm key={groupeDlg.k} gid={groupeDlg.form.gid} prevGid={groupeDlg.form.prevGid} onClose={() => setGroupeDlg(null)} /> : null}
       {mdpDlg ? <MdpChiffrementDialog d={mdpDlg} onFin={(k) => { const r = mdpDlg.res; setMdpDlg(null); r(k); }} /> : null}
