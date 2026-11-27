@@ -109,7 +109,8 @@ function replay(db, upTo, opts) {
         R.arrUsed[a.id] = (R.arrUsed[a.id] || 0) + q;
       }
       const dose = tg.vol && tg.kind !== 'prep' ? doseHL(q, pr.unite, tg.vol) : null; // la dose légale se juge sur le vin final, pas sur la préparation
-      const rule = tg.qualif && pr.categorie !== 'sec' ? regleEffective(db, pr, tg.qualif) : null; // règle du produit + règles de substance du cahier des charges
+      const lotV = tg.lotId && R.lots[tg.lotId] ? R.lots[tg.lotId].labelsVises : null; // labels visés par le lot (0.40.0-alpha.1)
+      const rule = tg.qualif && pr.categorie !== 'sec' ? regleEffective(db, pr, tg.qualif, lotV) : null; // règle du produit + règles de substance du cahier des charges
       const unauth = !!(tg.qualif && pr.categorie !== 'sec' && !(rule && rule.autorise));
       if (unauth && tg.kind === 'prep') warn(op, `${pr.nom} n’est pas autorisé pour une préparation ${qLabel(tg.qualif)}.`);
       const over = !!(rule && rule.autorise && rule.doseMax != null && rule.doseMax !== '' && dose != null && dose > num(rule.doseMax) + 1e-9);
@@ -127,7 +128,13 @@ function replay(db, upTo, opts) {
       const maxD = rule && rule.autorise && rule.doseMax != null && rule.doseMax !== '' ? num(rule.doseMax) : null;
       const overC = !over && maxD != null && cumul != null && cumul > maxD + 1e-9 && !produitSulfitant(pr); // sulfitants : contrôlés par le SO₂ total estimé
       if (overC) warn(op, `${pr.nom} : dose cumulée ${fmt(cumul, 1)} ${doseUnit(pr.unite)} dans le lot ${(R.lots[tg.lotId] || {}).code || ''}, supérieure à la dose maximale (${fmt(maxD, 1)}) pour ${qLabel(tg.qualif)}.`);
-      if (over || overC) depasse(op, { type: over ? 'dose' : 'cumul', produitId: pr.id, lotId: tg.lotId || null, valeur: over ? dose : cumul, max: maxD, unite: doseUnit(pr.unite), qualif: tg.qualif, aVerifier: !!(rule && rule.aVerifier) });
+      if (over || overC) depasse(op, { type: over ? 'dose' : 'cumul', produitId: pr.id, lotId: tg.lotId || null, valeur: over ? dose : cumul, max: maxD, unite: doseUnit(pr.unite), qualif: tg.qualif, aVerifier: !!(rule && rule.aVerifier), label: (rule && rule.refDosePar) || null });
+      // référentiel réglementaire (0.40.0-alpha.1) : intrant refusé par un label de la revendication ou visé par le lot, teneur maximale dans le vin franchie
+      if (rule && rule.refInterdit && tg.kind !== 'prep') { warn(op, `${pr.nom} : non autorisé (${refLabelNom(rule.refInterditPar)}) pour le lot ${(R.lots[tg.lotId] || {}).code || ''}.`); depasse(op, { type: 'interdit', produitId: pr.id, lotId: tg.lotId || null, qualif: tg.qualif, label: rule.refInterditPar, compose: rule.refInterditCompose || null, aVerifier: !!rule.aVerifier }); }
+      if (tg.lotId && cumul != null && (tg.kind === 'portion' || tg.kind === 'tirage') && refActif(db)) {
+        const esp = uniq(refComposesDe(pr).map((c) => (refCompose(c.id) || {}).espece).filter(Boolean));
+        if (esp.length) refTeneursLot(db, R, tg.lotId).filter((t) => t.depasse && esp.includes(t.espece)).forEach((t) => { warn(op, `${t.libelle} : ${fmt(t.mgL, 1)} mg/L dans le lot ${(R.lots[tg.lotId] || {}).code || ''}, au-delà de la teneur maximale (${fmt(t.max, t.max < 1 ? 2 : 0)} mg/L, ${refLabelNom(t.maxPar)}).`); depasse(op, { type: 'teneur', produitId: pr.id, lotId: tg.lotId, espece: t.espece, valeur: t.mgL, max: t.max, unite: 'mg/L', qualif: tg.qualif, label: t.maxPar, aVerifier: t.aVerifier }); });
+      }
       R.apps.push({ opId: op.id, date: op.date, opType: op.type, opSousType: op.sousType || '', produitId: pr.id, arrivageId: l.arrivageId || null, numLot: a ? a.numLot : '', qty: q, unite: pr.unite, kind: tg.kind, portionId: tg.portionId || null, lotId: tg.lotId || null, contenantId: tg.contenantId || null, prepId: tg.prepId || null, vol: tg.vol || null, dose, qualif: tg.qualif || null, unauth, over, volLot: volLotA, cumul, so2 });
     });
   };

@@ -307,6 +307,8 @@ function produitSave(db, s, id) {
   if (s.reference !== undefined) item.reference = String(s.reference || '').trim().slice(0, 60);
   if (s.lien !== undefined) { const l = String(s.lien || '').trim(); if (l && !lienNorm(l)) return fail('Lien du produit : adresse web invalide (ex. https://www.fournisseur.fr/produit).'); item.lien = lienNorm(l); }
   if (s.fdsNonRequise !== undefined) item.fdsNonRequise = !!s.fdsNonRequise;
+  // 0.40.0-alpha.1 : fiche technique et FDS en ligne (site du fournisseur)
+  for (const k of ['ftUrl', 'fdsUrl']) { if (s[k] !== undefined) { const l = String(s[k] || '').trim(); if (l && !lienNorm(l)) return fail('Lien de la fiche technique ou de la FDS : adresse web invalide.'); item[k] = lienNorm(l); } }
   // 0.26.0-alpha.1 : informations du produit (FT, FDS), reprises seulement si elles sont fournies
   PRODUIT_INFOS.forEach(([k, , max]) => { if (s[k] !== undefined) item[k] = String(s[k] == null ? '' : s[k]).trim().slice(0, max); });
   // 0.30.0-alpha.1 : famille (catalogues), teneur en SO₂ (« 150 g/L », « 0,5 g/g », « 5 g/u ») pour l'estimation du SO₂ total
@@ -314,8 +316,10 @@ function produitSave(db, s, id) {
   if (s.so2 !== undefined) { const t = String(s.so2 || '').trim().replace(/\s+/g, ' '); if (t && !/^\d+(?:[.,]\d+)?\s*(g|mg)\s*\/\s*(L|mL|kg|g|u)$/i.test(t)) return fail('Teneur en SO₂ : indiquez par exemple « 150 g/L », « 0,5 g/g » ou « 5 g/u ».'); item.so2 = t; }
   // 0.36.0-alpha.1 : allergènes à cocher (liste ALLERGENES), « aucun allergène » ; choix Oui / Non par revendication = règles du produit
   if (s.allergenesListe !== undefined) { const L = (Array.isArray(s.allergenesListe) ? s.allergenesListe : []).filter((x) => allergeneDef(x)); item.allergenesListe = ALLERGENES.map((a) => a[0]).filter((x) => L.includes(x)); }
+  // 0.40.0-alpha.1 : composés actifs (référentiel réglementaire) choisis à la main ; null = devinés d'après le nom
+  if (s.composes !== undefined && s.composes !== null) { item.composes = uniq((Array.isArray(s.composes) ? s.composes : []).map((x) => x && x.id).filter((x) => typeof refCompose !== 'function' || refCompose(x))).map((cid) => { const x = s.composes.find((y) => y.id === cid); return hasNum(x.part) && num(x.part) > 0 && num(x.part) <= 1 ? { id: cid, part: num(x.part) } : { id: cid }; }); }
   if (s.allergenesAucun !== undefined) item.allergenesAucun = !!s.allergenesAucun && !(item.allergenesListe || []).length;
-  if (id) { const p = db.produits.find((x) => x.id === id); if (!p) return fail('Produit introuvable.'); Object.assign(p, item); if (s.revendications) revendicationsAppliquer(db, id, s.revendications, { uid: s.uid }); return okr({ id }); }
+  if (id) { const p = db.produits.find((x) => x.id === id); if (!p) return fail('Produit introuvable.'); Object.assign(p, item); if (s.composes === null) delete p.composes; if (s.revendications) revendicationsAppliquer(db, id, s.revendications, { uid: s.uid }); return okr({ id }); }
   const pid = nid(db, 'pr'); db.produits.push({ id: pid, ...item });
   QUALIFS.forEach((q) => db.regles.push({ produitId: pid, qualifId: q.id, autorise: q.id === 'conv', doseMax: null }));
   if (s.revendications) revendicationsAppliquer(db, pid, s.revendications, { uid: s.uid });

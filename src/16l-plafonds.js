@@ -7,15 +7,17 @@
    SO₂ total estimé = dernière analyse du lot + ajouts depuis (produits dont la teneur en SO₂ est connue). Dépassement : avertir + motif tracé. */
 const VINS_TYPES = [{ id: 'effervescent', label: 'Vins effervescents' }, { id: 'blanc_rose', label: 'Vins blancs et rosés' }, { id: 'rouge', label: 'Vins rouges' }, { id: 'tous', label: 'Tous les vins' }];
 const vinTypeLabel = (id) => (VINS_TYPES.find((v) => v.id === id) || { label: id || '—' }).label;
+// 0.40.0-alpha.1 : valeurs relues dans les textes en vigueur (mêmes valeurs que le référentiel 16t-referentiel) ; elles restent des exemples
+// « à vérifier » tant que l'exploitation ne les a pas validées (le plafond validé de l'exploitation l'emporte sur le référentiel)
 const PLAFONDS_SOURCES = {
-  ue: 'Règlement délégué (UE) 2019/934, annexe I B — exemple à vérifier',
-  bio: 'Règlement (UE) 2018/848 (vin biologique) : plafonds de l’UE réduits de 30 mg/L — exemple à vérifier',
-  dem: 'Cahier des charges vinification Demeter France — exemple à vérifier (dérogations possibles)',
+  ue: 'Règlement délégué (UE) 2019/934, annexe I partie B (A.1 et C.1) — valeur relue, exemple à vérifier par l’exploitation',
+  bio: 'Règlement d’exécution (UE) 2021/1165, annexe V partie D, ligne « Anhydride sulfureux » : plafonds de l’UE réduits de 30 mg/L — valeur relue, exemple à vérifier par l’exploitation',
+  dem: 'Cahier des charges Demeter France, édition janvier 2024, § 7.12.2.11 (doses dérogatoires : 2 interventions) — valeur relue, exemple à vérifier par l’exploitation',
 };
 const PLAFONDS_EXEMPLES = () => [
   ['conv', 'rouge', 150, 'sucres < 5 g/L (200 au-delà)', 'ue'], ['conv', 'blanc_rose', 200, 'sucres < 5 g/L (250 au-delà)', 'ue'], ['conv', 'effervescent', 185, 'vins mousseux de qualité (235 pour les autres vins mousseux)', 'ue'],
   ['bio', 'rouge', 100, 'sucres < 2 g/L (120 de 2 à 5 g/L, 170 au-delà)', 'bio'], ['bio', 'blanc_rose', 150, 'sucres < 2 g/L (170 de 2 à 5 g/L, 220 au-delà)', 'bio'], ['bio', 'effervescent', 155, 'vins mousseux de qualité (205 pour les autres vins mousseux)', 'bio'],
-  ['dem', 'rouge', 70, 'sucres < 5 g/L ; dérogation possible à 100', 'dem'], ['dem', 'blanc_rose', 90, 'sucres < 5 g/L ; dérogation possible à 120', 'dem'], ['dem', 'effervescent', 70, 'sucres < 10 g/L (100 au-delà) ; dérogation possible à 100', 'dem'],
+  ['dem', 'rouge', 70, 'sucres < 5 g/L ; dérogation possible à 100', 'dem'], ['dem', 'blanc_rose', 90, 'sucres < 5 g/L ; dérogation possible à 120', 'dem'], ['dem', 'effervescent', 70, 'sucres < 12 g/L (100 au-delà) ; dérogation possible à 100', 'dem'],
 ].map(([qualifId, vin, valeur, note, s]) => ({ id: `ex-${qualifId}-${vin}`, qualifId, objet: 'so2t', vin, valeur, unite: 'mg/L', note, source: PLAFONDS_SOURCES[s], exemple: true, aVerifier: true }));
 const plafondsDe = (db) => (Array.isArray(db && db.plafonds) ? db.plafonds.filter((p) => p && p.id && ['so2t', 'substance'].includes(p.objet)) : PLAFONDS_EXEMPLES());
 // première modification : les exemples deviennent des données de la cave (synchronisées), qu'on peut valider, corriger ou retirer
@@ -51,21 +53,35 @@ function lotTypeVin(db, R, lotId) {
   return l.couleur === 'rouge' ? 'rouge' : 'blanc_rose';
 }
 // plafond de SO₂ total qui s'applique au lot (revendication + type de vin ; « tous les vins » à défaut) : le plus bas s'il y en a plusieurs
+// 0.40.0-alpha.1 : plafonds du référentiel réglementaire (UE, labels de la revendication, labels visés par le lot) comparés aussi ; un plafond
+// vérifié de l'exploitation pour la revendication et ce type de vin remplace ceux du référentiel (sauf labels visés par le lot)
 function plafondSo2Lot(db, R, lotId) {
   const l = (R && R.lots && R.lots[lotId]) || (db.lots || []).find((x) => x.id === lotId) || (db.lotsFinis || []).find((x) => x.id === lotId); if (!l) return null; // lot fini (0.38.0-alpha.3)
   const t = lotTypeVin(db, R, lotId); const L = plafondsDe(db).filter((p) => p.objet === 'so2t' && p.qualifId === l.qualif);
   const c = L.filter((p) => p.vin === t); const m = (c.length ? c : L.filter((p) => p.vin === 'tous')).sort((a, b) => a.valeur - b.valeur);
-  return m[0] ? { ...m[0], typeVin: t } : null;
+  const ref = typeof refSo2Plafonds === 'function' ? refSo2Plafonds(db, R, lotId, t, m.some((p) => !p.aVerifier)) : [];
+  const tous = [...m, ...ref].sort((a, b) => a.valeur - b.valeur || (a.referentiel ? 1 : 0) - (b.referentiel ? 1 : 0));
+  return tous[0] ? { ...tous[0], typeVin: t } : null;
 }
 // règle de substance : concerne le produit si un mot-clé figure dans son nom, sa famille ou sa composition
 const plafondConcerne = (x, p) => { const t = catCle(`${p.nom || ''} ${p.famille || ''} ${famLabel(p.famille)} ${p.composition || ''}`); return String(x.mot || '').split('|').some((m) => m.length >= 3 && ` ${t} `.includes(` ${m}`)); };
 // règle effective d'un produit pour une revendication : règle du produit + règles de substance (la plus restrictive l'emporte)
-function regleEffective(db, p, qualifId) {
+// 0.40.0-alpha.1 : + avis du référentiel réglementaire (UE, appellation, labels de la revendication, labels visés « vises » du lot)
+function regleEffective(db, p, qualifId, vises) {
   if (!p || !qualifId) return null; const base = ruleFor(db, p.id, qualifId);
-  const subs = plafondsDe(db).filter((x) => x.objet === 'substance' && x.qualifId === qualifId && plafondConcerne(x, p)); if (!subs.length) return base;
+  const subs = plafondsDe(db).filter((x) => x.objet === 'substance' && x.qualifId === qualifId && plafondConcerne(x, p));
+  const ref = typeof refRegleProduit === 'function' ? refRegleProduit(db, p, qualifId, vises) : null;
+  const restreint = !!(ref && (ref.interdit ? !!(base && base.autorise) || !base : ref.doseMax != null && base && base.autorise && (!hasNum(base.doseMax) || ref.doseMax < num(base.doseMax))));
+  if (!subs.length && !restreint) return base; // le référentiel ne restreint rien : règle du produit telle quelle (UI : refRegleProduit pour ses conditions)
   let autorise = !!(base && base.autorise); let doseMax = base && hasNum(base.doseMax) ? num(base.doseMax) : null; const sources = []; const du = doseUnit(p.unite);
   subs.forEach((x) => { if (x.autorise === false) { if (autorise) sources.push(x); autorise = false; } else if (hasNum(x.doseMax) && x.unite === du && (doseMax == null || num(x.doseMax) < doseMax)) { doseMax = num(x.doseMax); sources.push(x); } });
-  return { ...(base || { produitId: p.id, qualifId }), autorise, doseMax, aVerifier: !!((base && base.aVerifier) || sources.some((x) => x.aVerifier)), sources };
+  const o = { ...(base || { produitId: p.id, qualifId }), autorise, doseMax, aVerifier: !!((base && base.aVerifier) || sources.some((x) => x.aVerifier)), sources };
+  if (ref) {
+    o.ref = ref; o.conditions = ref.conditions;
+    if (ref.interdit) { if (o.autorise) { o.refInterditPar = ref.interditPar; o.refInterditCompose = ref.interditCompose; o.aVerifier = o.aVerifier || ref.aVerifier; } o.autorise = false; o.refInterdit = true; o.refInterditPar = o.refInterditPar || ref.interditPar; o.refInterditCompose = o.refInterditCompose || ref.interditCompose; }
+    else if (o.autorise && ref.doseMax != null && (o.doseMax == null || ref.doseMax < o.doseMax)) { o.doseMax = ref.doseMax; o.refDosePar = ref.dosePar; o.refDoseCompose = ref.doseCompose; o.aVerifier = o.aVerifier || ref.aVerifier; }
+  }
+  return o;
 }
 // teneur en SO₂ d'un produit (champ « so2 » : « 150 g/L », « 0,5 g/g », « 5 g/u »…) ramenée à son unité : grammes de SO₂ par unité saisie
 function so2Teneur(p) {
@@ -82,7 +98,7 @@ const prodDe = (db, id) => db.produits.find((p) => p.id === id) || { id, nom: '(
 function lotIntrantsCumul(db, R, lotId) {
   const c = (R.conc || {})[lotId] || {}; const d = (R.concDir || {})[lotId] || {}; const l = R.lots[lotId] || {};
   return Object.keys(c).filter((k) => k[0] !== '@' && c[k] > 1e-9).map((pid) => {
-    const p = prodDe(db, pid); const r = regleEffective(db, p, l.qualif); const max = r && r.autorise && hasNum(r.doseMax) ? num(r.doseMax) : null;
+    const p = prodDe(db, pid); const r = regleEffective(db, p, l.qualif, l.labelsVises); const max = r && r.autorise && hasNum(r.doseMax) ? num(r.doseMax) : null;
     const dose = c[pid]; const direct = Math.min(dose, d[pid] || 0);
     const so2 = produitSulfitant(p); // contrôlé par le SO₂ total estimé
     return { produitId: pid, p, dose, direct, herite: Math.max(0, dose - direct), unite: doseUnit(p.unite), max: so2 ? null : max, so2, depasse: !so2 && max != null && dose > max + 1e-9, interdit: !!(l.qualif && !(r && r.autorise)), aVerifier: !!(r && r.aVerifier), regle: r };

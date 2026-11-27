@@ -11,6 +11,8 @@ const CATALOGUES = [
   { id: 'oenofrance', fournisseur: 'Sofralab', marque: 'Oenofrance', titre: 'Catalogue Oenofrance 2025-2026', annee: '2025-2026' },
   { id: 'soec', fournisseur: 'Sofralab', marque: 'SOEC', titre: 'Catalogue SOEC 2024/2025', annee: '2024-2025' },
   { id: 'martinvialatte', fournisseur: 'Sofralab', marque: 'Martin Vialatte', titre: 'Catalogue Martin Vialatte 2026', annee: '2026' },
+  // 0.40.0-alpha.1 : produits de la liste Ecocert absents des catalogues ci-dessus (autres fournisseurs, autres gammes) ; voir 16ka-catalogues-web
+  { id: 'ecocert', fournisseur: 'Divers fournisseurs', marque: 'Ecocert', titre: 'Liste Ecocert des intrants utilisables en œnologie biologique', annee: '2026' },
 ];
 // familles des produits (catégorie de l'application : œnologique ou auxiliaire)
 const CATALOGUE_FAMILLES = [
@@ -943,14 +945,18 @@ function catalogueIntegre() {
     return { id: `${cat}:${slug(nom.replace(/\+/g, ' plus '))}`, cat, fournisseur: c.fournisseur, marque: c.marque, titre: c.titre, annee: c.annee, nom, famille, unite, dose: dose || '', cond: cond || '', page: page || '',
       ue: fl.includes('ue'), nop: fl.includes('nop'), vegan: fl.includes('vegan'), max: max || '', so2: so2 || '', integre: true, etat: 'valide' };
   });
+  if (typeof catalogueCompleter === 'function') _catIntegre = catalogueCompleter(_catIntegre); // sites des fournisseurs, liste Ecocert (0.40.0-alpha.1)
   return _catIntegre;
 }
 // réglage commun : catalogues (cat:id) et fournisseurs (fo:nom) masqués
 const catalogueReglage = (db) => { const r = db && db.catalogueReglage && typeof db.catalogueReglage === 'object' ? db.catalogueReglage : {}; return { masques: Array.isArray(r.masques) ? r.masques.filter((x) => typeof x === 'string') : [] }; };
 const catalogueMasqueCle = (e) => [`cat:${e.cat}`, `fo:${catCle(e.fournisseur)}`];
-const catalogueEstMasque = (db, e) => { const m = catalogueReglage(db).masques; return catalogueMasqueCle(e).some((k) => m.includes(k)); };
+// 0.40.0-alpha.1 : le catalogue « Ecocert » (autres fournisseurs) est masqué tant qu'il n'a pas été affiché (catalogueReglage.ecocert)
+const catalogueEcocertAffiche = (db) => !!(db && db.catalogueReglage && db.catalogueReglage.ecocert === true);
+const catalogueEstMasque = (db, e) => { const m = catalogueReglage(db).masques; return (e.cat === 'ecocert' && !catalogueEcocertAffiche(db)) || catalogueMasqueCle(e).some((k) => m.includes(k)); };
 function catalogueMasquer(db, cle, masque) {
   if (!/^(cat|fo):./.test(String(cle || ''))) return fail('Catalogue ou fournisseur inconnu.');
+  if (cle === 'cat:ecocert') { db.catalogueReglage = { ...(db.catalogueReglage && typeof db.catalogueReglage === 'object' ? db.catalogueReglage : {}), ecocert: !masque }; return okr(); }
   const s = new Set(catalogueReglage(db).masques); if (masque) s.add(cle); else s.delete(cle);
   db.catalogueReglage = { ...(db.catalogueReglage && typeof db.catalogueReglage === 'object' ? db.catalogueReglage : {}), masques: [...s].sort() }; return okr();
 }
@@ -962,19 +968,21 @@ const catalogueImporteEntrees = (c) => c.lignes.filter((l) => l && l.nom).map((l
 // entrées proposées : catalogues préinstallés + lignes validées des catalogues importés, hors catalogues ou fournisseurs masqués
 function catalogueEntrees(db, o) {
   o = o || {}; const imp = catalogueImportes(db).flatMap(catalogueImporteEntrees).filter((e) => o.tous || e.etat === 'valide');
-  return [...catalogueIntegre(), ...imp].filter((e) => o.masques === false || !catalogueEstMasque(db, e));
+  const eco = typeof catalogueEcocert === 'function' ? catalogueEcocert() : [];
+  return [...catalogueIntegre(), ...eco, ...imp].filter((e) => o.masques === false || !catalogueEstMasque(db, e));
 }
-const catalogueEntree = (db, id) => [...catalogueIntegre(), ...catalogueImportes(db).flatMap(catalogueImporteEntrees)].find((e) => e.id === id) || null;
+const catalogueEntree = (db, id) => [...catalogueIntegre(), ...(typeof catalogueEcocert === 'function' ? catalogueEcocert() : []), ...catalogueImportes(db).flatMap(catalogueImporteEntrees)].find((e) => e.id === id) || null;
 // recherche : fournisseur, catalogue (marque), famille, bio, texte
 function catalogueChercher(db, o) {
   o = o || {}; const q = catCle(o.q || ''); const fo = o.fournisseur ? catCle(o.fournisseur) : '';
-  return catalogueEntrees(db, { masques: o.masques }).filter((e) => (!fo || catCle(e.fournisseur) === fo) && (!o.cat || e.cat === o.cat) && (!o.famille || e.famille === o.famille) && (!o.bio || e.ue || e.nop) && (!o.vegan || e.vegan)
+  return catalogueEntrees(db, { masques: o.masques }).filter((e) => (!fo || catCle(e.fournisseur) === fo) && (!o.cat || e.cat === o.cat) && (!o.famille || e.famille === o.famille) && (!o.bio || e.ue || e.nop || e.bioEcocert) && (!o.vegan || e.vegan)
     && (!q || catCle(`${e.nom} ${e.marque} ${famLabel(e.famille)}`).includes(q)));
 }
 // liste des catalogues (préinstallés et importés) pour les réglages
 function catalogueListe(db) {
   const m = catalogueReglage(db).masques; const I = catalogueIntegre();
-  const integres = CATALOGUES.map((c) => ({ ...c, integre: true, n: I.filter((e) => e.cat === c.id).length, masque: m.includes(`cat:${c.id}`) || m.includes(`fo:${catCle(c.fournisseur)}`) }));
+  const integres = CATALOGUES.map((c) => (c.id === 'ecocert' ? { ...c, integre: true, n: typeof catalogueEcocert === 'function' ? catalogueEcocert().length : 0, masque: !catalogueEcocertAffiche(db) }
+    : { ...c, integre: true, n: I.filter((e) => e.cat === c.id).length, masque: m.includes(`cat:${c.id}`) || m.includes(`fo:${catCle(c.fournisseur)}`) }));
   const importes = catalogueImportes(db).map((c) => ({ id: c.id, fournisseur: c.fournisseur, marque: c.marque || c.fournisseur, titre: c.titre, annee: c.annee || '', integre: false, fichier: c.fichier || '', mode: c.mode || '', le: c.le || '', par: c.par || '',
     n: c.lignes.filter((l) => l.etat === 'valide').length, aVerifier: c.lignes.filter((l) => (l.etat || 'aVerifier') === 'aVerifier').length, ecartes: c.lignes.filter((l) => l.etat === 'ecarte').length, masque: m.includes(`cat:${c.id}`) || m.includes(`fo:${catCle(c.fournisseur)}`) }));
   return [...integres, ...importes];
@@ -992,7 +1000,7 @@ function catalogueMaxDose(e) {
   const du = doseUnit(e.unite); if (!du || (du === 'g/hL') !== (m[2] === 'g')) return null;
   return Math.round(v * 1000) / 1000;
 }
-const catalogueBioTexte = (e) => [e.ue ? 'utilisable en bio (UE)' : '', e.nop ? 'NOP (États-Unis)' : '', e.vegan ? 'vegan' : ''].filter(Boolean).join(' · ');
+const catalogueBioTexte = (e) => [e.ue ? 'utilisable en bio (UE)' : '', e.bioEcocert ? `liste Ecocert (bio UE)${e.ecocertRestr ? ` : ${e.ecocertRestr}` : ''}` : '', e.nop ? 'NOP (États-Unis)' : '', e.vegan ? 'vegan' : ''].filter(Boolean).join(' · ');
 const catalogueSource = (e) => `${e.titre}${e.page ? `, p. ${e.page}` : ''}`;
 // produit créé depuis le catalogue : fournisseur ajouté s'il manque, informations et règles d'exemple « à vérifier »
 function produitDepuisCatalogue(db, id) {
@@ -1001,14 +1009,18 @@ function produitDepuisCatalogue(db, id) {
   let fo = db.fournisseurs.find((f) => catCle(f.nom) === catCle(e.fournisseur));
   if (!fo) { const r = fournisseurSave(db, { nom: e.fournisseur }); if (!r.ok) return r; fo = db.fournisseurs[db.fournisseurs.length - 1]; }
   const nom = nameTaken(db.produits, e.nom) ? `${e.nom} (${e.marque})` : e.nom;
-  const r = produitSave(db, { nom, categorie: famCategorie(e.famille), unite: UNITES.includes(e.unite) ? e.unite : 'g', fournisseurId: fo.id, fabricant: e.marque, doseEmploi: e.dose ? `${e.dose} (${catalogueSource(e)})` : '', usageBio: catalogueBioTexte(e) });
+  // 0.40.0-alpha.1 : page du produit, fiche technique et FDS en ligne relevées sur le site du fournisseur
+  const r = produitSave(db, { nom, categorie: famCategorie(e.famille), unite: UNITES.includes(e.unite) ? e.unite : 'g', fournisseurId: fo.id, fabricant: e.marque, doseEmploi: e.dose ? `${e.dose} (${catalogueSource(e)})` : '', usageBio: catalogueBioTexte(e).slice(0, 300),
+    ...(e.lien ? { lien: e.lien } : {}), ...(e.ftUrl ? { ftUrl: e.ftUrl } : {}), ...(e.fdsUrl ? { fdsUrl: e.fdsUrl } : {}) });
   if (!r.ok) return r;
   const p = db.produits.find((x) => x.id === r.id);
   p.famille = e.famille || ''; p.catalogue = { id: e.id, titre: e.titre, annee: e.annee, page: e.page, conditionnements: e.cond, le: todayISO() };
   if (e.so2) p.so2 = e.so2;
   const mx = catalogueMaxDose(e); const src = `catalogue : ${catalogueSource(e)}`;
   regleSet(db, p.id, 'conv', { autorise: true, doseMax: mx, aVerifier: true, source: src });
-  if (e.ue) regleSet(db, p.id, 'bio', { autorise: true, doseMax: mx, aVerifier: true, source: src });
+  // 0.40.0-alpha.1 : produit attesté par Ecocert (organisme certificateur bio) → autorisation en bio vérifiée ; une dose venue du fournisseur reste à vérifier
+  if (e.bioEcocert) regleSet(db, p.id, 'bio', { autorise: true, doseMax: mx, aVerifier: mx != null, ...(mx == null ? { verifiePar: 'Ecocert', verifieLe: todayISO() } : {}), source: (mx != null ? `${ECOCERT_SOURCE} ; dose : ${src}` : ECOCERT_SOURCE).slice(0, 240) });
+  else if (e.ue) regleSet(db, p.id, 'bio', { autorise: true, doseMax: mx, aVerifier: true, source: src });
   return okr({ id: p.id });
 }
 // fournisseurs proposés à la saisie d'un intrant : ceux de la cave et ceux des catalogues affichés

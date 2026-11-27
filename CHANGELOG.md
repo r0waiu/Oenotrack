@@ -2,6 +2,15 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.40.0-alpha.1 — 27/11/2026
+
+- Intrants › « ⚖ Référentiel réglementaire » : base préétablie des intrants et composés actifs (SO₂, acide sorbique et sorbate, sels de cuivre, acide métatartrique, gomme arabique, CMC, polyaspartate, lysozyme, chitosane, PVPP, charbon, DMDC, acides, colles, levures, nutriments…) pour la réglementation de l’UE, l’AOC Champagne (selon le vignoble du profil régional) et les labels Bio UE, Demeter, Biodyvin, Terra Vitis, Nature & Progrès, AVN et Vins S.A.I.N.S. : autorisé, interdit ou sous condition, dose maximale, teneur maximale dans le vin, plafonds de SO₂ total, avec le texte et l’article de chaque valeur, relue dans les textes officiels en vigueur (« ✓ vérifié », sinon « à vérifier »), corrigeable par l’exploitation (tracé) ; enrichissement maximal des régions aligné sur les zones viticoles de l’UE (Bourgogne : 1,5 % vol).
+- « Produits & règles par revendication » et « Revendications & plafonds » liés : une même règle effective (règle du produit, règles de substance du cahier des charges, avis du référentiel — la plus restrictive l’emporte) dans les deux vues, avec les produits réellement enregistrés, les écarts signalés et « Aligner sur le référentiel » ; chaque revendication choisit ses labels.
+- Fiche du produit : composés actifs reconnus d’après le nom et la composition (ex. « Citrate de cuivre 2 % »), teneur modifiable ; les doses cumulées par lot sont converties en teneurs dans le vin (acide sorbique, cuivre, acide métatartrique, CMC…).
+- Alerte à la saisie : un intrant refusé par un label du lot, une dose ou une teneur maximale franchie pour l’une des revendications visées demande un motif avant validation (tracé avec l’opération) ; labels visés par lot en plus de sa revendication.
+- Alerte persistante sur le lot (fiche du lot et du lot fini) et dans Traçabilité › « ⚖ Conformité réglementaire » : intrant non conforme, dose cumulée, teneur ou SO₂ total au-delà du plafond, recalculés quand la revendication change (déclassement, passage en Bio, Demeter, S.A.I.N.S.…).
+- Catalogues : liste Ecocert des intrants utilisables en œnologie biologique (plus de 1 700 produits, règlement (UE) 2018/848) — mention « liste Ecocert » et restrictions d’emploi sur les produits des catalogues, et catalogue « Ecocert » des autres fournisseurs (Lallemand, Agrovin, Lamothe-Abiet, Erbslöh, Enartis…), à afficher dans Intrants › Catalogues ; page du produit, fiche technique et FDS en ligne relevées sur les sites Laffort, Martin Vialatte et Oenofrance, préremplies à l’ajout dans vos produits.
+
 ## 0.39.0-alpha.1 — 26/11/2026
 
 - Paramètres réorganisés en quatre rubriques — Exploitation, Vin & cuverie, Équipe & sécurité, Données & application — dans un menu latéral (rangées sur téléphone) ; les calculs œnologiques (tirage, enrichissement, fermentation) ont leur page « 🧪 Calculs œnologiques », la charte et le mode d’affichage la page « 🖥 Affichage & application ».

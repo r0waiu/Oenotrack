@@ -32,8 +32,13 @@ function ProduitFournisseurChoix({ fo, value, onChange, cats, Rd, ...p }) {
 }
 const foDeLigne = (db, l) => (l._fo !== undefined ? l._fo : l.produitId ? (fournisseurNom(db, prodOf(db, l.produitId).fournisseurId) || FO_TOUS) : '');
 
+// 0.40.0-alpha.1 : page du produit, fiche technique et FDS en ligne (sites des fournisseurs)
+function CatalogueLiens({ e }) {
+  if (!e.lien && !e.ftUrl && !e.fdsUrl) return null;
+  return <span className="mt-0.5 flex flex-wrap gap-2" data-catalogue-liens="">{e.lien ? <a href={e.lien} target="_blank" rel="noopener noreferrer">🔗 Page</a> : null}{e.ftUrl ? <a href={e.ftUrl} target="_blank" rel="noopener noreferrer">📄 FT</a> : null}{e.fdsUrl ? <a href={e.fdsUrl} target="_blank" rel="noopener noreferrer">⚠ FDS</a> : null}</span>;
+}
 function BioChips({ e }) {
-  return <>{e.ue ? <Chip tone="good">bio UE</Chip> : null}{e.nop ? <Chip>NOP</Chip> : null}{e.vegan ? <Chip>vegan</Chip> : null}</>;
+  return <>{e.ue ? <Chip tone="good">bio UE</Chip> : null}{e.bioEcocert ? <Chip tone="good" title={e.ecocertRestr || ''} data-ecocert="">liste Ecocert</Chip> : null}{e.nop ? <Chip>NOP</Chip> : null}{e.vegan ? <Chip>vegan</Chip> : null}</>;
 }
 // Intrants › Catalogues
 function CataloguesView() {
@@ -59,7 +64,7 @@ function CataloguesView() {
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 pl-6 text-sm">
                   {cs.map((c) => (
                     <span key={c.id} className="flex flex-wrap items-center gap-1" data-catalogue={c.id}>
-                      <Check checked={!reg.masques.includes(`cat:${c.id}`)} disabled={lect || foMasque} onChange={(v) => masquer(`cat:${c.id}`, !v)} label={<span><span translate="no">{c.integre ? c.titre : c.titre}</span> <span className="text-ink2">(<span translate="no">{fmt(c.n)}</span> <span>produit(s)</span>)</span></span>} />
+                      <Check checked={c.id === 'ecocert' ? !c.masque : !reg.masques.includes(`cat:${c.id}`)} disabled={lect || foMasque} onChange={(v) => masquer(`cat:${c.id}`, !v)} label={<span><span translate="no">{c.integre ? c.titre : c.titre}</span> <span className="text-ink2">(<span translate="no">{fmt(c.n)}</span> <span>produit(s)</span>)</span></span>} />
                       {!c.integre ? <><Chip>importé</Chip>{c.aVerifier ? <Btn size="sm" kind="primary" onClick={() => setRelire(c.id)}><span translate="no">{fmt(c.aVerifier)}</span> <span>à vérifier</span></Btn> : <Btn size="sm" onClick={() => setRelire(c.id)}>Relire</Btn>}
                         {lect ? null : <Btn size="sm" kind="danger" onClick={() => ask(`Retirer le catalogue importé « ${c.titre} » ?`, (d) => catalogueImportSupprimer(d, c.id), 'Catalogue retiré.', 'Les produits déjà ajoutés à vos produits restent.')}>Retirer</Btn>}</> : null}
                     </span>
@@ -84,7 +89,8 @@ function CataloguesView() {
           { h: 'Dose conseillée', r: (e) => (e.dose ? <span translate="no">{e.dose}</span> : '—') },
           { h: 'Conditionnements', r: (e) => (e.cond ? <span className="text-xs" translate="no">{e.cond}</span> : '—') },
           { h: 'Mentions', r: (e) => <span className="flex flex-wrap gap-1"><BioChips e={e} />{e.max ? <Chip><span>max</span> <span translate="no">{e.max}</span></Chip> : null}{e.so2 ? <Chip><span>SO₂</span> <span translate="no">{e.so2}</span></Chip> : null}</span> },
-          { h: 'Source', r: (e) => <span className="text-xs text-ink2"><span translate="no">{e.titre}</span>{e.page ? <> · <span>p.</span> <span translate="no">{e.page}</span></> : null}</span> },
+          { h: 'Source', r: (e) => <span className="text-xs text-ink2"><span translate="no">{e.titre}</span>{e.page ? <> · <span>p.</span> <span translate="no">{e.page}</span></> : null}{e.ecocertCategorie ? <> · <span translate="no">{e.ecocertCategorie}</span></> : null}
+            <CatalogueLiens e={e} /></span> },
           { h: '', r: (e) => { const p = catalogueProduitLie(db, e); return p ? <Chip tone="good">✓ dans vos produits</Chip> : lect ? null : <Btn size="sm" onClick={() => act((d) => produitDepuisCatalogue(d, e.id), 'Produit ajouté à vos produits (règles d’exemple à vérifier).')}>＋ Ajouter à mes produits</Btn>; } },
         ]} /></div>
         {res.length > vus ? <div className="mt-2"><Btn size="sm" onClick={() => setVus(vus + 120)}><span>Afficher plus</span> (<span translate="no">{fmt(res.length - vus)}</span> <span>restant(s)</span>)</Btn></div> : null}

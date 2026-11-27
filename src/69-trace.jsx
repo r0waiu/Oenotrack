@@ -1,4 +1,20 @@
-/* ============ ONGLET TRAÇABILITÉ : rappel de lot d'intrant (HACCP), crus, apporteurs, échelle ============ */
+/* ============ ONGLET TRAÇABILITÉ : rappel de lot d'intrant (HACCP), crus, apporteurs, échelle ; conformité réglementaire (0.40.0-alpha.1) ============ */
+// registre des alertes a posteriori : lots dont les intrants, les teneurs ou le SO₂ total ne respectent pas les référentiels de leur revendication et de leurs labels visés
+function ConformiteRegistre({ liste }) {
+  const { db, R } = useApp();
+  return (
+    <div className="space-y-3" data-conformite-registre="">
+      <Notice tone={liste.some((x) => x.alertes.some((a) => !a.justifie)) ? 'bad' : 'info'} title="Conformité des lots au référentiel réglementaire">
+        <span>Recalculée à chaque modification : intrants ajoutés ou hérités, revendication changée (déclassement, passage en bio…), labels visés. Valeurs d’exemple à vérifier (Intrants › Référentiel réglementaire).</span>
+      </Notice>
+      <Tbl rows={liste.map((x) => ({ ...x, id: x.lotId }))} empty="Aucun lot en alerte." cols={[
+        { h: 'Lot', r: (x) => <LotLink id={x.lotId} /> }, { h: 'Revendication', r: (x) => <QChip id={(R.lots[x.lotId] || {}).qualif} /> }, { h: 'Référentiels', r: (x) => <LabelsChips lotId={x.lotId} /> },
+        { h: 'Alertes', r: (x) => <ul className="list-disc pl-4 text-sm">{x.alertes.map((a, i) => <li key={i}><span>{refAlerteTexte(db, a)}</span>{a.justifie ? <> <Chip tone="warn">justifié</Chip></> : null}</li>)}</ul> },
+        { h: '', r: (x) => <ConformiteChip alertes={x.alertes} /> },
+      ]} />
+    </div>
+  );
+}
 function TraceLotsTable({ rows, showApps }) {
   const { db, R } = useApp();
   return <Tbl rows={rows} empty="Aucun lot concerné." cols={[
@@ -8,6 +24,7 @@ function TraceLotsTable({ rows, showApps }) {
     { h: 'Part estimée', cls: 'r', r: (r) => <span className="num">{pct(r.share, r.share < 0.1 ? 1 : 0)}</span> },
     { h: 'En stock', cls: 'r', r: (r) => <span className="num">{r.vol > 0.5 ? fmtL(r.vol) : ''}{r.bottles ? `${r.vol > 0.5 ? ' · ' : ''}${fmt(r.bottles)} bt` : ''}{r.vol <= 0.5 && !r.bottles ? '—' : ''}</span> },
     { h: 'Où ?', r: (r) => <span className="flex flex-wrap gap-1">{r.conts.map((c) => <ContLink key={c} id={c} />)}</span> },
+    { h: 'Conformité', r: (r) => <ConformiteChip alertes={lotConformite(db, R, r.lot.id)} /> },
     ...(showApps ? [{ h: 'Ajouts', cls: 'hm', r: (r) => r.apps.map((a) => `${fmtDate(a.date)} ${fmt(a.qty, 2)} ${a.unite}`).join(' · ') }] : []),
   ]} />;
 }
@@ -36,13 +53,14 @@ function TabTrace() {
   const [prod, setProd] = useState(''); const [arrs, setArrs] = useState([]);
   const [cru, setCru] = useState(''); const [app, setApp] = useState(''); const [parc, setParc] = useState(''); const [ech, setEch] = useState(() => echTop() || 'grand');
   const [printing, setPrinting] = useState(false); const ref = useRef(null);
+  const nonConf = useMemo(() => lotsNonConformes(db, R, true), [db, R]); const nNonConf = nonConf.filter((x) => x.alertes.some((a) => !a.justifie)).length; // 0.40.0-alpha.1
   const prods = db.produits.filter((p) => db.arrivages.some((a) => a.produitId === p.id)).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   const res = useMemo(() => {
     if (mode === 'intrant') return prod ? traceIntrant(db, R, { produitId: prod, arrivageIds: arrs }) : null;
     if (mode === 'cru') return cru ? traceOrigin(db, R, 'cru', cru) : null;
     if (mode === 'apporteur') return app ? traceOrigin(db, R, 'apporteur', app) : null;
     if (mode === 'parcelle') return parc ? traceOrigin(db, R, 'parcelle', parc) : null;
-    if (mode === 'rapports') return null;
+    if (mode === 'rapports' || mode === 'conformite') return null;
     return traceOrigin(db, R, 'echelle', ech);
   }, [db, R, mode, prod, arrs, cru, app, parc, ech]);
   const subject = mode === 'intrant' ? (prod ? `${prodOf(db, prod).nom}${arrs.length ? ` · lot(s) ${arrs.map((a) => arrOf(db, a).numLot).join(', ')}` : ' · tous lots fournisseurs'}` : '') : mode === 'cru' ? (cru ? `Cru ${cruName(db, cru)} (${eLabel(cruEchelle(db, cru))})` : '') : mode === 'apporteur' ? (app ? `Apporteur ${apporteurName(db, app)}` : '') : mode === 'parcelle' ? (parc ? `Parcelle ${parcelleName(db, parc)} (${cruName(db, ((db.parcelles || []).find((x) => x.id === parc) || {}).cruId)})` : '') : `${ECH.nom} : ${eLabel(ech)}`;
@@ -71,8 +89,8 @@ function TabTrace() {
   );
   return (
     <div>
-      <SubNav value={mode} onChange={setMode} items={[{ id: 'etapes', label: '🔎 Toutes les étapes' }, { id: 'intrant', label: 'Intrant (rappel de lot)' }, { id: 'cru', label: 'Cru (village)' }, { id: 'parcelle', label: 'Parcelle' }, { id: 'apporteur', label: 'Partenaire' }, { id: 'echelle', label: ECH.nom }, { id: 'audit', label: '🧾 Mode audit' }, { id: 'rapports', label: '🖨 Rapports imprimables' }]} />
-      {mode === 'etapes' ? <TraceEtapes /> : mode === 'audit' ? <AuditsView /> : mode === 'rapports' ? <RapportsPanel /> : <>
+      <SubNav value={mode} onChange={setMode} items={[{ id: 'etapes', label: '🔎 Toutes les étapes' }, { id: 'intrant', label: 'Intrant (rappel de lot)' }, { id: 'cru', label: 'Cru (village)' }, { id: 'parcelle', label: 'Parcelle' }, { id: 'apporteur', label: 'Partenaire' }, { id: 'echelle', label: ECH.nom }, { id: 'conformite', label: '⚖ Conformité réglementaire', badge: nNonConf || null }, { id: 'audit', label: '🧾 Mode audit' }, { id: 'rapports', label: '🖨 Rapports imprimables' }]} />
+      {mode === 'etapes' ? <TraceEtapes /> : mode === 'conformite' ? <ConformiteRegistre liste={nonConf} /> : mode === 'audit' ? <AuditsView /> : mode === 'rapports' ? <RapportsPanel /> : <>
         <div className="panel mb-5">
         {mode === 'intrant' ? <div className="grid2">
           <Field label="Produit (intrant)"><SI value={prod} onChange={(v) => { setProd(v); setArrs([]); }} placeholder="Choisir le produit…" options={prods.map((p) => ({ value: p.id, label: `${p.nom} (${CATEGORIES[p.categorie]})` }))} /></Field>

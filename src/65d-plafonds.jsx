@@ -16,7 +16,8 @@ function PlafondsView() {
       <Notice tone={nv ? 'warn' : 'info'} title="Plafonds des revendications">
         <span>Les valeurs proposées sont des exemples non officiels, à vérifier dans la réglementation et dans vos cahiers des charges avant usage.</span>{' '}
         {nv ? <><span translate="no">{fmt(nv)}</span> <span>plafond(s) à vérifier.</span></> : null}{' '}
-        <span>Un dépassement n’est jamais bloqué : l’opération demande un motif, tracé avec elle (journal, registre des intrants).</span>
+        <span>Un dépassement n’est jamais bloqué : l’opération demande un motif, tracé avec elle (journal, registre des intrants).</span>{' '}
+        <span>Les plafonds du référentiel réglementaire (Intrants › Référentiel réglementaire) s’ajoutent à ceux-ci : le plus bas s’applique, sauf plafond vérifié ici pour la revendication.</span>
       </Notice>
       <Sec title="SO₂ total maximal (mg/L)" right={lect ? null : <div className="flex flex-wrap gap-2"><Btn onClick={() => setCahier(true)}>📥 Importer un cahier des charges…</Btn><Btn kind="primary" onClick={() => setForm({ objet: 'so2t' })}>+ Plafond de SO₂</Btn></div>}>
         <div data-plafonds-so2><Tbl rows={so2} empty="Aucun plafond de SO₂ total." cols={[
@@ -36,6 +37,7 @@ function PlafondsView() {
           { h: 'Source', r: (p) => <span className="text-xs text-ink2">{p.source || '—'}</span> }, { h: 'État', r: (p) => plafondEtatChip(p) }, { h: '', r: actions },
         ]} /></div>
       </Sec>
+      <RevendicationSyntheseSec />
       {form ? <PlafondForm id={form.id} objet={form.objet} onClose={() => setForm(null)} /> : null}
       {cahier ? <CahierImportSheet onClose={() => setCahier(false)} /> : null}
     </>
