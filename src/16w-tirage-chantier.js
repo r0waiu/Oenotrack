@@ -76,6 +76,7 @@ function chantierTirageSave(db, c, id, par) {
   const ligne = {}; const L0 = c.ligne || {}; TIRAGE_LIGNE.forEach(([k]) => { const v = L0[k]; if (v !== undefined && v !== '' && v !== false) ligne[k] = typeof v === 'string' ? v.trim() : v; }); if (hasNum(L0.nbBecs)) ligne.nbBecs = num(L0.nbBecs); if (L0.autres) ligne.autres = String(L0.autres).trim();
   if (!Array.isArray(db.chantiersTirage)) db.chantiersTirage = [];
   const x = { ...(old || {}), ...c, id: old ? old.id : nid(db, 'cht'), numero, nom: String(c.nom || '').trim(), dateDebut: c.dateDebut, dateFin: c.dateFin || '', realisation: real, prestataireId: real === 'prestataire' ? c.prestataireId : '', ligne, notes: String(c.notes || '').trim(), maj: new Date().toISOString(), ...(old ? {} : { par: par || '', le: new Date().toISOString() }) };
+  if (old && Array.isArray(old.cuvees)) x.cuvees = old.cuvees; /* 0.44.0-alpha.1 : cuvées prévues modifiées à part (jamais écrasées par le formulaire du chantier) */
   if (old) db.chantiersTirage[db.chantiersTirage.indexOf(db.chantiersTirage.find((y) => y && y.id === old.id))] = x; else db.chantiersTirage.push(x);
   return okr({ id: x.id });
 }

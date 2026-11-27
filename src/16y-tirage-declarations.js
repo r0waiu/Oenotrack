@@ -37,13 +37,7 @@ const declTirageOps = (db, d) => { const ids = Array.isArray(d.opIds) && d.opIds
 // revendications particulières proposées pour un lot : cru (si tout le lot), monocépage, revendication (bio…), tirage à façon
 function declRevendicationsLot(db, R, lotId, champs) {
   const out = []; const lot = (R.lots || {})[lotId] || lotById(db, lotId) || {}; const comp = R.lots && R.lots[lotId] ? composition(db, R, lotId) : null;
-  if (comp) {
-    const e = echelleInfo(comp); const ed = e.id && !e.partiel && Object.keys(comp.echelles || {}).filter((k) => comp.echelles[k] > 0.0005).length === 1 ? eDef(e.id) : null;
-    if (ed && /grand/i.test(`${ed.id} ${ed.label}`)) out.push('Grand Cru'); else if (ed && /premier|1er/i.test(`${ed.id} ${ed.label}`)) out.push('Premier Cru');
-    const ce = Object.keys(comp.cepages || {}).filter((k) => comp.cepages[k] > 0.0005);
-    if (ce.length === 1) { const blanc = !lot.couleur || lot.couleur === 'blanc'; if (ce[0] === 'chard' && blanc) out.push('Blanc de blancs'); else out.push(`Monocépage ${(((db.lists && db.lists.cepages) || []).find((c) => c.id === ce[0]) || { label: ce[0] }).label}`); }
-    else if (ce.length && ce.every((k) => k === 'pn' || k === 'pm') && (!lot.couleur || lot.couleur === 'blanc')) out.push('Blanc de noirs');
-  }
+  if (comp) out.push(...cuveeMentionsComp(db, comp, lot.couleur));
   if (lot.qualif && lot.qualif !== 'conv') out.push(qLabel(lot.qualif));
   const fa = (champs || {}).facon; if (fa && fa !== '') out.push(`${fa === 'caf_ind' ? 'CAF individuelle' : fa === 'caf_coll' ? 'CAF collective' : 'TAF'} de vins appartenant à ${(champs.proprietaire || '').trim() || '…'}`);
   return out;
@@ -57,9 +51,13 @@ function declFinaleLots(db, R, d) {
     const autres = F.filter((f) => !DECL_FORMATS_COLONNES.includes(f.format) && num(f.nb) > 0).map((f) => ({ format: f.format, label: (tirageFormat(f.format) || { label: f.format }).label, nb: num(f.nb) }));
     const mill = lot.millesime && /^\d{4}$/.test(String(lot.millesime)) ? String(lot.millesime) : '';
     const b = tirageBilan(db, R, { ...o, formats: F });
-    return { opId: o.id, lotId: o.lotId, code: lot.code || (o.lotSpec || {}).code || '', date: o.date, produit: p.produit || (lot.couleur === 'rose' ? 'Champagne rosé' : 'Champagne'), millesime: p.millesime !== undefined ? p.millesime : mill,
-      cuvee: p.cuvee !== undefined ? p.cuvee : (lot.designation || (o.lotSpec || {}).designation || ''), formats: F, colonnes: col, autres, nbCols: sum(F, (f) => num(f.nb)), eqBouteilles: tirageEqBouteilles(F),
-      revendications: p.revendications !== undefined ? p.revendications : declRevendicationsLot(db, R, o.lotId, ch).join(' – '), qualif: lot.qualif || '', couleur: lot.couleur || '', echelle: R.lots && R.lots[o.lotId] ? echelleInfo(composition(db, R, o.lotId)).id || '' : '', bilan: b, casse: num(o.casse) };
+    // 0.44.0-alpha.1 : lot tiré depuis une cuvée prévue du chantier → nom, couleur, revendication et mentions de la cuvée
+    const cv = o.cuveeId && o.chantierId ? chantierCuvee(db, o.chantierId, o.cuveeId) : null; const ce = cv ? cuveeEffective(db, R, cv) : null;
+    const couleur = (ce && ce.couleur) || lot.couleur || ''; const qualif = lot.qualif || (ce && ce.qualif) || '';
+    const revAuto = ce ? [...ce.mentions, ...declRevendicationsLot(db, R, o.lotId, ch).filter((m) => /^(TAF|CAF)/.test(m))].join(' – ') : declRevendicationsLot(db, R, o.lotId, ch).join(' – ');
+    return { opId: o.id, lotId: o.lotId, cuveeId: o.cuveeId || '', code: lot.code || (o.lotSpec || {}).code || '', date: o.date, produit: p.produit || (couleur === 'rose' ? 'Champagne rosé' : 'Champagne'), millesime: p.millesime !== undefined ? p.millesime : (mill || (ce && ce.millesime) || ''),
+      cuvee: p.cuvee !== undefined ? p.cuvee : ((cv && cv.nom) || lot.designation || (o.lotSpec || {}).designation || ''), formats: F, colonnes: col, autres, nbCols: sum(F, (f) => num(f.nb)), eqBouteilles: tirageEqBouteilles(F),
+      revendications: p.revendications !== undefined ? p.revendications : revAuto, qualif, couleur, echelle: ce && ce.echelle ? ce.echelle : R.lots && R.lots[o.lotId] ? echelleInfo(composition(db, R, o.lotId)).id || '' : '', bilan: b, casse: num(o.casse) };
   });
 }
 // volumes effectivement mis en œuvre, VRTP distinct, ventilations
@@ -78,10 +76,10 @@ function declFinaleCalcul(db, R, d) {
 function declFinaleCsv(db, R, d) {
   const c = d.instantane && d.instantane.calcul ? d.instantane.calcul : declFinaleCalcul(db, R, d);
   const autresF = uniq(c.lots.flatMap((l) => l.autres.map((a) => a.format)));
-  const tete = ['Lot', 'Date de tirage', 'Produit', 'Millésime', 'Cuvée', 'Demies', 'Bouteilles', 'Magnums', ...autresF.map((f) => (tirageFormat(f) || { label: f }).label), 'Total cols', 'Équivalent bouteilles', 'Revendications particulières', 'Volume tiré (hL)', 'Vin (hL)', 'Sucres et liqueurs (hL)', 'VRTP (hL)'];
+  const tete = ['Lot', 'Date de tirage', 'Produit', 'Couleur', 'Revendication', 'Échelle des crus', 'Millésime', 'Cuvée', 'Demies', 'Bouteilles', 'Magnums', ...autresF.map((f) => (tirageFormat(f) || { label: f }).label), 'Total cols', 'Équivalent bouteilles', 'Revendications particulières', 'Volume tiré (hL)', 'Vin (hL)', 'Sucres et liqueurs (hL)', 'VRTP (hL)'];
   const n = (v, k) => fmt(v, k).replace(/\s/g, '');
-  const lignes = c.lots.map((l) => [l.code, l.date, l.produit, l.millesime || 'non millésimé', l.cuvee, l.colonnes.demie, l.colonnes.bouteille, l.colonnes.magnum, ...autresF.map((f) => sum(l.autres.filter((a) => a.format === f), (a) => a.nb)), l.nbCols, n(l.eqBouteilles, 0), l.revendications, n(l.bilan.tireL / 100, 4), n(l.bilan.vinL / 100, 4), n(l.bilan.liqueurL / 100, 4), n(l.bilan.vrtpL / 100, 4)]);
-  lignes.push(['TOTAL', c.dateFin, '', '', '', sum(c.lots, (l) => l.colonnes.demie), sum(c.lots, (l) => l.colonnes.bouteille), sum(c.lots, (l) => l.colonnes.magnum), ...autresF.map((f) => sum(c.lots, (l) => sum(l.autres.filter((a) => a.format === f), (a) => a.nb))), c.nbCols, n(c.eqBouteilles, 0), '', n(c.totalHL, 4), n(c.vinHL, 4), n(c.liqueurHL, 4), n(c.vrtpHL, 4)]);
+  const lignes = c.lots.map((l) => [l.code, l.date, l.produit, couleurLabel(db, l.couleur), l.qualif ? qLabel(l.qualif) : '', l.echelle ? (eDef(l.echelle) || { label: l.echelle }).label : '', l.millesime || 'non millésimé', l.cuvee, l.colonnes.demie, l.colonnes.bouteille, l.colonnes.magnum, ...autresF.map((f) => sum(l.autres.filter((a) => a.format === f), (a) => a.nb)), l.nbCols, n(l.eqBouteilles, 0), l.revendications, n(l.bilan.tireL / 100, 4), n(l.bilan.vinL / 100, 4), n(l.bilan.liqueurL / 100, 4), n(l.bilan.vrtpL / 100, 4)]);
+  lignes.push(['TOTAL', c.dateFin, '', '', '', '', '', '', sum(c.lots, (l) => l.colonnes.demie), sum(c.lots, (l) => l.colonnes.bouteille), sum(c.lots, (l) => l.colonnes.magnum), ...autresF.map((f) => sum(c.lots, (l) => sum(l.autres.filter((a) => a.format === f), (a) => a.nb))), c.nbCols, n(c.eqBouteilles, 0), '', n(c.totalHL, 4), n(c.vinHL, 4), n(c.liqueurHL, 4), n(c.vrtpHL, 4)]);
   return [tete, ...lignes];
 }
 
@@ -105,7 +103,10 @@ function declarationTirageSave(db, s, id, uid) {
 function declarationTirageDeposer(db, R, id, s, uid) {
   const d = declarationTirage(db, id); if (!d) return fail('Déclaration introuvable.'); if (d.statut === 'deposee') return fail('Déclaration déjà déposée.');
   if (!isoOK(s.deposeLe)) return fail('Date du dépôt invalide.');
-  const calcul = d.type === 'prealable' ? declPrealableCalcul(db, d.champs || {}) : declFinaleCalcul(db, R, d); if (d.type === 'prealable' && !calcul.ok) return calcul;
+  // 0.44.0-alpha.1 : préalable d'un chantier dont les cuvées sont prévues → une ligne par cuvée (toutes complètes : volume et point de tirage)
+  const pc = d.type === 'prealable' && d.chantierId ? declPrealableCuvees(db, R, d.chantierId) : null;
+  if (pc && pc.incompletes.length) return fail(`Cuvées prévues incomplètes (volume de vin ou point de tirage) : ${pc.incompletes.join(', ')}.`);
+  const calcul = pc ? okr({ ...pc, parCuvee: true }) : d.type === 'prealable' ? declPrealableCalcul(db, d.champs || {}) : declFinaleCalcul(db, R, d); if (d.type === 'prealable' && !calcul.ok) return calcul;
   if (d.type === 'finale' && !calcul.lots.length) return fail('Aucun lot de tirage dans cette déclaration.');
   const { ok, ...c } = calcul; // eslint-disable-line no-unused-vars
   d.instantane = { calcul: JSON.parse(JSON.stringify(c)), declarant: { ...declDeclarant(db), ...((d.champs || {}).declarant || {}) }, le: new Date().toISOString() };
