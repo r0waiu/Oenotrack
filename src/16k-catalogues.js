@@ -1018,7 +1018,9 @@ function produitDepuisCatalogue(db, id) {
   if (e.so2) p.so2 = e.so2;
   const mx = catalogueMaxDose(e); const src = `catalogue : ${catalogueSource(e)}`;
   regleSet(db, p.id, 'conv', { autorise: true, doseMax: mx, aVerifier: true, source: src });
-  if (e.ue || e.bioEcocert) regleSet(db, p.id, 'bio', { autorise: true, doseMax: mx, aVerifier: true, source: e.bioEcocert ? `${src} ; ${ECOCERT_SOURCE}`.slice(0, 200) : src });
+  // 0.40.0-alpha.1 : produit attesté par Ecocert (organisme certificateur bio) → autorisation en bio vérifiée ; une dose venue du fournisseur reste à vérifier
+  if (e.bioEcocert) regleSet(db, p.id, 'bio', { autorise: true, doseMax: mx, aVerifier: mx != null, ...(mx == null ? { verifiePar: 'Ecocert', verifieLe: todayISO() } : {}), source: (mx != null ? `${ECOCERT_SOURCE} ; dose : ${src}` : ECOCERT_SOURCE).slice(0, 240) });
+  else if (e.ue) regleSet(db, p.id, 'bio', { autorise: true, doseMax: mx, aVerifier: true, source: src });
   return okr({ id: p.id });
 }
 // fournisseurs proposés à la saisie d'un intrant : ceux de la cave et ceux des catalogues affichés

@@ -2,13 +2,16 @@
    Complément des catalogues préinstallés (16k-catalogues), relevé le 27/11/2026 :
    - sites des fournisseurs (Laffort, Martin Vialatte, Oenofrance) : page du produit, fiche technique et FDS en ligne, mentions
      « utilisable en bio (UE 2018/848) », NOP et vegan affichées sur la page (IOC : site protégé ; SOEC : site injoignable) ;
-   - liste Ecocert des intrants utilisables en œnologie biologique (intrants.ecocert.com, règlement UE 2018/848) : chaque produit de la
+   - liste des intrants vérifiés ou attestés par Ecocert, organisme certificateur agréé pour l'agriculture biologique en France, comme
+     utilisables en œnologie biologique (intrants.ecocert.com, règlement UE 2018/848) : chaque produit de la
      liste est rapproché de son entrée de catalogue (même fournisseur, même nom), les autres forment le catalogue « Ecocert » (autres
      fournisseurs, autres produits) ; restrictions d'emploi de la liste (codes ECOCERT_RESTR).
-   Données factuelles seulement (nom, fournisseur, catégorie, liens, mentions) : à vérifier sur la fiche technique et l'attestation du
-   fournisseur ; Ecocert indique que l'utilisation peut dépendre par ailleurs de la réglementation générale. */
+   Données factuelles seulement (nom, fournisseur, catégorie, liens, mentions). L'inscription sur la liste Ecocert vaut attestation de
+   conformité au règlement bio : la règle « bio » d'un produit ajouté depuis la liste est donc « vérifiée » (autorisation), la dose venant
+   du fournisseur reste « à vérifier » ; Ecocert précise que l'utilisation peut dépendre par ailleurs de la réglementation générale, et une
+   exploitation certifiée par un autre organisme peut s'en tenir aux exigences de son propre certificateur. */
 const CAT_WEB_PREFIXES = { L: 'https://laffort.com/', M: 'https://www.martinvialatte.com/', O: 'https://www.oenofrance.com/' };
-const ECOCERT_SOURCE = 'Liste Ecocert des intrants utilisables en œnologie biologique, règlement (UE) 2018/848 (intrants.ecocert.com, consultée le 27/11/2026)';
+const ECOCERT_SOURCE = 'Ecocert (organisme certificateur bio) : intrant vérifié ou attesté utilisable en œnologie biologique, règlement (UE) 2018/848 (intrants.ecocert.com, 27/11/2026)';
 const ECOCERT_RESTR = {
   d: 'utilisation possible si un produit équivalent biologique n’est pas disponible',
   c: 'uniquement à des fins œnologiques lors de la clarification',

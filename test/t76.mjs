@@ -68,7 +68,7 @@ const lgK = page.locator('[data-catalogue-res] tr', { hasText: 'ZYMAFLORE KLIMA'
 ok('recherche : ZYMAFLORE KLIMA avec « liste Ecocert » et liens vers la page, la FT et la FDS du fournisseur', (await lgK.locator('[data-ecocert]').count()) === 1 && (await lgK.locator('[data-catalogue-liens] a').count()) >= 2);
 await lgK.locator('button', { hasText: 'Ajouter à mes produits' }).click(); await page.waitForTimeout(500); d = await db();
 const pK = d.produits.find((p) => p.nom === 'ZYMAFLORE KLIMA');
-ok('… ajouté : page du produit, fiche technique et FDS préremplies, règle bio à vérifier', pK && /^https:\/\/laffort\.com\//.test(pK.lien) && /\.pdf$/.test(pK.ftUrl || '') && d.regles.some((r) => r.produitId === pK.id && r.qualifId === 'bio' && r.autorise && r.aVerifier), pK);
+ok('… ajouté : page du produit, fiche technique et FDS préremplies, autorisation bio (attestée par Ecocert ou à vérifier)', pK && /^https:\/\/laffort\.com\//.test(pK.lien) && /\.pdf$/.test(pK.ftUrl || '') && d.regles.some((r) => r.produitId === pK.id && r.qualifId === 'bio' && r.autorise && (r.aVerifier || r.verifiePar === 'Ecocert')), pK);
 
 // ---- 4. Traçabilité › Conformité réglementaire (alerte a posteriori, registre)
 await page.click('#tab-trace'); await page.waitForTimeout(400); await sous('⚖ Conformité réglementaire');
