@@ -45,6 +45,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   // ---- export de la codification (fichier JSON)
   // ---- formulaire de tirage : encadré « Code du lot », code proposé selon la règle, modifiable
   await page.click('#tab-tirage'); await page.waitForTimeout(400);
+  await page.getByRole('tab', { name: /Tirer/ }).click(); await page.waitForTimeout(300); // 0.42.0-alpha.1 : sous-onglet « Tirer »
   await page.getByRole('button', { name: /Nouveau tirage/i }).first().click(); await page.waitForTimeout(400);
   const box = ov().locator('[data-codif="tirage"]');
   ok('formulaire de tirage : encadré « 🏷 Code du lot » de la règle', (await box.count()) === 1);

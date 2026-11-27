@@ -55,7 +55,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   ok('… journal toujours complet (tirage et dégorgement compris)', /Tirage/.test(journal) && /Dégorgement/.test(journal));
   await page.locator('[data-vers-module="cave"]').click(); await page.waitForTimeout(400); t = await txt(page.locator('main'));
   ok('Cave : remuage saisi ici ; colonne « Vins de base » (lots de la vinification)', /Remuage \/ mise sur pointes/.test(t) && /Vins de base/i.test(t) && (await page.locator('[data-vins-base]').count()) >= 1);
-  await page.locator('#tab-tirage').click(); await page.waitForTimeout(400); t = await txt(page.locator('main'));
+  await page.locator('#tab-tirage').click(); await page.waitForTimeout(400); await page.getByRole('tab', { name: /Tirer/ }).click(); await page.waitForTimeout(300); t = await txt(page.locator('main')); // 0.42.0-alpha.1 : sous-onglet « Tirer »
   ok('Tirages : préparations et tirage saisis ici ; suite de chaque tirage (en cave, dégorgées)', /Nouveau tirage/.test(t) && /Suite \(cave, dégorgement\)/i.test(t) && (await page.locator('[data-suite-tirage]').count()) >= 1 && /En cave : /.test(t));
   await page.locator('#tab-degorgement').click(); await page.waitForTimeout(400); t = await txt(page.locator('main'));
   ok('Dégorgement : saisi ici ; parcours du lot fini, vins de base', /Nouveau dégorgement/.test(t) && /Parcours de chaque lot fini/.test(t) && /Vins de base/i.test(t));
