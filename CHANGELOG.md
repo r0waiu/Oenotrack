@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.40.0-alpha.2 — 27/11/2026
+
+- Bulletins d’analyses : un rapport à plusieurs échantillons dont les paramètres sont répartis sur plusieurs tableaux (la suite des paramètres sous le premier tableau, ou sur les pages suivantes) est lu en entier — chaque tableau avec son propre en-tête, et les résultats d’un même échantillon réunis d’après son n° de laboratoire (deux n° différents restent deux échantillons, même avec la même référence).
+- Bulletins d’analyses : nouveaux paramètres reconnus — azote ammoniacal, azote alpha-aminé et chaptalisation calculée par le laboratoire (kg/hL) ; valeurs suivies d’un renvoi à une note du laboratoire (« 6,9/ (**) ») lues.
+
 ## 0.40.0-alpha.1 — 27/11/2026
 
 - Intrants › « ⚖ Référentiel réglementaire » : base préétablie des intrants et composés actifs (SO₂, acide sorbique et sorbate, sels de cuivre, acide métatartrique, gomme arabique, CMC, polyaspartate, lysozyme, chitosane, PVPP, charbon, DMDC, acides, colles, levures, nutriments…) pour la réglementation de l’UE, l’AOC Champagne (selon le vignoble du profil régional) et les labels Bio UE, Demeter, Biodyvin, Terra Vitis, Nature & Progrès, AVN et Vins S.A.I.N.S. : autorisé, interdit ou sous condition, dose maximale, teneur maximale dans le vin, plafonds de SO₂ total, avec le texte et l’article de chaque valeur, relue dans les textes officiels en vigueur (« ✓ vérifié », sinon « à vérifier »), corrigeable par l’exploitation (tracé) ; enrichissement maximal des régions aligné sur les zones viticoles de l’UE (Bourgogne : 1,5 % vol).
