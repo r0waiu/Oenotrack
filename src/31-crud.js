@@ -319,9 +319,12 @@ function produitSave(db, s, id) {
   if (s.allergenesListe !== undefined) { const L = (Array.isArray(s.allergenesListe) ? s.allergenesListe : []).filter((x) => allergeneDef(x)); item.allergenesListe = ALLERGENES.map((a) => a[0]).filter((x) => L.includes(x)); }
   // 0.40.0-alpha.1 : composés actifs (référentiel réglementaire) choisis à la main ; null = devinés d'après le nom
   if (s.composes !== undefined && s.composes !== null) { item.composes = uniq((Array.isArray(s.composes) ? s.composes : []).map((x) => x && x.id).filter((x) => typeof refCompose !== 'function' || refCompose(x))).map((cid) => { const x = s.composes.find((y) => y.id === cid); return hasNum(x.part) && num(x.part) > 0 && num(x.part) <= 1 ? { id: cid, part: num(x.part) } : { id: cid }; }); }
+  // 0.42.0-alpha.3 : fourniture de tirage (type, caractéristiques) et suivi du stock (false = suivi par lot fournisseur sans décompte)
+  if (s.fourniture !== undefined) { const fo = fournitureSpec(s.fourniture); if (fo) item.fourniture = fo; else if (s.fourniture === null) item.fourniture = undefined; }
+  if (s.suiviStock !== undefined) item.suiviStock = s.suiviStock !== false;
   if (s.allergenesAucun !== undefined) item.allergenesAucun = !!s.allergenesAucun && !(item.allergenesListe || []).length;
-  if (id) { const p = db.produits.find((x) => x.id === id); if (!p) return fail('Produit introuvable.'); Object.assign(p, item); if (s.composes === null) delete p.composes; if (s.revendications) revendicationsAppliquer(db, id, s.revendications, { uid: s.uid }); return okr({ id }); }
-  const pid = nid(db, 'pr'); db.produits.push({ id: pid, ...item });
+  if (id) { const p = db.produits.find((x) => x.id === id); if (!p) return fail('Produit introuvable.'); Object.assign(p, item); if (s.composes === null) delete p.composes; if (item.fourniture === undefined && 'fourniture' in item) delete p.fourniture; if (s.revendications) revendicationsAppliquer(db, id, s.revendications, { uid: s.uid }); return okr({ id }); }
+  const pid = nid(db, 'pr'); if (item.fourniture === undefined) delete item.fourniture; db.produits.push({ id: pid, ...item });
   QUALIFS.forEach((q) => db.regles.push({ produitId: pid, qualifId: q.id, autorise: q.id === 'conv', doseMax: null }));
   if (s.revendications) revendicationsAppliquer(db, pid, s.revendications, { uid: s.uid });
   return okr({ id: pid });

@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.42.0-alpha.3 — 27/11/2026
+
+- Tirages › « 📦 Fournitures » : les fournitures de tirage sont les intrants de l’exploitation, sans stock en double — type d’article (bouteille, obturateur, capsule, bouchon de tirage, agrafe, adjuvant de remuage, caisses et palettes) et caractéristiques (verrier, modèle, format, teinte, bague, diamètre, matière, couleur, marquage), suivi du stock au choix pour chaque article (décompté au tirage, ou suivi par lot fournisseur sans décompte), contrôle de réception de la verrerie (échantillon selon la taille du lot, mesures, défauts visuels, non conforme à partir du nombre de défauts réglé, décision et visa — réglages à vérifier), retours au fournisseur tracés, documents (alimentarité, certificat d’analyse du lot, fiche de contrôle de réception).
+- Lot de tirage : fournitures proposées d’après les formats (bouteille de chaque format, obturateur et capsule les plus en stock), quantités calculées (cols tirés + casse) ou saisies, alertes (lot refusé, verrerie non contrôlée, format absent, stock insuffisant) ; chantier : fiche d’enregistrement de la chaîne (HACCP) — démarrage de la ligne, contrôles toutes les 2 heures, fournitures de chaque lot, fin de journée, conditionnement par format et par contenant (caisses-fils, caisses-bois, palettes, gyropalettes), incidents et actions correctives, visas, écarts signalés.
+
 ## 0.42.0-alpha.2 — 27/11/2026
 
 - Tirages › « 🍾 Tirer » : chantiers de tirage — interne ou prestataire sur site (fournisseur au rôle « Prestataire de tirage »), composition de la ligne (dépalettiseur, tireuse et ses becs, injecteuse, biduleuse, capsuleuse, marquage laser ou jet d’encre, emboxeur, robot, vision), lots tirés et bilan (cols par format, équivalent bouteilles, volume, casse, VRTP par lot), documents de prestation (ordre de fabrication, attestation de nettoyage et de désinfection, fiche de chantier signée, bon d’intervention).

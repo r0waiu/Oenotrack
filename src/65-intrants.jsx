@@ -15,15 +15,15 @@ function ArrivageForm({ id, onClose, produitId0, onSaved }) {
     </FormSheet>
   );
 }
-function ProduitForm({ id, onClose }) {
+function ProduitForm({ id, onClose, categorie0 }) {
   const { db, act } = useApp(); const p = id ? db.produits.find((x) => x.id === id) : null;
-  const [f, set, setF] = useDraft({ nom: p ? p.nom : '', categorie: p ? p.categorie : 'oeno', unite: p ? p.unite : 'g', fournisseurId: p ? p.fournisseurId : '', actif: p ? p.actif !== false : true, notes: p ? p.notes : '', reference: p ? p.reference || '' : '', lien: p ? p.lien || '' : '', ftUrl: p ? p.ftUrl || '' : '', fdsUrl: p ? p.fdsUrl || '' : '', fdsNonRequise: p ? !!p.fdsNonRequise : false, famille: p ? p.famille || '' : '', so2: p ? p.so2 || '' : '', ...Object.fromEntries(PRODUIT_INFOS.map(([k]) => [k, p ? p[k] || '' : ''])),
+  const [f, set, setF] = useDraft({ nom: p ? p.nom : '', categorie: p ? p.categorie : categorie0 || 'oeno', unite: p ? p.unite : categorie0 === 'sec' ? 'u' : 'g', fourniture: p && p.fourniture ? JSON.parse(JSON.stringify(p.fourniture)) : undefined, suiviStock: p ? p.suiviStock !== false : true, fournisseurId: p ? p.fournisseurId : '', actif: p ? p.actif !== false : true, notes: p ? p.notes : '', reference: p ? p.reference || '' : '', lien: p ? p.lien || '' : '', ftUrl: p ? p.ftUrl || '' : '', fdsUrl: p ? p.fdsUrl || '' : '', fdsNonRequise: p ? !!p.fdsNonRequise : false, famille: p ? p.famille || '' : '', so2: p ? p.so2 || '' : '', ...Object.fromEntries(PRODUIT_INFOS.map(([k]) => [k, p ? p[k] || '' : ''])),
     allergenesListe: p ? allergenesDe(p) : [], allergenesAucun: p ? !!p.allergenesAucun : false, rev: {}, composesL: composesVersChoix(p) }); // 0.40.0-alpha.1 : composés actifs // 0.36.0-alpha.1 : allergènes à cocher, revendications Oui / Non
   const [infosOuv, setInfosOuv] = useState(() => PRODUIT_INFOS.some(([k]) => p && p[k])); useSuiviFiche(p, setF, [...PRODUIT_INFOS.map((x) => x[0]), 'allergenesListe', 'allergenesAucun']);
   const { uid } = useApp();
   const [depot, setDepot] = useState(null); const [veille, setVeille] = useState(false);
   const nomCasse = nomProduitCasse(f.nom.trim()); // nouveau produit : casse du nom harmonisée (0.26.0-alpha.1)
-  const save = () => { const s = { ...f, nom: id ? f.nom : nomCasse, revendications: f.categorie === 'sec' ? null : f.rev, uid, composes: composesDepuisChoix(f.composesL) }; delete s.composesL; if (!id && s.composes === null) delete s.composes; const r = act((d) => produitSave(d, s, id), id ? 'Produit modifié.' : 'Produit créé (autorisé en Conventionnel par défaut : ajustez les règles).'); if (r.ok) onClose(); };
+  const save = () => { const s = { ...f, nom: id ? f.nom : nomCasse, ...(f.fourniture === undefined ? { fourniture: undefined } : {}), revendications: f.categorie === 'sec' ? null : f.rev, uid, composes: composesDepuisChoix(f.composesL) }; delete s.composesL; if (!id && s.composes === null) delete s.composes; const r = act((d) => produitSave(d, s, id), id ? 'Produit modifié.' : 'Produit créé (autorisé en Conventionnel par défaut : ajustez les règles).'); if (r.ok) onClose(); };
   const lienOk = lienNorm(f.lien); const foNom = (db.fournisseurs.find((x) => x.id === f.fournisseurId) || {}).nom || '';
   const fds = p ? prodFdsEtat(db, { ...p, categorie: f.categorie, fdsNonRequise: f.fdsNonRequise }) : null;
   return (
@@ -61,6 +61,7 @@ function ProduitForm({ id, onClose }) {
       {f.categorie !== 'sec' ? <div className="rounded-md border border-line px-3 py-2" data-produit-composes=""><div className="mb-1 text-sm font-semibold">Composés actifs (référentiel réglementaire)</div>
         <p className="help">Servent aux doses maximales et aux teneurs dans le vin (acide sorbique, cuivre…) : indiquez la teneur des produits formulés (ex. citrate de cuivre à 2 %).</p>
         <ComposesChoix auto={refComposesDe({ categorie: f.categorie, nom: f.nom, famille: f.famille, composition: f.composition })} liste={f.composesL} onChange={(L) => set('composesL', L)} /></div> : null}
+      <FournitureProduitBox f={f} set={set} />
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
       {p ? (<Group label={`Fiches techniques, FDS et certificats${fds ? ` — ${fds.label}` : ''}`}>
         <DocsPanel cible={{ type: 'produit', id: p.id }} kind="produit" deposer={setDepot} aide="Chaque fichier déposé est lu (type, date de révision) ; une version plus récente remplace la précédente, qui reste dans les versions archivées." />

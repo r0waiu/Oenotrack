@@ -93,6 +93,7 @@ function ChantierSheet({ id, onClose, onForm }) {
           { h: 'Volume, VRTP', r: (l) => <span className={cx('num text-sm', l.bilan.depasse && 'text-bad')}>{`${fmtL(l.bilan.tireL)} · ${fmt(l.bilan.vrtpPct, 2)} %`}</span> }, { h: '', r: (l) => (lect ? null : <Btn size="sm" onClick={() => onForm({ editId: l.opId })}>Modifier</Btn>) }]} />
         <p className="mt-2 text-sm" data-chantier-bilan="">{`Total : ${fmt(b.cols)} cols (${Object.entries(b.parFormat).map(([k, n]) => `${fmt(n)} ${((tirageFormat(k) || { label: k }).label).toLowerCase()}`).join(', ') || '—'}) · ${fmt(b.eqBouteilles, 0)} équivalent bouteilles · ${fmtL(b.volL)} · casse ${fmt(b.casse)}`}</p>
       </Sec>
+      <Sec title="Fiche d’enregistrement de la chaîne (HACCP)"><ChaineHaccp key={c.maj || c.id} ch={c} /></Sec>
       <Sec title="Documents de prestation"><DocsPanel cible={{ type: 'chantier', id }} kind="chantier" locked={isLocked(db, c.dateDebut)} aide="Ordre de fabrication, attestation de nettoyage et de désinfection du matériel, fiche de chantier signée, bon d’intervention…" /></Sec>
       {c.notes ? <p className="help">{c.notes}</p> : null}
     </div>

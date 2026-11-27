@@ -65,8 +65,8 @@ function TabTirage() {
   const [form, setForm] = useState(null);
   const choisir = (v) => { setVue(v); try { window.localStorage.setItem('oenotrack-tirage-vue', v); } catch (e) { /* stockage indisponible */ } };
   return (<div>
-    <div className="no-print"><SubNav value={vue} onChange={choisir} items={[{ id: 'preparer', label: '⚗ Préparer' }, { id: 'tirer', label: '🍾 Tirer' }]} /></div>
-    {vue === 'tirer' ? <TabTirageTirer /> : <TiragePreparer onForm={camp.figee ? () => {} : setForm} />}
+    <div className="no-print"><SubNav value={vue} onChange={choisir} items={[{ id: 'preparer', label: '⚗ Préparer' }, { id: 'tirer', label: '🍾 Tirer' }, { id: 'fournitures', label: '📦 Fournitures' }]} /></div>
+    {vue === 'fournitures' ? <TirageFournitures /> : vue === 'tirer' ? <TabTirageTirer /> : <TiragePreparer onForm={camp.figee ? () => {} : setForm} />}
     {form ? <OpForm type={form.type} editId={form.editId} preset={form.preset} onClose={() => setForm(null)} /> : null}
   </div>);
 }

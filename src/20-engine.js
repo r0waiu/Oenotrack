@@ -252,6 +252,8 @@ function replay(db, upTo, opts) {
         (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, op.lotId); if (pr) { const v0 = R.tirVol[op.lotId] || 0; prepVerse(op, pr.id, op.lotId, v0, num(u.volL)); R.tirVol[op.lotId] = v0 + num(u.volL); } });
         R.tir[op.lotId] = { lotId: op.lotId, nb: num(op.nbBouteilles), mis: num(op.nbBouteilles), date: op.date, ...(Array.isArray(op.formats) && op.formats.length ? { formats: op.formats.map((x) => ({ format: x.format, nb: num(x.nb), L: num(x.L) })) } : {}), ...(num(op.casse) > 0 ? { casse: num(op.casse) } : {}) };
         applyLignes(op, op.lignes, { kind: 'tirage', lotId: op.lotId, vol: num(op.nbBouteilles) * num(op.volBouteilleL || 0.75), qualif: R.lots[op.lotId] && R.lots[op.lotId].qualif });
+        // 0.42.0-alpha.3 : fournitures suivies par lot fournisseur sans décompte → tracées (quantité 0, quantité utilisée gardée à part)
+        (Array.isArray(op.fournitures) ? op.fournitures : []).filter((x) => x && !x.decompte && x.produitId && prod[x.produitId]).forEach((x) => { const a = arr[x.arrivageId]; R.apps.push({ opId: op.id, date: op.date, opType: op.type, opSousType: '', produitId: x.produitId, arrivageId: x.arrivageId || null, numLot: a ? a.numLot : '', qty: 0, nonDecompte: num(x.qty), unite: prod[x.produitId].unite, kind: 'tirage', portionId: null, lotId: op.lotId || null, contenantId: null, prepId: null, vol: null, dose: null, qualif: null, unauth: false, over: false, volLot: null, cumul: null, so2: 0 }); });
         break;
       }
       case 'degorgement': {

@@ -2,9 +2,9 @@
 const DOC_DB = 'oenotrack-docs'; const DOC_STORE = 'fichiers'; const DOC_MAX = 40 * 1024 * 1024;
 const DOC_CATS = {
   op: [['enregistrement', 'Fiche d’enregistrement remplie'], ['bon', 'Bon / DAE'], ['analyse', 'Bulletin d’analyse'], ['photo', 'Photo'], ['autre', 'Autre document']],
-  arrivage: [['certificat', 'Certificat de conformité'], ['fiche_technique', 'Fiche technique'], ['fds', 'Fiche de données de sécurité (FDS)'], ['bon', 'Bon de livraison'], ['autre', 'Autre document']],
+  arrivage: [['certificat', 'Certificat de conformité'], ['certificat_lot', 'Certificat d’analyse du lot'], ['controle_reception', 'Fiche de contrôle de réception'], ['fiche_technique', 'Fiche technique'], ['fds', 'Fiche de données de sécurité (FDS)'], ['bon', 'Bon de livraison'], ['autre', 'Autre document']],
   produitHygiene: [['fds', 'Fiche de données de sécurité (FDS)'], ['ft', 'Fiche technique'], ['contact', 'Attestation contact alimentaire'], ['certif', 'Attestation bio, Demeter… (revendications)'], ['autre', 'Autre document']],
-  produit: [['fds', 'Fiche de données de sécurité (FDS)'], ['ft', 'Fiche technique'], ['certificat', 'Certificat / attestation (bio, allergènes, OGM…)'], ['autre', 'Autre document']], // intrants (0.20.0-alpha.1)
+  produit: [['fds', 'Fiche de données de sécurité (FDS)'], ['ft', 'Fiche technique'], ['certificat', 'Certificat / attestation (bio, allergènes, OGM…)'], ['alimentarite', 'Attestation d’alimentarité (contact alimentaire)'], ['autre', 'Autre document']], // intrants (0.20.0-alpha.1)
   produitMaintenance: [['fds', 'Fiche de données de sécurité (FDS)'], ['ft', 'Fiche technique'], ['certificat', 'Attestation contact alimentaire (NSF H1…)'], ['autre', 'Autre document']], // produits de maintenance (0.36.0-alpha.1)
   chantier: [['ordre', 'Ordre de fabrication'], ['nettoyage', 'Attestation de nettoyage et de désinfection'], ['chantier', 'Fiche de chantier signée'], ['bon', 'Bon d’intervention'], ['controle', 'Fiche de contrôle'], ['photo', 'Photo'], ['autre', 'Autre document']], // chantiers de tirage (0.42.0-alpha.2)
   equipement: [['notice', 'Notice, manuel'], ['verification', 'Certificat de vérification, étalonnage'], ['facture', 'Facture, garantie'], ['contrat', 'Contrat d’entretien'], ['photo', 'Photo'], ['autre', 'Autre document']], // équipements (0.28.0-alpha.1)
