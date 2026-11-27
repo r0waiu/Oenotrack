@@ -1,6 +1,6 @@
 /* ============ TIRAGES › DÉCLARATIONS (0.42.0-alpha.4) : déclaration préalable (formulaire de l'AIDAC, PDF), déclaration de fin de tirage
    et de revendication (récapitulatif dans l'ordre de la saisie Innov OI, CSV, PDF), VRTP distinct, ventilations ;
-   impressions du chantier : ordre de tirage, fiche d'enregistrement de la chaîne (HACCP) ============ */
+   impression du chantier : ordre de tirage (0.44.0-alpha.2 : fiche d'enregistrement de la chaîne retirée) ============ */
 
 const declHL = (v) => `${fmt(num(v), 2)} hL`;
 const declTypeLabel = (t) => (DECL_TIRAGE_TYPES.find((x) => x.id === t) || { label: t }).label;
@@ -177,29 +177,8 @@ function OrdreTirageRapport({ db, R, chantierId, refEl }) {
     <p style={{ marginTop: 16, fontSize: 11 }}>Visa cave : ……………… · Visa prestataire : ………………</p>
   </div>);
 }
-function ChaineHaccpRapport({ db, R, chantierId, refEl }) {
-  const c = chantierTirage(db, chantierId); if (!c) return null; const h = chantierHaccp(c); const ok = (v) => (v === true ? 'C' : v === false ? 'NC' : '—');
-  const PC = chainePoints(c, 'controles'); const cond = chantierConditionnement(db, R, c); const ec = chantierHaccpEcarts(db, R, c); const FO = chantierFournitures(db, chantierId);
-  const phase = (ph, titre) => <><h3>{titre}</h3><RTable head={['Point', 'État', 'Note']} rows={chainePoints(c, ph).map(([k, l]) => [l, ok((h[ph][k] || {}).ok), (h[ph][k] || {}).note || ''])} /></>;
-  return (<div ref={refEl} className="report" data-chaine-rapport="">
-    <ReportHead title={`Fiche d’enregistrement de la chaîne de tirage — ${c.numero}`} sub={`${fmtDate(c.dateDebut)}${c.dateFin ? ` → ${fmtDate(c.dateFin)}` : ''}`} />
-    {phase('demarrage', 'Démarrage de la ligne')}
-    <h3>{`Contrôles en cours de chantier (toutes les ${CHAINE_INTERVALLE_H} h)`}</h3>
-    <RTable head={['Date', 'Heure', ...PC.map(([, l]) => l), 'Opérateur']} rows={h.controles.map((x) => [fmtDate(x.date), x.heure, ...PC.map(([k]) => ok((x.points || {})[k])), x.operateur || ''])} empty="Aucun contrôle." />
-    <h3>Fournitures par lot</h3>
-    <RTable head={['Lot', 'Date', 'Fournitures (lot fournisseur, quantité)']} rows={FO.map((l) => [l.code, fmtDate(l.date), l.fournitures.map((x) => `${x.nom} (${x.numLot || '?'}) ${fmt(x.qty)}`).join(' · ') || '—'])} empty="Aucun lot." />
-    {phase('fin', 'Fin de journée')}
-    <h3>Conditionnement et bilan</h3>
-    <RTable head={['Format', 'Contenant', 'Nombre', 'Cols par contenant']} rows={h.conditionnement.map((x) => [(tirageFormat(x.format) || { label: x.format }).label, (CHAINE_CONTENANTS.find((k) => k.id === x.contenant) || { label: x.contenant }).label, fmt(x.nb), x.parUnite ? fmt(x.parUnite) : '—'])} empty="—" />
-    <p style={{ fontSize: 11 }}>{cond.formats.map((f) => <span key={f.format} style={{ marginRight: 12 }}><span>{(tirageFormat(f.format) || { label: f.format }).label}</span> — <span>{`cols tirés : ${fmt(f.cols)}`}</span>{f.contenus != null ? <span>{` · rangés : ${fmt(f.contenus)}`}</span> : null}</span>)}<span>{`Casse : ${fmt(cond.casse)}`}</span></p>
-    <h3>Incidents et actions correctives</h3>
-    <RTable head={['Date', 'Heure', 'Incident', 'Action corrective', 'Par']} rows={h.incidents.map((x) => [fmtDate(x.date), x.heure || '', x.description, x.action || '', x.par || ''])} empty="Aucun incident." />
-    {ec.length ? <p style={{ color: '#9b1c1c', fontSize: 11 }}>{ec.map((e) => `⚠ ${e}`).join(' ')}</p> : null}
-    <p style={{ marginTop: 16, fontSize: 11 }}>{CHAINE_VISAS.map((v) => `${v.label} : ${(h.visas.find((x) => x.role === v.id) || {}).nom || '………………'}`).join(' · ')}</p>
-  </div>);
-}
-function ChantierImpression({ id, quoi, onClose }) {
+function ChantierImpression({ id, onClose }) {
   const { db, R } = useApp(); const ref = useRef(null); const c = chantierTirage(db, id) || {};
-  const out = useReportOutput(ref, `${quoi === 'ordre' ? 'ordre-de-tirage' : 'fiche-chaine-tirage'}-${slug(c.numero || 'chantier')}`, { orientation: 'paysage' });
-  return <Sheet wide title={quoi === 'ordre' ? 'Imprimer l’ordre de tirage' : 'Imprimer la fiche de la chaîne'} sub="A4 paysage" onClose={onClose} footer={<><Btn onClick={onClose}>Fermer</Btn><BoutonsSortie out={out} /></>}><div className="overflow-x-auto">{quoi === 'ordre' ? <OrdreTirageRapport db={db} R={R} chantierId={id} refEl={ref} /> : <ChaineHaccpRapport db={db} R={R} chantierId={id} refEl={ref} />}</div></Sheet>;
+  const out = useReportOutput(ref, `ordre-de-tirage-${slug(c.numero || 'chantier')}`, { orientation: 'paysage' });
+  return <Sheet wide title="Imprimer l’ordre de tirage" sub="A4 paysage" onClose={onClose} footer={<><Btn onClick={onClose}>Fermer</Btn><BoutonsSortie out={out} /></>}><div className="overflow-x-auto"><OrdreTirageRapport db={db} R={R} chantierId={id} refEl={ref} /></div></Sheet>;
 }

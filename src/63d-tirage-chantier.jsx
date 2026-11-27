@@ -84,7 +84,7 @@ function ChantierSheet({ id, onClose, onForm }) {
   const mix = Object.values(R.portions).filter((p) => p.vol > 0.5 && lotEstMixtion(db, R, p.lotId));
   const suppr = async () => { if (await confirm({ title: `Supprimer le chantier ${c.numero} ?`, body: 'Ses documents sont retirés avec lui.', ok: 'Supprimer', danger: true })) { const r = act((d) => chantierTirageDelete(d, id), 'Chantier supprimé.'); if (r && r.ok) onClose(); } };
   return (<Sheet wide title={<span>🏭 Chantier <span translate="no">{c.numero}</span>{c.nom ? <span className="font-normal text-ink2"> — <span translate="no">{c.nom}</span></span> : null}</span>} sub={`${fmtDate(c.dateDebut)}${c.dateFin ? ` → ${fmtDate(c.dateFin)}` : ''} · ${c.realisation === 'prestataire' ? `prestataire ${pr ? pr.nom : '?'}` : 'interne'}`} onClose={onClose}
-    footer={<><Btn onClick={() => setImp('ordre')}>🖨 Ordre de tirage</Btn><Btn onClick={() => setImp('chaine')}>🖨 Fiche de la chaîne</Btn>{lect ? null : <><Btn onClick={() => setDecl('prealable')}>＋ Déclaration préalable</Btn><Btn onClick={() => setDecl('finale')}>＋ Déclaration de fin de tirage</Btn><Btn onClick={() => setEd(true)}>Modifier</Btn><Btn kind="ghost" onClick={suppr}>Supprimer</Btn></>}<Btn onClick={onClose}>Fermer</Btn></>}>
+    footer={<><Btn onClick={() => setImp('ordre')}>🖨 Ordre de tirage</Btn>{lect ? null : <><Btn onClick={() => setDecl('prealable')}>＋ Déclaration préalable</Btn><Btn onClick={() => setDecl('finale')}>＋ Déclaration de fin de tirage</Btn><Btn onClick={() => setEd(true)}>Modifier</Btn><Btn kind="ghost" onClick={suppr}>Supprimer</Btn></>}<Btn onClick={onClose}>Fermer</Btn></>}>
     <div data-chantier={id}>
       <div className="mb-4 flex flex-wrap gap-2">{TIRAGE_LIGNE.filter(([k]) => (c.ligne || {})[k]).map(([k, l]) => <Chip key={k}>{k === 'marquage' ? `${l} : ${c.ligne.marquage === 'laser' ? 'laser' : 'jet d’encre'}` : l}</Chip>)}{(c.ligne || {}).nbBecs ? <Chip>{`${fmt(c.ligne.nbBecs)} becs`}</Chip> : null}</div>
       <CuveesSec ch={c} lect={lect || camp.figee} onForm={onForm} />
@@ -94,12 +94,11 @@ function ChantierSheet({ id, onClose, onForm }) {
           { h: 'Volume, VRTP', r: (l) => <span className={cx('num text-sm', l.bilan.depasse && 'text-bad')}>{`${fmtL(l.bilan.tireL)} · ${fmt(l.bilan.vrtpPct, 2)} %`}</span> }, { h: '', r: (l) => (lect ? null : <Btn size="sm" onClick={() => onForm({ editId: l.opId })}>Modifier</Btn>) }]} />
         <p className="mt-2 text-sm" data-chantier-bilan="">{`Total : ${fmt(b.cols)} cols (${Object.entries(b.parFormat).map(([k, n]) => `${fmt(n)} ${((tirageFormat(k) || { label: k }).label).toLowerCase()}`).join(', ') || '—'}) · ${fmt(b.eqBouteilles, 0)} équivalent bouteilles · ${fmtL(b.volL)} · casse ${fmt(b.casse)}`}</p>
       </Sec>
-      <Sec title="Fiche d’enregistrement de la chaîne (HACCP)"><ChaineHaccp key={c.maj || c.id} ch={c} /></Sec>
       <Sec title="Documents de prestation"><DocsPanel cible={{ type: 'chantier', id }} kind="chantier" locked={isLocked(db, c.dateDebut)} aide="Ordre de fabrication, attestation de nettoyage et de désinfection du matériel, fiche de chantier signée, bon d’intervention…" /></Sec>
       {c.notes ? <p className="help">{c.notes}</p> : null}
     </div>
     {ed ? <ChantierForm id={id} onClose={() => setEd(false)} /> : null}
-    {imp ? <ChantierImpression id={id} quoi={imp} onClose={() => setImp(null)} /> : null}
+    {imp ? <ChantierImpression id={id} onClose={() => setImp(null)} /> : null}
     {decl ? <DeclarationForm type0={decl} chantierId0={id} onClose={(did) => { setDecl(null); if (did) { setImp(null); setDeclOuv(did); } }} /> : null}
     {declOuv ? <DeclarationSheet id={declOuv} onClose={() => setDeclOuv(null)} /> : null}
   </Sheet>);

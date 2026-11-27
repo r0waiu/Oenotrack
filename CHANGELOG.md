@@ -2,6 +2,10 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.44.0-alpha.2 — 27/11/2026
+
+- Tirages : la fiche d’enregistrement HACCP de la chaîne (démarrage, contrôles en cours de chantier, fin de journée, conditionnement, incidents, visas) et son impression, ainsi que le contrôle de réception de la verrerie (échantillon, mesures, défauts, décision) et ses réglages, sont retirés ; les retours au fournisseur restent. Les fiches et contrôles déjà saisis restent dans la base, sans être modifiés, et les versions précédentes les retrouvent.
+
 ## 0.44.0-alpha.1 — 27/11/2026
 
 - Tirages › chantier : prévisionnel des cuvées tirées — chaque qualité tirée sur le chantier (couleur, revendication, échelle des crus, cépages) est décrite depuis ses vins de base (couleur, revendication la plus basse, échelle, millésime commun, mentions blanc de blancs, blanc de noirs, monocépage, Grand ou Premier Cru et bio calculés, toujours corrigeables), avec son volume de vin, son point de tirage, son mode (mixtion en cuve ou pompe doseuse) et ses cols par format ; la cuve de mixtion et le lot de tirage se créent depuis la ligne, qui passe « prévue », « en mixtion » puis « tirée » avec l’écart au prévu.

@@ -1,6 +1,6 @@
 // 0.42.0-alpha.4 : Tirages › Déclarations — déclaration préalable (volumes prévisionnels, alerte 48 h, rapport AIDAC), déclaration de fin
 // de tirage (lots dans l'ordre de la saisie Innov OI, cuvée modifiée, VRTP distinct, dépôt figé), impressions du chantier (ordre de tirage,
-// fiche de la chaîne). Données fictives (jeu d'exemple ; préparations, chantier et tirage créés par le test).
+// fiche de la chaîne retirée en 0.44.0-alpha.2). Données fictives (jeu d'exemple ; préparations, chantier et tirage créés par le test).
 import { open, pick } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests'); fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 900) : ''); };
@@ -56,8 +56,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   await ov().getByRole('button', { name: '🖨 Ordre de tirage' }).click(); await page.waitForTimeout(400);
   t = await txt(page.locator('[data-ordre-tirage]')); ok('ordre de tirage : lot, mode, point de tirage, préparations, consignes de la pompe', /T-T81/.test(t) && /LT-T81/.test(t) && /24,0 g\/L/.test(t) && /Pompe doseuse : liqueur 4,80 %/.test(t), t.slice(0, 500));
   await ov().getByRole('button', { name: 'Fermer', exact: true }).last().click(); await page.waitForTimeout(300);
-  await ov().getByRole('button', { name: '🖨 Fiche de la chaîne' }).click(); await page.waitForTimeout(400);
-  t = await txt(page.locator('[data-chaine-rapport]')); ok('fiche de la chaîne imprimable : démarrage, contrôles, fournitures, visas', /Démarrage de la ligne/.test(t) && /Contrôles en cours de chantier/.test(t) && /Chef de ligne/.test(t), t.slice(0, 300));
+  ok('plus d’impression de la fiche de la chaîne (0.44.0-alpha.2)', (await ov().getByRole('button', { name: '🖨 Fiche de la chaîne' }).count()) === 0);
   ok('aucune erreur dans la page', errors.length === 0, errors);
   await browser.close();
 }
