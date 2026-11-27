@@ -58,7 +58,7 @@ async function preparer(page, opts, errors) {
 export function vinification(page) {
   if (page.__vinif) return page; page.__vinif = true; const c0 = page.click.bind(page);
   page.click = async (sel, o) => {
-    if (typeof sel === 'string' && /^#tab-(cuverie|ops|previsions)$/.test(sel) && !(await page.locator(sel).isVisible().catch(() => false)) && (await page.locator('#tab-vinification').count())) { await c0('#tab-vinification'); await page.waitForTimeout(150); }
+    if (typeof sel === 'string' && /^#tab-(cuverie|ops|previsions|plan)$/.test(sel) && !(await page.locator(sel).isVisible().catch(() => false)) && (await page.locator('#tab-vinification').count())) { await c0('#tab-vinification'); await page.waitForTimeout(150); }
     return c0(sel, o);
   };
   return page;

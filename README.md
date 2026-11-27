@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.38.0--alpha.3-8C6E2F">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.39.0--alpha.1-8C6E2F">
   <img alt="Licence" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-1E242B">
   <img alt="Langues" src="https://img.shields.io/badge/langues-FR%20%C2%B7%20EN%20%C2%B7%20ES%20%C2%B7%20IT%20%C2%B7%20DE%20%C2%B7%20PT-5B636D">
 </p>
@@ -39,7 +39,7 @@
 - [Équipements](#équipements)
 - [Au chai : fiches, saisie groupée, fermentation, étiquettes QR](#au-chai--fiches-saisie-groupée-fermentation-étiquettes-qr)
 - [Intrants : catalogues, doses cumulées, plafonds](#intrants--catalogues-doses-cumulées-plafonds)
-- [Schémas de vinification](#schémas-de-vinification)
+- [Plan et schémas de vinification](#plan-et-schémas-de-vinification)
 - [DRM (douane) et registre d’enrichissement](#drm-douane-et-registre-denrichissement)
 - [Traçabilité à chaque étape et mode audit](#traçabilité-à-chaque-étape-et-mode-audit)
 - [Connexion simplifiée et impression](#connexion-simplifiée-et-impression)
@@ -152,9 +152,15 @@ L’onglet **Équipements** (après l’Hygiène) rassemble le matériel et son 
 - **Doses cumulées** de chaque produit dans un lot, héritées des lots d’origine au prorata des volumes (assemblages, tirage, liqueurs), et **SO₂ total estimé** = dernière analyse + ajouts depuis (produits dont la teneur en SO₂ est connue), sur les fiches de lot et de cuve.
 - **Revendications & plafonds** : plafonds de SO₂ total d’exemple (UE, bio, Demeter) et règles de substances, à vérifier ; import d’un cahier des charges dont chaque limite est relue avant d’être appliquée. Un dépassement n’est jamais bloqué : l’opération demande un motif, tracé au journal et au registre des intrants.
 
-## Schémas de vinification
+## Plan et schémas de vinification
 
-**Paramètres › Schémas de vinification** : des suites d’étapes types — jour après la création du lot (J+n), opération (sulfitage, enzymage, débourbage, levurage, nutrition, suivi de fermentation, fin de FA, FML…), famille de produit, dose par hL de produit ou de SO₂ apporté, consigne — choisies selon le **cépage majoritaire**, la **fraction** et l’**état sanitaire des raisins** pressés. Quatre exemples non officiels sont fournis « à vérifier » (cuvée de Chardonnay, cuvée de noirs avec FML, tailles, raisins altérés) : dupliquez-les et adaptez-les avec votre œnologue.
+**Vinification › Plan de vinification** : l’instruction de travail de la cave, sous la forme d’un tableau — pour chaque étape (sulfitage, enzymage, débourbage, levurage, thermorégulation, chaptalisation, FML, passage au froid, filtration, tirage…) et chaque produit, la dose selon le **groupe de cépages** (blancs, noirs), la **revendication** (conventionnel, FR-BIO-01, Demeter…) et la **fraction** (cuvée, tailles). Doses par colonne, réunies pour la cuvée et les tailles ou pour tout un groupe, titres de section et notes, comme dans votre document qualité (référence, version).
+
+- **Importer votre tableur** (Excel, LibreOffice, CSV) : titre, en-têtes fusionnés (cépages, revendications, fractionnement), étapes et produits sont reconnus ; le plan lu se vérifie avant d’être enregistré.
+- **Imprimer** en A4 paysage, couleurs comprises ; modifier, dupliquer, archiver, marquer « vérifié ». L’exemple fourni (doses génériques) est **à vérifier** avec votre œnologue.
+- **Appliquer à un lot** : la colonne du lot est trouvée d’après son cépage majoritaire, sa revendication et sa fraction ; les doses en g, cL ou mL par hL ou par L donnent les quantités pour son volume, sur une fiche à imprimer.
+
+**Vinification › Plan de vinification › Schémas par lot** : des suites d’étapes types — jour après la création du lot (J+n), opération (sulfitage, enzymage, débourbage, levurage, nutrition, suivi de fermentation, fin de FA, FML…), famille de produit, dose par hL de produit ou de SO₂ apporté, consigne — choisies selon le **cépage majoritaire**, la **fraction** et l’**état sanitaire des raisins** pressés. Quatre exemples non officiels sont fournis « à vérifier » (cuvée de Chardonnay, cuvée de noirs avec FML, tailles, raisins altérés) : dupliquez-les et adaptez-les avec votre œnologue.
 
 - **Proposé à la création d’un lot** (marc validé au pressoir ou depuis le carnet, entrée de moûts) : le schéma le plus proche est présélectionné, avec les produits en stock et les quantités calculées sur le volume du lot ; on décoche une étape, on change de produit, puis **« ✓ Créer les opérations à réaliser »** les ajoute en un clic dans **À réaliser**, où chacune se valide avec les quantités réelles. Réglage pour ne plus le proposer.
 - **Fiche du lot** : rubrique « Schéma de vinification » (étapes prévues et validées, retrait des étapes à réaliser) ; « 📋 Appliquer un schéma… » pour un lot déjà créé.
@@ -179,6 +185,7 @@ L’onglet **Équipements** (après l’Hygiène) rassemble le matériel et son 
 
 ## Connexion simplifiée et impression
 
+- **Appareils par utilisateur** : chaque clé d’accès appartient à un seul compte (vérifié à chaque connexion). L’administrateur voit les appareils de chacun, les accepte, retire ou rétablit leur accès, choisit qui peut enregistrer ses propres appareils, et peut enregistrer l’appareil du poste pour un autre compte.
 - **Clés d’accès** : sur un appareil accepté, connexion et déverrouillage par **empreinte, visage ou code PIN** — Windows Hello, Touch ID et Face ID (Mac, iPhone, iPad), déverrouillage Android ; sous Linux et ChromeOS : clé de sécurité, téléphone (QR code) ou code PIN du navigateur. Chacun active ses appareils depuis **Mon compte** ; un administrateur les accepte dans **Paramètres › Utilisateurs & droits** (réglable). Œnotrack ne garde que la clé publique ; le mot de passe reste toujours possible. Les clés d’accès demandent la version en ligne (https) ou l’application installée.
 - **Impression** : « 🖨 Imprimer » ouvre la boîte d’impression de l’appareil (ordinateur, Android, iPhone, iPad) et n’imprime que le document ; « ⬇ PDF » enregistre le PDF en parallèle. Là où l’impression directe n’est pas possible, le PDF prend le relais (sur téléphone : Partager › Imprimer).
 

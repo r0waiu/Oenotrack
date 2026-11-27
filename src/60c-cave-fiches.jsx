@@ -182,7 +182,7 @@ function CalculsSheet({ contId, lotId, onglet, onClose }) {
             : en.methode === 'mcr' ? <div className="disp text-xl"><span className="num">{fmt(en.mcrL, 1)}</span> <span>L de MCR</span> <span className="text-sm text-ink2">(<span className="num">{fmt(en.sucreKg, 1)}</span> kg de sucres)</span></div>
               : <div className="disp text-xl"><span className="num">{fmt(en.sucreKg, 1)}</span> <span>kg de sucre</span></div>}
           {!en.impossible ? <div className="text-sm text-ink2"><span>Volume après ajout : environ </span><span className="num">{fmtL(en.volFinalL)}</span></div> : null}
-          {en.depasse ? <Notice tone="warn" title="Au-delà du maximum réglé"><span>L’enrichissement dépasse </span><span className="num">{fmt(en.max, 1)}</span><span> % vol (Paramètres › Données & paramètres). Plafond indicatif : vérifiez la réglementation de la campagne et le cahier des charges de l’appellation.</span></Notice> : null}
+          {en.depasse ? <Notice tone="warn" title="Au-delà du maximum réglé"><span>L’enrichissement dépasse </span><span className="num">{fmt(en.max, 1)}</span><span> % vol (Paramètres › 🧪 Calculs œnologiques). Plafond indicatif : vérifiez la réglementation de la campagne et le cahier des charges de l’appellation.</span></Notice> : null}
         </div> : <Empty>Indiquez le volume, le TAP actuel et le TAV visé.</Empty>}
         <Field label="Produit utilisé (facultatif)"><SI value={e.produitId} onChange={(v) => setE({ ...e, produitId: v })} placeholder="Sucre, MCR…" options={prods.map((p) => ({ value: p.id, label: `${p.nom} (${p.unite})` }))} /></Field>
         <p className="help">Estimation à confirmer avec votre œnologue ; l’enrichissement se déclare (registre et déclaration préalable selon la réglementation).</p>
@@ -191,7 +191,7 @@ function CalculsSheet({ contId, lotId, onglet, onClose }) {
     </Sheet>
   );
 }
-// réglages des alertes de fermentation (Paramètres › Données & paramètres)
+// réglages des alertes de fermentation (Paramètres › 🧪 Calculs œnologiques)
 function FermReglagesCard() {
   const { db, act } = useApp(); const g = fermReglages(db);
   const champ = (k, label, help, mult) => { const v = g[k] * (mult || 1); return <SettingFerm key={k} k={k} label={label} help={help} valeur={v} mult={mult || 1} />; };

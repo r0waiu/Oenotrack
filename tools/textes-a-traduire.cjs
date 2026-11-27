@@ -6,7 +6,7 @@ const fs = require('fs'); const path = require('path');
 let ts; for (const p of ['typescript', '/opt/npm-tools/node_modules/typescript']) { try { ts = require(p); break; } catch (e) { /* suivant */ } }
 if (!ts) { console.error('Installez d’abord TypeScript dans le dossier du projet : npm install --no-save typescript'); process.exit(1); }
 const SRC = path.join(__dirname, '..', 'src');
-const tables = fs.readdirSync(SRC).filter((f) => /^17[b-z]-/.test(f)).sort();
+const tables = fs.readdirSync(SRC).filter((f) => /^17[b-z][a-z]?-/.test(f)).sort(); // 17za…, 17zb… compris
 const L = new Function(tables.map((f) => fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n') + '\n;return { traduire, TRAD_TABLE, TRAD_MOTIFS };')();
 const LGS = ['en', 'es', 'it', 'de', 'pt'];
 const motifsConnus = new Set(L.TRAD_MOTIFS.map((r) => r[0])); const lignes = new Set(L.TRAD_TABLE.map((r) => r[0]));

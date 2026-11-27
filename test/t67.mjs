@@ -40,7 +40,7 @@ const ov = () => page.locator('.overlay').last();
 // 1. barre d'onglets : « Vinification » à la place des trois onglets, sous-onglets dans l'ordre des modules
 let B = await barre();
 ok('barre : Vinification en premier (à la place de Cuverie, Opérations, À réaliser), puis Pressoir… Paramètres (12 onglets)', B.join() === 'vinification,pressoir,tirage,cave,degorgement,analyses,intrants,hygiene,equipements,trace,registres,params', B);
-ok('démarrage : Vinification ouvert sur Cuverie & Lots ; 3 sous-onglets', await choisi('vinification') && await choisi('cuverie') && (await sousOnglets()).join() === 'cuverie,ops,previsions' && /Vinification/.test(await page.locator('#tab-vinification').innerText()));
+ok('démarrage : Vinification ouvert sur Cuverie & Lots ; 4 sous-onglets (Plan de vinification depuis 0.39)', await choisi('vinification') && await choisi('cuverie') && (await sousOnglets()).join() === 'cuverie,ops,previsions,plan' && /Vinification/.test(await page.locator('#tab-vinification').innerText()));
 await page.screenshot({ path: SC + '/shots/t67-vinification.png' });
 await page.click('#tab-ops'); await page.waitForTimeout(300);
 ok('sous-onglet Opérations & Assemblages : journal affiché, Vinification reste sélectionné', await choisi('ops') && await choisi('vinification') && /Journal|Opérations/.test(await txt(page.locator('main'))));
@@ -166,7 +166,7 @@ ok('anglais : dossier réseau de l’entreprise traduit', !/Dossier réseau de l
 await page.evaluate(() => { localStorage.setItem('oenotrack-langue', 'fr'); }); await page.setViewportSize({ width: 390, height: 844 }); await page.reload(); await page.waitForTimeout(1300);
 await page.click('#tab-vinification'); await page.waitForTimeout(300);
 const ovf = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-ok('téléphone : Vinification et sous-onglets sans débordement horizontal', ovf <= 1 && (await sousOnglets()).length === 3, ovf);
+ok('téléphone : Vinification et sous-onglets sans débordement horizontal', ovf <= 1 && (await sousOnglets()).length === 4, ovf);
 await page.screenshot({ path: SC + '/shots/t67-mobile.png' });
 ok('aucune erreur', !errors.length, errors);
 console.log(ko ? `\nt67 : ${ko} ÉCHEC(S)` : '\nt67 : TOUT PASSE');

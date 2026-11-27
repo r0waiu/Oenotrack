@@ -88,6 +88,17 @@ const opMenu = (db) => opList(db).filter((x) => OP_BASES_VISIBLES_MENU.includes(
 const opSurPortion = (db) => opList(db).filter((x) => OP_BASES_VISIBLES_MENU.includes(x.base) && !x.masque && !x.interne);
 // opération « étape » du catalogue qui mène à ce stade (fin de FA constatée, remuage…), sinon le changement de stade générique
 const opEtapePour = (db, stade) => { const v = opList(db).find((x) => x.base === 'etape' && !x.masque && x.stadeAuto && x.stadeAuto.actif && x.stadeAuto.stade === stade); return v ? v.id : 'etape'; };
+/* module où une opération se saisit (0.39.0-alpha.1) : préparations et mixtions au Tirage, remuage (et autres étapes « Tirage & bouteilles »)
+   en Cave, dégorgement au Dégorgement ; le reste dans « Opérations & Assemblages » (vinification en cuve ou en fût). Le journal des
+   opérations reste complet ; un module désactivé ou interdit rend la saisie à « Opérations & Assemblages ». */
+const OP_MODULES_SAISIE = { preparation: 'tirage', tirage: 'tirage', degorgement: 'degorgement' };
+function opModuleSaisie(db, x) {
+  const d = typeof x === 'string' ? opDef(db, x) : x; if (!d) return 'ops';
+  if (OP_MODULES_SAISIE[d.base]) return OP_MODULES_SAISIE[d.base];
+  return d.id === 'remuage' || d.groupe === OP_GROUPES[4] ? 'cave' : 'ops';
+}
+// opérations du catalogue saisies dans un module (Cave : remuage et étapes personnalisées du groupe « Tirage & bouteilles »)
+const opsDuModule = (db, mod) => opList(db).filter((x) => !x.masque && !x.interne && OP_LABELS0[x.base] !== undefined && opModuleSaisie(db, x) === mod);
 // opérations proposées à la saisie (hors types internes et masqués), groupées
 const opGroupes = (db, filtre, tous) => [...OP_GROUPES, ...uniq(opList(db).map((x) => x.groupe).filter((g) => g && !OP_GROUPES.includes(g)))].map((g) => ({ title: g, items: opList(db).filter((x) => (x.groupe || OP_GROUPES[1]) === g && OP_LABELS0[x.base] !== undefined && (tous || (!x.masque && !x.interne)) && (!filtre || filtre(x))).map((x) => x.id) })).filter((g) => g.items.length);
 // libellés et tons : le catalogue complète OP_LABELS / OP_TONE (utilisés partout) — appelé par syncConfig

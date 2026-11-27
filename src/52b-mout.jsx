@@ -47,7 +47,7 @@ function MoyennesEnrichissement({ parts, volL, compact, tavVise, onTav }) {
         ? <div data-enrichissement=""><b>Enrichissement</b> pour {fmt(en.tav, 1)} % vol : +{fmt(en.ecart, 2)} % vol × {fmt(en.coef)} g/L = <b>{fmt(en.gL, 1)} g/L</b>, soit <b className="num">{fmt(en.kg, 1)} kg de sucre</b> pour {fmtL(en.volL)}{en.depasse ? <span className="text-bad"> · ⚠ au-delà de l’enrichissement maximal réglé ({fmt(en.max, 1)} % vol)</span> : null}{onTav ? <> · <label className="inline-flex items-center gap-1">TAV visé <input className="inp" style={{ width: 70, minHeight: 28, padding: '2px 6px' }} inputMode="decimal" value={tavVise ?? ''} placeholder={fmt(chaptalReglages(db).tav, 1)} onChange={(e) => onTav(e.target.value)} aria-label="TAV visé (% vol)" /></label></> : null}</div>
         : <div data-enrichissement="">TAP moyen {fmt(en.tap, 2)} % vol : <b>pas d’enrichissement nécessaire</b> pour {fmt(en.tav, 1)} % vol.</div>)
         : <div className="text-xs text-ink2">Renseignez le TAP (ou les sucres en g/L) pour calculer l’enrichissement.</div>}
-      {!compact && en ? <div className="text-xs text-ink2">Réglages (TAV visé, g/L de sucre pour 1 % vol, enrichissement maximal) : Paramètres › Données & paramètres — valeurs indicatives à adapter à la réglementation de la campagne.</div> : null}
+      {!compact && en ? <div className="text-xs text-ink2">Réglages (TAV visé, g/L de sucre pour 1 % vol, enrichissement maximal) : Paramètres › 🧪 Calculs œnologiques — valeurs indicatives à adapter à la réglementation de la campagne.</div> : null}
     </div>
   );
 }

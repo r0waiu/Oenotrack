@@ -23,6 +23,8 @@ function useBouteilles() {
     opOf, prepIn: (id) => R.prepUse.filter((u) => u.prepId === id),
     preps: Object.values(R.preps).sort(desc_), tirs: Object.values(R.tir).sort(desc_),
     tirOps: db.ops.filter((o) => o.type === 'tirage').sort(desc_), finis: [...(db.lotsFinis || [])].sort(desc_),
+    // continuité de la traçabilité (0.39.0-alpha.1) : mixtion qui a créé un lot de tirage → vins de base (lots de la vinification)
+    tirageDe: (lotId) => db.ops.find((o) => o.type === 'tirage' && o.lotId === lotId) || null,
   };
 }
 // lien discret vers un autre module (seulement s'il est actif)
@@ -31,6 +33,18 @@ function VersModule({ id, children }) {
   return <button type="button" className="linkish" onClick={() => setTab(id)}>{children}</button>;
 }
 
+// vins de base d'un lot de tirage (lots de la cuverie), avec leur volume dans la mixtion
+function VinsDeBase({ lotId }) {
+  const { tirageDe } = useBouteilles(); const o = tirageDe(lotId);
+  if (!o) return <span className="text-xs text-ink2">—</span>;
+  return <span className="flex flex-wrap gap-x-2" data-vins-base={lotId}>{(o.sources || []).map((x, i) => <span key={i}><LotLink id={x.lotId} /> <span className="num text-xs">{fmtL(x.volL)}</span></span>)}</span>;
+}
+// autres opérations du catalogue saisies dans ce module (opérations personnalisées du groupe « Tirage & bouteilles »)
+function AutresOpsModule({ mod, sauf, onForm }) {
+  const { db, camp } = useApp(); const L = opsDuModule(db, mod).filter((x) => !(sauf || []).includes(x.id));
+  if (!L.length) return null;
+  return <div className="card p-3" data-autres-ops={mod}><div className="lbl">Autres opérations</div><div className="flex flex-wrap gap-2">{L.map((x) => <Btn key={x.id} disabled={camp.figee} title={x.aide || ''} onClick={() => onForm({ type: x.id })}><span aria-hidden="true" className="mr-1 opacity-70">{opIcone(db, x.id)}</span>{x.label}</Btn>)}</div></div>;
+}
 function PrepsTable({ rows, onEdit, empty }) {
   const { db, R } = useApp(); const { opOf, prepIn } = useBouteilles();
   return (
@@ -59,6 +73,7 @@ function TabTirage() {
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
           <div className="card p-3"><div className="lbl">Préparations qualifiées</div><div className="flex flex-wrap gap-2">{Object.keys(PREP_TYPES).filter((k) => !PREPS_DEGORGEMENT.includes(k)).map((k) => <Btn key={k} disabled={camp.figee} onClick={() => setForm({ type: 'preparation', preset: { ptype: k } })}>+ {PREP_TYPES[k]}</Btn>)}</div></div>
           <div className="card p-3"><div className="lbl">Tirage (mixtion sans cuve dédiée)</div><Btn kind="primary" disabled={camp.figee} onClick={() => setForm({ type: 'tirage' })}>Nouveau tirage</Btn><p className="help">Vin de base + liqueur + levain + adjuvants + matières sèches → lot de tirage, en bouteilles sur lattes.</p></div>
+          <AutresOpsModule mod="tirage" sauf={['tirage', 'preparation']} onForm={setForm} />
         </div>
         <p className="help mt-2">Les bouteilles tirées se suivent ensuite dans <VersModule id="cave">la Cave</VersModule>{moduleActif(db, 'cave') ? null : 'la Cave'} puis au <VersModule id="degorgement">Dégorgement</VersModule>{moduleActif(db, 'degorgement') ? null : 'Dégorgement'}.</p>
       </Sec>
@@ -67,7 +82,9 @@ function TabTirage() {
         { h: 'Sucre mixtion', cls: 'r', r: (o) => <span className="num">{(() => { const v = o.sucreGL != null ? o.sucreGL : (hasNum(o.densBase) && hasNum(o.densMix) ? (num(o.densMix) - num(o.densBase)) * 1000 * num(db.settings.coefSucre) : null); return v != null ? `${fmt(v, 1)} g/L` : '—'; })()}</span> },
         { h: 'Vin de base', r: (o) => <span className="flex flex-wrap gap-x-2">{(o.sources || []).map((s, i) => <span key={i}><LotLink id={s.lotId} /> <span className="num text-xs">{fmtL(s.volL)}</span></span>)}</span> },
         { h: 'Préparations', r: (o) => (o.prepUses || []).map((u) => `${prepOf(R, u.prepId).code || '?'} ${fmtL(u.volL)}`).join(' · ') || '—' },
-        { h: 'Adjuvants & matières sèches', r: (o) => <span className="text-xs">{lignesText(db, o.lignes) || '—'}</span> }, { h: 'Opérateur(s)', r: (o) => <OperateursChips ids={o.operateurs} /> }, { h: '', r: (o) => <OpBtns op={o} onEdit={edit} /> }]} /></Sec>
+        { h: 'Adjuvants & matières sèches', r: (o) => <span className="text-xs">{lignesText(db, o.lignes) || '—'}</span> },
+        { h: 'Suite (cave, dégorgement)', r: (o) => { const t = R.tir[o.lotId]; return t ? <span className="num whitespace-nowrap text-sm" data-suite-tirage={o.lotId}>{`En cave : ${fmt(t.nb)} · dégorgées : ${fmt(t.deg || 0)}`}</span> : '—'; } },
+        { h: 'Opérateur(s)', r: (o) => <OperateursChips ids={o.operateurs} /> }, { h: '', r: (o) => <OpBtns op={o} onEdit={edit} /> }]} /></Sec>
       <Sec title="Préparations (levain, pied de cuve, liqueur de tirage)"><PrepsTable rows={pT} onEdit={edit} empty="Aucune préparation enregistrée." /></Sec>
       {form ? <OpForm type={form.type} editId={form.editId} preset={form.preset} onClose={() => setForm(null)} /> : null}
     </div>
@@ -100,11 +117,12 @@ function TabCave() {
           <div className="card p-3"><div className="lbl">Remuage</div><Btn kind="primary" disabled={camp.figee || !enCave.length} onClick={() => remuage('')}>Remuage / mise sur pointes</Btn><p className="help">Gyropalettes ou pupitres : le lot passe au stade « {stadeLabel(db, pointe)} ».</p></div>
           <div className="card p-3"><div className="lbl">Entrée de bouteilles</div><Btn disabled={camp.figee} onClick={() => setForm({ type: 'reprise', preset: { kind: 'bouteilles' } })}>Reprise de bouteilles sur lattes</Btn><p className="help">Stock de départ, achat ou retour de bouteilles déjà tirées.</p></div>
           <div className="card p-3"><div className="lbl">Changement de stade</div><Btn disabled={camp.figee || !enCave.length} onClick={() => setForm({ type: 'etape' })}>Autre étape en cave</Btn><p className="help">Mise en cave, retournement, contrôle… sur un lot de tirage.</p></div>
+          <AutresOpsModule mod="cave" sauf={['remuage']} onForm={setForm} />
         </div>
       </Sec>
       <Sec title="Bouteilles en cave (lots de tirage)" right={<Check checked={tous} onChange={setTous} label="Afficher aussi les lots soldés" />}>
         <Tbl rows={vus.map((t) => ({ ...t, id: t.lotId }))} empty={tous ? 'Aucun lot de tirage.' : 'Aucune bouteille sur lattes. Enregistrez un tirage ou une reprise de bouteilles.'} cols={[
-          { h: 'Lot de tirage', r: (t) => <LotLink id={t.lotId} /> }, { h: 'Revendication', r: (t) => <QChip id={(R.lots[t.lotId] || {}).qualif} /> }, { h: 'Stade', r: (t) => <StadeChip id={stade(t)} compact /> },
+          { h: 'Lot de tirage', r: (t) => <LotLink id={t.lotId} /> }, { h: 'Vins de base', cls: 'hm', r: (t) => <VinsDeBase lotId={t.lotId} /> }, { h: 'Revendication', r: (t) => <QChip id={(R.lots[t.lotId] || {}).qualif} /> }, { h: 'Stade', r: (t) => <StadeChip id={stade(t)} compact /> },
           { h: 'Tirage / entrée', r: (t) => <span className="num">{fmtDate(t.date)}{t.reprise ? <span className="text-xs text-ink2"> (reprise)</span> : null}</span> },
           { h: 'Âge', r: (t) => <span className="num whitespace-nowrap">{ageTxt(moisDepuis(t.date))}</span> },
           { h: 'Mises', cls: 'r', r: (t) => <span className="num">{fmt(t.mis)}</span> }, { h: 'Dégorgées', cls: 'r', r: (t) => <span className="num">{fmt(t.deg || 0)}</span> }, { h: 'En stock', cls: 'r', r: (t) => <b className="num">{fmt(t.nb)}</b> },
@@ -140,14 +158,16 @@ function TabDegorgement() {
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
           <div className="card p-3"><div className="lbl">Dégorgement</div><Btn kind="primary" disabled={camp.figee || !aDeg.length} onClick={() => degorger(null)}>Nouveau dégorgement</Btn><p className="help">Sort les bouteilles de la cave et crée un lot fini tracé (dosage, liqueur, bouchage).</p></div>
           <div className="card p-3"><div className="lbl">Liqueur d’expédition</div><Btn disabled={camp.figee} onClick={() => setForm({ type: 'preparation', preset: { ptype: 'liqueur_exp' } })}>+ {PREP_TYPES.liqueur_exp}</Btn><p className="help">MCR, sucre fondu dans du vin, ou eau ; le tout sulfité.</p></div>
+          <AutresOpsModule mod="degorgement" sauf={['degorgement']} onForm={setForm} />
         </div>
+        <p className="help mt-2">Parcours de chaque lot fini : vins de base (Vinification) → tirage → cave → dégorgement ; la fiche du lot fini retrace toutes les étapes.</p>
       </Sec>
       <Sec title="Lots à dégorger"><Tbl rows={aDeg.map((t) => ({ ...t, id: t.lotId }))} empty="Aucune bouteille en cave." cols={[
         { h: 'Lot de tirage', r: (t) => <LotLink id={t.lotId} /> }, { h: 'Revendication', r: (t) => <QChip id={(R.lots[t.lotId] || {}).qualif} /> }, { h: 'Stade', r: (t) => <StadeChip id={stade(t)} compact /> },
         { h: 'Âge', r: (t) => <span className="num whitespace-nowrap">{ageTxt(moisDepuis(t.date))}</span> }, { h: 'En stock', cls: 'r', r: (t) => <b className="num">{fmt(t.nb)}</b> },
         { h: '', r: (t) => <Btn size="sm" disabled={camp.figee} onClick={() => degorger(t)}>Dégorger</Btn> }]} /></Sec>
       <Sec title="Lots finis (dégorgements)"><Tbl rows={finis} onRow={(f) => showFini(f.id)} empty="Aucun dégorgement enregistré." cols={[
-        { h: 'Lot fini', r: (f) => <b>{f.code}</b> }, { h: 'Désignation', r: (f) => f.designation }, { h: 'Date', r: (f) => <span className="num">{fmtDate(f.date)}</span> }, { h: 'Issu du lot', r: (f) => <LotLink id={f.sourceLotId} /> },
+        { h: 'Lot fini', r: (f) => <b>{f.code}</b> }, { h: 'Désignation', r: (f) => f.designation }, { h: 'Date', r: (f) => <span className="num">{fmtDate(f.date)}</span> }, { h: 'Issu du lot', r: (f) => <LotLink id={f.sourceLotId} /> }, { h: 'Vins de base', cls: 'hm', r: (f) => <VinsDeBase lotId={f.sourceLotId} /> },
         { h: 'Bouteilles', cls: 'r', r: (f) => <span className="num">{fmt(f.nb)}</span> }, { h: 'Dosage', cls: 'r', r: (f) => <span className="num">{f.dosageGL != null ? `${fmt(f.dosageGL, 1)} g/L` : '—'}</span> }, { h: 'Revendication', r: (f) => <QChip id={f.qualif} /> },
         { h: 'Liqueur d’expédition', r: (f) => (f.prepIds || []).map((id) => prepOf(R, id).code).filter(Boolean).join(', ') || '—' }, { h: 'Bouchon, muselet…', r: (f) => <span className="text-xs">{lignesText(db, (opOf(f.opId) || {}).lignes) || '—'}</span> }, { h: 'Opérateur(s)', r: (f) => <OperateursChips ids={(opOf(f.opId) || {}).operateurs} /> },
         { h: '', r: (f) => (opOf(f.opId) ? <div onClick={(e) => e.stopPropagation()}><OpBtns op={opOf(f.opId)} onEdit={edit} /></div> : null) }]} /></Sec>

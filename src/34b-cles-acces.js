@@ -6,13 +6,20 @@
    rp (domaine du site), creeLe, acceptee (false : en attente d'un administrateur), appareil,
    type (0.38.0-alpha.2 : 'appareil' = empreinte, visage ou code PIN intégrés | 'externe' = clé de sécurité USB / NFC ou autre téléphone | '' inconnu),
    transports (0.38.0-alpha.2 : moyens annoncés par l'appareil, CLES_TRANSPORTS ; repris à la connexion pour que le téléphone ou l'ordinateur
-   propose d'abord son propre déverrouillage) }]
+   propose d'abord son propre déverrouillage),
+   0.39.0-alpha.1 — rattachement strict et gestion par utilisateur : uid (compte propriétaire, vérifié à la connexion avec l'identifiant
+   d'utilisateur renvoyé par l'appareil), ajoutePar (administrateur qui l'a enregistrée pour ce compte), acceptePar / accepteLe,
+   revoquePar / revoqueLe (accès retiré par un administrateur : la clé reste listée, acceptee = false, une version antérieure la refuse
+   aussi) }]
+   db.utilisateurs[].clesEnregistrer (0.39.0-alpha.1) : true (peut enregistrer ses appareils) | false (non) | absent (réglage commun).
+   Une clé dont l'identifiant figure sous deux comptes (fusion de synchronisations) n'est plus utilisable : à retirer par un administrateur.
    Options WebAuthn (0.38.0-alpha.2, clesOptionsCreation / clesOptionsConnexion) : « cet appareil » demande l'authentificateur intégré
    (authenticatorAttachment 'platform', clé d'accès découvrable, indice 'client-device') — sur Android, sans cela Chrome ne proposait que
    les clés USB / NFC ou un autre appareil ; « clé de sécurité ou autre téléphone » demande un authentificateur externe ('cross-platform').
    Navigateur sans getPublicKey() : la clé publique est lue dans l'objet d'attestation (CBOR, COSE → SPKI, cleDepuisAttestation).
    db.settings.securite.cles = { actif (vrai par défaut), validation : 'admin' (par défaut : un administrateur accepte chaque nouvel
-   appareil) | 'libre' }. La vérification est locale, sans serveur : l'appareil signe un défi aléatoire, contrôlé avec la clé publique
+   appareil) | 'libre', inscription (0.39.0-alpha.1) : 'tous' (par défaut : chacun peut enregistrer ses appareils) | 'choisis' (seuls
+   les utilisateurs autorisés un par un) }. La vérification est locale, sans serveur : l'appareil signe un défi aléatoire, contrôlé avec la clé publique
    (origine, domaine, présence et vérification de l'utilisateur). Le mot de passe reste toujours possible. */
 const CLES_ALGS = [-7, -257];
 const CLES_TRANSPORTS = ['internal', 'hybrid', 'usb', 'nfc', 'ble', 'smart-card'];
@@ -22,34 +29,68 @@ const clesB64 = (u8) => { let s = ''; const b = u8 instanceof Uint8Array ? u8 : 
 const clesDeB64 = (s) => { const t = atob(String(s || '')); const o = new Uint8Array(t.length); for (let i = 0; i < t.length; i += 1) o[i] = t.charCodeAt(i); return o; };
 const clesB64u = (u8) => clesB64(u8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const clesDeB64u = (s) => { const t = String(s || '').replace(/-/g, '+').replace(/_/g, '/'); return clesDeB64(t + '==='.slice((t.length + 3) % 4)); };
-const clesReglages = (db) => { const c = ((db && db.settings && db.settings.securite) || {}).cles || {}; return { actif: c.actif !== false, validation: c.validation === 'libre' ? 'libre' : 'admin' }; };
+const clesReglages = (db) => { const c = ((db && db.settings && db.settings.securite) || {}).cles || {}; return { actif: c.actif !== false, validation: c.validation === 'libre' ? 'libre' : 'admin', inscription: c.inscription === 'choisis' ? 'choisis' : 'tous' }; };
 const clesDe = (db, uid) => { const u = utilisateurDe(db, uid); return u && Array.isArray(u.cles) ? u.cles.filter((k) => k && k.id) : []; };
-// clés utilisables pour se connecter sur ce site : utilisateurs actifs, clés acceptées, même domaine
-function clesUtilisables(db, rp, uid) {
-  if (!securiteActive(db) || !clesReglages(db).actif) return [];
-  return (db.utilisateurs || []).filter((u) => u && u.actif !== false && (!uid || u.id === uid)).flatMap((u) => (u.cles || []).filter((k) => k && k.id && k.acceptee !== false && (!rp || !k.rp || k.rp === rp)).map((k) => ({ u, k })));
+// état d'une clé : 'acceptee' | 'attente' (jamais acceptée) | 'revoquee' (accès retiré par un administrateur) | 'autre-compte' | 'doublon'
+const clesDoublons = (db) => { const n = {}; (db.utilisateurs || []).forEach((u) => uniq(((u && u.cles) || []).filter((k) => k && k.id).map((k) => k.id)).forEach((id) => { n[id] = (n[id] || 0) + 1; })); return Object.keys(n).filter((id) => n[id] > 1); };
+function cleEtat(db, u, k, doublons) {
+  if (k.uid && u && k.uid !== u.id) return 'autre-compte';
+  if ((doublons || clesDoublons(db)).includes(k.id)) return 'doublon';
+  return k.acceptee !== false ? 'acceptee' : k.revoqueLe ? 'revoquee' : 'attente';
 }
-function cleAjouter(db, uid, s) {
+// l'utilisateur peut-il enregistrer lui-même ses appareils ? (administrateurs : toujours)
+function clesPeutEnregistrer(db, uid) {
+  const u = utilisateurDe(db, uid); if (!u) return false; if (!securiteActive(db) || estAdmin(db, uid)) return true;
+  if (u.clesEnregistrer === true || u.clesEnregistrer === false) return u.clesEnregistrer;
+  return clesReglages(db).inscription !== 'choisis';
+}
+// clés utilisables pour se connecter sur ce site : utilisateurs actifs, clés acceptées, même domaine, rattachées à ce seul compte
+function clesUtilisables(db, rp, uid) {
+  if (!securiteActive(db) || !clesReglages(db).actif) return []; const dbl = clesDoublons(db);
+  return (db.utilisateurs || []).filter((u) => u && u.actif !== false && (!uid || u.id === uid)).flatMap((u) => (u.cles || []).filter((k) => k && k.id && cleEtat(db, u, k, dbl) === 'acceptee' && (!rp || !k.rp || k.rp === rp)).map((k) => ({ u, k })));
+}
+// identifiant d'utilisateur renvoyé par l'appareil (userHandle) : doit être celui du compte de la clé (clé d'un autre compte refusée)
+function cleProprietaireOk(u, userHandle) {
+  if (!userHandle || !u) return true; let h = ''; try { h = new TextDecoder().decode(userHandle instanceof Uint8Array ? userHandle : new Uint8Array(userHandle)); } catch (e) { return false; }
+  return !h || h === String(u.id || '').slice(0, 64);
+}
+// dernière connexion faite avec cette clé (journal des accès)
+function cleDerniereUtilisation(db, id) { let d = ''; (db.audit || []).forEach((a) => { if (a && a.action === 'connexion' && a.type === 'cle' && a.cibleId === id && String(a.date) > d) d = String(a.date); }); return d; }
+// réglage par utilisateur (administrateurs) : true | false | null (réglage commun)
+function clesEnregistrerRegler(db, uid, v) {
   const u = utilisateurDe(db, uid); if (!u) return fail('Utilisateur introuvable.');
-  if (!clesReglages(db).actif) return fail('La connexion par clé d’accès est désactivée (Paramètres › Utilisateurs & droits).');
+  if (v === true || v === false) u.clesEnregistrer = v; else delete u.clesEnregistrer; return okr();
+}
+function cleAjouter(db, uid, s, par) {
+  const u = utilisateurDe(db, uid); if (!u) return fail('Utilisateur introuvable.');
+  if (!clesReglages(db).actif) return fail('La connexion par clé d’accès est désactivée (Paramètres › Appareils & clés d’accès).');
+  const pour = par && par !== uid; // un administrateur enregistre cet appareil pour un autre compte
+  if (pour && securiteActive(db) && !estAdmin(db, par)) return fail('Seul un administrateur peut enregistrer un appareil pour un autre compte.');
+  if (!pour && !clesPeutEnregistrer(db, uid)) return fail('Votre compte n’est pas autorisé à enregistrer ses appareils : demandez-le à un administrateur.');
   const id = String((s && s.id) || ''); const cle = String((s && s.cle) || '');
   if (!/^[A-Za-z0-9_-]{8,1400}$/.test(id) || !/^[A-Za-z0-9+/]+=*$/.test(cle) || cle.length > 2000) return fail('Clé d’accès illisible.');
   if (!CLES_ALGS.includes(Number(s.alg))) return fail('Type de clé non pris en charge par Œnotrack (algorithmes ES256 ou RS256).');
   if ((db.utilisateurs || []).some((x) => x && (x.cles || []).some((k) => k && k.id === id))) return fail('Cette clé d’accès est déjà enregistrée.');
-  const k = { id, nom: String((s && s.nom) || 'Appareil').trim().slice(0, 60) || 'Appareil', cle, alg: Number(s.alg), rp: String((s && s.rp) || '').slice(0, 253), creeLe: (s && s.le) || new Date().toISOString(), acceptee: clesReglages(db).validation === 'libre' || estAdmin(db, uid), appareil: String((s && s.appareil) || '').slice(0, 60) };
+  const k = { id, uid: u.id, nom: String((s && s.nom) || 'Appareil').trim().slice(0, 60) || 'Appareil', cle, alg: Number(s.alg), rp: String((s && s.rp) || '').slice(0, 253), creeLe: (s && s.le) || new Date().toISOString(), acceptee: clesReglages(db).validation === 'libre' || estAdmin(db, pour ? par : uid), appareil: String((s && s.appareil) || '').slice(0, 60) };
+  if (pour) k.ajoutePar = par; if (k.acceptee && (pour || estAdmin(db, uid))) { k.acceptePar = pour ? par : uid; k.accepteLe = k.creeLe; }
   const tr = clesTransports(s && s.transports); if (tr.length) k.transports = tr; const ty = clesType(s && s.type); if (ty) k.type = ty;
   if (!Array.isArray(u.cles)) u.cles = []; u.cles.push(k); return okr({ id, acceptee: k.acceptee });
 }
 function cleModifier(db, uid, id, patch) {
   const u = utilisateurDe(db, uid); const k = u && (u.cles || []).find((x) => x && x.id === id); if (!k) return fail('Clé d’accès introuvable.');
   if (patch.nom !== undefined) { const n = String(patch.nom || '').trim().slice(0, 60); if (!n) return fail('Donnez un nom à cet appareil.'); k.nom = n; }
-  if (patch.acceptee !== undefined) k.acceptee = !!patch.acceptee;
+  if (patch.acceptee !== undefined) {
+    const le = new Date().toISOString(); const par = patch.par || '';
+    if (patch.acceptee) { k.acceptee = true; k.acceptePar = par; k.accepteLe = le; delete k.revoquePar; delete k.revoqueLe; if (!k.uid) k.uid = u.id; }
+    else { k.acceptee = false; k.revoquePar = par; k.revoqueLe = le; } // accès retiré : la clé reste listée, réactivable par un administrateur
+  }
   return okr();
 }
 function cleRetirer(db, uid, id) { const u = utilisateurDe(db, uid); if (!u || !(u.cles || []).some((x) => x && x.id === id)) return fail('Clé d’accès introuvable.'); u.cles = u.cles.filter((x) => !(x && x.id === id)); return okr(); }
 function clesRegler(db, patch) {
   db.settings.securite = db.settings.securite || {}; const c = { ...(db.settings.securite.cles || {}) };
   if (patch.actif !== undefined) c.actif = !!patch.actif; if (patch.validation !== undefined) c.validation = patch.validation === 'libre' ? 'libre' : 'admin';
+  if (patch.inscription !== undefined) { if (patch.inscription === 'choisis') c.inscription = 'choisis'; else delete c.inscription; }
   db.settings.securite = { ...db.settings.securite, cles: c }; return okr();
 }
 // signature ECDSA de WebAuthn (DER) → format brut r‖s attendu par Web Crypto

@@ -213,8 +213,11 @@ function TankCards({ conts, onOpen, onMenu, sel }) {
 }
 
 function TabCuverie() {
-  const { db, R, act, confirm, showCont, showLot, openMenu, setTab } = useApp();
-  const [sub, setSub] = useState('plan'); const [filter, setFilter] = useState('actif'); const [q, setQ] = useState(''); const [form, setForm] = useState(null);
+  const { db, R, act, confirm, showCont, showLot, openMenu, setTab, nav, uid, secu } = useApp();
+  // 0.39.0-alpha.1 : les barèmes de jaugeage (épalement) sont ici, avec les contenants (avant : Paramètres) ; droits des paramètres
+  const voirBaremes = !secu || niveauModule(db, uid, 'params') !== 'aucun';
+  const SOUS_CUVERIE = ['plan', 'cartes', 'lots', 'liste', ...(voirBaremes ? ['jaugeage'] : [])];
+  const [sub, setSub] = useState(() => (SOUS_CUVERIE.includes(nav.sub) ? nav.sub : 'plan')); useEffect(() => { if (nav.sub && SOUS_CUVERIE.includes(nav.sub)) setSub(nav.sub); }, [nav]); const [filter, setFilter] = useState('actif'); const [q, setQ] = useState(''); const [form, setForm] = useState(null);
   const [lotF, setLotF] = useState('stock'); const [lq, setLq] = useState(''); const [edit, setEdit] = useState(false); const [siteForm, setSiteForm] = useState(null); const [zoneForm, setZoneForm] = useState(null); const [printPlan, setPrintPlan] = useState(false);
   // saisie groupée (0.29.0-alpha.1) : sélection de plusieurs cuves, action commune ; étiquettes QR ; scanner
   const [selMode, setSelMode] = useState(false); const [sel, setSel] = useState([]); const [grp, setGrp] = useState(null); const [etiq, setEtiq] = useState(null); const [scan, setScan] = useState(false);
@@ -254,8 +257,9 @@ function TabCuverie() {
         <button type="button" className="sitebtn" onClick={() => setSiteForm('new')} title="Ajouter un site de cuverie"><b>+ Site</b><span className="text-xs text-ink2">stock commun</span></button>
         {siteActif !== 'all' ? <button type="button" className="sitebtn" onClick={() => setSiteForm(siteActif)} title="Renommer ou supprimer ce site"><b>✎ Modifier</b><span className="text-xs text-ink2">ce site</span></button> : null}
       </div>
-      <SubNav value={sub} onChange={(v) => { setSub(v); if (v !== 'plan') setEdit(false); }} items={[{ id: 'plan', label: 'Plan de cave' }, { id: 'cartes', label: 'Cartes' }, { id: 'lots', label: 'Lots' }, { id: 'liste', label: 'Contenants (liste)' }]} />
-      {sub !== 'lots' ? (
+      <SubNav value={sub} onChange={(v) => { setSub(v); if (v !== 'plan') setEdit(false); }} items={[{ id: 'plan', label: 'Plan de cave' }, { id: 'cartes', label: 'Cartes' }, { id: 'lots', label: 'Lots' }, { id: 'liste', label: 'Contenants (liste)' }, ...(voirBaremes ? [{ id: 'jaugeage', label: '📏 Barèmes de jaugeage' }] : [])]} />
+      {sub === 'jaugeage' ? <div data-cuverie-baremes=""><ParamsLecture /><BaremesView /></div> : null}
+      {sub !== 'lots' && sub !== 'jaugeage' ? (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="flex gap-1">{[['actif', 'Actifs'], ['archive', 'Archivés'], ['tous', 'Tous']].map(([k, l]) => <button key={k} type="button" className={cx('btn btn-sm', filter === k && 'btn-primary')} onClick={() => setFilter(k)}>{l}</button>)}</div>
           <div className="w-44"><TI value={q} onChange={setQ} placeholder="Rechercher une cuve…" aria-label="Rechercher un contenant" /></div>
@@ -310,7 +314,7 @@ function TabCuverie() {
       {siteForm ? <SiteForm id={siteForm === 'new' ? null : siteForm} onClose={() => setSiteForm(null)} onSaved={() => act((d) => { d.settings.siteActif = d.sites[d.sites.length - 1].id; return okr(); })} /> : null}
       {zoneForm ? <ZoneForm siteId={zoneForm.siteId} zone={zoneForm.zone} onClose={() => setZoneForm(null)} /> : null}
       {printPlan ? <PlanPrintDialog siteIds={sitesShown.map((s) => s.id)} onClose={() => setPrintPlan(false)} /> : null}
-      {selMode && sub !== 'lots' ? <SelectionBar sel={sel} setSel={setSel} conts={conts} onAction={(a) => setGrp({ action: a, contIds: sel.slice() })} onEtiquettes={() => setEtiq(sel.slice())} onFin={finSel} /> : null}
+      {selMode && sub !== 'lots' && sub !== 'jaugeage' ? <SelectionBar sel={sel} setSel={setSel} conts={conts} onAction={(a) => setGrp({ action: a, contIds: sel.slice() })} onEtiquettes={() => setEtiq(sel.slice())} onFin={finSel} /> : null}
       {grp ? <GroupeForm action={grp.action} contIds={grp.contIds} onClose={() => setGrp(null)} onFait={finSel} /> : null}
       {etiq ? <EtiquettesSheet contIds={etiq} onClose={() => setEtiq(null)} /> : null}
       {scan ? <ScannerSheet onClose={() => setScan(false)} /> : null}
