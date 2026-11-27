@@ -122,7 +122,7 @@ function normalizeDb(d) {
     // opérations d'origine : les réglages de l'utilisateur priment, les nouveaux champs par défaut complètent ; comportement toujours d'origine
     out.lists.operations = cur.map((y) => { const x = D.find((z) => z.id === y.id); return x ? { ...x, ...y, base: x.base } : (y.base ? y : { ...y, base: 'suivi' }); });
     // libellé d'origine renommé (0.25.0-alpha.2) : « Apport vendange » → « Pesée de vendange » (un libellé choisi par l'utilisateur est gardé)
-    out.lists.operations.forEach((y) => { if (y.id === 'apport' && y.label === 'Apport vendange') y.label = 'Pesée de vendange'; }); }
+    out.lists.operations.forEach((y) => { if (y.id === 'apport' && y.label === 'Apport vendange') y.label = 'Pesée de vendange'; if (y.id === 'remontage' && y.label === 'Remontage / pigeage') y.label = 'Remontage'; }); } // 0.46.0-alpha.1 : pigeage séparé
   // compatibilité entre versions : les champs inconnus (créés par une version plus récente) sont conservés tels quels,
   // le marqueur de schéma ne redescend jamais, et la base garde la trace des versions qui l'ont ouverte
   out.app = APP_ID; out.schema = Math.max(SCHEMA, num(d.schema));

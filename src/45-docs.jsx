@@ -225,7 +225,7 @@ function EntrepriseView() {
         </div>
       </Sec>
       <Sec title="Langue de l’interface"><div className="card p-4" data-langue-societe=""><LangueChoix /><p className="help mt-2">Réglage de cet appareil (chaque personne choisit la sienne). Français, English, Español, Italiano, Deutsch, Português : la traduction se fait par étapes ; ce qui n’est pas encore traduit reste en français. Les données saisies et les registres exportés ne sont pas traduits.</p></div></Sec>
-      <Sec title="Région viticole"><div className="card p-4" data-region-societe=""><RegionChoix /></div></Sec>
+      <Sec title="Région et types de vins"><div className="card p-4" data-region-societe=""><ProfilResume /></div></Sec>
       <OperateursSection />
       <Sec title="Documents joints">
         <div className="card space-y-3 p-4">

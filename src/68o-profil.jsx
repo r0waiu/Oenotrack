@@ -53,3 +53,13 @@ function ProfilViticoleView() {
     </div>
   );
 }
+/* 0.46.0-alpha.1 — région et types de vins : un seul réglage (Paramètres › Région & types de vins) ; l'identité de la société et les réglages
+   du pressoir en montrent le résumé (région, types, spécificités champenoises) avec un lien vers ce réglage */
+function ProfilResume() {
+  const { db, setTab } = useApp(); const pv = profilViticole(db); const R = profilRegionDef(pv.region) || {};
+  return (<div className="flex flex-wrap items-center gap-3" data-profil-resume="">
+    <div className="text-sm"><b translate="no">{pv.defini ? R.nom : 'Région non précisée'}</b>{pv.types.length ? <span className="text-ink2">{` · ${pv.types.map((t) => (PROFIL_TYPES.find((x) => x[0] === t) || [t, t])[1]).join(', ')}`}</span> : null}
+      <div className="help">{champenois(db) ? 'Spécificités champenoises actives (cahier des charges de l’AOC Champagne au pressoir, échelle des crus).' : 'Spécificités champenoises désactivées.'}</div></div>
+    <Btn className="ml-auto" onClick={() => setTab('params', 'profil')} data-profil-regler="">🍇 Régler la région et les types de vins</Btn>
+  </div>);
+}

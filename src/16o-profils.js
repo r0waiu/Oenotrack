@@ -80,7 +80,9 @@ const profilViticole = (db) => {
 };
 const PROFIL_MODULES_MOUSSE = ['tirage', 'cave', 'degorgement'];
 const PROFIL_MODULES_NOMS = { tirage: 'Tirages', cave: 'Cave', degorgement: 'Dégorgement' };
-const PROFIL_OPS = { rouge: ['maceration', 'delestage', 'ecoulage'], rose: ['maceration', 'saignee'], mousse: ['remuage'] };
+// opérations proposées selon les types de vins (0.46.0-alpha.1 : vins rouges et rosés, vins doux) et la région (élevage sous voile : Jura)
+const PROFIL_OPS = { rouge: ['maceration', 'delestage', 'ecoulage', 'eraflage', 'mpf_froid', 'mac_carbonique', 'mac_semi_carbonique', 'thermovinification', 'flash_detente', 'pigeage', 'mfc', 'pressurage_marcs', 'micro_oxygenation'],
+  rose: ['maceration', 'saignee', 'eraflage', 'mpf_froid'], mousse: ['remuage'], doux: ['arret_fermentation', 'mutage'], jura: ['elevage_voile'] };
 const PROFIL_STADE_MACERATION = { id: 'maceration', label: 'En macération (cuvaison)', court: 'Macération', phase: 'ferm', role: '', couleur: '#8E2F45' };
 const PROFIL_FRACTIONS = [{ id: 'goutte', label: 'Goutte', suffix: 'G', pressurage: true }, { id: 'presse', label: 'Presse', suffix: 'P', pressurage: true }];
 const PROFIL_FRACTIONS_CHAMPAGNE = ['taille1', 'taille2', 'rebeche'];
@@ -95,8 +97,8 @@ function profilPlan(db, region, types) {
   PROFIL_MODULES_MOUSSE.forEach((m) => { const on = moduleActif(db, m); if (on !== mousse) pousser(`module:${m}`, 'onglets', PROFIL_MODULES_NOMS[m], on ? 'affiché' : 'masqué', mousse ? 'affiché' : 'masqué'); });
   // opérations
   const ops = opList(db); const defOps = DEFAULT_OPERATIONS(); const deja = Array.isArray(pv.ops) ? pv.ops : [];
-  const voulues = uniq([...(T.includes('rouge') ? PROFIL_OPS.rouge : []), ...(T.includes('rose') ? PROFIL_OPS.rose : []), ...(mousse ? PROFIL_OPS.mousse : [])]);
-  uniq([...PROFIL_OPS.rouge, ...PROFIL_OPS.rose, ...PROFIL_OPS.mousse]).forEach((id) => {
+  const voulues = uniq([...(T.includes('rouge') ? PROFIL_OPS.rouge : []), ...(T.includes('rose') ? PROFIL_OPS.rose : []), ...(mousse ? PROFIL_OPS.mousse : []), ...(T.includes('doux') ? PROFIL_OPS.doux : []), ...(region === 'jura_savoie' ? PROFIL_OPS.jura : [])]);
+  uniq(Object.values(PROFIL_OPS).flat()).forEach((id) => {
     const o = ops.find((x) => x.id === id); const d = defOps.find((x) => x.id === id); if (!o || !d) return;
     const libre = !!o.masque === !!d.masque || deja.includes(id); // à sa valeur d'origine, ou déjà changée par un profil
     const veut = voulues.includes(id); if (!libre || !!o.masque === !veut) return;

@@ -2,10 +2,17 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.46.0-alpha.1 — 27/11/2026
+
+- Opérations des autres vins : vinification en rouge et rosé (éraflage / foulage, macération préfermentaire à froid, macérations carbonique et semi-carbonique, thermovinification, flash-détente, pigeage séparé du remontage, macération finale à chaud, pressurage des marcs), vins doux (arrêt de fermentation, mutage), élevage (contrôle d’élevage sous bois, élevage sous voile, micro-oxygénation, morceaux de bois de chêne), stabilisation (électrodialyse, échangeurs de cations, stabilisation protéique) et assemblage de millésimes ; proposées par le profil viticole selon vos types de vins.
+- Tirage en méthode ancestrale : vin mis en bouteille en cours de fermentation, sans liqueur de tirage (ni cuve de mixtion ni pompe doseuse pour ce lot) ; dégorgement facultatif.
+- Région et types de vins : un seul réglage (Paramètres › Région & types de vins) ; l’identité de la société et les réglages du pressoir en montrent le résumé, avec un lien.
+
 ## 0.45.0-alpha.1 — 27/11/2026
 
 - Revendication bio : nommée « BIO » (et non plus « FR-BIO-01 », le code d’Ecocert) ; Paramètres › Revendications, stades & listes accueille le code d’agrément de votre organisme certificateur (et son nom) : ce code est la revendication affichée partout (cuverie, lots, fiches, déclarations, traçabilité, exports) mais la revendication reste du bio (règles d’intrants, référentiel Bio UE). Aussi demandé par la configuration guidée. Les bases qui portaient le nom d’exemple « FR-BIO-01 » passent à « BIO », sans code.
 - Visite guidée par chapitres : un sommaire propose un chapitre par module affiché (cuverie, pressoir, opérations, à réaliser, plan de vinification, tirages, cave, dégorgement, analyses, intrants, hygiène, équipements, traçabilité, registres et DRM, paramètres) ou « Tout voir » ; chaque étape ouvre l’onglet voulu et présente la fonctionnalité.
+- Écran « Session verrouillée » : le logo Œnotrack ouvre aussi la page de présentation ; au retour, la session reste verrouillée jusqu’au mot de passe.
 
 ## 0.44.0-alpha.3 — 27/11/2026
 

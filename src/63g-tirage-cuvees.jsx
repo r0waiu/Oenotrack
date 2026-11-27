@@ -49,7 +49,7 @@ function CuveesSec({ ch, lect, onForm }) {
       { h: 'Mode', r: (x) => (TIRAGE_MODES.find((m) => m.id === x.c.mode) || {}).label },
       { h: 'Réalisé', r: (x) => <div><Chip tone={x.re.statut === 'tiree' ? 'good' : x.re.statut === 'en_cours' ? 'warn' : ''}>{CUVEE_STATUTS[x.re.statut]}</Chip>{x.re.statut === 'tiree' ? <div className="num text-xs">{[`${fmt(x.re.cols)} cols`, x.re.ecartCols != null ? `(écart ${(x.re.ecartCols > 0 ? '+' : '') + fmt(x.re.ecartCols)})` : ''].filter(Boolean).join(' ')}</div> : null}</div> },
       { h: '', r: (x) => (lect ? null : <div className="flex flex-wrap gap-1">{x.c.mode === 'mixtion' && x.re.statut === 'prevue' ? <Btn size="sm" onClick={() => onForm({ type: 'assemblage', preset: cuveePreset(db, R, ch, x.c, 'assemblage') })} data-cuvee-mixtion={x.c.id}>＋ Cuve de mixtion</Btn> : null}
-        {x.c.mode === 'pompe' || x.re.statut === 'en_cours' ? <Btn size="sm" kind="primary" onClick={() => onForm({ type: 'tirage', preset: cuveePreset(db, R, ch, x.c, 'tirage') })} data-cuvee-tirer={x.c.id}>＋ Lot de tirage</Btn> : null}
+        {x.c.mode !== 'mixtion' || x.re.statut === 'en_cours' ? <Btn size="sm" kind="primary" onClick={() => onForm({ type: 'tirage', preset: cuveePreset(db, R, ch, x.c, 'tirage') })} data-cuvee-tirer={x.c.id}>＋ Lot de tirage</Btn> : null}
         <Btn size="sm" onClick={() => setForm({ id: x.c.id })}>Modifier</Btn>{x.re.statut === 'prevue' ? <Btn size="sm" kind="ghost" onClick={() => suppr(x.c)}>Retirer</Btn> : null}</div>) },
     ]} /></div>
     {form ? <CuveeForm chantierId={ch.id} id={form.id} onClose={() => setForm(null)} /> : null}

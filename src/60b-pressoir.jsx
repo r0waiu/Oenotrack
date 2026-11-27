@@ -512,20 +512,7 @@ function JournalPressoirView({ annee }) {
 }
 
 /* ---------- réglages : région, profil de pressurage, pressoirs et balances, dates ---------- */
-// région viticole : Champagne (spécificités champenoises) ou autre région (Pressoir › Réglages et Paramètres › Société)
-function RegionChoix() {
-  const { db, act, confirm } = useApp(); const droits = usePressoirDroits(); const reg = regionDe(db);
-  const changerRegion = async (r) => {
-    if (r === reg) return;
-    if (r === 'autre') { const ok = await confirm({ title: 'Désactiver les spécificités champenoises ?', body: 'Le profil de pressurage passe « sans plafond » (vous pourrez choisir « crémant ») ; le registre des pesées devient facultatif. Les villages de l’échelle des crus en Champagne jamais utilisés seront masqués des listes de saisie (rien n’est supprimé ; ils reviennent si vous repassez en Champagne). Choisissez aussi le classement de votre région dans Paramètres › Crus & parcelles.', ok: 'Autre région viticole' }); if (!ok) return;
-      act((d) => regionSet(d, 'autre', { crus: true }), 'Région : autre région viticole.'); return; }
-    act((d) => regionSet(d, 'champagne'), 'Région : Champagne (règles de l’AOC Champagne).');
-  };
-  return (<div>
-    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Région viticole">{REGIONS.map((r) => <Btn key={r.id} kind={reg === r.id ? 'primary' : undefined} aria-pressed={reg === r.id} disabled={!droits.params} onClick={() => changerRegion(r.id)} data-region={r.id}>{r.id === 'champagne' ? '🥂 ' : '🍇 '}{r.label}</Btn>)}</div>
-    <p className="help mt-2">{reg === 'champagne' ? 'Spécificités champenoises actives : contrôles du cahier des charges de l’AOC Champagne au pressoir (registre des pesées, carnet de pressoir, rendement au pressurage, rebêches, cadence), échelle des crus.' : `Spécificités champenoises désactivées.${crusMasquesRegion(db) ? ` ${crusMasquesRegion(db)} villages champenois masqués des listes de saisie.` : ''} Profil de pressurage de votre appellation : Pressoir › Réglages.`}</p>
-  </div>);
-}
+// région viticole (0.46.0-alpha.1) : réglée dans Paramètres › Région & types de vins (résumé : ProfilResume, 68o)
 function ReglagesPressoirView({ annee }) {
   const { db, act } = useApp(); const droits = usePressoirDroits(); const P = pressoirParams(db); const reg = regionDe(db);
   const [nv, setNv] = useState({}); const [nouv, setNouv] = useState(''); const [sorte, setSorte] = useState('pressoir'); const [formEd, setFormEd] = useState(false);
@@ -538,7 +525,7 @@ function ReglagesPressoirView({ annee }) {
   const PR = pressoirsDe(db); const BA = balancesDe(db);
   return (
     <div className="space-y-6">
-      <Sec title="Région viticole"><RegionChoix /><p className="help mt-1">Région précise et types de vins produits : Paramètres › 🍇 Région & types de vins.</p></Sec>
+      <Sec title="Région et types de vins"><div className="card p-4" data-region-pressoir=""><ProfilResume /></div></Sec>
       <Sec title="Profil de pressurage">
         <div className="flex flex-wrap gap-2">{Object.keys(PRESSOIR_PROFILS).filter((k) => reg === 'champagne' || k !== 'champagne').map((k) => <Btn key={k} kind={P.id === k ? 'primary' : undefined} aria-pressed={P.id === k} disabled={!droits.params} onClick={() => act((d) => pressoirParamsSet(d, { profil: k }), `Profil : ${PRESSOIR_PROFILS[k].nom}.`)} data-profil={k}>{PRESSOIR_PROFILS[k].nom}</Btn>)}</div>
         <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))' }}>
