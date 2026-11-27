@@ -81,7 +81,7 @@ function CalculsView() {
   return (
     <div className="space-y-6" data-params-calculs="">
       <Sec title="Paramètres de calcul" right={moduleActif(db, 'tirage') && moduleAutorise(db, uid, 'tirage') ? <Btn size="sm" kind="ghost" onClick={() => setTab('tirage')}>🍾 Onglet Tirages</Btn> : null}><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
-        <Setting label="Sucre : g/L par point de densité" k="coefSucre" help="Sucre mixtion = (densité mixtion − densité base) × 1000 × ce coefficient (≈ 2,6)." /><Setting label="Objectif de sucre au tirage (g/L)" k="objectifTirageGL" /><Setting label="Volume d’une bouteille (L)" k="volBouteilleL" /></div></div></Sec>
+        <Setting label="Sucre : g/L par point de densité" k="coefSucre" help="Sucre mixtion = (densité mixtion − densité base) × 1000 × ce coefficient (≈ 2,6)." /><Setting label="Volume d’une bouteille (L)" k="volBouteilleL" /></div></div></Sec>
       <Sec title="Tirage : levain, liqueur et calculateur"><TirageProfilCard /></Sec>
       <Sec title="Enrichissement des moûts (chaptalisation)"><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
         <Setting label="TAV visé après enrichissement (% vol)" k="chaptalTAV" defaut={10.5} help="Valeur proposée par défaut (10,5) ; modifiable sur chaque fiche de cuve." />

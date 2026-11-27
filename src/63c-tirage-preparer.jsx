@@ -32,7 +32,7 @@ function TirageCalculateur({ onPreparer }) {
   const [mode, setMode] = useState('cols'); const [vinL, setVinL] = useState(''); const [formats, setFormats] = useState([{ format: 'bouteille', nb: '' }]);
   const [sur, setSur] = useState({}); const p = useMemo(() => tirageFusion(base, sur), [base, sur]);
   const r = useMemo(() => tirageCalcul(mode === 'vin' ? { mode: 'vin', vinL } : { mode: 'cols', formats }, p), [mode, vinL, formats, p]);
-  const S = (k, label, help) => <Field label={label} help={help}><NI value={sur[k] ?? p[k]} onChange={(v) => setSur({ ...sur, [k]: v })} aria-label={label} /></Field>;
+  const S = (k, label, help) => <Field label={label} help={help}><NI value={sur[k] ?? p[k] ?? ''} onChange={(v) => setSur({ ...sur, [k]: v })} aria-label={label} placeholder={k === 'pointGL' ? 'ex. 24' : undefined} /></Field>;
   return (<div className="card p-4 grid gap-3" data-tirage-calcul="">
     <div className="flex flex-wrap items-center gap-2"><b>🧮 Calculateur de tirage</b>
       <SubNav value={mode} onChange={setMode} items={[{ id: 'cols', label: 'Je veux tirer x cols' }, { id: 'vin', label: 'J’ai x hL de vin' }]} /></div>
@@ -43,7 +43,7 @@ function TirageCalculateur({ onPreparer }) {
         {formats.length > 1 ? <Btn size="sm" kind="ghost" onClick={() => setFormats(formats.filter((y, k) => k !== i))} aria-label="Retirer le format">✕</Btn> : null}</div>))}
         <div><Btn size="sm" onClick={() => setFormats([...formats, { format: 'magnum', nb: '' }])}>＋ Format</Btn></div></div>)}
     <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-      {S('pointGL', 'Point de tirage (g/L)', 'Sucre apporté par la liqueur (24 g/L ≈ 6 bars).')}{S('levainPct', 'Levain (%)')}{S('titreLiqueurGL', 'Liqueur (g/L)')}{S('remplissagePct', 'Volume en plus (%)', 'Casse, remplissage, fond de cuve.')}
+      {S('pointGL', 'Point de tirage de la cuvée (g/L)', 'Sucre apporté par la liqueur, choisi pour chaque cuvée (24 g/L ≈ 6 bars).')}{S('levainPct', 'Levain (%)')}{S('titreLiqueurGL', 'Liqueur (g/L)')}{S('remplissagePct', 'Volume en plus (%)', 'Casse, remplissage, fond de cuve.')}
     </div>
     {r.ok ? <div className="grid gap-2" data-tirage-resultat="">
       <div className="tblwrap"><table className="tbl"><tbody>
@@ -219,7 +219,7 @@ function TirageProfilCard() {
   const adj = p.adjuvants || []; const setA = (i, patch) => set('adjuvants', adj.map((a, k) => (k === i ? { ...a, ...patch } : a)));
   return (<div className="card p-4 grid gap-3" data-tirage-profil="">
     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
-      {F('Point de tirage (g/L de sucre)', p.pointGL, (v) => set('pointGL', v), '24 g/L ≈ 6 bars.')}{F('Levain incorporé (%)', p.levainPct, (v) => set('levainPct', v))}
+{F('Levain incorporé (%)', p.levainPct, (v) => set('levainPct', v))}
       {F('Liqueur de tirage (g/L)', p.titreLiqueurGL, (v) => set('titreLiqueurGL', v))}{F('Augmentation de volume du sucre (L/kg)', p.volSucreLkg, (v) => set('volSucreLkg', v), '1 kg de sucre + 1,34 L de vin = 2 L de liqueur à 500 g/L.')}
       {F('Part d’eau du levain (%)', p.levainEauPct, (v) => set('levainEauPct', v), 'VRTP prévisionnel.')}{F('Part de liqueur du levain (%)', p.levainLiqueurPct, (v) => set('levainLiqueurPct', v))}
       {F('Volume préparé en plus (%)', p.remplissagePct, (v) => set('remplissagePct', v))}{F('Points de densité par g/L', p.densPtParGL, (v) => set('densPtParGL', v), 'Correction du point de tirage (0,4).')}

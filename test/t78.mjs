@@ -11,7 +11,9 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   ok('Tirages : sous-onglets « Préparer » et « Tirer »', (await page.getByRole('tab', { name: /Préparer/ }).count()) === 1 && (await page.getByRole('tab', { name: /Tirer/ }).count()) === 1);
   // ---- calculateur : 10 000 bouteilles
   const calc = page.locator('[data-tirage-calcul]');
-  await calc.getByLabel('Cols 1').fill('10000'); await page.waitForTimeout(250);
+  await calc.getByLabel('Cols 1').fill('10000'); await page.waitForTimeout(200);
+  ok('point de tirage à choisir pour la cuvée (rien de calculé sans lui)', /Indiquez le point de tirage de la cuvée/.test(await txt(calc)));
+  await calc.getByLabel('Point de tirage de la cuvée (g/L)').fill('24'); await page.waitForTimeout(250);
   const v = async (k) => (await calc.locator(`[data-calc="${k}"]`).innerText()).replace(/\s/g, ' ');
   ok('cols → besoins : 75,00 hL de mixtion, 67,65 hL de vin, 360 L de liqueur, 375 L de levain', /75,00/.test(await v('mix')) && /67,65/.test(await v('vin')) && /360/.test(await v('liqueur')) && /375/.test(await v('levain')), [await v('mix'), await v('vin'), await v('liqueur'), await v('levain')]);
   t = await txt(calc); ok('… sucre 180 kg, VRTP prévisionnel sous 1 %', /180,0 kg/.test(t) && /0,96 %/.test(t), t.slice(0, 600));
@@ -57,7 +59,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   // ---- profil de tirage (Paramètres › Calculs œnologiques)
   await page.click('#tab-params'); await page.waitForTimeout(300); await page.locator('[data-params-item="calculs"]').click(); await page.waitForTimeout(300);
   const pf = page.locator('[data-tirage-profil]'); await pf.getByLabel('Levain incorporé (%)').fill('4'); await pf.getByRole('button', { name: 'Enregistrer le profil' }).click(); await page.waitForTimeout(300);
-  d = await db(); ok('profil de tirage enregistré (levain 4 %)', d.settings.tirageProfil && d.settings.tirageProfil.levainPct === 4, d.settings.tirageProfil);
+  d = await db(); ok('profil de tirage enregistré (levain 4 %), sans point de tirage (choisi pour chaque cuvée)', d.settings.tirageProfil && d.settings.tirageProfil.levainPct === 4 && d.settings.tirageProfil.pointGL === undefined && (await pf.getByLabel(/Point de tirage/).count()) === 0, d.settings.tirageProfil);
   ok('aucune erreur dans la page', errors.length === 0, errors);
   await browser.close();
 }

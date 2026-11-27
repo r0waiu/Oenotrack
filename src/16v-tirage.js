@@ -40,16 +40,17 @@ const TIRAGE_PROFIL_DEFAUT = () => ({
 const tirageFusion = (a, b) => { const o = { ...a }; Object.keys(b || {}).forEach((k) => { const v = b[k]; o[k] = v && typeof v === 'object' && !Array.isArray(v) && a[k] && typeof a[k] === 'object' && !Array.isArray(a[k]) ? tirageFusion(a[k], v) : v; }); return o; };
 function tirageProfil(db, sur) {
   const s = (db && db.settings) || {}; const base = tirageFusion(TIRAGE_PROFIL_DEFAUT(), s.tirageProfil || {});
-  if (base.pointGL === undefined) base.pointGL = hasNum(s.objectifTirageGL) ? num(s.objectifTirageGL) : 24; // point de tirage (g/L de sucre à apporter)
+  delete base.pointGL; // 0.42.0-alpha.1 : le point de tirage se choisit pour chaque cuvée (calcul, levain, tirage), jamais dans les réglages communs
   return sur ? tirageFusion(base, sur) : base;
 }
 function tirageProfilSet(db, p, par) {
   const x = p || {}; const n = (k, min, max) => (x[k] === undefined || x[k] === '' ? undefined : num(x[k]));
-  for (const [k, a, b] of [['levainPct', 0, 20], ['titreLiqueurGL', 100, 800], ['volSucreLkg', 0.5, 0.8], ['pointGL', 0, 40], ['remplissagePct', 0, 10], ['levainEauPct', 0, 100], ['levainLiqueurPct', 0, 50], ['sucreLevainGL', 0, 200]]) {
+  for (const [k, a, b] of [['levainPct', 0, 20], ['titreLiqueurGL', 100, 800], ['volSucreLkg', 0.5, 0.8], ['remplissagePct', 0, 10], ['levainEauPct', 0, 100], ['levainLiqueurPct', 0, 50], ['sucreLevainGL', 0, 200]]) {
     const v = n(k); if (v !== undefined && (!(v >= a) || v > b)) return fail(`Valeur hors limites : ${k} (${a} à ${b}).`);
   }
   const nombres = (o) => (Array.isArray(o) ? o.map(nombres) : o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, ['id', 'nom', 'produitId', 'par', 'le'].includes(k) ? v : nombres(v)])) : typeof o === 'string' && o.trim() !== '' && hasNum(o) ? num(o) : o);
-  db.settings.tirageProfil = { ...(db.settings.tirageProfil || {}), ...nombres(clone(x)), par: par || '', le: new Date().toISOString() };
+  const { pointGL, ...sans } = nombres(clone(x)); // le point de tirage n'est pas un réglage commun
+  db.settings.tirageProfil = { ...(db.settings.tirageProfil || {}), ...sans, par: par || '', le: new Date().toISOString() }; delete db.settings.tirageProfil.pointGL;
   return okr();
 }
 
@@ -69,7 +70,7 @@ const tirageNbFormats = (formats) => sum(formats || [], (f) => num(f.nb));
  *     vinMisEnOeuvreL, vrtpL (prévisionnel), vrtpPct, alertes }
  */
 function tirageCalcul(entree, p) {
-  const e = entree || {}; const F = tirageFractions(p); const alertes = [];
+  const e = entree || {}; if (!(hasNum(p.pointGL) && num(p.pointGL) >= 0)) return fail('Indiquez le point de tirage de la cuvée (g/L de sucre apporté par la liqueur).'); const F = tirageFractions(p); const alertes = [];
   if (!(F.fVin > 0.5)) return fail('Les parts de levain, de liqueur et d’adjuvants dépassent la moitié de la mixtion : vérifiez le profil.');
   const marge = 1 + num(p.remplissagePct) / 100; let mixL = 0; let formats = [];
   if (e.mode === 'vin') { if (!(num(e.vinL) > 0)) return fail('Indiquez le volume de vin de base.'); mixL = num(e.vinL) / F.fVin; }
