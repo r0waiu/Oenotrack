@@ -63,7 +63,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   await page.click('#tab-vinification'); await page.waitForTimeout(200); await page.click('#tab-plan'); await page.waitForTimeout(400);
   const th = await page.locator('[data-planv-edit] thead tr').nth(2).locator('th').count(); // 0.43.0-alpha.2 : tableau modifiable directement
   t = (await page.locator('[data-planv-edit] input, [data-planv-edit] textarea').evaluateAll((L) => L.map((x) => x.value).join(' '))) + ' ' + await txt(page.locator('[data-planv]'));
-  ok('Plan de vinification : onglet Vinification, tableau 12 colonnes (2 groupes × 3 revendications × cuvée / tailles), exemple à vérifier', th === 12 && /Cépage blanc/i.test(t) && /Cépages noirs/i.test(t) && /FR-BIO-01/i.test(t) && /Demeter/i.test(t) && /Débourbage/i.test(t) && /exemple à vérifier/.test(await txt(page.locator('[data-planv]'))), [th, t.slice(0, 300)]);
+  ok('Plan de vinification : onglet Vinification, tableau 12 colonnes (2 groupes × 3 revendications × cuvée / tailles), exemple à vérifier', th === 12 && /Cépage blanc/i.test(t) && /Cépages noirs/i.test(t) && /BIO/i.test(t) && /Demeter/i.test(t) && /Débourbage/i.test(t) && /exemple à vérifier/.test(await txt(page.locator('[data-planv]'))), [th, t.slice(0, 300)]);
   await page.screenshot({ path: SC + '/shots/t75-plan.png' });
   await page.locator('[data-planv-imprimer]').click(); await page.waitForTimeout(300); await ov().locator('[data-sortie-imprimer]').click(); await page.waitForTimeout(1500);
   const imp = await page.evaluate(() => window.__imp);

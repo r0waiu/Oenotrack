@@ -184,12 +184,12 @@ function App() {
     return () => { ev.forEach((x) => window.removeEventListener(x, bouge)); clearInterval(iv); };
   }, [uid, verrouille, verrouiller]);
   useEffect(() => { // écran verrouillé : le reste de la page est inerte (clavier, lecteurs d'écran), Échap ne ferme rien dessous
-    if (!verrouille) return undefined;
+    if (!verrouille || accueil) return undefined; /* 0.45.0-alpha.1 : page de présentation ouverte depuis l'écran verrouillé (sans données) : utilisable */
     const echap = (e) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); } };
     window.addEventListener('keydown', echap, true);
     const els = [...document.body.children].filter((el) => !el.hasAttribute('data-verrou') && el.tagName !== 'SCRIPT'); els.forEach((el) => el.setAttribute('inert', ''));
     return () => { window.removeEventListener('keydown', echap, true); els.forEach((el) => el.removeAttribute('inert')); };
-  }, [verrouille]);
+  }, [verrouille, accueil]);
   // session d'un compte désactivé ou supprimé (depuis un autre appareil) : retour à l'écran de connexion
   useEffect(() => { if (secu && session && !uid) { setSession(null); setStack([]); setOpDlg(null); } }, [secu, session, uid]);
   const ctx = {
