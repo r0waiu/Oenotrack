@@ -108,7 +108,7 @@ ok('… décoché : réglage gardé sur cet appareil seulement (jamais dans la b
 // anglais
 await page.locator('footer [data-langue]').selectOption('en'); await page.waitForTimeout(300);
 await page.click('#tab-intrants'); await page.waitForTimeout(300); await page.locator('main [role=tab]').nth(1).click(); await page.waitForTimeout(300);
-await page.locator('main tr', { hasText: 'Provinhy OX2' }).first().locator('button').first().click(); await page.waitForTimeout(300); f = ov();
+await page.locator('main tr', { hasText: 'Provinhy OX2' }).first().locator('button', { hasText: /^(Edit|Modifier)$/ }).first().click(); await page.waitForTimeout(300); f = ov();
 ok('anglais : « Product information (technical data sheet, SDS) », « Dosage »', /Product information \(technical data sheet, SDS\)/.test(await txt(f)) && !/Informations du produit/.test(await txt(f)));
 if ((await f.locator('[data-produit-infos] button[aria-expanded]').getAttribute('aria-expanded')) !== 'true') await f.locator('[data-produit-infos] button[aria-expanded]').click(); await page.waitForTimeout(150);
 ok('… champs traduits', /Dosage/i.test(await txt(f)) && /Shelf life/i.test(await txt(f)) && /Use in organic production/i.test(await txt(f)));
