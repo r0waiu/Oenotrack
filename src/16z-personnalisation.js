@@ -15,7 +15,8 @@ const PERSO_REVENDICATIONS = [
   { id: 'bdv', label: 'Biodyvin', court: 'BDV', couleur: '#6B8E3E', referentiels: ['biodyvin'] },
   { id: 'np', label: 'Nature & Progrès', court: 'N&P', couleur: '#4F8C77', referentiels: ['nature-progres'] },
   { id: 'vmn', label: 'Vin Méthode Nature', court: 'VMN', couleur: '#2F2F2F', referentiels: ['vmn'] },
-  { id: 'hve', label: 'HVE', court: 'HVE', couleur: '#2E7DAF', referentiels: [] },
+  { id: 'hve', label: 'HVE', court: 'HVE', couleur: '#2E7DAF', referentiels: [], durable: true },
+  { id: 'vdc', label: 'VDC', court: 'VDC', couleur: '#3C8D93', referentiels: [], durable: true }, /* 0.44.0-alpha.3 : Viticulture Durable en Champagne */
 ];
 const PERSO_ONGLETS = [['vinification', 'Vinification (cuverie, opérations)'], ['pressoir', 'Pressoir'], ['previsions', 'À réaliser & fiches'], ['tirage', 'Tirages'], ['intrants', 'Intrants & Stocks'], ['trace', 'Traçabilité']];
 const _persoMousse = (r) => (r.types || []).some((t) => t === 'effervescent' || t === 'ancestrale');
@@ -136,8 +137,11 @@ function persoAppliquer(db, plan, uid) {
   if (Array.isArray(plan.revendications)) {
     if (!Array.isArray(db.lists.qualifs) || !db.lists.qualifs.length) db.lists.qualifs = qualifList(db).map((x) => ({ ...x }));
     const Q = db.lists.qualifs;
-    plan.revendications.forEach((id) => { const def = PERSO_REVENDICATIONS.find((x) => x.id === id); if (!def) return; let q = Q.find((x) => x && x.id === id);
-      if (!q) { q = { id, label: def.label, court: def.court, couleur: def.couleur, ...(def.referentiels.length ? { referentiels: def.referentiels } : {}) }; Q.push(q); n += 1; } else if (q.masque) { q.masque = false; n += 1; } });
+    PERSO_REVENDICATIONS.filter((x) => plan.revendications.includes(x.id)).forEach((def) => { const id = def.id; let q = Q.find((x) => x && x.id === id); /* dans l'ordre du catalogue (HVE puis VDC) */
+      if (!q) { q = { id, label: def.label, court: def.court, couleur: def.couleur, ...(def.referentiels.length ? { referentiels: def.referentiels } : {}) };
+        /* 0.44.0-alpha.3 : certification de durabilité (HVE, VDC) rangée juste après Conventionnel (rang plus bas que Bio pour les assemblages) */
+        const k = def.durable ? Math.max(-1, ...Q.map((x, j) => (x && (x.id === 'conv' || (PERSO_REVENDICATIONS.find((y) => y.id === x.id) || {}).durable) ? j : -1))) : -1;
+        if (k >= 0) Q.splice(k + 1, 0, q); else Q.push(q); n += 1; } else if (q.masque) { q.masque = false; n += 1; } });
     Q.forEach((q) => { if (!q || q.id === 'conv' || plan.revendications.includes(q.id) || q.masque || !PERSO_REVENDICATIONS.some((x) => x.id === q.id)) return; /* une revendication propre à l'exploitation n'est jamais masquée */ if (typeof qualifUsage === 'function' && qualifUsage(db, q.id)) return; q.masque = true; n += 1; });
   }
   if (plan.referentiel != null) { refActiver(db, plan.referentiel); n += 1; }

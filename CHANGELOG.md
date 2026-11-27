@@ -2,6 +2,10 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.44.0-alpha.3 — 27/11/2026
+
+- Configuration guidée : la revendication VDC (Viticulture Durable en Champagne) est proposée à côté de HVE ; ces certifications de durabilité s’ajoutent juste après Conventionnel, sous Bio et les autres labels, pour qu’un assemblage garde la revendication la plus basse.
+
 ## 0.44.0-alpha.2 — 27/11/2026
 
 - Tirages : la fiche d’enregistrement HACCP de la chaîne (démarrage, contrôles en cours de chantier, fin de journée, conditionnement, incidents, visas) et son impression, ainsi que le contrôle de réception de la verrerie (échantillon, mesures, défauts, décision) et ses réglages, sont retirés ; les retours au fournisseur restent. Les fiches et contrôles déjà saisis restent dans la base, sans être modifiés, et les versions précédentes les retrouvent.

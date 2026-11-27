@@ -1,7 +1,7 @@
 // 0.43.0-alpha.3 : configuration guidée — à la première ouverture (après la page de présentation) : mode basique, questions une par une,
 // aperçu, base vide, revendications, onglets, compte administrateur (connexion, code de secours), visite guidée ; depuis Paramètres :
 // questionnaire avancé relancé (réponses reprises, pas de choix de la base), opérateurs, campagne, onglet d'ouverture ; anglais.
-// Données fictives.
+// 0.44.0-alpha.3 : VDC proposée à côté de HVE. Données fictives.
 import { open } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests'); fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 900) : ''); };
@@ -26,13 +26,15 @@ const repondre = async (page, ov, reponses) => {
   await page.locator('[data-perso-mode="basique"]').click(); await page.waitForTimeout(300);
   await page.locator('[data-perso-suivant]').click(); await page.waitForTimeout(200);
   ok('réponse obligatoire : le nom vide est refusé', /Réponse attendue/.test(await txt(ov())));
+  let vdcVu = false;
   const vus = await repondre(page, ov, {
     nom: async (f) => { await f.getByLabel('Nom de votre exploitation').fill('Domaine fictif T84'); },
     pressoir: async (f) => { await f.locator('label.perso-choix', { hasText: 'Non' }).click(); },
-    revendications: async (f) => { await f.locator('label', { hasText: 'Vin Méthode Nature' }).click(); },
+    revendications: async (f) => { vdcVu = (await f.locator('label', { hasText: 'VDC' }).count()) === 1 && (await f.locator('label', { hasText: 'HVE' }).count()) === 1; await f.locator('label', { hasText: 'Vin Méthode Nature' }).click(); },
     acces: async (f) => { await f.locator('label', { hasText: 'Une équipe' }).click(); },
     compte: async (f) => { await f.getByLabel('Identifiant').fill('fictif'); await f.getByLabel('Nom affiché').fill('Utilisateur Fictif'); await f.getByLabel('Mot de passe', { exact: true }).fill('MotDePasse-T84'); await f.getByLabel('Confirmer le mot de passe').fill('MotDePasse-T84'); },
   });
+  ok('revendications proposées : HVE et VDC (0.44.0-alpha.3)', vdcVu);
   ok('questions du mode basique, une par écran, dans l’ordre ; « compte » parce que l’équipe se connecte ; « base de départ » à la première ouverture', vus[0] === 'nom' && vus.includes('compte') && vus.includes('donnees') && vus.includes('tirage') && !vus.includes('evv'), vus);
   t = await txt(page.locator('[data-perso-apercu]'));
   ok('aperçu : nom, profil viticole, onglet Pressoir masqué, revendications, base vide, identifiants', /Domaine fictif T84/.test(t) && /Champagne/.test(t) && /Onglet Pressoir : masqué/.test(t) && /Vin Méthode Nature/.test(t) && /base vide|vide/.test(t) && /Identifiants/.test(t), t.slice(0, 700));

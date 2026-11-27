@@ -4117,7 +4117,7 @@ console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (7)');
     const Q = L.PERSO_QUESTIONS; const TYPES = ['texte', 'choix', 'multi', 'oui_non', 'nombre', 'date', 'liste', 'compte'];
     // ---- catalogue des questions
     t('questions : identifiants uniques, mode, section, type connus, options pour les choix, durée estimée', new Set(Q.map((q) => q.id)).size === Q.length && Q.every((q) => ['basique', 'avance'].includes(q.mode) && L.PERSO_SECTIONS.some((x) => x[0] === q.section) && TYPES.includes(q.type) && q.texte && q.secondes > 0 && (!['choix', 'multi'].includes(q.type) || L.persoOptions(q).length >= 2)));
-    t('questions : revendications proposées = conventionnel, Bio, Demeter, Biodyvin, Nature & Progrès, VMN, HVE (référentiels connus)', L.PERSO_REVENDICATIONS.map((x) => x.id).join() === 'conv,bio,dem,bdv,np,vmn,hve' && L.PERSO_REVENDICATIONS.every((x) => x.referentiels.every((r) => L.REG_LABELS.some((l) => l.id === r))));
+    t('questions : revendications proposées = conventionnel, Bio, Demeter, Biodyvin, Nature & Progrès, VMN, HVE, VDC (référentiels connus)', L.PERSO_REVENDICATIONS.map((x) => x.id).join() === 'conv,bio,dem,bdv,np,vmn,hve,vdc' && L.PERSO_REVENDICATIONS.every((x) => x.referentiels.every((r) => L.REG_LABELS.some((l) => l.id === r))));
     // ---- questions qui s'appliquent
     const ids = (m, r, c) => L.persoQuestions(m, r, c).map((q) => q.id);
     const b0 = ids('basique', { types: ['blanc'], acces: 'seul' }, {}); const a0 = ids('avance', { types: ['blanc'], acces: 'seul' }, {});
@@ -4282,8 +4282,8 @@ console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (7)');
     { const g = L.clone(f57b); g.settings.securite = { actif: true }; g.profils = [...(g.profils || []), { id: 'pf-t58', nom: 'Tirage', modules: { tirage: 'ecriture', intrants: 'lecture' }, droits: {} }]; g.utilisateurs = [...(g.utilisateurs || []), { id: 'u-t58', identifiant: 't58', nom: 'T', profilId: 'pf-t58', actif: true }];
       const h = L.clone(g); h.settings.controleVerre = { nPetit: 1 };
       t('droits : les réglages du contrôle de la verrerie gardés dans la base restent protégés (module Intrants)', L.gardeDroits(g, h, 'u-t58').ok === false); }
-    t('version 0.44.0-alpha.2', L.APP_VERSION === '0.44.0-alpha.2' && L.CHANGELOG[0].v === '0.44.0-alpha.2' && L.CHANGELOG[1].v === '0.44.0-alpha.1' && L.CHANGELOG[0].notes.length === 1);
-    t('traductions : note de version dans les six langues', L.tradControle().length === 0 && L.CHANGELOG[0].notes.every((n) => L.LANGUES_TRAD.every((lg) => L.traduire(n, lg) !== n)));
+    t('version 0.44.0-alpha.2 (notes gardées)', L.CHANGELOG.find((c) => c.v === '0.44.0-alpha.2').notes.length === 1 && L.CHANGELOG.findIndex((c) => c.v === '0.44.0-alpha.2') + 1 === L.CHANGELOG.findIndex((c) => c.v === '0.44.0-alpha.1'));
+    t('traductions : note de version dans les six langues', L.tradControle().length === 0 && L.CHANGELOG.find((c) => c.v === '0.44.0-alpha.2').notes.every((n) => L.LANGUES_TRAD.every((lg) => L.traduire(n, lg) !== n)));
     const f58 = L.normalizeDb(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'base-0.44.0-alpha.2-sans-haccp.json'), 'utf8'))); L.syncConfig(f58);
     t('fixture 0.44.0-alpha.2 : retour au fournisseur, cuvée relue, fiche et contrôles d’avant gardés', f58.regulStocks.some((x) => x.retour && x.retour.bon === 'RET-FICTIF-2') && L.chantierCuvee(f58, f58.chantiersTirage[0].id, 'cv3').notes === 'Rosé relu (fictif)' && !!f58.chantiersTirage[0].haccp && f58.arrivages.filter((x) => x.controleReception).length === 2);
     const dirO = path.join(__dirname, 'anciennes', '0.44.0-alpha.1');
@@ -4296,6 +4296,36 @@ console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (7)');
     const FX = L.syncFusion(f58, N, x); const FX2 = O.syncFusion(f58, x, N);
     t('… synchronisation 0.44.0-alpha.2 ↔ 0.44.0-alpha.1 : contrôle modifié là-bas (gardé ici), cuvée ajoutée ici, rien de perdu des deux côtés', rc.ok && [FX.db, FX2.db].every((y) => y.arrivages.find((z) => z.id === aX.id).controleReception.note === 'Relu là-bas' && L.chantierCuvees(y.chantiersTirage[0]).some((c) => c.nom === 'Ajoutée ici')));
   }
-  console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (58 : fiche HACCP de la chaîne et contrôle de la verrerie retirés, données gardées ; 57 : prévisionnel des cuvées de tirage, plusieurs qualités, déclarations par cuvée ; 56 : moteur de personnalisation ; 55 : plan de vinification modifiable, variantes, étapes ordonnées ; 54 : labels et cahiers des charges, VMN, liens avec les catalogues ; 53 : déclarations de tirage, ordre de tirage ; 52 : fournitures de tirage, contrôle de la verrerie, fiche HACCP de la chaîne ; 51 : chantiers de tirage, mixtion en cuve ou pompe doseuse, formats, prestataire ; compatibilité 0.42.0-alpha.1)');
+  // ===== 59. 0.44.0-alpha.3 : revendication VDC (Viticulture Durable en Champagne) dans la configuration guidée, rang des certifications de durabilité
+  {
+    const vide = () => { const e = L.normalizeDb(L.emptyDb()); L.syncConfig(e); return e; };
+    const opts = L.persoOptions(L.persoQuestion('revendications'));
+    t('VDC proposée à côté de HVE, sans référentiel d’intrants (certification de durabilité)', opts.some((o) => o.id === 'vdc' && o.label === 'VDC') && L.PERSO_REVENDICATIONS.find((x) => x.id === 'vdc').referentiels.length === 0 && L.PERSO_REVENDICATIONS.filter((x) => x.durable).map((x) => x.id).join() === 'hve,vdc');
+    const e = vide(); const p = L.persoPlan(e, 'basique', { ...L.persoDefauts(e, {}), nom: 'X', revendications: ['bio', 'vdc', 'hve'] }, {}); const r = L.persoAppliquer(e, p, 'u1');
+    const ids = e.lists.qualifs.filter((q) => !q.masque).map((q) => q.id);
+    t('application : HVE et VDC rangées juste après Conventionnel, avant Bio', r.ok && ids.indexOf('hve') === ids.indexOf('conv') + 1 && ids.indexOf('vdc') === ids.indexOf('conv') + 2 && ids.indexOf('bio') > ids.indexOf('vdc'), ids);
+    L.syncConfig(e);
+    t('assemblage bio + VDC → VDC ; VDC + conventionnel → conventionnel', L.minQualif(['bio', 'vdc']) === 'vdc' && L.minQualif(['vdc', 'conv']) === 'conv' && L.minQualif(['hve', 'vdc']) === 'hve');
+    const c = canonJ(e.lists.qualifs); L.persoAppliquer(e, p, 'u1');
+    t('idempotent : pas de doublon ni de déplacement', canonJ(e.lists.qualifs) === c);
+    const g = vide(); L.richListCont(g, 'qualifs', 'add', null, { label: 'VDC', couleur: '#123456' }); const pos = g.lists.qualifs.findIndex((q) => q.id === 'vdc');
+    L.persoAppliquer(g, L.persoPlan(g, 'basique', { ...L.persoDefauts(g, {}), nom: 'X', revendications: ['vdc'] }, {}), 'u1');
+    t('VDC déjà ajoutée par l’exploitation : gardée telle quelle (couleur, place), pas de doublon', g.lists.qualifs.filter((q) => q.id === 'vdc').length === 1 && g.lists.qualifs.findIndex((q) => q.id === 'vdc') === pos && g.lists.qualifs.find((q) => q.id === 'vdc').couleur === '#123456');
+    t('version 0.44.0-alpha.3', L.APP_VERSION === '0.44.0-alpha.3' && L.CHANGELOG[0].v === '0.44.0-alpha.3' && L.CHANGELOG[1].v === '0.44.0-alpha.2' && L.CHANGELOG[0].notes.length === 1);
+    t('traductions : note de version dans les six langues', L.tradControle().length === 0 && L.CHANGELOG[0].notes.every((n) => L.LANGUES_TRAD.every((lg) => L.traduire(n, lg) !== n)));
+    const f59 = L.normalizeDb(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'base-0.44.0-alpha.3-vdc.json'), 'utf8'))); L.syncConfig(f59);
+    t('fixture 0.44.0-alpha.3 : VDC ajoutée par la configuration guidée, réponses gardées', f59.lists.qualifs.some((q) => q.id === 'vdc' && !q.masque) && f59.settings.personnalisation.reponses.revendications.includes('vdc'));
+    const dirO = path.join(__dirname, 'anciennes', '0.44.0-alpha.2');
+    const O = new Function('React', files.filter((f) => fs.existsSync(path.join(dirO, f))).map((f) => fs.readFileSync(path.join(dirO, f), 'utf8')).join('\n').replace(/const \{ useState[^\n]*\n/, '') + '\n;return { normalizeDb, syncConfig, syncFusion, getR, clone, persoPlan, persoAppliquer, persoDefauts, operateurSave, APP_VERSION, APP_NUM };')({});
+    t('0.44.0-alpha.2 gelée chargée', O.APP_VERSION === '0.44.0-alpha.2' && L.APP_NUM > O.APP_NUM);
+    const x = O.normalizeDb(O.clone(f59)); O.syncConfig(x); O.getR(x);
+    O.persoAppliquer(x, O.persoPlan(x, 'basique', { ...O.persoDefauts(x, {}), revendications: ['conv', 'bio'] }, {}), 'u1');
+    t('… la 0.44.0-alpha.2 ouvre la base 0.44.0-alpha.3 sans rien perdre et ne masque jamais VDC (inconnue pour elle : propre à l’exploitation)', x.lists.qualifs.some((q) => q.id === 'vdc' && !q.masque) && canonJ(x.settings.personnalisation) === canonJ(f59.settings.personnalisation));
+    O.operateurSave(x, { prenom: 'Ancienne', nom: 'Version' }); x.meta.modifLe = '2026-12-12T12:00:00Z';
+    const N = L.clone(f59); L.chantierCuveeSave(N, N.chantiersTirage[0].id, { nom: 'Cuvée VDC fictive' }, null, 'u1'); N.meta.modifLe = '2026-12-12T11:00:00Z';
+    const FX = L.syncFusion(f59, N, x); const FX2 = O.syncFusion(f59, x, N);
+    t('… synchronisation 0.44.0-alpha.3 ↔ 0.44.0-alpha.2 : VDC gardée, opérateur ajouté là-bas, cuvée ajoutée ici, rien de perdu', [FX.db, FX2.db].every((y) => y.lists.qualifs.some((q) => q.id === 'vdc') && y.operateurs.some((o) => o.prenom === 'Ancienne') && L.chantierCuvees(y.chantiersTirage[0]).some((c) => c.nom === 'Cuvée VDC fictive')));
+  }
+  console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (59 : revendication VDC, rang des certifications de durabilité ; 58 : fiche HACCP de la chaîne et contrôle de la verrerie retirés, données gardées ; 57 : prévisionnel des cuvées de tirage, plusieurs qualités, déclarations par cuvée ; 56 : moteur de personnalisation ; 55 : plan de vinification modifiable, variantes, étapes ordonnées ; 54 : labels et cahiers des charges, VMN, liens avec les catalogues ; 53 : déclarations de tirage, ordre de tirage ; 52 : fournitures de tirage, contrôle de la verrerie, fiche HACCP de la chaîne ; 51 : chantiers de tirage, mixtion en cuve ou pompe doseuse, formats, prestataire ; compatibilité 0.42.0-alpha.1)');
   process.exitCode = fails ? 1 : 0;
 })();
