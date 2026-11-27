@@ -53,13 +53,14 @@ d = await db(); let m6 = d.ops.find((o) => o.type === 'pressurage' && o.marc && 
 ok('marc n° 6 chargé « en cours » (heure du début, pesée chargée, pas encore de volumes)', !!m6 && m6.marc.enCours === true && m6.marc.heureDebut === '09:00' && m6.charges[0].apportId === p5.id && !m6.fractions.length && m6.parentSpec.code === 'P26-06', m6 && m6.parentSpec);
 ok('carnet : marc en cours affiché, bouton « Compléter »', /en cours/.test(await page.locator('main').innerText()) && (await page.locator('main button', { hasText: 'Compléter' }).count()) === 1);
 await page.locator('main button', { hasText: 'Compléter' }).click(); await page.waitForTimeout(400); f = ov();
-await f.locator('input[aria-label="Volume Cuvée"]').fill('21'); await pick(page, f.locator('input[aria-label="Cuve Cuvée"]'), 'Bac D1');
+await f.locator('input[aria-label="Volume Cuvée"]').fill('21,7'); await pick(page, f.locator('input[aria-label="Cuve Cuvée"]'), 'Bac D1');
 await f.locator('input[aria-label="Volume 1ère taille"]').fill('5'); await pick(page, f.locator('input[aria-label="Cuve 1ère taille"]'), 'Bac D2');
 await f.locator('[data-tavp]').fill('10,2'); await f.locator('input[aria-label="Bourbes"]').fill('0,6'); await page.waitForTimeout(300);
 let tf = (await f.innerText()).replace(/\s+/g, ' ');
-ok('contrôle : plafond 102 L / 160 kg dépassé (2 600 L pour 4 000 kg) → bloquant, validation impossible', /au-dessus du plafond de 25,50 hL/.test(tf) && await f.locator('[data-valider-marc]').isDisabled(), tf.slice(-500));
+// 0.41.0-alpha.1 : volumes sortie pressoir non débourbés, plafond contrôlé sur le débourbé (ici avec les bourbes du marc : 2 670 − 60 = 2 610 L)
+ok('contrôle : plafond 102 L / 160 kg dépassé sur le débourbé (2 670 L non débourbés − 60 L de bourbes = 2 610 L pour 4 000 kg) → bloquant, validation impossible', /Volume revendicable débourbé 26,10 hL \(estimé avec les bourbes du marc\) au-dessus du plafond de 25,50 hL/.test(tf) && await f.locator('[data-valider-marc]').isDisabled(), tf.slice(-500));
 await f.locator('input[aria-label="Volume Cuvée"]').fill('20,5'); await page.waitForTimeout(300); tf = (await f.innerText()).replace(/\s+/g, ' ');
-ok('dans le plafond : volumes et rendement affichés, validation possible', /revendicable 25,50 hL \/ 25,50 hL/.test(tf) && !(await f.locator('[data-valider-marc]').isDisabled()), tf.slice(-400));
+ok('dans le plafond (débourbé 24,90 hL) : volumes non débourbés et débourbés affichés, validation possible', /revendicable non débourbé 25,50 hL/.test(tf) && /débourbé 24,90 hL \/ 25,50 hL/.test(tf) && !(await f.locator('[data-valider-marc]').isDisabled()), tf.slice(-400));
 await page.screenshot({ path: SC + '/shots/t45-marc.png' });
 await f.locator('[data-valider-marc]').click(); await page.waitForTimeout(600);
 // 0.31.0-alpha.1 : schéma de vinification proposé aux deux lots créés → « Plus tard »
@@ -88,7 +89,7 @@ await page.locator('[aria-label="Année des vendanges"]').selectOption('2026'); 
 await sub('Journal'); const tj = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
 ok('journal : validations et correction (motif), empreintes', /correction/.test(tj) && /Tare des caisses recomptée/.test(tj) && /✓/.test(tj) && !/altérée/.test(tj));
 await sub('Bilan'); const tb = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
-ok('bilan : poids, moûts, cadence par pressoir, dates limites (rebêches 15/12/2027, bourbes 31/01/2027)', /Raisins pressés/i.test(tb) && /Cadence des pressoirs/i.test(tb) && /92,0 L \/ 160 kg/.test(tb) && /15\/12\/2027/.test(tb) && /31\/01\/2027/.test(tb), tb.slice(0, 400));
+ok('bilan : poids, moûts, cadence par pressoir, dates limites (rebêches 15/12/2027, bourbes 31/01/2027)', /Raisins pressés/i.test(tb) && /Cadence des pressoirs/i.test(tb) && /Revendicables débourbés/i.test(tb) && /89,4 L \/ 160 kg/.test(tb) && /15\/12\/2027/.test(tb) && /31\/01\/2027/.test(tb), tb.slice(0, 400));
 await page.locator('[data-export-pesees]').click(); await page.waitForTimeout(300); await page.locator('[data-export-carnet]').click(); await page.waitForTimeout(300);
 const sv = await page.evaluate(() => window.__saved.map((x) => ({ n: x.filename, t: x.text.slice(0, 2000) })));
 ok('exports CSV : registre des pesées et carnet de pressoir', sv.some((x) => x.n === 'registre-pesees-2026.csv' && /N°;Date;Heure;Apporteur/.test(x.t) && /5;20\/11\/2026;08:05|5;\d\d\/\d\d\/2026;08:05/.test(x.t)) && sv.some((x) => x.n === 'carnet-pressoir-2026.csv' && /N° de marc;Date;Heure de début/.test(x.t)), sv.map((x) => x.n + ' ' + x.t.slice(0, 120)));
