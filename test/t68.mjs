@@ -77,7 +77,7 @@ await page.screenshot({ path: SC + '/shots/t68-saisie.png', fullPage: true });
 // 5. enregistrement
 await s.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(700);
 const tv = await toast(); ok('entrée validée avec ses documents', /validée/.test(tv), tv);
-if (await page.locator('[data-schema-feuille]').count()) { await ov().locator('.sheet-f button', { hasText: 'Plus tard' }).click(); await page.waitForTimeout(300); }
+if (await page.locator('[data-plan-feuille]').count()) { await ov().locator('.sheet-f button', { hasText: 'Plus tard' }).click(); await page.waitForTimeout(300); }
 let d = await db(); const op = d.ops.filter((o) => o.type === 'entree_mout').pop();
 const ap = (nom) => d.apporteurs.find((a) => a.nom === nom).id; const M = ap('EARL Marchand'); const Hn = ap('Domaine Hennequin');
 ok('opération : deux partenaires (onglets) et leur n° de bon ; op.apporteurId / op.ref remplis ; chaque moût porte son partenaire', op.partenaires.length === 2 && op.partenaires[0].apporteurId === M && op.partenaires[0].ref === 'BL-T67-1' && op.partenaires[1].apporteurId === Hn && op.partenaires[1].ref === 'DAE-T67-2'

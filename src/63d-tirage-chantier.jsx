@@ -78,28 +78,29 @@ function ChantierForm({ id, onClose }) {
   </FormSheet>);
 }
 function ChantierSheet({ id, onClose, onForm }) {
-  const { db, R, act, confirm, camp } = useApp(); const lect = useLectureSeule('tirage'); const c = chantierTirage(db, id); const [ed, setEd] = useState(false); const [imp, setImp] = useState(null); const [decl, setDecl] = useState(null);
+  const { db, R, act, confirm, camp } = useApp(); const lect = useLectureSeule('tirage'); const c = chantierTirage(db, id); const [ed, setEd] = useState(false); const [imp, setImp] = useState(null); const [decl, setDecl] = useState(null); const [declOuv, setDeclOuv] = useState(null); /* 0.44.0-alpha.1 : déclaration enregistrée depuis le chantier ouverte aussitôt */
   if (!c) return <Sheet title="Chantier introuvable" onClose={onClose}><Empty>Ce chantier n’existe plus.</Empty></Sheet>;
   const b = chantierBilan(db, R, id); const pr = (db.fournisseurs || []).find((f) => f.id === c.prestataireId);
   const mix = Object.values(R.portions).filter((p) => p.vol > 0.5 && lotEstMixtion(db, R, p.lotId));
   const suppr = async () => { if (await confirm({ title: `Supprimer le chantier ${c.numero} ?`, body: 'Ses documents sont retirés avec lui.', ok: 'Supprimer', danger: true })) { const r = act((d) => chantierTirageDelete(d, id), 'Chantier supprimé.'); if (r && r.ok) onClose(); } };
   return (<Sheet wide title={<span>🏭 Chantier <span translate="no">{c.numero}</span>{c.nom ? <span className="font-normal text-ink2"> — <span translate="no">{c.nom}</span></span> : null}</span>} sub={`${fmtDate(c.dateDebut)}${c.dateFin ? ` → ${fmtDate(c.dateFin)}` : ''} · ${c.realisation === 'prestataire' ? `prestataire ${pr ? pr.nom : '?'}` : 'interne'}`} onClose={onClose}
-    footer={<><Btn onClick={() => setImp('ordre')}>🖨 Ordre de tirage</Btn><Btn onClick={() => setImp('chaine')}>🖨 Fiche de la chaîne</Btn>{lect ? null : <><Btn onClick={() => setDecl('prealable')}>＋ Déclaration préalable</Btn><Btn onClick={() => setDecl('finale')}>＋ Déclaration de fin de tirage</Btn><Btn onClick={() => setEd(true)}>Modifier</Btn><Btn kind="ghost" onClick={suppr}>Supprimer</Btn></>}<Btn onClick={onClose}>Fermer</Btn></>}>
+    footer={<><Btn onClick={() => setImp('ordre')}>🖨 Ordre de tirage</Btn>{lect ? null : <><Btn onClick={() => setDecl('prealable')}>＋ Déclaration préalable</Btn><Btn onClick={() => setDecl('finale')}>＋ Déclaration de fin de tirage</Btn><Btn onClick={() => setEd(true)}>Modifier</Btn><Btn kind="ghost" onClick={suppr}>Supprimer</Btn></>}<Btn onClick={onClose}>Fermer</Btn></>}>
     <div data-chantier={id}>
       <div className="mb-4 flex flex-wrap gap-2">{TIRAGE_LIGNE.filter(([k]) => (c.ligne || {})[k]).map(([k, l]) => <Chip key={k}>{k === 'marquage' ? `${l} : ${c.ligne.marquage === 'laser' ? 'laser' : 'jet d’encre'}` : l}</Chip>)}{(c.ligne || {}).nbBecs ? <Chip>{`${fmt(c.ligne.nbBecs)} becs`}</Chip> : null}</div>
+      <CuveesSec ch={c} lect={lect || camp.figee} onForm={onForm} />
       <Sec title="Lots tirés" right={lect || camp.figee ? null : <><Btn onClick={() => onForm({ type: 'assemblage', preset: { mixtion: true, ltype: 'assemblage', date: c.dateDebut } })}>＋ Cuve de mixtion</Btn><Btn kind="primary" onClick={() => onForm({ type: 'tirage', preset: { chantierId: id, date: c.dateDebut, mode: mix.length ? 'mixtion' : 'pompe' } })}>＋ Lot de tirage</Btn></>}>
         <Tbl rows={b.lots.map((l) => ({ ...l, id: l.opId }))} empty="Aucun lot tiré sur ce chantier." cols={[{ h: 'Lot', r: (l) => <LotLink id={l.lotId} /> }, { h: 'Date', r: (l) => <span className="num">{fmtDate(l.date)}</span> }, { h: 'Mode', r: (l) => (TIRAGE_MODES.find((m) => m.id === l.mode) || { label: '—' }).label },
           { h: 'Formats', r: (l) => <span className="text-sm">{l.formats.map((f) => `${fmt(f.nb)} × ${(tirageFormat(f.format) || { label: f.format }).label}`).join(' · ')}</span> }, { h: 'Casse', cls: 'r', r: (l) => <span className="num">{fmt(l.casse)}</span> },
           { h: 'Volume, VRTP', r: (l) => <span className={cx('num text-sm', l.bilan.depasse && 'text-bad')}>{`${fmtL(l.bilan.tireL)} · ${fmt(l.bilan.vrtpPct, 2)} %`}</span> }, { h: '', r: (l) => (lect ? null : <Btn size="sm" onClick={() => onForm({ editId: l.opId })}>Modifier</Btn>) }]} />
         <p className="mt-2 text-sm" data-chantier-bilan="">{`Total : ${fmt(b.cols)} cols (${Object.entries(b.parFormat).map(([k, n]) => `${fmt(n)} ${((tirageFormat(k) || { label: k }).label).toLowerCase()}`).join(', ') || '—'}) · ${fmt(b.eqBouteilles, 0)} équivalent bouteilles · ${fmtL(b.volL)} · casse ${fmt(b.casse)}`}</p>
       </Sec>
-      <Sec title="Fiche d’enregistrement de la chaîne (HACCP)"><ChaineHaccp key={c.maj || c.id} ch={c} /></Sec>
       <Sec title="Documents de prestation"><DocsPanel cible={{ type: 'chantier', id }} kind="chantier" locked={isLocked(db, c.dateDebut)} aide="Ordre de fabrication, attestation de nettoyage et de désinfection du matériel, fiche de chantier signée, bon d’intervention…" /></Sec>
       {c.notes ? <p className="help">{c.notes}</p> : null}
     </div>
     {ed ? <ChantierForm id={id} onClose={() => setEd(false)} /> : null}
-    {imp ? <ChantierImpression id={id} quoi={imp} onClose={() => setImp(null)} /> : null}
-    {decl ? <DeclarationForm type0={decl} chantierId0={id} onClose={(did) => { setDecl(null); if (did) setImp(null); }} /> : null}
+    {imp ? <ChantierImpression id={id} onClose={() => setImp(null)} /> : null}
+    {decl ? <DeclarationForm type0={decl} chantierId0={id} onClose={(did) => { setDecl(null); if (did) { setImp(null); setDeclOuv(did); } }} /> : null}
+    {declOuv ? <DeclarationSheet id={declOuv} onClose={() => setDeclOuv(null)} /> : null}
   </Sheet>);
 }
 function ChantiersSec({ onForm }) {

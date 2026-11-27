@@ -84,8 +84,8 @@ await s.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(600)
 const tv = await toast();
 ok('entrée validée avec 2 documents joints', /validée/.test(tv) && /2 documents joints/.test(tv), tv);
 // 0.31.0-alpha.1 : un schéma de vinification est proposé aux lots créés → « Plus tard »
-ok('schéma de vinification proposé aux lots créés (0.31.0-alpha.1), remis à plus tard', (await page.locator('[data-schema-feuille]').count()) === 1);
-if (await page.locator('[data-schema-feuille]').count()) { await page.locator('.overlay').last().locator('.sheet-f button', { hasText: 'Plus tard' }).click(); await page.waitForTimeout(300); }
+ok('schéma de vinification proposé aux lots créés (0.31.0-alpha.1), remis à plus tard', (await page.locator('[data-plan-feuille]').count()) === 1);
+if (await page.locator('[data-plan-feuille]').count()) { await page.locator('.overlay').last().locator('.sheet-f button', { hasText: 'Plus tard' }).click(); await page.waitForTimeout(300); }
 const d1 = await dbLS(); const op1 = d1.ops.filter((o) => o.type === 'entree_mout').pop();
 ok('opération : partenaires et parts, n° de lot, analyses, copie des compartiments', op1.entrees[0].apporteurs.length === 2 && op1.entrees[0].apporteurs[0].pct === 70 && op1.entrees[0].numLot === 'LOT-A' && op1.entrees[0].analyses.tap === 9.6 && op1.entreesExtra.length === 2 && op1.entreesExtra[1].numLot === 'LOT-B', JSON.stringify(op1.entrees[0]));
 ok('documents rattachés à l’opération validée', d1.docs.filter((x) => x.cible.type === 'op' && x.cible.id === op1.id).length === 2);

@@ -45,7 +45,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('[data-params-item="jaugeage"]').click(); await page.waitForTimeout(400);
   ok('« 📏 Barèmes de jaugeage » → Vinification › Cuverie & Lots (sous-onglet Barèmes)', (await page.locator('[data-cuverie-baremes]').count()) === 1);
   await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('[data-params-item="schemas"]').click(); await page.waitForTimeout(400);
-  ok('« 📋 Schémas de vinification » → Vinification › Plan de vinification › Schémas par lot', (await page.locator('[data-plan-schemas] [data-schemas]').count()) === 1);
+  ok('« 🗂 Plan de vinification » (ancien « Schémas de vinification ») → Vinification › Plan de vinification', (await page.locator('[data-planv]').count()) === 1);
   // ---- Opérations & Assemblages : plus de saisie de tirage, cave, dégorgement ; journal complet
   await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: /^Opérations$/ }).click(); await page.waitForTimeout(300);
   const nouv = page.locator('main section', { hasText: 'Nouvelle opération' }).first(); const bt = await nouv.locator('button').allInnerTexts();
@@ -61,8 +61,8 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   ok('Dégorgement : saisi ici ; parcours du lot fini, vins de base', /Nouveau dégorgement/.test(t) && /Parcours de chaque lot fini/.test(t) && /Vins de base/i.test(t));
   // ---- Plan de vinification
   await page.click('#tab-vinification'); await page.waitForTimeout(200); await page.click('#tab-plan'); await page.waitForTimeout(400);
-  const th = await page.locator('[data-planv-tableau] thead tr').nth(2).locator('th').count();
-  t = await txt(page.locator('[data-planv-rapport]'));
+  const th = await page.locator('[data-planv-edit] thead tr').nth(2).locator('th').count(); // 0.43.0-alpha.2 : tableau modifiable directement
+  t = (await page.locator('[data-planv-edit] input, [data-planv-edit] textarea').evaluateAll((L) => L.map((x) => x.value).join(' '))) + ' ' + await txt(page.locator('[data-planv]'));
   ok('Plan de vinification : onglet Vinification, tableau 12 colonnes (2 groupes × 3 revendications × cuvée / tailles), exemple à vérifier', th === 12 && /Cépage blanc/i.test(t) && /Cépages noirs/i.test(t) && /FR-BIO-01/i.test(t) && /Demeter/i.test(t) && /Débourbage/i.test(t) && /exemple à vérifier/.test(await txt(page.locator('[data-planv]'))), [th, t.slice(0, 300)]);
   await page.screenshot({ path: SC + '/shots/t75-plan.png' });
   await page.locator('[data-planv-imprimer]').click(); await page.waitForTimeout(300); await ov().locator('[data-sortie-imprimer]').click(); await page.waitForTimeout(1500);
@@ -70,9 +70,8 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   ok('… impression : A4 paysage, tableau du plan seul', imp.length === 1 && imp[0].orientation === 'paysage' && imp[0].planv === 1 && /Vinification en blanc/.test(imp[0].texte), imp);
   await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   // modification : une dose changée → plan copié dans la base
-  await page.locator('[data-planv-modifier]').click(); await page.waitForTimeout(400);
-  const c0 = ov().locator('[data-planv-ligne-form="1"] [data-planv-case]').first(); await c0.fill('6 g/hL'); await ov().locator('label', { hasText: 'Plan vérifié' }).locator('input').check();
-  await ov().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(600);
+  const c0 = page.locator('[data-planv-edit] tbody tr').nth(1).locator('[data-planv-case] input').first(); await c0.fill('6 g/hL'); await c0.press('Enter'); await page.waitForTimeout(500);
+  await page.locator('[data-planv] button', { hasText: '✓ Vérifié' }).click(); await page.waitForTimeout(500);
   let d = await db();
   ok('… modifié : copié dans la base, vérifié, dose enregistrée', Array.isArray(d.plansVinif) && d.plansVinif.length === 1 && d.plansVinif[0].aVerifier === false && Object.values(d.plansVinif[0].lignes[1].valeurs).includes('6 g/hL'), d.plansVinif && d.plansVinif[0] && d.plansVinif[0].lignes[1]);
   // import d'un tableur fictif
@@ -95,7 +94,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   await page.evaluate(() => { const x = JSON.parse(localStorage.getItem('oenotrack-db-v2')); x.settings.modulesOff = ['plan']; localStorage.setItem('oenotrack-db-v2', JSON.stringify(x)); });
   await page.reload(); await page.waitForTimeout(1500);
   await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('[data-params-item="schemas"]').click(); await page.waitForTimeout(400);
-  ok('module Plan désactivé : « Schémas de vinification » s’affiche dans Paramètres (rien de perdu), avec une explication', (await page.locator('[data-params-rubrique="schemas"] [data-schemas]').count()) === 1 && /Réglage rangé dans Vinification › Plan de vinification/.test(await txt(page.locator('main'))));
+  ok('module Plan désactivé : « Plan de vinification » s’affiche dans Paramètres (rien de perdu), avec une explication', (await page.locator('[data-params-rubrique="schemas"] [data-planv]').count()) === 1 && /Réglage rangé dans Vinification › Plan de vinification/.test(await txt(page.locator('main'))));
   ok('aucune erreur de page', errors.length === 0, errors);
   await browser.close();
 }

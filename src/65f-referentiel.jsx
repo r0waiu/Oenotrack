@@ -36,13 +36,15 @@ function RefExceptionForm({ cle, onClose }) {
     </FormSheet>
   );
 }
-function ReferentielView() {
-  const { db, act } = useApp(); const lect = useLectureSeule('intrants'); const [ex, setEx] = useState(null); const [q, setQ] = useState('');
+// 0.43.0-alpha.1 : partie 'revendications' | 'matrice' | 'so2' | 'textes' (sous-onglet « Labels & cahiers des charges ») ; composés des produits des catalogues
+function ReferentielView({ partie }) {
+  const { db, act } = useApp(); const lect = useLectureSeule('intrants'); const [ex, setEx] = useState(null); const [q, setQ] = useState(''); const [cc, setCc] = useState(null);
+  const voir = (x) => !partie || partie === x; const nCc = useMemo(() => { const o = {}; catalogueEntrees(db, {}).forEach((e) => refComposesCatalogue(db, e).forEach((c) => { o[c.id] = (o[c.id] || 0) + 1; })); return o; }, [db]);
   const rg = refReglage(db); const M = useMemo(() => refMatrice(db), [db]); const qs = qualifList(db); const ap = refAppellation(db);
   const rows = M.filter((x) => !q || norm(x.compose.label).includes(norm(q)));
   return (
     <div data-referentiel="">
-      <Notice tone="info" title="Référentiel réglementaire préétabli">
+      {voir('revendications') ? <><Notice tone="info" title="Labels et cahiers des charges préétablis">
         <span>Chaque valeur cite son texte et son article. « ✓ vérifié » : relue dans le texte officiel en vigueur (règlement de l’UE consolidé, Code OIV, cahier des charges de l’appellation ou du label) ; « à vérifier » : non confirmée. Les textes évoluent : revérifiez avant un contrôle. La règle la plus restrictive l’emporte ; une correction de l’exploitation remplace la valeur.</span>
       </Notice>
       <Sec title="Activation" right={lect ? null : <Check checked={rg.actif} onChange={(v) => act((d) => refActiver(d, v), v ? 'Référentiel activé.' : 'Référentiel désactivé.')} label={rg.actif ? 'Activé (alertes à la saisie et sur les lots)' : 'Désactivé'} />}>
@@ -56,24 +58,26 @@ function ReferentielView() {
           { h: 'Appliqués', r: (x) => <span className="text-xs" translate="no">{refLabelsPour(db, x.id).map((l) => refLabelNom(l.id)).join(' · ')}</span> },
         ]} /></div>
       </Sec>
-      <Sec title="Composés actifs × référentiels" right={<TI value={q} onChange={setQ} placeholder="Rechercher un composé…" style={{ width: 220 }} aria-label="Rechercher un composé" />}>
+      </> : null}
+      {voir('matrice') ? <Sec title="Composés actifs × référentiels" right={<TI value={q} onChange={setQ} placeholder="Rechercher un composé…" style={{ width: 220 }} aria-label="Rechercher un composé" />}>
         <p className="help">Dose maximale : par traitement ou cumulée, en g/hL du composé. Teneur maximale : résiduelle ou cumulée dans le vin, en mg/L de l’espèce dosée. « Non relevé » : aucune règle propre, celle des référentiels repris s’applique.</p>
         <div className="overflow-x-auto" data-ref-matrice=""><table className="tbl text-sm"><thead><tr><th>Composé</th>{REG_LABELS.map((l) => <th key={l.id} title={l.note}><span translate="no">{l.court}</span></th>)}</tr></thead>
-          <tbody>{rows.map((x) => <tr key={x.compose.id}><td><b translate="no">{x.compose.label}</b>{x.compose.espece ? <div className="text-xs text-ink2"><span>dosé :</span> <span translate="no">{REG_ESPECES[x.compose.espece]}</span></div> : null}</td>
+          <tbody>{rows.map((x) => <tr key={x.compose.id}><td><b translate="no">{x.compose.label}</b>{x.compose.espece ? <div className="text-xs text-ink2"><span>dosé :</span> <span translate="no">{REG_ESPECES[x.compose.espece]}</span></div> : null}<div><button type="button" className="linkish text-xs" onClick={() => setCc(x.compose.id)} data-compose-catalogue={x.compose.id}>{`${fmt(nCc[x.compose.id] || 0)} produit(s) des catalogues`}</button></div></td>
             {x.cellules.map((c) => <td key={c.label}><RefCellule c={c} onEdit={lect ? null : () => setEx(`${c.label}|${x.compose.id}`)} /></td>)}</tr>)}</tbody></table></div>
-      </Sec>
-      <Sec title="SO₂ total maximal du référentiel (mg/L)">
+      </Sec> : null}
+      {voir('so2') ? <Sec title="SO₂ total maximal des labels et cahiers des charges (mg/L)">
         <div data-ref-so2=""><Tbl rows={REG_LABELS.flatMap((l) => VINS_TYPES.filter((v) => v.id !== 'tous').map((v) => ({ id: `${l.id}|${v.id}`, l, v, r: refSo2(db, l.id, v.id) }))).filter((x) => x.r)} cols={[
           { h: 'Référentiel', r: (x) => <b translate="no">{x.l.label}</b> }, { h: 'Vins', r: (x) => vinTypeLabel(x.v.id) },
           { h: 'SO₂ total max', cls: 'r', r: (x) => <b className="num" translate="no">{fmt(x.r.valeur, 0)} mg/L</b> },
           { h: 'Précision', r: (x) => <span className="text-xs" translate="no">{x.r.note || '—'}</span> }, { h: 'Source', r: (x) => <span className="text-xs text-ink2" translate="no">{x.r.source}{x.r.ref ? ` — ${x.r.ref}` : ''}</span> },
           { h: '', r: (x) => <span className="flex flex-wrap gap-1">{x.r.exception ? <Chip tone="info">corrigé</Chip> : x.r.aVerifier ? <Chip tone="warn">à vérifier</Chip> : <Chip tone="good">vérifié</Chip>}{lect ? null : <Btn size="sm" onClick={() => setEx(`${x.l.id}|so2t|${x.v.id}`)}>Corriger</Btn>}</span> },
         ]} /></div>
-      </Sec>
-      <Sec title="Textes de référence">
+      </Sec> : null}
+      {voir('textes') ? <Sec title="Textes de référence">
         <ul className="list-disc pl-5 text-sm">{REG_LABELS.map((l) => <li key={l.id}><b translate="no">{l.label}</b> : <span translate="no">{REG_TEXTES[l.texte]}</span>{l.note ? <span className="text-ink2" translate="no"> — {l.note}</span> : null}</li>)}</ul>
-      </Sec>
+      </Sec> : null}
       {ex ? <RefExceptionForm cle={ex} onClose={() => setEx(null)} /> : null}
+      {cc ? <ComposeCatalogueSheet composeId={cc} onClose={() => setCc(null)} /> : null}
     </div>
   );
 }

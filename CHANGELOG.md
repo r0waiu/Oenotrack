@@ -2,6 +2,30 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.44.0-alpha.2 — 27/11/2026
+
+- Tirages : la fiche d’enregistrement HACCP de la chaîne (démarrage, contrôles en cours de chantier, fin de journée, conditionnement, incidents, visas) et son impression, ainsi que le contrôle de réception de la verrerie (échantillon, mesures, défauts, décision) et ses réglages, sont retirés ; les retours au fournisseur restent. Les fiches et contrôles déjà saisis restent dans la base, sans être modifiés, et les versions précédentes les retrouvent.
+
+## 0.44.0-alpha.1 — 27/11/2026
+
+- Tirages › chantier : prévisionnel des cuvées tirées — chaque qualité tirée sur le chantier (couleur, revendication, échelle des crus, cépages) est décrite depuis ses vins de base (couleur, revendication la plus basse, échelle, millésime commun, mentions blanc de blancs, blanc de noirs, monocépage, Grand ou Premier Cru et bio calculés, toujours corrigeables), avec son volume de vin, son point de tirage, son mode (mixtion en cuve ou pompe doseuse) et ses cols par format ; la cuve de mixtion et le lot de tirage se créent depuis la ligne, qui passe « prévue », « en mixtion » puis « tirée » avec l’écart au prévu.
+- Déclarations de tirage : la déclaration préalable d’un chantier reprend une ligne par cuvée prévue (couleur, revendication, échelle des crus, mentions, vin, sucre, total à tirer, VRTP prévisionnel ; rosé d’assemblage : vins rouges et blancs d’après la couleur des vins de base) et les totaux, figés au dépôt ; la déclaration de fin de tirage et son export CSV indiquent la couleur, la revendication, l’échelle des crus et les mentions de chaque lot tiré (celles de sa cuvée prévue).
+
+## 0.43.0-alpha.3 — 27/11/2026
+
+- Configuration guidée : à la toute première ouverture (après la page de présentation), ou depuis Paramètres › Affichage & application, un questionnaire Basique (l’essentiel, quelques minutes) ou Avancé (identifiants douaniers, cave et dégorgement, plan de vinification, alertes de conformité, opérateurs, campagne, onglet d’ouverture) règle l’application d’avance : profil viticole de la région, onglets affichés ou masqués, revendications et labels, base vide ou jeu d’exemple ; aperçu des changements avant de les appliquer, rien n’est supprimé, réponses reprises si on le relance.
+- Le questionnaire crée aussi le compte administrateur quand une équipe se connecte (code de secours affiché une fois) ; il se termine par une visite guidée de l’écran — bulles qui pointent les vrais onglets et boutons (Suivant, Précédent, Passer, flèches, Échap) — relançable à tout moment par « ❓ Visite guidée » dans l’en-tête.
+
+## 0.43.0-alpha.2 — 27/11/2026
+
+- Vinification › Plan de vinification : le tableau se modifie directement sur la page, case par case (étapes, produits, doses, en-têtes ; ⋮ pour le type de ligne, l’étendue des doses, l’opération liée, déplacer, insérer ou retirer une ligne), sans bouton « Modifier » ; variantes du plan avec des conditions (partenaires, crus, échelle des crus, revendications, cépages, fractions, état sanitaire) : la plus précise qui correspond au lot l’emporte, sinon le plan général.
+- À la création d’un lot (pressurage, marc validé, entrée de moûts), les étapes de la colonne du lot dans le plan retenu sont proposées dans l’ordre du tableau, sans jours, avec l’opération, le produit en stock et la quantité pour le volume du lot : elles deviennent des opérations à réaliser (« Étape 2 / 8 »), jamais en retard ; les schémas de vinification enregistrés deviennent des variantes du plan (sous-onglet « Schémas par lot » retiré, données d’origine gardées pour les versions antérieures).
+
+## 0.43.0-alpha.1 — 27/11/2026
+
+- Intrants › « ⚖ Labels & cahiers des charges » réunit « Revendications & plafonds » et « Référentiel réglementaire » : revendications et labels appliqués, SO₂ total (plafond de l’exploitation, plafond des labels et plafond retenu côte à côte), substances et composés actifs, produits par revendication, textes de référence ; chaque plafond et chaque composé est lié aux produits des catalogues (d’office d’après le mot-clé, le composé ou l’apport de SO₂, ajustable produit par produit), et un produit mis en stock depuis un catalogue reprend ces liens.
+- Le référentiel « Vin Méthode Nature » (VMN, charte d’engagement du 23 mars 2023) remplace AVN : raisins bio certifiés, levures indigènes, aucun intrant œnologique, ni filtration ni technique physique brutale, SO₂ ajouté seulement au vin fini et 30 mg/L de SO₂ total au plus, sucre de prise de mousse apporté par du jus de raisin ; les revendications, lots et corrections rattachés à AVN basculent vers VMN (bascule tracée) ; le logo d’Œnotrack ramène à la page de présentation, aussi depuis l’écran de connexion.
+
 ## 0.42.0-alpha.4 — 27/11/2026
 
 - Tirages › « 📄 Déclarations » : déclaration préalable de tirage sur le modèle du formulaire de l’AIDAC (n° EVV, code récoltant, déclarant, lieu et date du tirage, volumes prévisionnels de vin, de sucre et total à tirer calculés par le profil de tirage, rosé d’assemblage, mentions ; alerte à moins de 48 h du tirage ; PDF à établir en 3 exemplaires) et déclaration de fin de tirage et de revendication prête à reporter sur Innov OI — volumes effectivement mis en œuvre (vins, sucres et liqueurs, total tiré), VRTP affiché à part avec sa limite de 1 %, titre alcoométrique, flacons, puis lot par lot dans l’ordre de la saisie (produit, millésime, cuvée, demies, bouteilles, magnums et autres formats, revendications particulières proposées : grand ou premier cru, blanc de blancs ou de noirs, monocépage, revendication, tirage à façon ou CAF) et ventilation par revendication, échelle des crus et couleur ; export CSV et PDF.

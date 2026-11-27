@@ -35,6 +35,8 @@
 :root[data-charte="terroirs"] .brand{font-weight:300;letter-spacing:.01em;border-left:1px solid rgba(255,255,255,.55);padding-left:12px}
 :root[data-charte="terroirs"] .brand em{font-weight:700}
 :root[data-charte="terroirs"] .brand-sub{padding-left:13px;letter-spacing:.12em}
+.brand-lien{background:none;border:0;padding:0;margin:0;color:inherit;font:inherit;cursor:pointer;border-radius:8px}.brand-lien:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.perso-choix{display:flex;align-items:center;gap:.6rem;border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;cursor:pointer;background:var(--card)}.perso-choix-on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}.perso-progres{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:.8rem}.perso-progres>div{height:100%;background:var(--accent);transition:width .25s}.perso-mode{cursor:pointer;border:1px solid var(--line)}.perso-mode:hover{border-color:var(--accent)}.visite{position:fixed;inset:0;z-index:2000;pointer-events:none}.visite-cible{position:fixed;border:2px solid var(--accent);border-radius:10px;box-shadow:0 0 0 9999px rgba(20,18,14,.55);transition:all .2s}.visite-voile{position:fixed;inset:0;background:rgba(20,18,14,.55)}.visite-bulle{position:fixed;z-index:2001;pointer-events:auto;padding:.8rem 1rem;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 :root[data-charte="terroirs"] .topbar .btn-primary{color:#8A0B1C}
 :root[data-charte="terroirs"] .navbar{box-shadow:0 2px 6px rgba(0,0,0,.08)}
 :root[data-charte="terroirs"] .tab{font-weight:400}
@@ -531,6 +533,7 @@ details>summary{cursor:pointer;font-weight:600}
 .report .vis-fcol .vis-boite{margin-bottom:5px;font-size:10.5px;padding:4px 6px}
 .report .vis-fcol .vis-boite .vis-t{font-size:11px}
 .report table.planv{font-size:10.5px;table-layout:auto}
+.planv-edit .planv-inp{width:100%;min-width:3.5em;border:1px dashed transparent;background:transparent;font:inherit;color:inherit;text-align:center;padding:2px 3px;border-radius:4px}.planv-edit .planv-e .planv-inp,.planv-edit .planv-p .planv-inp,.planv-edit .planv-section .planv-inp,.planv-edit .planv-note .planv-inp{text-align:left}.planv-edit .planv-inp:hover{border-color:#cfc8b4}.planv-edit .planv-inp:focus{outline:none;border-color:var(--accent);background:#fff}.planv-edit .planv-multi{resize:none;min-width:9em;line-height:1.25;display:block}.planv-edit .planv-outil{width:28px;padding:0;background:transparent;border:none}.planv-edit .planv-op{font-size:9.5px;color:#6b6457;margin-top:1px}
 .report .planv th,.report .planv td{text-align:center;vertical-align:middle;padding:3px 5px}
 .report .planv th.planv-coin{background:#fff;border-color:#d9d2bd;text-transform:none;letter-spacing:0;font-weight:400;text-align:left;vertical-align:bottom}
 .report .planv .planv-st{font-size:10px;font-style:italic;color:#555}

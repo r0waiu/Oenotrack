@@ -16,7 +16,7 @@
    Les doses de l'exemple sont des valeurs courantes, non officielles : à adapter avec votre œnologue (« à vérifier »). */
 const PLANV_TYPES = ['etape', 'section', 'note'];
 const PLANV_ETENDUES = ['colonne', 'revendication', 'groupe'];
-const PLANV_CHAMPS = ['nom', 'reference', 'version', 'sousTitre', 'note', 'actif', 'groupes', 'revendications', 'fractions', 'lignes', 'aVerifier', 'verifiePar', 'verifieLe']; // les autres (version suivante) sont gardés
+const PLANV_CHAMPS = ['nom', 'reference', 'version', 'sousTitre', 'note', 'actif', 'groupes', 'revendications', 'fractions', 'lignes', 'aVerifier', 'verifiePar', 'verifieLe', 'conditions']; // les autres (version suivante) sont gardés
 // exemple : même structure que les plans des caves champenoises (12 colonnes), doses génériques à vérifier
 function PLANV_EXEMPLE() {
   const G = [{ id: 'blanc', label: 'Cépage blanc', cepages: ['chard'] }, { id: 'noirs', label: 'Cépages noirs', cepages: ['pn', 'pm'] }];
@@ -84,7 +84,8 @@ function planVinifNet(db, s) {
     const valeurs = {}; Object.keys(l.valeurs || {}).forEach((k) => { const v = planVinifTexte(l.valeurs[k], 120); if (v) valeurs[String(k).slice(0, 100)] = v; });
     return { ...l, id, type, etape: planVinifTexte(l.etape, 160), produit: type === 'etape' ? planVinifTexte(l.produit, 160) : '', etendue, valeurs: type === 'etape' ? valeurs : {} };
   }).filter((l) => l.etape || l.produit || Object.keys(l.valeurs).length).slice(0, 300);
-  return { nom: planVinifTexte(s.nom, 100), reference: planVinifTexte(s.reference, 40), version: planVinifTexte(s.version, 20), sousTitre: planVinifTexte(s.sousTitre, 200), note: planVinifTexte(s.note, 400), actif: s.actif !== false, groupes: G, revendications: Rv, fractions: F, lignes };
+  const cond = planVinifConditionsNet(s.conditions);
+  return { nom: planVinifTexte(s.nom, 100), reference: planVinifTexte(s.reference, 40), version: planVinifTexte(s.version, 20), sousTitre: planVinifTexte(s.sousTitre, 200), note: planVinifTexte(s.note, 400), actif: s.actif !== false, groupes: G, revendications: Rv, fractions: F, lignes, ...(cond ? { conditions: cond } : {}) };
 }
 function planVinifSave(db, s, id, uid) {
   s = s || {}; const x = planVinifNet(db, s); if (!x) return fail('Indiquez au moins un groupe de cépages, une revendication et une fraction.');
@@ -211,3 +212,133 @@ function planVinifCasesSaisie(p, etendue) {
   planVinifColonnes(p).forEach((c) => { const k = planVinifCle(etendue, c); if (vus[k]) return; vus[k] = true; out.push({ key: k, label: etendue === 'groupe' ? c.g.label : etendue === 'revendication' ? `${c.g.label} · ${c.r.label}` : `${c.g.label} · ${c.r.label} · ${c.f.label}` }); });
   return out;
 }
+
+/* ============ 0.43.0-alpha.2 : PLANS CONDITIONNELS, ÉTAPES ORDONNÉES PROPOSÉES À LA CRÉATION D'UN LOT, SCHÉMAS CONVERTIS ============
+   - plan.conditions = { apporteurs, crus, echelles, revendications, cepages, fractions, etats } (listes d'identifiants ; vides = toutes) :
+     un plan sans condition est le plan général ; une variante ne vaut que pour les lots qui satisfont toutes ses conditions, et la plus
+     précise (poids des critères) l'emporte à la création d'un lot
+   - ligne d'étape : opId (opération du catalogue créée « à réaliser » ; deviné d'après l'étape), ordre = ordre du tableau, jamais de J+n
+   - prévision créée : statut « à réaliser », sansDate (date = création du lot, gardée pour les versions antérieures), ordre, plan { id,
+     colonne, ligneId } et schema { id, nom, lotId, etapeId, rang, nb, le } (fiche du lot, retrait des étapes à réaliser)
+   - schémas de vinification (16m) existants : convertis une fois en variantes (ids pv-sch-<id du schéma>), db.schemas gardé tel quel */
+const PLANV_CRITERES = [['apporteurs', 'Partenaires', 5], ['crus', 'Crus', 4], ['echelles', 'Échelle des crus', 3], ['revendications', 'Revendications', 2], ['cepages', 'Cépages', 1], ['fractions', 'Fractions', 1], ['etats', 'État sanitaire', 1]];
+function planVinifConditionsNet(c) {
+  if (!c || typeof c !== 'object') return null; const o = {};
+  PLANV_CRITERES.forEach(([k]) => { const L = uniq((Array.isArray(c[k]) ? c[k] : []).map(String).filter(Boolean)).slice(0, 200); if (L.length) o[k] = L; });
+  return Object.keys(o).length ? o : null;
+}
+const planVinifConditions = (p) => (p && p.conditions && typeof p.conditions === 'object' ? p.conditions : {});
+const planVinifEstVariante = (p) => PLANV_CRITERES.some(([k]) => (planVinifConditions(p)[k] || []).length);
+// critères d'un lot : partenaire, cru, échelle et cépage majoritaires, revendication, fraction, état sanitaire
+function lotCriteresPlan(db, R, lotId) {
+  const l = (R && R.lots && R.lots[lotId]) || {}; const k = lotCriteres(db, R, lotId); const c = composition(db, R, lotId);
+  return { ...k, apporteur: majoritaire(c.apporteurs), cru: majoritaire(c.crus), echelle: (echelleInfo(c) || {}).id || '', revendication: l.qualif || '' };
+}
+// score d'un plan pour un lot : -1 si une condition n'est pas satisfaite (valeur du lot inconnue comprise), sinon somme des poids
+function planVinifScore(p, k) {
+  const c = planVinifConditions(p); let n = 0; const v = { apporteurs: k.apporteur, crus: k.cru, echelles: k.echelle, revendications: k.revendication, cepages: k.cepage, fractions: k.fraction, etats: k.etat };
+  for (const [cle, , poids] of PLANV_CRITERES) { const L = c[cle] || []; if (!L.length) continue; if (!v[cle] || !L.includes(v[cle])) return -1; n += poids; }
+  return n;
+}
+// plan retenu pour un lot : la variante la plus précise qui correspond, sinon le plan général (plans actifs seulement)
+function planVinifPourLotChoix(db, R, lotId) {
+  const k = lotCriteresPlan(db, R, lotId);
+  const L = plansVinifDe(db).filter((p) => p.actif !== false).map((p, i) => ({ p, i, score: planVinifScore(p, k) })).filter((x) => x.score >= 0).sort((a, b) => b.score - a.score || a.i - b.i);
+  return { criteres: k, proposes: L.map((x) => x.p), meilleur: L.length ? L[0].p : null, score: L.length ? L[0].score : -1 };
+}
+// opération du catalogue d'après le libellé de l'étape (« Sulfitage », « Levurage », « FML »…) ; '' si rien ne correspond
+const PLANV_OPS_MOTS = [[/sulfit|so2|so₂/, 'sulfitage'], [/enzym/, 'enzymage'], [/flottation/, 'flottation'], [/debourb/, 'debourbage'], [/levur/, 'levurage'], [/chaptal|enrichi/, 'enrichissement'], [/\bfml\b|malolact|bacteri/, 'ensemencement_fml'], [/nutri|activateur/, 'nutrition'], [/rechauff/, 'rechauffage'], [/froid|stabilisation a froid/, 'froid'], [/tartriq|\bcmc\b|\bkpa\b/, 'stab_tartrique'], [/filtr/, 'filtration'], [/centrifug/, 'centrifugation'], [/collage|bentonite/, 'collage'], [/acidif/, 'acidification'], [/thermoregul|temperature|suivi/, 'suivi'], [/soutirage/, 'soutirage'], [/batonnage/, 'batonnage'], [/degustation|controle/, 'degustation']];
+function planVinifOpDevine(db, etape) {
+  const t = ` ${catCle(etape || '')} `; if (/^ volume /.test(t)) return '';
+  const m = PLANV_OPS_MOTS.find(([re]) => re.test(t)); const id = m ? m[1] : ''; return id && opDef(db, id) ? id : '';
+}
+const planVinifOpDe = (db, l) => (l && l.opId && opDef(db, l.opId) ? l.opId : planVinifOpDevine(db, l && l.etape));
+// étapes d'un plan pour un lot, dans l'ordre du tableau : section en cours, valeur de la colonne, opération, quantité ; seules les étapes
+// qui ont une valeur dans la colonne du lot sont proposées ; « retenue » par défaut si une opération correspond
+function planVinifEtapes(db, R, p, col, volL) {
+  if (!p || !col) return []; let section = ''; const out = [];
+  (p.lignes || []).forEach((l) => {
+    if (l.type === 'section') { section = l.etape; return; } if (l.type !== 'etape') return;
+    const v = planVinifValeur(l, col); if (!v) return; const opId = planVinifOpDe(db, l); const def = opId ? opDef(db, opId) : null;
+    out.push({ ligne: l, section, valeur: v, opId, def, base: def ? def.base : '', quantite: planVinifQuantite(v, volL), famille: typeof catFamilleDevine === 'function' ? catFamilleDevine(`${l.produit || ''} ${l.etape || ''}`) || '' : '', retenue: !!def, rang: out.length + 1 });
+  });
+  return out;
+}
+// quantité dans l'unité du produit (g, kg, mL, L, cL) ; null si les unités ne se convertissent pas
+function planVinifQteProduit(q, unite) {
+  if (!q) return null; const enBase = { g: 1, kg: 1000, mL: 1, L: 1000 }[q.unite]; const base = ['g', 'kg'].includes(q.unite) ? 'g' : 'mL';
+  const fac = { g: ['g', 1], kg: ['g', 1000], mg: ['g', 0.001], mL: ['mL', 1], ml: ['mL', 1], cL: ['mL', 10], cl: ['mL', 10], L: ['mL', 1000], l: ['mL', 1000] }[unite];
+  if (!fac || fac[0] !== base || !enBase) return null; return Math.round((q.qte * enBase / fac[1]) * 1000) / 1000;
+}
+// items : [{ type, date, f, resume, notes, ligneId, rang }] (préparés par l'interface) ; tout ou rien ; les étapes restent dans l'ordre
+function planVinifAppliquer(db, lotId, p, colKey, items) {
+  if (!lotId || !p || !p.id) return fail('Plan de vinification introuvable.'); if (!(items || []).length) return fail('Aucune étape retenue.');
+  for (let i = 0; i < items.length; i += 1) { const it = items[i] || {}; if (!isoOK(it.date)) return fail(`Étape ${i + 1} : date de création du lot invalide.`); if (!OP_LABELS[it.type]) return fail(`Étape ${i + 1} : type d’opération inconnu.`); }
+  const ids = []; const le = todayISO();
+  for (let i = 0; i < items.length; i += 1) {
+    const it = items[i]; const r = previsionSave(db, it, null); if (!r.ok) return fail(`Étape ${i + 1} : ${r.msg}`);
+    const x = db.previsions.find((y) => y.id === r.id); x.sansDate = true; x.ordre = i + 1; x.plan = { id: p.id, colonne: colKey || '', ligneId: it.ligneId || '' };
+    x.schema = { id: p.id, nom: p.nom, lotId, etapeId: it.ligneId || '', rang: i + 1, nb: items.length, le, plan: true }; ids.push(r.id);
+  }
+  return okr({ ids });
+}
+// une prévision venue d'un plan n'a pas de date : jamais « en retard »
+const previsionEnRetard = (x, jour) => !!x && x.statut === 'prevue' && !x.sansDate && x.date <= (jour || todayISO());
+// cellule, en-tête et ligne modifiés directement dans le tableau (sans formulaire) ; un exemple devient une donnée de la cave
+function planVinifCellule(db, id, ligneId, cle, valeur, uid) {
+  const p = plansVinifMaterialiser(db).find((x) => x && x.id === id); if (!p) return fail('Plan de vinification introuvable.');
+  const l = (p.lignes || []).find((x) => x.id === ligneId); if (!l) return fail('Ligne du plan introuvable.');
+  const v = planVinifTexte(valeur, cle === 'etape' || cle === 'produit' ? 160 : 120);
+  if (cle === 'etape') l.etape = v; else if (cle === 'produit') l.produit = v;
+  else { if (!/^[\w-]+(\|[\w-]+){0,2}$/.test(String(cle))) return fail('Case du plan inconnue.'); l.valeurs = { ...(l.valeurs || {}) }; if (v) l.valeurs[cle] = v; else delete l.valeurs[cle]; }
+  delete p.exemple; p.maj = { par: uid || '', le: new Date().toISOString() }; return okr();
+}
+function planVinifEntete(db, id, liste, eltId, label, uid) {
+  const p = plansVinifMaterialiser(db).find((x) => x && x.id === id); if (!p) return fail('Plan de vinification introuvable.');
+  if (!['groupes', 'revendications', 'fractions'].includes(liste)) return fail('En-tête inconnu.'); const e = planVinifListe(p[liste]).find((x) => x.id === eltId); if (!e) return fail('En-tête introuvable.');
+  const v = planVinifTexte(label, 60); if (!v) return fail('Libellé vide.'); e.label = v; delete p.exemple; p.maj = { par: uid || '', le: new Date().toISOString() }; return okr();
+}
+// ligne : insérer (type), déplacer (±1), retirer, changer le type, l'étendue ou l'opération liée
+function planVinifLigne(db, id, ligneId, action, val, uid) {
+  const p = plansVinifMaterialiser(db).find((x) => x && x.id === id); if (!p) return fail('Plan de vinification introuvable.');
+  const L = p.lignes || (p.lignes = []); const i = ligneId ? L.findIndex((x) => x.id === ligneId) : L.length - 1; if (ligneId && i < 0) return fail('Ligne du plan introuvable.');
+  const idNeuf = () => { let k = L.length + 1; while (L.some((x) => x.id === `l${k}`)) k += 1; return `l${k}`; };
+  if (action === 'inserer') { const type = PLANV_TYPES.includes(val) ? val : 'etape'; const nl = { id: idNeuf(), type, etape: '', produit: '', etendue: 'colonne', valeurs: {} }; L.splice(i + 1, 0, nl); delete p.exemple; p.maj = { par: uid || '', le: new Date().toISOString() }; return okr({ id: nl.id }); }
+  const l = L[i];
+  if (action === 'monter' || action === 'descendre') { const j = action === 'monter' ? i - 1 : i + 1; if (j < 0 || j >= L.length) return okr(); [L[i], L[j]] = [L[j], L[i]]; }
+  else if (action === 'retirer') { if (L.length < 2) return fail('Un plan garde au moins une ligne.'); L.splice(i, 1); }
+  else if (action === 'type') { if (!PLANV_TYPES.includes(val)) return fail('Type de ligne inconnu.'); l.type = val; if (val !== 'etape') { l.produit = ''; l.valeurs = {}; } }
+  else if (action === 'etendue') { if (!PLANV_ETENDUES.includes(val)) return fail('Étendue inconnue.'); Object.assign(l, planVinifChangerEtendue(p, l, val)); }
+  else if (action === 'operation') { if (val && !opDef(db, val)) return fail('Opération inconnue.'); if (val) l.opId = val; else delete l.opId; }
+  else return fail('Action inconnue.');
+  delete p.exemple; p.maj = { par: uid || '', le: new Date().toISOString() }; return okr();
+}
+function planVinifConditionsSet(db, id, c, uid) {
+  const p = plansVinifMaterialiser(db).find((x) => x && x.id === id); if (!p) return fail('Plan de vinification introuvable.');
+  const n = planVinifConditionsNet(c); if (n) p.conditions = n; else delete p.conditions; delete p.exemple; p.maj = { par: uid || '', le: new Date().toISOString() }; return okr();
+}
+// variante : copie du plan, conditions à préciser
+function planVinifVariante(db, id, c, uid) {
+  const p = plansVinifDe(db).find((x) => x.id === id); if (!p) return fail('Plan de vinification introuvable.');
+  let nom = `${p.nom} — variante`; let k = 2; while (plansVinifDe(db).some((x) => norm(x.nom) === norm(nom))) { nom = `${p.nom} — variante ${k}`; k += 1; }
+  const x = clone(p); delete x.exemple; const r = planVinifSave(db, { ...x, nom, conditions: c || null, aVerifier: true }, null, uid); return r;
+}
+// ---------- schémas de vinification → variantes du plan ----------
+function planVinifDepuisSchema(db, sc) {
+  const etapes = [...(sc.etapes || [])].sort((a, b) => num(a.jour) - num(b.jour));
+  const lignes = etapes.map((e, i) => { const def = opDef(db, e.opId); const dose = typeof schemaDoseTexte === 'function' ? schemaDoseTexte(e) : ''; return { id: `l${i + 1}`, type: 'etape', etape: def ? def.label : e.opId, produit: e.famille && typeof famLabel === 'function' ? famLabel(e.famille) : '', etendue: 'groupe', valeurs: { tous: dose || (e.note ? planVinifTexte(e.note, 120) : '✓') }, ...(def ? { opId: e.opId } : {}) }; });
+  if (!lignes.length) return null; const c = sc.criteres || {};
+  return { id: `pv-sch-${String(sc.id).slice(0, 30)}`, nom: planVinifTexte(sc.nom, 100) || 'Schéma', reference: '', version: '', sousTitre: 'Converti depuis un schéma de vinification', note: planVinifTexte(sc.note, 400), actif: true,
+    groupes: [{ id: 'tous', label: 'Tous les cépages', cepages: [] }], revendications: [{ id: 'toutes', label: 'Toutes' }], fractions: [{ id: 'toutes', label: 'Toutes', fractions: [] }], lignes,
+    ...(planVinifConditionsNet({ cepages: c.cepages, fractions: c.fractions, etats: c.etats }) ? { conditions: planVinifConditionsNet({ cepages: c.cepages, fractions: c.fractions, etats: c.etats }) } : {}),
+    aVerifier: sc.aVerifier !== false, schemaId: sc.id, cree: todayISO(), maj: { par: '', le: new Date().toISOString() } };
+}
+// une fois, à l'ouverture : les schémas enregistrés dans la base (pas les exemples) deviennent des variantes ; trace settings.schemasConvertis
+function plansVinifConvertirSchemas(db) {
+  if (!db || !Array.isArray(db.schemas) || !db.schemas.length) return 0; db.settings = db.settings || {}; const deja = (db.settings.schemasConvertis && db.settings.schemasConvertis.ids) || {};
+  const aFaire = db.schemas.filter((x) => x && x.id && Array.isArray(x.etapes) && !deja[x.id]); if (!aFaire.length) return 0;
+  const L = plansVinifMaterialiser(db); let n = 0; const ids = { ...deja };
+  aFaire.forEach((sc) => { const pl = planVinifDepuisSchema(db, sc); if (!pl) { ids[sc.id] = ''; return; } if (!L.some((x) => x && x.id === pl.id)) { L.push(pl); n += 1; } ids[sc.id] = pl.id; });
+  db.settings.schemasConvertis = { ids, le: todayISO() }; return n;
+}
+

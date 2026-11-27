@@ -65,11 +65,46 @@ function plafondSo2Lot(db, R, lotId) {
 }
 // règle de substance : concerne le produit si un mot-clé figure dans son nom, sa famille ou sa composition
 const plafondConcerne = (x, p) => { const t = catCle(`${p.nom || ''} ${p.famille || ''} ${famLabel(p.famille)} ${p.composition || ''}`); return String(x.mot || '').split('|').some((m) => m.length >= 3 && ` ${t} `.includes(` ${m}`)); };
+/* ---------- 0.43.0-alpha.1 : plafonds liés aux produits des catalogues (puis aux produits en stock créés depuis un catalogue) ----------
+   automatique : règle de substance → mot-clé dans le nom, la famille ou la composition ; plafond de SO₂ → produit apportant du SO₂
+   (teneur connue ou composé « SO₂ » reconnu) ; ajustable : plafond.liens = { ajouts: [ids d'entrées de catalogue], retraits: [...] } */
+const plafondLiens = (x) => { const l = (x && x.liens) || {}; return { ajouts: Array.isArray(l.ajouts) ? l.ajouts : [], retraits: Array.isArray(l.retraits) ? l.retraits : [] }; };
+const _entreeProduit = (e) => ({ nom: e.nom || '', famille: e.famille || '', composition: e.composition || '', so2: e.so2 || '', categorie: famCategorie(e.famille), unite: e.unite || 'g' });
+function plafondCatalogueAuto(db, x, e) {
+  if (!x || !e) return false; const p = _entreeProduit(e);
+  if (x.objet === 'substance') return plafondConcerne(x, p);
+  if (x.objet === 'so2t') return so2Teneur(p) != null || (typeof refComposesDe === 'function' && refComposesDe(p).some((c) => c.id === 'so2'));
+  return false;
+}
+function plafondCatalogueConcerne(db, x, e) {
+  const L = plafondLiens(x); if (L.retraits.includes(e.id)) return false; if (L.ajouts.includes(e.id)) return true; return plafondCatalogueAuto(db, x, e);
+}
+// produits des catalogues concernés par un plafond : { e, auto, manuel ('ajout' | 'retrait' | '') }
+function plafondProduitsCatalogue(db, x, o) {
+  const L = plafondLiens(x); const E = catalogueEntrees(db, { masques: (o || {}).masques });
+  return E.map((e) => { const auto = plafondCatalogueAuto(db, x, e); const manuel = L.ajouts.includes(e.id) ? 'ajout' : L.retraits.includes(e.id) ? 'retrait' : ''; return { e, auto, manuel, lie: manuel === 'ajout' || (auto && manuel !== 'retrait') }; })
+    .filter((y) => y.auto || y.manuel);
+}
+// lier, délier ou revenir à l'automatique (etat : 'ajout' | 'retrait' | null) ; les exemples deviennent des données de la cave
+function plafondLienSet(db, plafondId, entreeId, etat, uid) {
+  const P = plafondsMaterialiser(db); const x = P.find((p) => p.id === plafondId); if (!x) return fail('Plafond introuvable.');
+  if (!catalogueEntree(db, entreeId)) return fail('Produit du catalogue introuvable.');
+  const L = plafondLiens(x); const aj = L.ajouts.filter((i) => i !== entreeId); const re = L.retraits.filter((i) => i !== entreeId);
+  if (etat === 'ajout') aj.push(entreeId); else if (etat === 'retrait') re.push(entreeId); else if (etat) return fail('Choix de liaison inconnu.');
+  x.liens = { ajouts: aj, retraits: re, par: uid || '', le: new Date().toISOString() }; return okr();
+}
+// un produit en stock suit le choix fait sur son entrée de catalogue d'origine (p.catalogue.id), sinon la règle automatique
+function plafondConcerneProduit(db, x, p) {
+  const cid = p && p.catalogue && p.catalogue.id; const L = plafondLiens(x);
+  if (cid && L.retraits.includes(cid)) return false; if (cid && L.ajouts.includes(cid)) return true;
+  if (x.objet === 'so2t') return so2Teneur(p) != null || (typeof refComposesDe === 'function' && refComposesDe(p).some((c) => c.id === 'so2'));
+  return plafondConcerne(x, p);
+}
 // règle effective d'un produit pour une revendication : règle du produit + règles de substance (la plus restrictive l'emporte)
 // 0.40.0-alpha.1 : + avis du référentiel réglementaire (UE, appellation, labels de la revendication, labels visés « vises » du lot)
 function regleEffective(db, p, qualifId, vises) {
   if (!p || !qualifId) return null; const base = ruleFor(db, p.id, qualifId);
-  const subs = plafondsDe(db).filter((x) => x.objet === 'substance' && x.qualifId === qualifId && plafondConcerne(x, p));
+  const subs = plafondsDe(db).filter((x) => x.objet === 'substance' && x.qualifId === qualifId && plafondConcerneProduit(db, x, p)); // 0.43.0-alpha.1 : liens du catalogue
   const ref = typeof refRegleProduit === 'function' ? refRegleProduit(db, p, qualifId, vises) : null;
   const restreint = !!(ref && (ref.interdit ? !!(base && base.autorise) || !base : ref.doseMax != null && base && base.autorise && (!hasNum(base.doseMax) || ref.doseMax < num(base.doseMax))));
   if (!subs.length && !restreint) return base; // le référentiel ne restreint rien : règle du produit telle quelle (UI : refRegleProduit pour ses conditions)

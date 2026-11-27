@@ -1015,6 +1015,7 @@ function produitDepuisCatalogue(db, id) {
   if (!r.ok) return r;
   const p = db.produits.find((x) => x.id === r.id);
   p.famille = e.famille || ''; p.catalogue = { id: e.id, titre: e.titre, annee: e.annee, page: e.page, conditionnements: e.cond, le: todayISO() };
+  { const oc = typeof refComposesCatalogueReglage === 'function' ? refComposesCatalogueReglage(db)[e.id] : null; if (Array.isArray(oc)) p.composes = oc.map((x) => ({ ...x })); } // 0.43.0-alpha.1 : composés choisis pour l'entrée du catalogue
   if (e.so2) p.so2 = e.so2;
   const mx = catalogueMaxDose(e); const src = `catalogue : ${catalogueSource(e)}`;
   regleSet(db, p.id, 'conv', { autorise: true, doseMax: mx, aVerifier: true, source: src });

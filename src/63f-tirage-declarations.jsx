@@ -1,6 +1,6 @@
 /* ============ TIRAGES › DÉCLARATIONS (0.42.0-alpha.4) : déclaration préalable (formulaire de l'AIDAC, PDF), déclaration de fin de tirage
    et de revendication (récapitulatif dans l'ordre de la saisie Innov OI, CSV, PDF), VRTP distinct, ventilations ;
-   impressions du chantier : ordre de tirage, fiche d'enregistrement de la chaîne (HACCP) ============ */
+   impression du chantier : ordre de tirage (0.44.0-alpha.2 : fiche d'enregistrement de la chaîne retirée) ============ */
 
 const declHL = (v) => `${fmt(num(v), 2)} hL`;
 const declTypeLabel = (t) => (DECL_TIRAGE_TYPES.find((x) => x.id === t) || { label: t }).label;
@@ -11,17 +11,20 @@ function DeclarationRapport({ db, R, d, refEl }) {
   const cht = d.chantierId ? chantierTirage(db, d.chantierId) : null;
   const ligne = (l, v) => <tr><th style={{ width: '42%', textAlign: 'left', textTransform: 'none', letterSpacing: 0, fontSize: 11 }}>{l}</th><td translate="no">{v || '—'}</td></tr>;
   if (d.type === 'prealable') {
-    const k = d.instantane ? { ok: true, ...d.instantane.calcul } : declPrealableCalcul(db, ch);
+    const pc = d.instantane ? (d.instantane.calcul.parCuvee ? d.instantane.calcul : null) : (d.chantierId ? declPrealableCuvees(db, R, d.chantierId) : null); // 0.44.0-alpha.1 : une ligne par cuvée prévue
+    const k = pc ? { ok: true, vinHL: pc.vinHL, sucreHL: pc.sucreHL, sucreKg: pc.sucreKg, totalHL: pc.totalHL, vrtpHL: pc.vrtpHL, vrtpPct: pc.vinHL > 0 ? pc.vrtpHL / pc.vinHL * 100 : 0, liqueurHL: 0 } : d.instantane ? { ok: true, ...d.instantane.calcul } : declPrealableCalcul(db, ch);
     return (<div ref={refEl} className="report" data-declaration-rapport="prealable">
       <ReportHead title="Déclaration préalable de tirage" sub={cht ? `Chantier ${cht.numero} · à déposer au moins ${DECL_PREALABLE_DELAI_H} h avant le tirage` : `À déposer au moins ${DECL_PREALABLE_DELAI_H} h avant le tirage`} />
       <table className="rtbl"><tbody>
         {ligne('Numéro EVV', dec.evv)}{ligne('Code récoltant', dec.codeRecoltant)}{ligne('Nom ou raison sociale du déclarant', dec.nom)}{ligne('Adresse', dec.adresse)}
         {ligne('Lieu du tirage (s’il est différent de l’adresse du siège social)', ch.lieuTirage || dec.lieuTirage)}{ligne('Date du tirage', ch.dateTirage ? fmtDate(ch.dateTirage) : '')}
         {ligne('Volume prévisionnel de vin à mettre en œuvre', k.ok ? declHL(k.vinHL) : '')}{ligne('Volume prévisionnel de sucre à mettre en œuvre', k.ok ? `${declHL(k.sucreHL)} (${fmt(k.sucreKg, 1)} kg)` : '')}
-        {ligne('Volume total à tirer', k.ok ? declHL(k.totalHL) : '')}{ligne('Mentions diverses, revendications particulières', ch.mentions)}
+        {ligne('Volume total à tirer', k.ok ? declHL(k.totalHL) : '')}{ligne('Mentions diverses, revendications particulières', [ch.mentions, ...(pc ? uniq(pc.lignes.flatMap((l) => [couleurLabel(db, l.couleur), l.qualif && l.qualif !== 'conv' ? qLabel(l.qualif) : '', ...(l.mentions || [])]).filter(Boolean)) : [])].filter(Boolean).join(' · '))}
       </tbody></table>
-      {hasNum(ch.rougeHL) || hasNum(ch.blancHL) ? <><h3>Vin rosé par assemblage de vins rouges et de vins blancs</h3><table className="rtbl"><tbody>{ligne('Volume de vin rouge à mettre en œuvre', hasNum(ch.rougeHL) ? declHL(ch.rougeHL) : '')}{ligne('Volume de vins blancs à mettre en œuvre', hasNum(ch.blancHL) ? declHL(ch.blancHL) : '')}</tbody></table></> : null}
-      {k.ok ? <p className="muted" style={{ fontSize: 10.5 }}>{`Calcul d’Œnotrack (profil de tirage, à vérifier) : point de tirage ${fmt(num(ch.pointGL), 1)} g/L, liqueur ${declHL(k.liqueurHL)}, VRTP prévisionnel ${declHL(k.vrtpHL)} (${fmt(k.vrtpPct, 2)} %).`}</p> : null}
+      {pc ? <><h3>Cuvées prévues</h3><RTable head={['Cuvée', 'Couleur', 'Revendication', 'Échelle des crus', 'Mentions', 'Vin (hL)', 'Sucre (hL)', 'Total à tirer (hL)']} rows={[...pc.lignes.map((l) => [l.nom, couleurLabel(db, l.couleur), l.qualif ? qLabel(l.qualif) : '', l.echelle ? (eDef(l.echelle) || { label: l.echelle }).label : '', (l.mentions || []).join(' – '), l.ok ? fmt(l.vinHL, 2) : '—', l.ok ? fmt(l.sucreHL, 2) : '—', l.ok ? fmt(l.totalHL, 2) : '—']), ['Total', '', '', '', '', fmt(pc.vinHL, 2), fmt(pc.sucreHL, 2), fmt(pc.totalHL, 2)]]} />
+        {pc.rougeHL > 0 ? <p style={{ fontSize: 11 }}>{`Rosé d’assemblage : vins rouges ${declHL(pc.rougeHL)}, vins blancs ${declHL(pc.blancHL)}.`}</p> : null}</> : null}
+      {!pc && (hasNum(ch.rougeHL) || hasNum(ch.blancHL)) ? <><h3>Vin rosé par assemblage de vins rouges et de vins blancs</h3><table className="rtbl"><tbody>{ligne('Volume de vin rouge à mettre en œuvre', hasNum(ch.rougeHL) ? declHL(ch.rougeHL) : '')}{ligne('Volume de vins blancs à mettre en œuvre', hasNum(ch.blancHL) ? declHL(ch.blancHL) : '')}</tbody></table></> : null}
+      {k.ok && !pc ? <p className="muted" style={{ fontSize: 10.5 }}>{`Calcul d’Œnotrack (profil de tirage, à vérifier) : point de tirage ${fmt(num(ch.pointGL), 1)} g/L, liqueur ${declHL(k.liqueurHL)}, VRTP prévisionnel ${declHL(k.vrtpHL)} (${fmt(k.vrtpPct, 2)} %).`}</p> : null}
       <p style={{ marginTop: 18 }}><span>Fait à :</span> <span translate="no">{ch.faitA || dec.faitA || '……………'}</span> · <span>Le :</span> <span translate="no">{fmtDate(d.date)}</span> · <span>Signature :</span> <span translate="no">{ch.signataire || dec.signataire || ''}</span></p>
       <p className="muted" style={{ fontSize: 10.5 }}>À établir en 3 exemplaires : le premier pour l’AIDAC, le second pour la recette locale des douanes ou la recette de domiciliation, le troisième à conserver dans le registre.</p>
       {d.statut === 'deposee' ? <p className="muted" style={{ fontSize: 10.5 }}><span>{`Déposée le ${fmtDate(d.deposeLe)}`}</span>{d.reference ? <span>{` · référence ${d.reference}`}</span> : null}</p> : null}
@@ -43,8 +46,8 @@ function DeclarationRapport({ db, R, d, refEl }) {
       {ligne('Titre alcoométrique avant tirage', hasNum(ch.tav) ? `${fmt(num(ch.tav), 2)} % vol.` : '')}{ligne('Nombre de flacons tirés', `${fmt(c.nbCols)} (${fmt(c.eqBouteilles, 0)} équivalent bouteilles)`)}
     </tbody></table>
     <h3>Lots (ordre de la saisie en ligne)</h3>
-    <RTable head={['Lot', 'Produit', 'Millésime', 'Cuvée', 'Demies', 'Bouteilles', 'Magnums', ...autresF.map((f) => (tirageFormat(f) || { label: f }).label), 'Revendications particulières']}
-      rows={c.lots.map((l) => [l.code, l.produit, l.millesime || 'non millésimé', l.cuvee, fmt(l.colonnes.demie), fmt(l.colonnes.bouteille), fmt(l.colonnes.magnum), ...autresF.map((f) => fmt(sum(l.autres.filter((a) => a.format === f), (a) => a.nb))), l.revendications || '—'])} empty="Aucun lot." />
+    <RTable head={['Lot', 'Produit', 'Couleur', 'Revendication', 'Millésime', 'Cuvée', 'Demies', 'Bouteilles', 'Magnums', ...autresF.map((f) => (tirageFormat(f) || { label: f }).label), 'Revendications particulières']}
+      rows={c.lots.map((l) => [l.code, l.produit, couleurLabel(db, l.couleur), l.qualif ? qLabel(l.qualif) : '', l.millesime || 'non millésimé', l.cuvee, fmt(l.colonnes.demie), fmt(l.colonnes.bouteille), fmt(l.colonnes.magnum), ...autresF.map((f) => fmt(sum(l.autres.filter((a) => a.format === f), (a) => a.nb))), l.revendications || '—'])} empty="Aucun lot." />
     <h3>Ventilation</h3>
     <RTable head={['Par revendication', 'Cols', 'Équivalent bouteilles', 'Volume tiré']} rows={c.parRevendication.map((x) => [x.label, fmt(x.nbCols), fmt(x.eqBouteilles, 0), declHL(x.tireL / 100)])} />
     <RTable head={['Par échelle des crus', 'Cols', 'Équivalent bouteilles', 'Volume tiré']} rows={c.parEchelle.map((x) => [x.label, fmt(x.nbCols), fmt(x.eqBouteilles, 0), declHL(x.tireL / 100)])} />
@@ -63,7 +66,7 @@ function DeclarationForm({ id, type0, chantierId0, onClose }) {
     : { chantierId: chantierId0 || '', opIds: [], date: defaultDate, champs: type === 'prealable' ? { dateTirage: cht0 ? cht0.dateDebut : '', lieuTirage: dd.lieuTirage, faitA: dd.faitA, signataire: dd.signataire } : { lieuTirage: dd.lieuTirage, lieuStockage: dd.lieuStockage, faitA: dd.faitA, signataire: dd.signataire, facon: '' } }));
   const setC = (p) => setF((x) => ({ ...x, champs: { ...x.champs, ...p } })); const ch = f.champs; const decl = ch.declarant || {}; const setD = (p) => setC({ declarant: { ...decl, ...p } });
   const T = useMemo(() => (db.ops || []).filter((o) => o.type === 'tirage' && o.date >= camp.debut && o.date <= camp.fin).sort(byDate), [db, camp]);
-  const dv = { ...old, type, ...f }; const k = type === 'prealable' ? declPrealableCalcul(db, ch) : null; const c = type === 'finale' ? declFinaleCalcul(db, R, dv) : null;
+  const dv = { ...old, type, ...f }; const pcF = type === 'prealable' && f.chantierId ? declPrealableCuvees(db, R, f.chantierId) : null; const k = type === 'prealable' && !pcF ? declPrealableCalcul(db, ch) : null; const c = type === 'finale' ? declFinaleCalcul(db, R, dv) : null;
   const delai = type === 'prealable' ? declDelaiHeures(f.date, ch.dateTirage) : null;
   const save = () => { const r = act((d) => declarationTirageSave(d, { ...f, type }, id, uid), 'Déclaration enregistrée.'); if (r && r.ok) onClose(r.id); };
   const setLot = (opId, p) => setC({ lots: { ...(ch.lots || {}), [opId]: { ...((ch.lots || {})[opId] || {}), ...p } } });
@@ -78,15 +81,18 @@ function DeclarationForm({ id, type0, chantierId0, onClose }) {
         {type === 'finale' ? <Field label="Statut du déclarant"><SI plain value={decl.statut || dd.statut} onChange={(v) => setD({ statut: v })} options={DECL_STATUTS_DECLARANT.map((x) => ({ value: x.id, label: x.label }))} aria-label="Statut du déclarant" /></Field> : null}
       </div></Group>
       {type === 'prealable' ? <>
+        {pcF ? <div data-prealable-cuvees=""><Notice tone={pcF.incompletes.length ? 'warn' : 'info'} title={`${pcF.lignes.length} cuvée(s) prévue(s) sur ce chantier`}><span>Les volumes de la déclaration viennent des cuvées prévues du chantier (une ligne par qualité).</span>{pcF.incompletes.length ? <span>{` Volume de vin ou point de tirage manquant : ${pcF.incompletes.join(', ')}.`}</span> : null}</Notice>
+          <Tbl rows={pcF.lignes} cols={[{ h: 'Cuvée', r: (l) => <b translate="no">{l.nom}</b> }, { h: 'Qualité', r: (l) => <span className="text-xs" translate="no">{[couleurLabel(db, l.couleur), l.qualif ? qLabel(l.qualif) : '', l.echelle ? (eDef(l.echelle) || {}).label : '', ...(l.mentions || [])].filter(Boolean).join(' · ')}</span> }, { h: 'Vin', cls: 'r', r: (l) => <span className="num">{declHL(l.vinHL)}</span> }, { h: 'Sucre', cls: 'r', r: (l) => <span className="num">{l.ok ? declHL(l.sucreHL) : '—'}</span> }, { h: 'Total à tirer', cls: 'r', r: (l) => <span className="num">{l.ok ? declHL(l.totalHL) : '—'}</span> }]} />
+          <p className="text-sm" data-prealable-total="">{`Total : vin ${declHL(pcF.vinHL)} · sucre ${declHL(pcF.sucreHL)} · total à tirer ${declHL(pcF.totalHL)}`}</p></div> : null}
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
           <Field label="Date du tirage" help={delai != null && delai < DECL_PREALABLE_DELAI_H ? `⚠ Moins de ${DECL_PREALABLE_DELAI_H} h avant le tirage.` : undefined}><DI value={ch.dateTirage || ''} onChange={(v) => setC({ dateTirage: v })} aria-label="Date du tirage" /></Field>
           <Field label="Lieu du tirage"><TI value={ch.lieuTirage || ''} onChange={(v) => setC({ lieuTirage: v })} aria-label="Lieu du tirage" /></Field>
-          <Field label="Vin de base prévu (hL)"><NI value={ch.vinHL ?? ''} onChange={(v) => setC({ vinHL: v })} aria-label="Vin de base prévu" /></Field>
+          {pcF ? null : <><Field label="Vin de base prévu (hL)"><NI value={ch.vinHL ?? ''} onChange={(v) => setC({ vinHL: v })} aria-label="Vin de base prévu" /></Field>
           <Field label="Point de tirage de la cuvée (g/L)"><NI value={ch.pointGL ?? ''} onChange={(v) => setC({ pointGL: v })} placeholder="ex. 24" aria-label="Point de tirage de la déclaration" /></Field>
           <Field label="Vin rouge (rosé d’assemblage, hL)"><NI value={ch.rougeHL ?? ''} onChange={(v) => setC({ rougeHL: v })} aria-label="Vin rouge" /></Field>
-          <Field label="Vins blancs (rosé d’assemblage, hL)"><NI value={ch.blancHL ?? ''} onChange={(v) => setC({ blancHL: v })} aria-label="Vins blancs" /></Field>
+          <Field label="Vins blancs (rosé d’assemblage, hL)"><NI value={ch.blancHL ?? ''} onChange={(v) => setC({ blancHL: v })} aria-label="Vins blancs" /></Field></>}
         </div>
-        <p className="text-sm" data-prealable-calcul="">{k && k.ok ? <><span>{`Vin à mettre en œuvre : ${declHL(k.vinHL)} · sucre : ${declHL(k.sucreHL)} (${fmt(k.sucreKg, 1)} kg) · total à tirer : ${declHL(k.totalHL)}`}</span> <span className="text-ink2">{`VRTP prévisionnel ${declHL(k.vrtpHL)} (${fmt(k.vrtpPct, 2)} %)`}</span></> : <span className="text-ink2">{(k && k.msg) || ''}</span>}</p>
+        {pcF ? null : <p className="text-sm" data-prealable-calcul="">{k && k.ok ? <><span>{`Vin à mettre en œuvre : ${declHL(k.vinHL)} · sucre : ${declHL(k.sucreHL)} (${fmt(k.sucreKg, 1)} kg) · total à tirer : ${declHL(k.totalHL)}`}</span> <span className="text-ink2">{`VRTP prévisionnel ${declHL(k.vrtpHL)} (${fmt(k.vrtpPct, 2)} %)`}</span></> : <span className="text-ink2">{(k && k.msg) || ''}</span>}</p>}
       </> : <>
         {!f.chantierId ? <Group label="Lots de tirage déclarés"><div className="grid gap-1" data-declaration-lots-choix="">{T.length ? T.map((o) => <Check key={o.id} checked={f.opIds.includes(o.id)} onChange={(v) => setF((x) => ({ ...x, opIds: v ? [...x.opIds, o.id] : x.opIds.filter((y) => y !== o.id) }))} label={<span><span translate="no">{`${(lotById(db, o.lotId) || {}).code || (o.lotSpec || {}).code || ''} · ${fmtDate(o.date)} · `}</span><span>{`cols : ${fmt(num(o.nbBouteilles))}`}</span></span>} />) : <p className="help">Aucun tirage sur la campagne.</p>}</div></Group> : null}
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
@@ -171,29 +177,8 @@ function OrdreTirageRapport({ db, R, chantierId, refEl }) {
     <p style={{ marginTop: 16, fontSize: 11 }}>Visa cave : ……………… · Visa prestataire : ………………</p>
   </div>);
 }
-function ChaineHaccpRapport({ db, R, chantierId, refEl }) {
-  const c = chantierTirage(db, chantierId); if (!c) return null; const h = chantierHaccp(c); const ok = (v) => (v === true ? 'C' : v === false ? 'NC' : '—');
-  const PC = chainePoints(c, 'controles'); const cond = chantierConditionnement(db, R, c); const ec = chantierHaccpEcarts(db, R, c); const FO = chantierFournitures(db, chantierId);
-  const phase = (ph, titre) => <><h3>{titre}</h3><RTable head={['Point', 'État', 'Note']} rows={chainePoints(c, ph).map(([k, l]) => [l, ok((h[ph][k] || {}).ok), (h[ph][k] || {}).note || ''])} /></>;
-  return (<div ref={refEl} className="report" data-chaine-rapport="">
-    <ReportHead title={`Fiche d’enregistrement de la chaîne de tirage — ${c.numero}`} sub={`${fmtDate(c.dateDebut)}${c.dateFin ? ` → ${fmtDate(c.dateFin)}` : ''}`} />
-    {phase('demarrage', 'Démarrage de la ligne')}
-    <h3>{`Contrôles en cours de chantier (toutes les ${CHAINE_INTERVALLE_H} h)`}</h3>
-    <RTable head={['Date', 'Heure', ...PC.map(([, l]) => l), 'Opérateur']} rows={h.controles.map((x) => [fmtDate(x.date), x.heure, ...PC.map(([k]) => ok((x.points || {})[k])), x.operateur || ''])} empty="Aucun contrôle." />
-    <h3>Fournitures par lot</h3>
-    <RTable head={['Lot', 'Date', 'Fournitures (lot fournisseur, quantité)']} rows={FO.map((l) => [l.code, fmtDate(l.date), l.fournitures.map((x) => `${x.nom} (${x.numLot || '?'}) ${fmt(x.qty)}`).join(' · ') || '—'])} empty="Aucun lot." />
-    {phase('fin', 'Fin de journée')}
-    <h3>Conditionnement et bilan</h3>
-    <RTable head={['Format', 'Contenant', 'Nombre', 'Cols par contenant']} rows={h.conditionnement.map((x) => [(tirageFormat(x.format) || { label: x.format }).label, (CHAINE_CONTENANTS.find((k) => k.id === x.contenant) || { label: x.contenant }).label, fmt(x.nb), x.parUnite ? fmt(x.parUnite) : '—'])} empty="—" />
-    <p style={{ fontSize: 11 }}>{cond.formats.map((f) => <span key={f.format} style={{ marginRight: 12 }}><span>{(tirageFormat(f.format) || { label: f.format }).label}</span> — <span>{`cols tirés : ${fmt(f.cols)}`}</span>{f.contenus != null ? <span>{` · rangés : ${fmt(f.contenus)}`}</span> : null}</span>)}<span>{`Casse : ${fmt(cond.casse)}`}</span></p>
-    <h3>Incidents et actions correctives</h3>
-    <RTable head={['Date', 'Heure', 'Incident', 'Action corrective', 'Par']} rows={h.incidents.map((x) => [fmtDate(x.date), x.heure || '', x.description, x.action || '', x.par || ''])} empty="Aucun incident." />
-    {ec.length ? <p style={{ color: '#9b1c1c', fontSize: 11 }}>{ec.map((e) => `⚠ ${e}`).join(' ')}</p> : null}
-    <p style={{ marginTop: 16, fontSize: 11 }}>{CHAINE_VISAS.map((v) => `${v.label} : ${(h.visas.find((x) => x.role === v.id) || {}).nom || '………………'}`).join(' · ')}</p>
-  </div>);
-}
-function ChantierImpression({ id, quoi, onClose }) {
+function ChantierImpression({ id, onClose }) {
   const { db, R } = useApp(); const ref = useRef(null); const c = chantierTirage(db, id) || {};
-  const out = useReportOutput(ref, `${quoi === 'ordre' ? 'ordre-de-tirage' : 'fiche-chaine-tirage'}-${slug(c.numero || 'chantier')}`, { orientation: 'paysage' });
-  return <Sheet wide title={quoi === 'ordre' ? 'Imprimer l’ordre de tirage' : 'Imprimer la fiche de la chaîne'} sub="A4 paysage" onClose={onClose} footer={<><Btn onClick={onClose}>Fermer</Btn><BoutonsSortie out={out} /></>}><div className="overflow-x-auto">{quoi === 'ordre' ? <OrdreTirageRapport db={db} R={R} chantierId={id} refEl={ref} /> : <ChaineHaccpRapport db={db} R={R} chantierId={id} refEl={ref} />}</div></Sheet>;
+  const out = useReportOutput(ref, `ordre-de-tirage-${slug(c.numero || 'chantier')}`, { orientation: 'paysage' });
+  return <Sheet wide title="Imprimer l’ordre de tirage" sub="A4 paysage" onClose={onClose} footer={<><Btn onClick={onClose}>Fermer</Btn><BoutonsSortie out={out} /></>}><div className="overflow-x-auto"><OrdreTirageRapport db={db} R={R} chantierId={id} refEl={ref} /></div></Sheet>;
 }

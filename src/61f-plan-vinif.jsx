@@ -89,7 +89,7 @@ function PlanVinifForm({ id, base, onClose }) {
   const save = () => { const r = act((d) => planVinifSave(d, { ...f, aVerifier: !f.verifie }, id, uid), id ? 'Plan de vinification modifié.' : 'Plan de vinification enregistré.'); if (r && r.ok !== false) onClose(); };
   const apercu = planVinifNet(db, f);
   return (
-    <FormSheet wide title={id ? 'Modifier le plan de vinification' : 'Nouveau plan de vinification'} sub={p0 && !id ? 'Vérifiez le plan lu avant de l’enregistrer.' : undefined} onClose={onClose} onSave={save}
+    <FormSheet wide title={id ? 'Colonnes et propriétés du plan' : 'Nouveau plan de vinification'} sub={p0 && !id ? 'Vérifiez le plan lu avant de l’enregistrer.' : undefined} onClose={onClose} onSave={save}
       extraFooter={<Btn className="mr-auto" onClick={() => setVoir(!voir)} disabled={!apercu}>{voir ? 'Masquer l’aperçu' : '👁 Aperçu'}</Btn>}>
       <div data-planv-form="">
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
@@ -144,20 +144,24 @@ function PlanVinifForm({ id, base, onClose }) {
 function PlanVinifVue() {
   const { db, act, uid } = useApp(); const lect = useLectureSeule('plan'); const ask = useRetirer();
   const L = plansVinifDe(db); const [selId, setSel] = useState(''); const sel = L.find((p) => p.id === selId) || L.find((p) => p.actif !== false) || L[0] || null;
-  const [form, setForm] = useState(null); const [imp, setImp] = useState(false); const [importer, setImporter] = useState(false);
+  const [form, setForm] = useState(null); const [imp, setImp] = useState(false); const [importer, setImporter] = useState(false); const [cond, setCond] = useState(false);
+  const ct = sel ? planConditionsTexte(db, sel) : '';
   return (
     <div data-planv="">
       <Notice tone={sel && sel.aVerifier ? 'warn' : 'info'} title="Plan de vinification">
         <span>Instruction de travail de la cave : pour chaque étape (sulfitage, enzymage, débourbage, levurage, chaptalisation, FML, passage au froid, filtration, tirage…), le produit et la dose selon le groupe de cépages, la revendication et la fraction.</span>{' '}
-        <span>Les doses sont à adapter à chaque lot, avec votre œnologue.</span>
+        <span>Les doses sont à adapter à chaque lot, avec votre œnologue.</span>{' '}
+        <span>Modifiez directement les cases du tableau. À la création d’un lot, les étapes de sa colonne lui sont proposées dans l’ordre, comme opérations à réaliser ; une variante (partenaire, cru, échelle, revendication…) remplace le plan général pour les lots qui remplissent ses conditions.</span>
       </Notice>
       <div className="my-3 flex flex-wrap items-center gap-2">
-        {L.length > 1 ? <select className="inp" style={{ width: 'auto', maxWidth: 360 }} value={sel ? sel.id : ''} onChange={(e) => setSel(e.target.value)} aria-label="Plan de vinification">{L.map((p) => <option key={p.id} value={p.id}>{`${p.nom}${planVinifTitre(p) ? ` (${planVinifTitre(p)})` : ''}${p.actif === false ? ' — archivé' : ''}`}</option>)}</select> : null}
+        {L.length > 1 ? <select className="inp" style={{ width: 'auto', maxWidth: 360 }} value={sel ? sel.id : ''} onChange={(e) => setSel(e.target.value)} aria-label="Plan de vinification">{L.map((p) => <option key={p.id} value={p.id}>{`${planVinifEstVariante(p) ? '↳ ' : ''}${p.nom}${planVinifTitre(p) ? ` (${planVinifTitre(p)})` : ''}${p.actif === false ? ' — archivé' : ''}`}</option>)}</select> : null}
         {sel ? <><span className="text-sm text-ink2">{planVinifTitre(sel)}</span>{planVinifEtat(sel)}</> : null}
         <span className="ml-auto flex flex-wrap gap-2">
           {sel ? <Btn onClick={() => setImp(true)} data-planv-imprimer="">🖨 Imprimer…</Btn> : null}
           {lect ? null : <>
-            {sel ? <Btn onClick={() => setForm({ id: sel.id })} data-planv-modifier="">Modifier</Btn> : null}
+            {sel ? <Btn onClick={() => setForm({ id: sel.id })} data-planv-modifier="">⚙ Colonnes & propriétés</Btn> : null}
+            {sel ? <Btn onClick={() => setCond(true)} data-planv-conditions-ouvrir="">🎯 Conditions</Btn> : null}
+            {sel ? <Btn onClick={() => { const r = act((d) => planVinifVariante(d, sel.id, null, uid), 'Variante créée : précisez ses conditions.'); if (r && r.ok && r.id) { setSel(r.id); setCond(true); } }} data-planv-variante="">＋ Variante</Btn> : null}
             {sel && sel.aVerifier ? <Btn kind="primary" onClick={() => act((d) => planVinifValider(d, sel.id, uid), 'Plan vérifié.')}>✓ Vérifié</Btn> : null}
             {sel ? <Btn onClick={() => act((d) => planVinifDupliquer(d, sel.id, uid), 'Plan dupliqué : modifiez la copie.')}>Dupliquer</Btn> : null}
             {sel ? <Btn onClick={() => act((d) => { const p = plansVinifMaterialiser(d).find((x) => x.id === sel.id); if (!p) return fail('Plan de vinification introuvable.'); p.actif = p.actif === false; return okr(); }, sel.actif === false ? 'Plan rétabli.' : 'Plan archivé.')}>{sel.actif === false ? 'Rétablir' : 'Archiver'}</Btn> : null}
@@ -168,7 +172,10 @@ function PlanVinifVue() {
         </span>
       </div>
       {importer && !lect ? <div className="mb-4"><PlanVinifImport onPlan={(p) => { setImporter(false); setForm({ base: p }); }} /></div> : null}
-      {sel ? <div className="overflow-x-auto"><PlanVinifRapport plan={sel} /></div> : <Empty>Aucun plan de vinification : créez-en un ou importez votre tableur.</Empty>}
+      <div className="mb-2" data-planv-proposer=""><Check checked={schemasReglage(db).proposer} disabled={lect} onChange={(v) => act((d) => { d.settings.schemas = { ...((d.settings && d.settings.schemas) || {}), proposer: v }; return okr(); }, v ? 'Les étapes du plan seront proposées à la création des lots.' : 'Plus de proposition à la création des lots.')} label="Proposer les étapes du plan à la création d’un lot (pressurage, marc validé, entrée de moûts)" /></div>
+      {sel ? <p className="mb-2 text-sm" data-planv-conditions-texte="">{ct ? <><b>Variante</b> — <span translate="no">{ct}</span></> : <span className="text-ink2">Plan général : tous les lots qui ne remplissent les conditions d’aucune variante.</span>}</p> : null}
+      {sel ? <div className="overflow-x-auto"><div className="report"><ReportHead title={sel.nom} sub={`Plan de vinification${planVinifTitre(sel) ? ` · ${planVinifTitre(sel)}` : ''}`} /><PlanVinifTableauEdit plan={sel} lect={lect} />{sel.note ? <p className="muted" style={{ fontSize: 11 }}>{sel.note}</p> : null}</div></div> : <Empty>Aucun plan de vinification : créez-en un ou importez votre tableur.</Empty>}
+      {cond && sel ? <PlanConditionsForm plan={sel} onClose={() => setCond(false)} /> : null}
       {form ? <PlanVinifForm id={form.id} base={form.base} onClose={() => setForm(null)} /> : null}
       {imp && sel ? <PlanVinifImpression plan={sel} onClose={() => setImp(false)} /> : null}
     </div>
@@ -220,8 +227,9 @@ function PlanVinifLot() {
 function TabPlan() {
   const { db, uid, secu } = useApp();
   const voirSchemas = !secu || niveauModule(db, uid, 'params') !== 'aucun';
-  const items = [{ id: 'plan', label: '🗂 Plan de vinification' }, { id: 'lot', label: 'Appliquer à un lot' }, ...(voirSchemas ? [{ id: 'schemas', label: '📋 Schémas par lot' }] : [])];
-  const [sub, setSub] = useSousOnglet(items, 'plan');
-  return <div><SubNav value={sub} onChange={setSub} items={items} />{sub === 'schemas' ? <div data-plan-schemas=""><ParamsLecture /><SchemasView /></div> : sub === 'lot' ? <PlanVinifLot /> : <PlanVinifVue />}</div>;
+  // 0.43.0-alpha.2 : « Schémas par lot » retiré (schémas convertis en variantes du plan) ; l'ancien identifiant mène au plan
+  const items = [{ id: 'plan', label: '🗂 Plan de vinification' }, { id: 'lot', label: 'Appliquer à un lot' }]; void voirSchemas;
+  const [sub0, setSub] = useSousOnglet([...items, { id: 'schemas', label: '' }], 'plan'); const sub = sub0 === 'schemas' ? 'plan' : sub0;
+  return <div><SubNav value={sub} onChange={setSub} items={items} />{sub === 'lot' ? <PlanVinifLot /> : <PlanVinifVue />}</div>;
 }
 TABS_REG.plan = TabPlan;

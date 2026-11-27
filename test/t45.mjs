@@ -63,8 +63,8 @@ ok('dans le plafond : volumes et rendement affichés, validation possible', /rev
 await page.screenshot({ path: SC + '/shots/t45-marc.png' });
 await f.locator('[data-valider-marc]').click(); await page.waitForTimeout(600);
 // 0.31.0-alpha.1 : schéma de vinification proposé aux deux lots créés → « Plus tard »
-ok('marc validé : schéma de vinification proposé aux lots créés (0.31.0-alpha.1), remis à plus tard', (await page.locator('[data-schema-lot]').count()) === 2);
-if (await page.locator('[data-schema-feuille]').count()) { await ov().locator('.sheet-f button', { hasText: 'Plus tard' }).click(); await page.waitForTimeout(300); }
+ok('marc validé : schéma de vinification proposé aux lots créés (0.31.0-alpha.1), remis à plus tard', (await page.locator('[data-plan-lot]').count()) === 2);
+if (await page.locator('[data-plan-feuille]').count()) { await ov().locator('.sheet-f button', { hasText: 'Plus tard' }).click(); await page.waitForTimeout(300); }
 d = await db(); m6 = d.ops.find((o) => o.id === m6.id);
 ok('marc validé : lots P26-06-C et P26-06-T1 dans les cuves, journal', !!m6.marc.valide && !m6.marc.enCours && m6.marc.tavp === 10.2 && m6.marc.bourbesL === 60 && m6.fractions.map((x) => x.code).join() === 'P26-06-C,P26-06-T1' && d.lots.some((l) => l.code === 'P26-06-C') && d.journalPressoir.some((j) => j.opId === m6.id && j.action === 'validation'));
 ok('carnet : marc conforme et validé', /conforme/.test(await page.locator('main').innerText()) && (await page.locator('[data-num-marc]').allInnerTexts())[0] === '6');

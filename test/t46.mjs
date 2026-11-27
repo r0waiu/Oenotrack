@@ -20,6 +20,7 @@ const onglets = (pg) => pg.locator('[role=tab][id^="tab-"]').allInnerTexts();
   ok('espagnol choisi sur l’accueil : textes en espagnol', /Qué hace Œnotrack/.test(t) && /Cómo funciona/.test(t) && (await page.locator('[data-accueil-ouvrir]').first().innerText()) === 'Abrir Œnotrack', t.slice(0, 200));
   await page.screenshot({ path: SC + '/shots/t46-accueil-es.png' });
   await page.locator('[data-accueil-ouvrir]').first().click(); await page.waitForTimeout(600);
+  await page.locator('[data-questionnaire] .btn, .overlay .btn').filter({ hasText: /Más tarde|Plus tard|Later/ }).first().click().catch(() => {}); await page.waitForTimeout(300);
   const o = await onglets(page);
   ok('application en espagnol : onglets traduits', o.includes('Prensa') && o.some((x) => /Vinificación/.test(x)) && o.some((x) => /Depósitos y lotes/.test(x)) && o.includes('Configuración'), o);
   await page.click('#tab-pressoir'); await page.waitForTimeout(400);

@@ -65,6 +65,7 @@ function BaseView() {
   const { db, storeOK, setTab } = useApp(); const kb = Math.round(JSON.stringify(db).length / 1024);
   return (
     <div className="space-y-6">
+      <ConfigurationGuideeCard />
       <Sec title="Données"><div className="card space-y-2 p-4">
         <dl className="kv"><dt>Enregistrement automatique</dt><dd>{storeOK ? <Chip tone="ok">actif (dans ce navigateur)</Chip> : <Chip tone="bad">indisponible</Chip>}</dd><dt>Dernière sauvegarde</dt><dd>{derniereSauvegarde(db) ? `${fmtDate(derniereSauvegarde(db))} (${ilYa(derniereSauvegarde(db))})` : <span className="text-warn">jamais</span>}</dd><dt>Taille de la base</dt><dd className="num">{kb} Ko (+ {fmtSize(sum(db.docs || [], (d) => d.taille))} de documents)</dd><dt>Version</dt><dd>Œnotrack {APP_VERSION} · base créée avec {versionAffichee(db.meta.creeAvec) || '—'}</dd></dl>
         <div className="flex flex-wrap items-center gap-2"><Btn kind="primary" onClick={() => setTab('params', 'sauvegarde')}>💾 Sauvegarde, import et Drive…</Btn><span className="help">Export / import de la base complète (documents compris), Google Drive, OneDrive, Dropbox, iCloud, sauvegarde en ligne.</span></div>
@@ -110,7 +111,7 @@ TABS_REG.registres = TabRegistres;
 /* 0.39.0-alpha.1 : rubriques regroupées (menu latéral sur ordinateur, rangées sur téléphone). Les réglages métier qui ont leur place
    ailleurs y sont déplacés (PARAMS_DEPLACES) : le lien de Paramètres y mène, et le réglage s'affiche ici si le module d'arrivée est
    désactivé ou interdit (rien n'est perdu). Les identifiants de rubriques sont inchangés : setTab('params', 'operations') marche toujours. */
-const PARAMS_ITEMS = [{ id: 'entreprise', label: 'Société & opérateurs' }, { id: 'codification', label: '🏷 Codification des lots' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Région & types de vins' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: 'Campagnes' }, { id: 'sites', label: 'Sites' }, { id: 'contenants', label: 'Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: 'Crus & parcelles' }, { id: 'apporteurs', label: 'Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '📋 Schémas de vinification' }, { id: 'listes', label: 'Revendications, stades & listes' }, { id: 'calculs', label: '🧪 Calculs œnologiques' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: '🖥 Affichage & application' }];
+const PARAMS_ITEMS = [{ id: 'entreprise', label: 'Société & opérateurs' }, { id: 'codification', label: '🏷 Codification des lots' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Région & types de vins' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: 'Campagnes' }, { id: 'sites', label: 'Sites' }, { id: 'contenants', label: 'Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: 'Crus & parcelles' }, { id: 'apporteurs', label: 'Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '🗂 Plan de vinification' }, { id: 'listes', label: 'Revendications, stades & listes' }, { id: 'calculs', label: '🧪 Calculs œnologiques' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: '🖥 Affichage & application' }];
 const PARAMS_GROUPES = [
   { id: 'exploitation', label: 'Exploitation', items: ['entreprise', 'sites', 'apporteurs', 'crus', 'campagnes'] },
   { id: 'vin', label: 'Vin & cuverie', items: ['profil', 'listes', 'codification', 'contenants', 'calculs', 'operations', 'schemas', 'jaugeage'] },
@@ -118,14 +119,14 @@ const PARAMS_GROUPES = [
   { id: 'donnees', label: 'Données & application', items: ['sauvegarde', 'modules', 'base'] },
 ];
 // réglages métier rangés dans un autre onglet (module, sous-onglet)
-const PARAMS_DEPLACES = { operations: { tab: 'ops', sub: 'catalogue', ou: 'Vinification › Opérations & Assemblages' }, schemas: { tab: 'plan', sub: 'schemas', ou: 'Vinification › Plan de vinification' }, jaugeage: { tab: 'cuverie', sub: 'jaugeage', ou: 'Vinification › Cuverie & Lots' } };
+const PARAMS_DEPLACES = { operations: { tab: 'ops', sub: 'catalogue', ou: 'Vinification › Opérations & Assemblages' }, schemas: { tab: 'plan', sub: 'plan', ou: 'Vinification › Plan de vinification' }, jaugeage: { tab: 'cuverie', sub: 'jaugeage', ou: 'Vinification › Cuverie & Lots' } };
 const paramsDeplaceOk = (db, uid, id) => { const v = PARAMS_DEPLACES[id]; return !!v && moduleActif(db, v.tab) && moduleAutorise(db, uid, v.tab); };
 // consultation seulement (droits des paramètres en lecture) : rappel en tête des réglages déplacés dans un autre onglet
 function ParamsLecture() {
   const { db, uid, secu } = useApp(); if (!secu || niveauModule(db, uid, 'params') !== 'lecture') return null;
   return <div className="mb-4"><Notice tone="info" title="Consultation des paramètres">Votre profil « {profilNom(db, uid)} » permet de consulter ces réglages, pas de les modifier.</Notice></div>;
 }
-const PARAMS_VUES = { codification: CodificationView, utilisateurs: UtilisateursView, modules: ModulesView, profil: ProfilViticoleView, sauvegarde: SauvegardeView, garde: GardeView, campagnes: CampagnesView, listes: ListesView, operations: OperationsView, schemas: SchemasView, crus: CrusEtParcelles, apporteurs: ApporteursView, sites: SitesView, contenants: StudioView, jaugeage: BaremesView, base: BaseView, calculs: CalculsView, ia: IaView, entreprise: EntrepriseView };
+const PARAMS_VUES = { codification: CodificationView, utilisateurs: UtilisateursView, modules: ModulesView, profil: ProfilViticoleView, sauvegarde: SauvegardeView, garde: GardeView, campagnes: CampagnesView, listes: ListesView, operations: OperationsView, schemas: PlanVinifVue, crus: CrusEtParcelles, apporteurs: ApporteursView, sites: SitesView, contenants: StudioView, jaugeage: BaremesView, base: BaseView, calculs: CalculsView, ia: IaView, entreprise: EntrepriseView };
 function TabParams() {
   const { db, uid, secu, setTab } = useApp();
   // identifiants activés : paramètres selon le profil (sauvegarde et utilisateurs : droits particuliers ; « Utilisateurs & droits » montre au moins son compte)

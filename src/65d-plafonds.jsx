@@ -3,9 +3,12 @@
    substances d'un cahier des charges (interdiction, dose maximale), import d'un cahier des charges (PDF ou texte, lu par le script
    ou par l'assistant IA) : chaque proposition est relue et cochée avant d'être appliquée. */
 const plafondEtatChip = (p) => (p.aVerifier ? <Chip tone="warn">{p.exemple ? 'exemple à vérifier' : 'à vérifier'}</Chip> : <Chip tone="good">vérifié</Chip>);
-function PlafondsView() {
+// 0.43.0-alpha.1 : partie 'so2' | 'substances' (sous-onglet « Labels & cahiers des charges ») ; liens avec les produits des catalogues
+function PlafondsView({ partie }) {
   const { db, act, uid } = useApp(); const lect = useLectureSeule('intrants'); const ask = useRetirer();
-  const [form, setForm] = useState(null); const [cahier, setCahier] = useState(false);
+  const [form, setForm] = useState(null); const [cahier, setCahier] = useState(false); const [lien, setLien] = useState(null);
+  const nCat = useMemo(() => Object.fromEntries(plafondsDe(db).map((p) => [p.id, plafondProduitsCatalogue(db, p).filter((y) => y.lie).length])), [db]);
+  const colCat = { h: 'Produits des catalogues', r: (p) => <Btn size="sm" onClick={() => setLien(p.id)} data-plafond-catalogue={p.id}>{`${fmt(nCat[p.id] || 0)} lié(s)`}</Btn> };
   const L = plafondsDe(db); const qs = qualifList(db);
   const so2 = L.filter((p) => p.objet === 'so2t').sort((a, b) => (qs.findIndex((q) => q.id === a.qualifId) - qs.findIndex((q) => q.id === b.qualifId)) || (VINS_TYPES.findIndex((v) => v.id === a.vin) - VINS_TYPES.findIndex((v) => v.id === b.vin)));
   const subs = L.filter((p) => p.objet === 'substance').sort((a, b) => a.qualifId.localeCompare(b.qualifId) || String(a.libelle).localeCompare(String(b.libelle), 'fr'));
@@ -13,31 +16,32 @@ function PlafondsView() {
   const actions = (p) => (lect ? null : <div className="flex flex-wrap gap-1">{p.aVerifier ? <Btn size="sm" kind="primary" onClick={() => act((d) => plafondValider(d, p.id, uid), 'Plafond vérifié.')}>✓ Vérifié</Btn> : null}<Btn size="sm" onClick={() => setForm({ id: p.id, objet: p.objet })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => ask('Retirer ce plafond ?', (d) => plafondSupprimer(d, p.id), 'Plafond retiré.')}>Retirer</Btn></div>);
   return (
     <>
-      <Notice tone={nv ? 'warn' : 'info'} title="Plafonds des revendications">
+      {partie === 'substances' ? null : <Notice tone={nv ? 'warn' : 'info'} title="Plafonds des revendications">
         <span>Les valeurs proposées sont des exemples non officiels, à vérifier dans la réglementation et dans vos cahiers des charges avant usage.</span>{' '}
         {nv ? <><span translate="no">{fmt(nv)}</span> <span>plafond(s) à vérifier.</span></> : null}{' '}
         <span>Un dépassement n’est jamais bloqué : l’opération demande un motif, tracé avec elle (journal, registre des intrants).</span>{' '}
-        <span>Les plafonds du référentiel réglementaire (Intrants › Référentiel réglementaire) s’ajoutent à ceux-ci : le plus bas s’applique, sauf plafond vérifié ici pour la revendication.</span>
-      </Notice>
-      <Sec title="SO₂ total maximal (mg/L)" right={lect ? null : <div className="flex flex-wrap gap-2"><Btn onClick={() => setCahier(true)}>📥 Importer un cahier des charges…</Btn><Btn kind="primary" onClick={() => setForm({ objet: 'so2t' })}>+ Plafond de SO₂</Btn></div>}>
+        <span>Les plafonds des labels et cahiers des charges s’ajoutent à ceux-ci : le plus bas s’applique, sauf plafond vérifié ici pour la revendication.</span>
+      </Notice>}
+      {partie === 'substances' ? null : <Sec title="SO₂ total maximal de l’exploitation (mg/L)" right={lect ? null : <div className="flex flex-wrap gap-2"><Btn onClick={() => setCahier(true)}>📥 Importer un cahier des charges…</Btn><Btn kind="primary" onClick={() => setForm({ objet: 'so2t' })}>+ Plafond de SO₂</Btn></div>}>
         <div data-plafonds-so2><Tbl rows={so2} empty="Aucun plafond de SO₂ total." cols={[
           { h: 'Revendication', r: (p) => <QChip id={p.qualifId} /> }, { h: 'Vins', r: (p) => vinTypeLabel(p.vin) },
           { h: 'SO₂ total max', cls: 'r', r: (p) => <b className="num" translate="no">{fmt(p.valeur, 0)} mg/L</b> },
           { h: 'Précision', r: (p) => (p.note ? <span className="text-xs">{p.note}</span> : '—') }, { h: 'Source', r: (p) => <span className="text-xs text-ink2">{p.source || '—'}</span> },
           { h: 'État', r: (p) => <div>{plafondEtatChip(p)}{!p.aVerifier && p.verifieLe ? <div className="text-xs text-ink2"><span translate="no">{fmtDate(p.verifieLe)}</span>{p.verifiePar ? <> · <span translate="no">{utilisateurNom(db, p.verifiePar)}</span></> : null}</div> : null}</div> },
-          { h: '', r: actions },
+          colCat, { h: '', r: actions },
         ]} /></div>
-      </Sec>
-      <Sec title="Substances du cahier des charges (interdiction, dose maximale)" right={lect ? null : <Btn onClick={() => setForm({ objet: 'substance' })}>+ Règle de substance</Btn>}>
+      </Sec>}
+      {partie === 'so2' ? null : <Sec title="Substances de vos cahiers des charges (interdiction, dose maximale)" right={lect ? null : <Btn onClick={() => setForm({ objet: 'substance' })}>+ Règle de substance</Btn>}>
         <p className="help">S’ajoutent aux règles de chaque produit (onglet « Produits & règles par revendication ») : un produit dont le nom, la famille ou la composition contient le mot-clé suit la règle la plus restrictive.</p>
         <div data-plafonds-substances><Tbl rows={subs} empty="Aucune règle de substance." cols={[
           { h: 'Revendication', r: (p) => <QChip id={p.qualifId} /> }, { h: 'Substance', r: (p) => <div><b>{p.libelle || p.mot}</b><div className="text-xs text-ink2"><span>mots-clés :</span> <span translate="no">{String(p.mot).split('|').join(', ')}</span></div></div> },
           { h: 'Règle', r: (p) => (p.autorise === false ? <Chip tone="bad">interdit</Chip> : p.doseMax != null ? <span><span>dose max</span> <b className="num" translate="no">{fmt(p.doseMax, Number.isInteger(p.doseMax) ? 0 : 2)} {p.unite}</b></span> : <Chip>autorisé</Chip>) },
-          { h: 'Produits concernés', r: (p) => { const n = db.produits.filter((x) => plafondConcerne(p, x)); return n.length ? <span className="text-xs" translate="no">{n.slice(0, 4).map((x) => x.nom).join(', ')}{n.length > 4 ? ` +${n.length - 4}` : ''}</span> : <span className="text-xs text-ink2">aucun pour l’instant</span>; } },
-          { h: 'Source', r: (p) => <span className="text-xs text-ink2">{p.source || '—'}</span> }, { h: 'État', r: (p) => plafondEtatChip(p) }, { h: '', r: actions },
+          { h: 'Produits concernés', r: (p) => { const n = db.produits.filter((x) => plafondConcerneProduit(db, p, x)); return n.length ? <span className="text-xs" translate="no">{n.slice(0, 4).map((x) => x.nom).join(', ')}{n.length > 4 ? ` +${n.length - 4}` : ''}</span> : <span className="text-xs text-ink2">aucun pour l’instant</span>; } },
+          colCat, { h: 'Source', r: (p) => <span className="text-xs text-ink2">{p.source || '—'}</span> }, { h: 'État', r: (p) => plafondEtatChip(p) }, { h: '', r: actions },
         ]} /></div>
-      </Sec>
-      <RevendicationSyntheseSec />
+      </Sec>}
+      {partie ? null : <RevendicationSyntheseSec />}
+      {lien ? <PlafondCatalogueSheet id={lien} onClose={() => setLien(null)} /> : null}
       {form ? <PlafondForm id={form.id} objet={form.objet} onClose={() => setForm(null)} /> : null}
       {cahier ? <CahierImportSheet onClose={() => setCahier(false)} /> : null}
     </>

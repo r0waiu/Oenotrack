@@ -16,7 +16,7 @@ const fCsv = SC + '/catalogue-test.csv'; fs.writeFileSync(fCsv, Buffer.from(csv,
   const db = () => page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')));
   await page.click('#tab-intrants'); await page.waitForTimeout(500);
   const nav = await txt(page.locator('main [role=tablist]').first());
-  ok('Intrants : onglets « Catalogues » et « Revendications & plafonds » (avec les exemples à vérifier)', /Catalogues/.test(nav) && /Revendications & plafonds/.test(nav), nav);
+  ok('Intrants : onglets « Catalogues » et « Labels & cahiers des charges » (avec les exemples à vérifier)', /Catalogues/.test(nav) && /Labels & cahiers des charges/.test(nav), nav);
   await page.locator('main [role=tab]', { hasText: 'Catalogues' }).click(); await page.waitForTimeout(600);
   const cats = await page.locator('[data-catalogue]').evaluateAll((els) => els.map((e) => e.getAttribute('data-catalogue')));
   const vue = await txt(page.locator('main'));
@@ -100,7 +100,7 @@ const fCsv = SC + '/catalogue-test.csv'; fs.writeFileSync(fCsv, Buffer.from(csv,
   const ov = () => page.locator('.overlay').last();
   await page.click('#tab-intrants'); await page.waitForTimeout(400);
   const nav = await txt(page.locator('main [role=tablist]').first());
-  ok('anglais : onglets « Stock & deliveries », « Products & rules by designation », « Catalogues », « Designations & limits »', /Stock & deliveries/.test(nav) && /Products & rules by designation/.test(nav) && /Catalogues/.test(nav) && /Designations & limits/.test(nav), nav);
+  ok('anglais : onglets « Stock & deliveries », « Products & rules by designation », « Catalogues », « Labels & specifications »', /Stock & deliveries/.test(nav) && /Products & rules by designation/.test(nav) && /Catalogues/.test(nav) && /Labels & specifications/.test(nav), nav);
   await page.locator('main [role=tab]', { hasText: 'Catalogues' }).click(); await page.waitForTimeout(500);
   await page.locator('main input[aria-label="Search for a product"]').fill('MANNOSTAB'); await page.waitForTimeout(400);
   const v = await txt(page.locator('main'));

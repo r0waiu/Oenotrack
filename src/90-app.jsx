@@ -60,6 +60,7 @@ function App() {
   const [stack, setStack] = useState([]); // fiches ouvertes : { k: 'lot' | 'cont' | 'fini', id } — la dernière ouverte est au premier plan
   const [traceDlg, setTraceDlg] = useState(null); // fichier de traçabilité : export d'une expédition, traçabilité amont d'une entrée (0.27.0-alpha.1)
   const [opDlg, setOpDlg] = useState(null); const [misc, setMisc] = useState(null); const [menu, setMenu] = useState(null); const [contEdit, setContEdit] = useState(null); const [report, setReport] = useState(null); const [docsDlg, setDocsDlg] = useState(null); const [ficheDlg, setFicheDlg] = useState(null);
+  const [questionnaire, setQuestionnaire] = useState(null); const [visite, setVisite] = useState(false); // configuration et visite guidées (0.43.0-alpha.3)
   const [schemaDlg, setSchemaDlg] = useState(null); // schéma de vinification proposé (0.31.0-alpha.1)
   const [groupeDlg, setGroupeDlg] = useState(null); const [mdpDlg, setMdpDlg] = useState(null); // saisie groupée, mot de passe de chiffrement (0.29.0-alpha.1)
   const [theme, setTheme] = useState(() => { try { return window.localStorage.getItem(THEME_KEY) || window.localStorage.getItem('cuverie-champenoise-theme') || 'auto'; } catch (e) { return 'auto'; } });
@@ -86,7 +87,7 @@ function App() {
     try { if (d.marque !== marque) window.localStorage.setItem(ACCUEIL_KEY, d.marque); } catch (e) { /* ignoré */ }
     return d.montrer ? 'premier' : null;
   });
-  const entrer = () => { try { window.localStorage.setItem(ACCUEIL_KEY, 'vu'); } catch (e) { /* ignoré */ } setAccueil(null); try { window.scrollTo(0, 0); } catch (e) { /* ignoré */ } };
+  const entrer = () => { const premiere = accueil === 'premier' && first.current.neuf && !((dbRef.current || {}).settings || {}).personnalisation; try { window.localStorage.setItem(ACCUEIL_KEY, 'vu'); } catch (e) { /* ignoré */ } setAccueil(null); try { window.scrollTo(0, 0); } catch (e) { /* ignoré */ } if (premiere) setQuestionnaire({ premiere: true }); };
   const revoirAccueil = () => { setAccueil('revoir'); try { window.scrollTo(0, 0); } catch (e) { /* ignoré */ } };
   const fermerLegal = () => { setLegal(null); if (legalOngletDeHash(window.location.hash)) { try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* ignoré */ } } };
   useEffect(() => {
@@ -199,6 +200,7 @@ function App() {
     openAnalyse: (preset) => { setMenu(null); setMisc({ kind: 'analyse', preset }); }, openHyg: (preset) => { setMenu(null); setMisc({ kind: 'hyg', preset }); },
     openGroupe: (x) => { setMenu(null); setGroupeDlg(x ? { ...x, k: Date.now() } : null); },
     openSchema: (x) => { setMenu(null); setSchemaDlg(x ? { ...x, k: Date.now() } : null); },
+    openQuestionnaire: (x) => setQuestionnaire(x || { premiere: false }), openVisite: () => setVisite(true),
     openMenu: (cid, x, y) => setMenu({ cid, x, y, k: Date.now() }), editCont: (id) => { setMenu(null); setContEdit(id); }, openReport: (init) => { setMenu(null); setReport(init || { kind: 'lot', ids: [] }); },
   };
 
@@ -240,7 +242,7 @@ function App() {
   // 0.38.0-alpha.3 : un seul parcours des opérations (plus une recherche par avertissement), refait seulement quand la base change
   const toCheck = useMemo(() => db.ops.filter((o) => (R.warn[o.id] || []).length && !o.verifie && o.date >= camp.debut && o.date <= camp.fin).length, [db, R, camp.debut, camp.fin]);
   const dluoIssues = db.arrivages.filter((a) => { const rest = arrivalRest(R, a); const k = dluoState(a.dluo).k; return rest > 0.0001 && (k === 'expire' || k === 'bientot'); }).length;
-  const prevLate = (db.previsions || []).filter((p) => p.statut === 'prevue' && p.date <= todayISO()).length;
+  const prevLate = (db.previsions || []).filter((p) => previsionEnRetard(p)).length; // 0.43.0-alpha.2 : étapes d'un plan (sans date) jamais en retard
   const hygT = hygTachesBadge; // plans de nettoyage et de maintenance (0.26.0-alpha.1)
   const badge = { hygiene: hygT.n ? { n: hygT.n, tone: hygT.nc ? 'bad' : 'warn' } : null, previsions: prevLate ? { n: prevLate, tone: 'warn' } : null, ops: pendingAlerts && moduleActif(db, 'declass') && moduleAutorise(db, uid, 'declass') ? { n: pendingAlerts, tone: 'bad' } : toCheck ? { n: toCheck, tone: 'warn' } : null, intrants: dluoIssues ? { n: dluoIssues, tone: 'warn' } : null, equipements: equipBadge };
   const Cmp = TABS_REG[nav.tab];
@@ -261,7 +263,7 @@ function App() {
   if (secu && !uid) {
     return (
       <Ctx.Provider value={ctx}>
-        <EcranConnexion key="connexion" onConnecte={connecter} />
+        <EcranConnexion key="connexion" onConnecte={connecter} onPresentation={revoirAccueil} />
         <LegalLiens className="legal-liens-connexion" onOuvrir={setLegal} />
         {legal ? <LegalSheet onglet={legal} onClose={fermerLegal} /> : null}
         <SyncSheet />
@@ -276,7 +278,7 @@ function App() {
       {uid && uSession.doitChanger ? <ChangerMdpSheet force onClose={() => {}} /> : null}
       <header className="topbar">
         <div className="wrap flex flex-wrap items-center gap-x-6 gap-y-3 py-3">
-          <Brand size={50} />
+          <Brand size={50} onClick={revoirAccueil} />
           <div className="hdr-camp ml-auto flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2"><span className="lbl mb-0">Campagne</span>
               <select className="inp" style={{ width: 'auto', minWidth: 130 }} value={camp.id} onChange={(e) => act((d) => { d.settings.campagneActive = e.target.value; return okr(); })}>{db.campagnes.map((c) => <option key={c.id} value={c.id}>{c.nom}{c.figee ? ' 🔒' : ''}</option>)}</select></label>
@@ -291,6 +293,7 @@ function App() {
             <DriveChip />
             {secu && !peut(db, uid, 'sauvegarde') ? null : (() => { const der = derniereSauvegarde(db); const late = joursDepuis(der) > (num(db.settings.rappelSauvegardeJours) || 7); return <button type="button" className={cx('chip', late ? 'chip-warn' : 'chip-ok')} style={{ cursor: 'pointer' }} onClick={() => setTab('params', 'sauvegarde')} title="Sauvegarde complète, Drive, sauvegarde en ligne">💾 {der ? `Sauvegardé ${ilYa(der)}` : 'Aucune sauvegarde'}{late ? ' · à faire' : ''}</button>; })()}
             {storeOK ? <StockageLocalChip /> : <Chip tone="bad" title="Le navigateur refuse le stockage local.">⚠ Stockage local indisponible</Chip>}
+            <button type="button" className="btn btn-sm" onClick={() => setVisite(true)} title="Visite guidée de l’écran" data-visite-bouton="">❓ Visite guidée</button>
             <button type="button" className="btn btn-sm" onClick={() => setApparence(true)} title="Choisir la charte graphique et le mode clair / sombre">🎨 Thème : {charte.nom} · {theme === 'auto' ? 'auto' : theme === 'light' ? 'clair' : 'sombre'}</button>
           </span>
         </div>
@@ -330,7 +333,9 @@ function App() {
       {apparence ? <ApparenceSheet onClose={() => setApparence(false)} /> : null}
       {docsDlg ? <DocsSheet key={docsDlg.k} cible={docsDlg.cible} kind={docsDlg.kind} title={docsDlg.title} onClose={() => setDocsDlg(null)} /> : null}
       {ficheDlg ? <FicheDialog key={ficheDlg.k} sources={ficheDlg.sources} onClose={() => setFicheDlg(null)} /> : null}
-      {schemaDlg ? <SchemaFeuille key={schemaDlg.k} lotIds={schemaDlg.lotIds} opId={schemaDlg.opId} auto={!!schemaDlg.auto} onClose={() => setSchemaDlg(null)} /> : null}
+      {questionnaire ? <Questionnaire premiere={!!questionnaire.premiere} onClose={() => setQuestionnaire(null)} onVisite={() => setTimeout(() => setVisite(true), 300)} /> : null}
+      {visite ? <VisiteGuidee onClose={() => setVisite(false)} /> : null}
+      {schemaDlg ? <PlanFeuille key={schemaDlg.k} lotIds={schemaDlg.lotIds} opId={schemaDlg.opId} auto={!!schemaDlg.auto} onClose={() => setSchemaDlg(null)} /> : null}
       {groupeDlg && groupeDlg.gid ? <GroupeSheet key={groupeDlg.k} gid={groupeDlg.gid} onClose={() => setGroupeDlg(null)} /> : null}
       {groupeDlg && groupeDlg.form ? <GroupeForm key={groupeDlg.k} gid={groupeDlg.form.gid} prevGid={groupeDlg.form.prevGid} onClose={() => setGroupeDlg(null)} /> : null}
       {mdpDlg ? <MdpChiffrementDialog d={mdpDlg} onFin={(k) => { const r = mdpDlg.res; setMdpDlg(null); r(k); }} /> : null}

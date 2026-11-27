@@ -18,23 +18,26 @@ const sous = async (lib) => { await page.locator('button', { hasText: lib }).fir
 
 // ---- 1. Intrants › Référentiel réglementaire
 await page.click('#tab-intrants'); await page.waitForTimeout(400);
-await sous('⚖ Référentiel réglementaire');
+await sous('⚖ Labels & cahiers des charges'); await page.locator('[data-labels-vue="revendications"]').click(); await page.waitForTimeout(300);
 let t = await txt(page.locator('[data-referentiel]'));
 ok('référentiel : avertissement « valeurs d’exemple à vérifier », appellation du vignoble (AOC Champagne)', /à vérifier/i.test(t) && /AOC Champagne/.test(t));
+await page.locator('[data-labels-vue="substances"]').click(); await page.waitForTimeout(400);
 const nCols = await page.locator('[data-ref-matrice] thead th').count(); const nLignes = await page.locator('[data-ref-matrice] tbody tr').count();
-ok('… matrice composés × 9 référentiels (UE, AOC, BIO, DEM, BDV, TV, N&P, AVN, SAINS)', nCols === 10 && nLignes >= 40, { nCols, nLignes });
+ok('… matrice composés × 9 référentiels (UE, AOC, BIO, DEM, BDV, TV, N&P, VMN, SAINS)', nCols === 10 && nLignes >= 40, { nCols, nLignes });
 const cPv = await txt(page.locator('[data-ref-cellule="bio-ue|pvpp"]')); const cSo = await txt(page.locator('[data-ref-cellule="ue|sorbate"]'));
 ok('… PVPP interdite en Bio UE ; sorbate en UE : teneur max corrigée par l’exploitation (150 mg/L, « corrigé »)', /interdit/i.test(cPv) && /150 mg\/L/.test(cSo) && /corrigé/i.test(cSo), [cPv, cSo]);
+await page.locator('[data-labels-vue="revendications"]').click(); await page.waitForTimeout(300);
 const rev = await txt(page.locator('[data-ref-revendications]'));
 ok('… revendications : Demeter → Demeter + S.A.I.N.S. (choisis), FR-BIO-01 → Bio UE (deviné)', /Vins S\.A\.I\.N\.S\./.test(rev) && /Bio européen/.test(rev), rev.slice(0, 300));
 // correction d'une valeur
+await page.locator('[data-labels-vue="substances"]').click(); await page.waitForTimeout(400);
 await page.locator('[data-ref-cellule="ue|pvpp"] button', { hasText: 'Corriger' }).click(); await page.waitForTimeout(300);
 await ov().locator('input[inputmode="decimal"]').first().fill('60'); await ov().locator('button', { hasText: 'Enregistrer' }).last().click(); await page.waitForTimeout(500);
 let d = await db();
 ok('correction de l’exploitation enregistrée (PVPP UE : 60 g/hL), tracée', d.settings.referentiel.exceptions['ue|pvpp'] && d.settings.referentiel.exceptions['ue|pvpp'].doseMax === 60 && !!d.settings.referentiel.exceptions['ue|pvpp'].le);
 
 // ---- 2. vues liées
-await sous('Revendications & plafonds');
+await sous('⚖ Labels & cahiers des charges'); await page.locator('[data-labels-vue="produits"]').click(); await page.waitForTimeout(400);
 t = await txt(page.locator('[data-ref-synthese="bio"]'));
 ok('« Revendications & plafonds » : synthèse des produits du catalogue pour FR-BIO-01 (règle du produit, référentiel, règle effective)', /Sorbate de potassium \(fictif\)/.test(t) && /référentiel : interdit/i.test(t) && /Citrate de cuivre 2 % \(fictif\)/.test(t));
 await sous('Produits & règles par revendication');
@@ -44,7 +47,7 @@ const al = page.locator('[data-ref-aligner]').first(); const cleAl = await al.ge
 await al.click(); await page.waitForTimeout(500); d = await db();
 const [pidA, qA] = cleAl.split('|'); const rA = d.regles.find((r) => r.produitId === pidA && r.qualifId === qA);
 ok('« Aligner » dans une cellule : règle du produit alignée sur le référentiel, à vérifier, avec sa source', rA && rA.aVerifier === true && /Référentiel/.test(rA.source || ''), rA);
-await sous('Revendications & plafonds');
+await sous('⚖ Labels & cahiers des charges'); await page.locator('[data-labels-vue="produits"]').click(); await page.waitForTimeout(400);
 const t2 = await txt(page.locator('[data-ref-synthese="bio"]'));
 ok('… même donnée vue aussitôt depuis « Revendications & plafonds »', t2.length > 0 && (qA !== 'bio' || !(await page.locator(`[data-ref-synthese="bio"] [data-ref-aligner="${pidA}"]`).count())));
 
