@@ -37,7 +37,7 @@ function MdpInput({ value, onChange, label, autoComplete = 'current-password', a
 const mdpErreur = (db, a, b) => { const q = mdpQualite(a, securiteReglages(db).longueurMin); if (!q.note) return q.msg; if (q.note < 2) return `Mot de passe trop faible : ${q.msg.toLowerCase()}`; if (a !== b) return 'Les deux mots de passe ne sont pas identiques.'; return ''; };
 
 /* ---------- écran de connexion (ou de déverrouillage) ---------- */
-function EcranConnexion({ verrou, onConnecte, onChanger }) {
+function EcranConnexion({ verrou, onConnecte, onChanger, onPresentation }) {
   const { db, act } = useApp(); const E = db.entreprise || {};
   const u0 = verrou ? utilisateurDe(db, verrou.uid) : null;
   const [mode, setMode] = useState('connexion'); // connexion | secours | nouveauCode
@@ -71,7 +71,7 @@ function EcranConnexion({ verrou, onConnecte, onChanger }) {
   return (
     <div className="login-wrap" data-connexion="">
       <form className="login-card card" onSubmit={mode === 'secours' ? secours : connexion} aria-label={mode === 'secours' ? 'Code de secours' : 'Connexion'}>
-        <div className="login-tete"><Brand size={44} /><LangueChoix compact /></div>
+        <div className="login-tete"><Brand size={44} onClick={onPresentation} /><LangueChoix compact /></div>
         {E.logo ? <div className="login-societe" data-login-logo=""><CompanyLogo maxH={72} maxW={260} /></div> : null}
         {mode === 'nouveauCode' ? <>
           <h1 className="login-titre">Mot de passe réinitialisé</h1>

@@ -128,6 +128,7 @@ function normalizeDb(d) {
   out.app = APP_ID; out.schema = Math.max(SCHEMA, num(d.schema));
   const dm = d.meta || {}; const vs = Array.isArray(dm.versions) ? dm.versions.filter((x) => typeof x === 'string') : [];
   out.meta = { ...out.meta, creeAvec: dm.creeAvec || (old ? 'Cuverie champenoise' : vs[0] || '0.7.0-alpha.1 ou antérieure'), appVersion: APP_VERSION, versions: vs.includes(APP_VERSION) ? vs : [...vs, APP_VERSION].slice(-30) };
+  if (typeof refMigrerLabels === 'function') refMigrerLabels(out); // 0.43.0-alpha.1 : AVN → VMN (Vin Méthode Nature), bascule tracée
   syncConfig(out);
   return out;
 }

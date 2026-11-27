@@ -261,7 +261,7 @@ function App() {
   if (secu && !uid) {
     return (
       <Ctx.Provider value={ctx}>
-        <EcranConnexion key="connexion" onConnecte={connecter} />
+        <EcranConnexion key="connexion" onConnecte={connecter} onPresentation={revoirAccueil} />
         <LegalLiens className="legal-liens-connexion" onOuvrir={setLegal} />
         {legal ? <LegalSheet onglet={legal} onClose={fermerLegal} /> : null}
         <SyncSheet />
@@ -276,7 +276,7 @@ function App() {
       {uid && uSession.doitChanger ? <ChangerMdpSheet force onClose={() => {}} /> : null}
       <header className="topbar">
         <div className="wrap flex flex-wrap items-center gap-x-6 gap-y-3 py-3">
-          <Brand size={50} />
+          <Brand size={50} onClick={revoirAccueil} />
           <div className="hdr-camp ml-auto flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2"><span className="lbl mb-0">Campagne</span>
               <select className="inp" style={{ width: 'auto', minWidth: 130 }} value={camp.id} onChange={(e) => act((d) => { d.settings.campagneActive = e.target.value; return okr(); })}>{db.campagnes.map((c) => <option key={c.id} value={c.id}>{c.nom}{c.figee ? ' 🔒' : ''}</option>)}</select></label>

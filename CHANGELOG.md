@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.43.0-alpha.1 — 27/11/2026
+
+- Intrants › « ⚖ Labels & cahiers des charges » réunit « Revendications & plafonds » et « Référentiel réglementaire » : revendications et labels appliqués, SO₂ total (plafond de l’exploitation, plafond des labels et plafond retenu côte à côte), substances et composés actifs, produits par revendication, textes de référence ; chaque plafond et chaque composé est lié aux produits des catalogues (d’office d’après le mot-clé, le composé ou l’apport de SO₂, ajustable produit par produit), et un produit mis en stock depuis un catalogue reprend ces liens.
+- Le référentiel « Vin Méthode Nature » (VMN, charte d’engagement du 23 mars 2023) remplace AVN : raisins bio certifiés, levures indigènes, aucun intrant œnologique, ni filtration ni technique physique brutale, SO₂ ajouté seulement au vin fini et 30 mg/L de SO₂ total au plus, sucre de prise de mousse apporté par du jus de raisin ; les revendications, lots et corrections rattachés à AVN basculent vers VMN (bascule tracée) ; le logo d’Œnotrack ramène à la page de présentation, aussi depuis l’écran de connexion.
+
 ## 0.42.0-alpha.4 — 27/11/2026
 
 - Tirages › « 📄 Déclarations » : déclaration préalable de tirage sur le modèle du formulaire de l’AIDAC (n° EVV, code récoltant, déclarant, lieu et date du tirage, volumes prévisionnels de vin, de sucre et total à tirer calculés par le profil de tirage, rosé d’assemblage, mentions ; alerte à moins de 48 h du tirage ; PDF à établir en 3 exemplaires) et déclaration de fin de tirage et de revendication prête à reporter sur Innov OI — volumes effectivement mis en œuvre (vins, sucres et liqueurs, total tiré), VRTP affiché à part avec sa limite de 1 %, titre alcoométrique, flacons, puis lot par lot dans l’ordre de la saisie (produit, millésime, cuvée, demies, bouteilles, magnums et autres formats, revendications particulières proposées : grand ou premier cru, blanc de blancs ou de noirs, monocépage, revendication, tirage à façon ou CAF) et ventilation par revendication, échelle des crus et couleur ; export CSV et PDF.

@@ -31,12 +31,12 @@ const REG_TEXTES = {
   biodyvin: 'Cahier des charges Biodyvin (SIVCBD), seconde partie « Vinification – élevage », version du 26 novembre 2024',
   terravitis: 'Cahier des charges Terra Vitis (diffusé sur demande, non consulté) — à vérifier',
   np: 'Cahier des charges Vinification Nature & Progrès, édition 2025',
-  avn: 'Cahier des charges de l’Association des Vins Naturels adopté par l’AG du 22/03/2017 (association inactive ; texte reproduit par vinsnaturels.fr) — à vérifier',
+  vmn: 'Charte d’engagement « Vin Méthode Nature » du Syndicat de défense des vins nature’l (16 points), mise à jour du 23 mars 2023',
   sains: 'Charte de l’Association des Vins S.A.I.N.S. (vins-sains.org, consultée le 27/11/2026)',
 };
 // herite : référentiels dont les règles s'appliquent aussi (la plus restrictive l'emporte) ; defaut 'non' : tout intrant non listé est refusé
-// (liste fermée du cahier des charges : Bio UE, Demeter, Nature & Progrès, AVN, S.A.I.N.S.) ; inconnu 'non' : un produit dont aucun composé
-// n'est reconnu est aussi refusé (« aucun intrant » : AVN, S.A.I.N.S.)
+// (liste fermée du cahier des charges : Bio UE, Demeter, Nature & Progrès, VMN, S.A.I.N.S.) ; inconnu 'non' : un produit dont aucun composé
+// n'est reconnu est aussi refusé (« aucun intrant » : VMN, S.A.I.N.S.) — 0.43.0-alpha.1 : VMN (Vin Méthode Nature) remplace AVN
 const REG_LABELS = [
   { id: 'ue', label: 'Réglementation UE', court: 'UE', type: 'reglement', herite: [], texte: 'ue', note: 'S’applique à tous les vins ; seuls les composés du tableau 2 de l’annexe I du règlement 2019/934 sont autorisés (article 3).' },
   { id: 'aoc-champagne', label: 'AOC Champagne', court: 'AOC', type: 'appellation', regions: ['champagne'], herite: ['ue'], texte: 'champagne', note: 'Appliqué quand le vignoble du profil régional est la Champagne (zone viticole B).' },
@@ -45,7 +45,7 @@ const REG_LABELS = [
   { id: 'biodyvin', label: 'Biodyvin', court: 'BDV', type: 'label', herite: ['bio-ue'], texte: 'biodyvin', note: 'Raisins bio et biodynamiques ; produits issus de l’agriculture biologique quand ils existent, conformes au Codex et non OGM.' },
   { id: 'terra-vitis', label: 'Terra Vitis', court: 'TV', type: 'label', herite: ['ue'], texte: 'terravitis', note: 'Cahier des charges non consulté (diffusé sur demande) : règles de l’UE seulement.' },
   { id: 'nature-progres', verifie: true, label: 'Nature & Progrès', court: 'N&P', type: 'label', herite: ['bio-ue'], texte: 'np', defaut: 'non', note: 'Raisins N&P ou bio ; tout procédé ou intrant non « recommandé » ou « autorisé » est interdit.' },
-  { id: 'avn', label: 'AVN (Vins Naturels)', court: 'AVN', type: 'label', herite: ['bio-ue'], texte: 'avn', defaut: 'non', inconnu: 'non', note: 'Raisins bio ou biodynamiques, vendange manuelle ; aucun intrant ni additif, aucun ajout de sucre.' },
+  { id: 'vmn', verifie: true, label: 'Vin Méthode Nature', court: 'VMN', type: 'label', herite: ['bio-ue'], texte: 'vmn', defaut: 'non', inconnu: 'non', note: 'Raisins 100 % bio certifiés (AB ou Nature & Progrès), vendange manuelle, levures indigènes ; aucun intrant œnologique ; ni filtration ni technique physique brutale ; aucun sulfite avant et pendant les fermentations, au plus 30 mg/L de SO₂ total dans le vin fini ; effervescent : seul du jus de raisin apporte le sucre de la prise de mousse.' },
   { id: 'sains', verifie: true, label: 'Vins S.A.I.N.S.', court: 'SAINS', type: 'label', herite: ['ue'], texte: 'sains', defaut: 'non', inconnu: 'non', note: 'Vendange manuelle sans produits de synthèse ; levures et bactéries indigènes ; aucun intrant ni sulfite ajouté.' },
 ];
 const refLabel = (id) => REG_LABELS.find((l) => l.id === id) || null;
@@ -230,8 +230,10 @@ sucre|nature-progres|condition|||+1 % vol au plus : sucre de canne ou de bettera
 acide-tartrique|nature-progres|condition|100||Dans le Midi, en dernier recours, sur moût seulement, avec l’accord d’un œnologue : 1 g/L sur blancs, 0,5 g/L sur rouges|np|IX.1|v
 filtration|nature-progres|condition|||Plaques cellulosiques, perlite (filtre presse), kieselguhr à titre provisoire ; filtration stérilisante systématique interdite|np|VI.2|v
 desacidifiants|nature-progres|condition|||Bicarbonate de potassium ; carbonate de calcium toléré si une analyse le justifie|np|IX.2|v
-filtration|avn|non|||Filtration interdite|avn|11|
-so2|avn|non|||Pas d’emploi de SO₂ ; 10 mg/L au plus à l’analyse|avn|8|
+filtration|vmn|non|||Aucune technique physique brutale : osmose inverse, filtration, filtration tangentielle, flash-pasteurisation, centrifugation (toute autre technique : avis préalable du Syndicat)|vmn|point 6|v
+so2|vmn|condition|||Aucun sulfite avant et pendant les fermentations ni dans les pieds de cuve ; ajustement du vin fini seulement, 30 mg/L de SO₂ total au plus (analyse Frantz Paul), mention et logo « < 30 mg/L de sulfites » ; sans sulfites ajoutés : 20 mg/L au plus|vmn|points 7 et 11|v
+levures|vmn|non|||Levures indigènes uniquement|vmn|point 3|v
+sucre|vmn|non|||Aucun intrant œnologique ; effervescent : seul du jus de raisin apporte le sucre de la prise de mousse (levain « maison » de jus frais ou de vin en fermentation), mise à niveau au dégorgement avec du Vin Méthode Nature|vmn|points 4 et 8|v
 so2|sains|non|||Aucun sulfite ajouté|sains||v`;
 const REG_REGLES = REG_REGLES_TXT.split('\n').map((l) => { const [compose, label, statut, d, t, condition, texte, ref, v] = l.split('|'); return { compose, label, statut, doseMax: d ? Number(d) : null, teneurMax: t ? Number(t) : null, condition: condition || '', source: REG_TEXTES[texte] || '', ref: ref || '', verifie: v === 'v' }; });
 // plafonds de SO₂ total (mg/L) : référentiel|vin|valeur|précision|texte|article|v (vérifié)
@@ -250,9 +252,9 @@ biodyvin|effervescent|96|Champagnes, Crémants, mousseux ≤ 15 g/L de sucre (10
 nature-progres|rouge|40|vins rouges|np|IV.3|v
 nature-progres|blanc_rose|40|rosés et blancs secs (100 pour les demi-secs et moelleux)|np|IV.3|v
 nature-progres|effervescent|40|mousseux et effervescents|np|IV.3|v
-avn|rouge|10|analyse après mise en bouteille|avn|8|
-avn|blanc_rose|10|analyse après mise en bouteille|avn|8|
-avn|effervescent|10|analyse après mise en bouteille|avn|8|`;
+vmn|rouge|30|vin fini, analyse Frantz Paul ; 20 mg/L pour « sans sulfites ajoutés »|vmn|points 7 et 11|v
+vmn|blanc_rose|30|vin fini, analyse Frantz Paul ; 20 mg/L pour « sans sulfites ajoutés »|vmn|points 7 et 11|v
+vmn|effervescent|30|vin fini, analyse Frantz Paul ; 20 mg/L pour « sans sulfites ajoutés »|vmn|points 7 et 11|v`;
 const REG_SO2 = REG_SO2_TXT.split('\n').map((l) => { const [label, vin, v, note, texte, ref, ok] = l.split('|'); return { label, vin, valeur: Number(v), note, source: REG_TEXTES[texte] || '', ref: ref || '', verifie: ok === 'v' }; });
 const REG_STATUTS = { oui: 'autorisé', non: 'interdit', condition: 'sous condition' };
 const REG_POIDS = { oui: 0, condition: 1, non: 2 };
@@ -263,9 +265,20 @@ const refActif = (db) => refReglage(db).actif;
 // référentiels d'une revendication de l'exploitation : choisis (lists.qualifs[].referentiels), sinon devinés d'après l'identifiant et le nom
 function refDeviner(q) {
   if (!q) return []; const s = catCle(`${q.id || ''} ${q.label || q.code || ''} ${q.court || ''}`);
-  if (/\bsains\b/.test(s)) return ['sains']; if (/\bavn\b|vins? naturels?|methode nature/.test(s)) return ['avn']; if (/biodyvin/.test(s)) return ['biodyvin'];
+  if (/\bsains\b/.test(s)) return ['sains']; if (/\bvmn\b|\bavn\b|vins? naturels?|methode nature/.test(s)) return ['vmn']; if (/biodyvin/.test(s)) return ['biodyvin'];
   if (/demeter|\bdem\b/.test(s)) return ['demeter']; if (/nature (et |and )?progres|\bn p\b/.test(s)) return ['nature-progres']; if (/terra ?vitis/.test(s)) return ['terra-vitis'];
   if (/\bbio\b|biolog|organic|\bab\b|fr bio/.test(s)) return ['bio-ue']; return [];
+}
+// 0.43.0-alpha.1 : référentiels renommés (AVN → VMN, Vin Méthode Nature) ; les rattachements existants basculent, la bascule est tracée
+const REG_LABELS_RENOMMES = { avn: 'vmn' };
+function refMigrerLabels(db) {
+  if (!db) return 0; let n = 0; const ren = (x) => { if (REG_LABELS_RENOMMES[x]) { n += 1; return REG_LABELS_RENOMMES[x]; } return x; };
+  ((db.lists && db.lists.qualifs) || []).forEach((q) => { if (q && Array.isArray(q.referentiels) && q.referentiels.some((x) => REG_LABELS_RENOMMES[x])) q.referentiels = uniq(q.referentiels.map(ren)); });
+  [...(db.lots || []), ...(db.lotsFinis || [])].forEach((l) => { if (l && Array.isArray(l.labelsVises) && l.labelsVises.some((x) => REG_LABELS_RENOMMES[x])) l.labelsVises = uniq(l.labelsVises.map(ren)); });
+  const rg = db.settings && db.settings.referentiel; const ex = rg && rg.exceptions;
+  if (ex) Object.keys(ex).forEach((k) => { const [a, ...b] = k.split('|'); if (REG_LABELS_RENOMMES[a]) { const nk = [REG_LABELS_RENOMMES[a], ...b].join('|'); if (!ex[nk]) ex[nk] = ex[k]; delete ex[k]; n += 1; } });
+  if (n) { db.settings = db.settings || {}; db.settings.referentiel = db.settings.referentiel || {}; const t = db.settings.referentiel.renommes || []; Object.keys(REG_LABELS_RENOMMES).forEach((de) => { if (!t.some((x) => x.de === de)) t.push({ de, vers: REG_LABELS_RENOMMES[de], le: todayISO(), n }); }); db.settings.referentiel.renommes = t; }
+  return n;
 }
 function qualifReferentiels(db, qid) {
   const q = (qualifList(db) || []).find((x) => x.id === qid); if (!q) return [];
@@ -445,6 +458,36 @@ function produitComposesSet(db, pid, L) {
   return okr();
 }
 // matrice du référentiel pour l'affichage : chaque composé × référentiel (règle propre, sinon héritée)
+/* ---------- 0.43.0-alpha.1 : composés des produits des catalogues (liaison automatique, ajustable) ----------
+   settings.referentiel.composesCatalogue = { [id d'entrée de catalogue]: [{ id, part }] } ; repris par le produit créé depuis le catalogue */
+const refComposesCatalogueReglage = (db) => { const r = (db && db.settings && db.settings.referentiel) || {}; return r.composesCatalogue && typeof r.composesCatalogue === 'object' ? r.composesCatalogue : {}; };
+function refComposesCatalogue(db, e) {
+  if (!e) return []; const o = refComposesCatalogueReglage(db)[e.id];
+  return refComposesDe({ nom: e.nom || '', famille: e.famille || '', composition: e.composition || '', categorie: typeof famCategorie === 'function' ? famCategorie(e.famille) : 'oeno', ...(Array.isArray(o) ? { composes: o } : {}) });
+}
+function refComposesCatalogueSet(db, entreeId, L, uid) {
+  if (!catalogueEntree(db, entreeId)) return fail('Produit du catalogue introuvable.');
+  db.settings = db.settings || {}; const r = (db.settings.referentiel = db.settings.referentiel && typeof db.settings.referentiel === 'object' ? db.settings.referentiel : {});
+  const m = { ...(r.composesCatalogue || {}) };
+  if (L == null) delete m[entreeId]; else m[entreeId] = uniq((L || []).map((x) => x && x.id).filter((id) => refCompose(id))).map((id) => { const x = L.find((y) => y.id === id); return hasNum(x.part) && num(x.part) > 0 && num(x.part) <= 1 ? { id, part: num(x.part) } : { id }; });
+  r.composesCatalogue = m; r.composesCataloguePar = uid || ''; return okr();
+}
+// produits des catalogues portant un composé (lien automatique ou choisi) : { e, choisi }
+function refCatalogueParCompose(db, composeId) {
+  const o = refComposesCatalogueReglage(db);
+  return catalogueEntrees(db, {}).map((e) => ({ e, c: refComposesCatalogue(db, e) })).filter((x) => x.c.some((c) => c.id === composeId)).map((x) => ({ e: x.e, choisi: Array.isArray(o[x.e.id]) }));
+}
+// SO₂ total maximal par revendication et type de vin : plafond de l'exploitation, plafond le plus bas des référentiels appliqués, plafond retenu
+function labelsSo2Synthese(db) {
+  const P = plafondsDe(db).filter((p) => p.objet === 'so2t'); const out = [];
+  qualifList(db).forEach((q) => VINS_TYPES.filter((v) => v.id !== 'tous').forEach((v) => {
+    const ex = P.filter((p) => p.qualifId === q.id && (p.vin === v.id || p.vin === 'tous')).sort((a, b) => a.valeur - b.valeur)[0] || null;
+    const refs = refActif(db) ? refLabelsPour(db, q.id).map((l) => refSo2(db, l.id, v.id)).filter(Boolean).sort((a, b) => a.valeur - b.valeur) : [];
+    const ref = refs[0] || null; const retenu = ex && !ex.aVerifier ? { valeur: ex.valeur, par: 'exploitation' } : [ex ? { valeur: ex.valeur, par: 'exploitation' } : null, ref ? { valeur: ref.valeur, par: ref.label } : null].filter(Boolean).sort((a, b) => a.valeur - b.valeur)[0] || null;
+    if (ex || ref) out.push({ qualifId: q.id, vin: v.id, exploitation: ex, referentiel: ref, retenu, ecart: !!(ex && ref && ex.valeur > ref.valeur) });
+  }));
+  return out;
+}
 function refMatrice(db) {
   return REG_COMPOSES.map((k) => ({ compose: k, cellules: REG_LABELS.map((l) => { const propre = refRegle(db, l.id, k.id); const eff = refCombiner(db, refChaine([l.id]), k.id); return { label: l.id, propre, eff, herite: !propre && !!eff }; }) }));
 }

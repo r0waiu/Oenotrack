@@ -13,7 +13,8 @@ const CAHIER = 'Article 4 — Sulfitage. La teneur maximale en SO2 total des vin
   const ov = () => page.locator('.overlay').last();
   const db = () => page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')));
   await page.click('#tab-intrants'); await page.waitForTimeout(500);
-  await page.locator('main [role=tab]', { hasText: 'Revendications & plafonds' }).click(); await page.waitForTimeout(500);
+  await page.locator('main [role=tab]', { hasText: 'Labels & cahiers des charges' }).click(); await page.waitForTimeout(500); // 0.43.0-alpha.1 : sous-onglet réuni
+  await page.locator('[data-labels-vue="so2"]').click(); await page.waitForTimeout(400);
   const so2 = page.locator('[data-plafonds-so2]'); let v = await txt(page.locator('main'));
   ok('plafonds : 9 exemples (Conventionnel, Bio, Demeter × 3 types de vins), « exemple à vérifier », source citée', (await so2.locator('tbody tr').count()) === 9 && (await so2.locator('.chip', { hasText: 'exemple à vérifier' }).count()) === 9 && /Règlement délégué \(UE\) 2019\/934/.test(v) && /Les valeurs proposées sont des exemples non officiels/.test(v), v.slice(0, 400));
   ok('… pas encore dans la base (exemples virtuels)', !(await db()).plafonds);
@@ -27,6 +28,7 @@ const CAHIER = 'Article 4 — Sulfitage. La teneur maximale en SO2 total des vin
   d = await db();
   ok('plafond corrigé (Conventionnel, vins rouges → 140 mg/L), vérifié', d.plafonds.find((p) => p.id === 'ex-conv-rouge').valeur === 140 && !d.plafonds.find((p) => p.id === 'ex-conv-rouge').aVerifier);
   // règle de substance : PVPP interdit en Demeter
+  await page.locator('[data-labels-vue="substances"]').click(); await page.waitForTimeout(400);
   await page.locator('main button', { hasText: '+ Règle de substance' }).click(); await page.waitForTimeout(300);
   await choisir(page, ov().locator('label', { hasText: 'Revendication' }).locator('select, input').first(), 'Demeter');
   await ov().locator('input[placeholder="ex. PVPP"]').fill('Charbon'); await ov().locator('input[placeholder="ex. pvpp, polyvinylpolypyrrolidone"]').fill('charbon');
@@ -34,6 +36,7 @@ const CAHIER = 'Article 4 — Sulfitage. La teneur maximale en SO2 total des vin
   d = await db(); const sub = d.plafonds.find((p) => p.objet === 'substance');
   ok('règle de substance : charbon interdit en Demeter, listée avec ses mots-clés', sub && sub.qualifId === 'dem' && sub.mot === 'charbon' && sub.autorise === false && /charbon/.test(await txt(page.locator('[data-plafonds-substances]'))) && /interdit/.test(await txt(page.locator('[data-plafonds-substances]'))), sub);
   // cahier des charges : texte collé, propositions, application à Bio
+  await page.locator('[data-labels-vue="so2"]').click(); await page.waitForTimeout(400);
   await page.locator('main button', { hasText: '📥 Importer un cahier des charges…' }).click(); await page.waitForTimeout(400);
   await ov().locator('textarea[aria-label="Texte du cahier des charges"]').fill(CAHIER);
   await ov().locator('button', { hasText: 'Analyser le texte' }).click(); await page.waitForTimeout(500);
@@ -99,9 +102,10 @@ const CAHIER = 'Article 4 — Sulfitage. La teneur maximale en SO2 total des vin
   const { browser, page, errors } = await open({ locale: 'en-US', viewport: { width: 1280, height: 900 }, date: '2026-11-21T10:00:00' });
   const ov = () => page.locator('.overlay').last();
   await page.click('#tab-intrants'); await page.waitForTimeout(400);
-  await page.locator('main [role=tab]', { hasText: 'Designations & limits' }).click(); await page.waitForTimeout(500);
+  await page.locator('main [role=tab]', { hasText: 'Labels & specifications' }).click(); await page.waitForTimeout(500);
+  await page.locator('[data-labels-vue="so2"]').click(); await page.waitForTimeout(400);
   const v = await txt(page.locator('main'));
-  ok('anglais : « Designation limits », « Maximum total SO₂ (mg/L) », « example to check », types de vins, notes', /Designation limits/.test(v) && /Maximum total SO₂ \(mg\/L\)/.test(v) && /example to check/.test(v) && /Sparkling wines/.test(v) && /quality sparkling wines \(235 for other sparkling wines\)/.test(v) && /\+ Substance rule/.test(v), v.slice(0, 700));
+  ok('anglais : « Designation limits », « Maximum total SO₂ (mg/L) », « example to check », types de vins, notes', /Designation limits/.test(v) && /Estate maximum total SO₂ \(mg\/L\)/.test(v) && /example to check/.test(v) && /Sparkling wines/.test(v) && /quality sparkling wines \(235 for other sparkling wines\)/.test(v), v.slice(0, 700));
   await page.click('#tab-cuverie'); await page.waitForTimeout(400); await page.locator('main [role=tab]', { hasText: 'Cards' }).click(); await page.waitForTimeout(300);
   await page.locator('.tankcard', { hasText: 'AS25-02' }).first().click(); await page.waitForTimeout(600);
   const cum = await txt(ov().locator('[data-rubrique=intrants]')); const s2 = await txt(ov().locator('[data-rubrique=so2]'));

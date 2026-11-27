@@ -262,6 +262,8 @@ function Logo({ size = 40 }) {
     </svg>
   );
 }
-const Brand = ({ size = 40, sub = true }) => (
-  <div className="flex min-w-0 items-center gap-3"><Logo size={size} /><div className="min-w-0"><div className="brand"><span>Œno</span><em>track</em></div>{sub ? <div className="brand-sub">Traçabilité de cuverie &amp; de chai</div> : null}</div></div>
-);
+// 0.43.0-alpha.1 : onClick → le logo ramène à la page de présentation (application, écran de connexion)
+const Brand = ({ size = 40, sub = true, onClick }) => {
+  const corps = <><Logo size={size} /><div className="min-w-0"><div className="brand"><span>Œno</span><em>track</em></div>{sub ? <div className="brand-sub">Traçabilité de cuverie &amp; de chai</div> : null}</div></>;
+  return onClick ? <button type="button" className="brand-lien flex min-w-0 items-center gap-3 text-left" onClick={onClick} title="Page de présentation d’Œnotrack" aria-label="Page de présentation d’Œnotrack" data-brand-presentation="">{corps}</button> : <div className="flex min-w-0 items-center gap-3">{corps}</div>;
+};
