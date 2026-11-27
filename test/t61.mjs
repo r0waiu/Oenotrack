@@ -20,7 +20,7 @@ const fCsv = SC + '/catalogue-test.csv'; fs.writeFileSync(fCsv, Buffer.from(csv,
   await page.locator('main [role=tab]', { hasText: 'Catalogues' }).click(); await page.waitForTimeout(600);
   const cats = await page.locator('[data-catalogue]').evaluateAll((els) => els.map((e) => e.getAttribute('data-catalogue')));
   const vue = await txt(page.locator('main'));
-  ok('catalogues affichés : Laffort, IOC, Sofralab (Oenofrance, SOEC, Martin Vialatte), nombre de produits de chacun', cats.join() === 'ioc,laffort,oenofrance,soec,martinvialatte' && /Catalogue LAFFORT® 2026 \(193 produit\(s\)\)/.test(vue) && /Catalogue SOEC 2024\/2025 \(90 produit\(s\)\)/.test(vue), cats);
+  ok('catalogues affichés : Laffort, IOC, Sofralab (Oenofrance, SOEC, Martin Vialatte) et liste Ecocert, nombre de produits de chacun', cats.filter((c) => c !== 'ecocert').join() === 'ioc,laffort,oenofrance,soec,martinvialatte' && cats.includes('ecocert') /* 0.40.0-alpha.1 : liste Ecocert, masquée par défaut */ && /Catalogue LAFFORT® 2026 \(193 produit\(s\)\)/.test(vue) && /Catalogue SOEC 2024\/2025 \(90 produit\(s\)\)/.test(vue), cats);
   ok('… avertissement : données des catalogues à vérifier sur la fiche technique', /Vérifiez-les sur la fiche technique du produit avant usage/.test(vue));
   // masquer SOEC (réglage commun), puis le fournisseur Sofralab entier
   await page.locator('[data-catalogue=soec] input[type=checkbox]').uncheck(); await page.waitForTimeout(400);
@@ -43,7 +43,7 @@ const fCsv = SC + '/catalogue-test.csv'; fs.writeFileSync(fCsv, Buffer.from(csv,
   await page.locator('main input[aria-label="Rechercher un produit"]').fill(''); await choisir(page, page.locator('main [aria-label="Famille"]'), 'Bentonites', 'Bento');
   await page.locator('main label', { hasText: 'Utilisable en bio' }).locator('input').check(); await page.waitForTimeout(400);
   const rb = await page.locator('[data-catalogue-res] tbody tr').evaluateAll((trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ')));
-  ok('filtres : famille « Bentonites » + utilisable en bio → bentonites marquées bio UE seulement', rb.length >= 1 && rb.every((r) => /Bentonites/.test(r) && /bio UE|NOP/.test(r)), rb.slice(0, 3));
+  ok('filtres : famille « Bentonites » + utilisable en bio → bentonites marquées bio UE ou inscrites sur la liste Ecocert seulement', rb.length >= 1 && rb.every((r) => /Bentonites/.test(r) && /bio UE|NOP|liste Ecocert/.test(r)), rb.slice(0, 3));
   await page.screenshot({ path: SC + '/shots/t61-catalogues.png' });
   // import d'un catalogue CSV (fictif) : relecture, validation
   await page.locator('main button', { hasText: '📥 Importer un catalogue…' }).click(); await page.waitForTimeout(400);
