@@ -95,14 +95,20 @@ ok('exports CSV : registre des pesées et carnet de pressoir', sv.some((x) => x.
 await sub('Relevés par apporteur'); ok('relevés par apporteur : Lefèvre Père & Fils listé', /Lefèvre/.test(await page.locator('main').innerText()));
 // 7. réglages : taux de rebêches de l'année → contrôle bloquant sur un nouveau marc ; région « autre »
 await sub('Réglages'); const tr = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
-ok('réglages : région, profil, valeurs (102 L / 160 kg), pressoirs et balances', /Région viticole/.test(tr) && /Profil de pressurage/.test(tr) && (await page.locator('[data-reglage="ratioL"]').getAttribute('placeholder')) === '102' && /Pressoir 4 000 kg/.test(tr) && /Bascule du pressoir/.test(tr));
+ok('réglages : région (résumé), profil, valeurs (102 L / 160 kg), pressoirs et balances', /Région et types de vins/.test(tr) && /Champagne/.test(tr) && /Profil de pressurage/.test(tr) && (await page.locator('[data-reglage="ratioL"]').getAttribute('placeholder')) === '102' && /Pressoir 4 000 kg/.test(tr) && /Bascule du pressoir/.test(tr));
 await page.screenshot({ path: SC + '/shots/t45-reglages.png', fullPage: true });
-await page.locator('[data-region="autre"]').click(); await page.waitForTimeout(300); await page.locator('.overlay .btn-primary', { hasText: 'Autre région viticole' }).click(); await page.waitForTimeout(500);
+// 0.46.0-alpha.1 : la région se règle à un seul endroit (Paramètres › Région & types de vins), depuis le lien du résumé
+const profil = async (region, types) => { await page.locator('[data-region-pressoir] [data-profil-regler]').click(); await page.waitForTimeout(500);
+  await page.locator('select[aria-label="Région viticole"]').selectOption(region); await page.waitForTimeout(200);
+  for (const ty of ['effervescent', 'blanc', 'rose', 'rouge', 'ancestrale', 'doux']) { const c = page.locator(`[data-profil-types] input[data-type="${ty}"]`); if ((await c.isChecked()) !== types.includes(ty)) await c.click(); }
+  await page.waitForTimeout(300); await page.locator('[data-profil-appliquer]').click(); await page.waitForTimeout(700);
+  await page.click('#tab-pressoir'); await page.waitForTimeout(300); await sub('Réglages'); };
+await profil('bourgogne', ['blanc']);
 d = await db();
-ok('autre région : profil sans plafond, villages champenois inutilisés masqués (repère), rien de supprimé', d.settings.region === 'autre' && d.settings.pressoir.profil === 'libre' && d.crus.filter((c) => c.masqueRegion).length > 100 && (await page.locator('[data-profil-actif="libre"]').count()) === 1);
+ok('autre région (profil Bourgogne) : profil sans plafond, villages champenois inutilisés masqués (repère), rien de supprimé', d.settings.region === 'autre' && d.settings.pressoir.profil === 'libre' && d.crus.filter((c) => c.masqueRegion).length > 100 && (await page.locator('[data-profil-actif="libre"]').count()) === 1);
 await page.locator('[data-profil="cremant"]').click(); await page.waitForTimeout(300);
 ok('profil crémant (100 L / 150 kg) choisi', (await db()).settings.pressoir.profil === 'cremant' && (await page.locator('[data-reglage="ratioL"]').getAttribute('placeholder')) === '100');
-await page.locator('[data-region="champagne"]').click(); await page.waitForTimeout(500); d = await db();
+await profil('champagne', ['effervescent', 'blanc']); d = await db();
 ok('retour en Champagne : profil AOC Champagne, villages rétablis', d.settings.region === 'champagne' && d.settings.pressoir.profil === 'champagne' && !d.crus.some((c) => c.masqueRegion));
 ok('aucune erreur de page', !errors.length, errors.slice(0, 3));
 await browser.close();
