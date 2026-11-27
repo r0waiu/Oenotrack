@@ -192,7 +192,7 @@ function BonPressoir({ id, onClose }) {
   const { db } = useApp(); const ref = useRef(null); const o = db.ops.find((x) => x.id === id); const m = (o && o.marc) || {};
   const out = useReportOutput(ref, `bon-pressoir-${o ? yearOf(o.date) : ''}-${m.num || ''}`);
   if (!o) return null;
-  const P = pressoirParams(db); const pr = pressoirDe(db, o.equipementId); const totKg = marcKg(o); const v = marcVolumes(db, o); const ctl = marcControles(db, o);
+  const P = pressoirParams(db); const pr = pressoirDe(db, o.equipementId); const totKg = marcKg(o); const v = marcVolumes(db, o); const ctl = marcControles(db, o); const deb = P.debourbe ? marcDebourbe(db, o) || marcDebourbeEstime(db, o) : null;
   const ch = (o.charges || []).map((c) => ({ c, a: db.ops.find((x) => x.id === c.apportId) })).filter((x) => x.a);
   const parEch = {}; ch.forEach(({ c, a }) => { const k = a.cruId ? cruEchelle(db, a.cruId) || '' : ''; parEch[k] = (parEch[k] || 0) + num(c.kg); });
   const pc = (x) => (totKg > 0 ? `${fmt((num(x) / totKg) * 100, 1)} %` : '—');
@@ -221,7 +221,8 @@ function BonPressoir({ id, onClose }) {
         {fr.length ? <table data-bon-fractions=""><thead><tr><th>Fraction</th><th>Volume</th><th>Cuve</th><th>Lot</th></tr></thead>
           <tbody>{fr.map((x, i) => <tr key={i}><td>{(fracDef(db, x.fractionId) || { label: x.fractionId }).label}</td><td>{fmtL(x.volL)}</td><td>{x.contenantId ? contName(db, x.contenantId) : '—'}</td><td>{lotFr(x)}</td></tr>)}</tbody></table> : <p className="muted">Volumes à compléter à la fin du pressurage.</p>}
         <table data-bon-rendement=""><tbody>
-          {v.total > 0 ? <tr><th style={{ width: '32%' }}>Revendicable (cuvée + tailles)</th><td>{fmtL(v.aoc)}</td></tr> : null}
+          {v.total > 0 ? <tr><th style={{ width: '32%' }}>{P.debourbe ? 'Revendicable (cuvée + tailles), non débourbé' : 'Revendicable (cuvée + tailles)'}</th><td>{fmtL(v.aoc)}</td></tr> : null}
+          {v.total > 0 && deb ? <tr data-bon-debourbe=""><th>Revendicable débourbé</th><td>{`${deb.source === 'estimation' ? '≈ ' : ''}${fmtL(deb.aoc)} (${DEBOURBE_SOURCES[deb.source]})`}</td></tr> : null}
           {v.total > 0 && plafond ? <tr><th>Plafond du marc</th><td>{fmtL(plafond)}</td></tr> : null}
           {v.total > 0 ? <tr><th>Rebêches</th><td>{fmtL(v.rebeche)}</td></tr> : null}
           {v.total > 0 && totKg > 0 ? <tr><th>Rendement</th><td>{`${fmt((v.total / totKg) * (P.ratioKg || 100), 1)} L / ${P.ratioKg || 100} kg`}</td></tr> : null}
@@ -303,16 +304,24 @@ function MarcForm({ id, onClose, preset }) {
   const dispo = db.ops.filter((x) => x.type === 'apport' && x.date <= f.date && yearOf(x.date) === yearOf(f.date) && (peseeReste(db, x.id, id) > 0.5 || f.charges.some((c) => c.apportId === x.id))).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : num((b.pesee || {}).num) - num((a.pesee || {}).num)));
   const setCh = (charges) => setF((x) => { const first = db.ops.find((y) => y.id === (charges[0] || {}).apportId); return { ...x, charges, designation: x.designation || (first ? `${lbl(db, 'cepages', first.cepageId)} ${yearOf(x.date)} – marc` : '') }; });
   const totKg = sum(f.charges, (c) => c.kg);
+  // 0.41.0-alpha.1 : volumes sortie pressoir (non débourbés) préremplis — usage débourbé au prorata du poids ÷ (1 − taux de bourbes de la fraction) —
+  // tant que la fraction n'a pas été saisie à la main ; toujours modifiables
+  const fracIds = fracs.map((x) => x.id).join('|');
+  const proposes = useMemo(() => (lecture || valide ? {} : marcVolumesProposes(db, totKg, fracIds.split('|'))), [db, totKg, fracIds, lecture, valide]);
+  useEffect(() => { const ids = Object.keys(proposes); if (!ids.length) return;
+    setF((x) => { let ch = false; const frac = { ...x.frac }; ids.forEach((k) => { const c = frac[k] || { volL: '', contenantId: '', code: '' }; if (c.volL && !c.auto) return; const v = String(proposes[k]); if (c.volL === v && c.auto) return; frac[k] = { ...c, volL: v, auto: true }; ch = true; }); return ch ? { ...x, frac } : x; }); }, [proposes]);
   // chargement : pesées du jour non pressées, jusqu'à la capacité du pressoir
   const remplir = () => { const cap = (pr && pr.capaciteKg) || 0; let reste = cap > 0 ? cap - totKg : Infinity; const add = [];
     dispo.filter((x) => x.date === f.date && !f.charges.some((c) => c.apportId === x.id)).reverse().forEach((x) => { if (reste <= 0.5) return; const r = peseeReste(db, x.id, id); const k = Math.min(r, reste); if (k > 0.5) { add.push({ apportId: x.id, kg: String(r2(k)) }); reste -= k; } });
     if (!add.length) toast('Aucune pesée du jour à charger.', 'bad'); else setCh([...f.charges, ...add]); };
   // aperçu des contrôles (sans enregistrer)
   const tapCharges = tapPesees(db, (f.charges || []).filter((c) => c.apportId && num(c.kg) > 0));
-  const apercu = useMemo(() => { const r = marcSpec(db, f, o); if (!r.ok) return { err: r.msg, ctl: [] }; const op = { ...r.spec, id: id || '_nouveau', marc: { ...(o && o.marc), ...r.spec.marc, saisiLe: m0.saisiLe || pMaintenant() } };
-    const d = { ...db, ops: id ? db.ops.map((x) => (x.id === id ? op : x)) : [...db.ops, op] }; return { err: '', ctl: marcControles(d, op), vol: marcVolumes(d, op), spec: op }; }, [f, db]);
+  // fraction préremplie sans cuve choisie : pas encore saisie (le marc s'enregistre au chargement, volumes complétés ensuite)
+  const fSaisi = (x) => ({ ...x, frac: Object.fromEntries(Object.entries(x.frac || {}).map(([k, c]) => [k, c && c.auto && !c.contenantId ? { ...c, volL: '' } : c])) });
+  const apercu = useMemo(() => { const r = marcSpec(db, fSaisi(f), o); if (!r.ok) return { err: r.msg, ctl: [] }; const op = { ...r.spec, id: id || '_nouveau', marc: { ...(o && o.marc), ...r.spec.marc, saisiLe: m0.saisiLe || pMaintenant() } };
+    const d = { ...db, ops: id ? db.ops.map((x) => (x.id === id ? op : x)) : [...db.ops, op] }; return { err: '', ctl: marcControles(d, op), vol: marcVolumes(d, op), deb: P.debourbe ? marcDebourbe(d, op) || marcDebourbeEstime(d, op) : null, spec: op }; }, [f, db]);
   const save = (val) => {
-    let opId = null; const r = act((d) => { const s = marcSave(d, f, id || null, { motif: f.motif, par: uid, maintenant: pMaintenant() }); if (s.ok) opId = s.op.id; if (!s.ok || !val) return s; return marcValider(d, s.op.id, { par: uid, maintenant: pMaintenant() }); },
+    let opId = null; const r = act((d) => { const s = marcSave(d, fSaisi(f), id || null, { motif: f.motif, par: uid, maintenant: pMaintenant() }); if (s.ok) opId = s.op.id; if (!s.ok || !val) return s; return marcValider(d, s.op.id, { par: uid, maintenant: pMaintenant() }); },
       val ? 'Marc validé au carnet de pressoir.' : id ? 'Marc enregistré.' : 'Marc chargé : complétez les volumes à la fin du pressurage.');
     if (r && r.ok) { onClose(); if (val && !valide && opId && openSchema && schemasReglage(db).proposer) openSchema({ opId, auto: true }); } // marc validé : schéma de vinification proposé aux lots créés (0.31.0-alpha.1)
   };
@@ -341,16 +350,16 @@ function MarcForm({ id, onClose, preset }) {
         </div>
       </Group>
       {pr && pr.capaciteKg && totKg > 0 && totKg < pr.capaciteKg * 0.98 && P.chargementPlein ? <Field label="Motif du sous-chargement (exceptionnel)"><TI value={f.sousCharge} onChange={(v) => set('sousCharge', v)} placeholder="ex. fin de cueillette, cépage seul…" /></Field> : null}
-      <Group label="Moûts obtenus" help={plafond ? `Plafond revendicable (cuvée + tailles) : ${fmtL(plafond)} — ${P.ratioL} L de ${P.volume} pour ${P.ratioKg} kg. Au-delà : rebêches.` : 'Renseignez le volume et la cuve de chaque fraction à la fin du pressurage.'}>
+      <Group label={P.debourbe ? 'Moûts obtenus (sortie pressoir, non débourbés)' : 'Moûts obtenus'} help={P.debourbe ? `Volumes sortie pressoir : moûts NON débourbés, mesurés par l’entreprise (préremplis d’après l’usage et le taux de bourbes de chaque fraction : remplacez-les par le volume réel). ${plafond ? `Plafond revendicable (cuvée + tailles) : ${fmtL(plafond)} de ${P.volume} — ${P.ratioL} L pour ${P.ratioKg} kg —, contrôlé sur le débourbé : débourbage saisi en cuverie, sinon bourbes du marc. Au-delà : rebêches.` : ''}` : plafond ? `Plafond revendicable (cuvée + tailles) : ${fmtL(plafond)} — ${P.ratioL} L de ${P.volume} pour ${P.ratioKg} kg. Au-delà : rebêches.` : 'Renseignez le volume et la cuve de chaque fraction à la fin du pressurage.'}>
         <div className="space-y-2" data-fractions="">{fracs.map((x) => (
-          <div key={x.id} className="grid items-end gap-2" style={{ gridTemplateColumns: 'minmax(80px,.8fr) minmax(0,1fr) minmax(0,1.6fr) minmax(0,1fr)' }}>
+          <div key={x.id}><div className="grid items-end gap-2" style={{ gridTemplateColumns: 'minmax(80px,.8fr) minmax(0,1fr) minmax(0,1.6fr) minmax(0,1fr)' }}>
             <div className="pb-2 text-sm font-semibold">{x.label}</div>
-            <VI value={f.frac[x.id] ? f.frac[x.id].volL : ''} onChange={(v) => fr(x.id, { volL: v })} placeholder="hL" aria-label={`Volume ${x.label}`} />
+            <VI value={f.frac[x.id] ? f.frac[x.id].volL : ''} onChange={(v) => fr(x.id, { volL: v, auto: false })} placeholder="hL" aria-label={`Volume ${x.label}`} data-volume-fraction={x.id} />
             <SI value={f.frac[x.id] ? f.frac[x.id].contenantId : ''} onChange={(v) => fr(x.id, { contenantId: v })} placeholder="Cuve…" options={contOptions(db)} aria-label={`Cuve ${x.label}`} />
             <TI value={f.frac[x.id] ? f.frac[x.id].code : ''} onChange={(v) => fr(x.id, { code: v })} placeholder={`${f.code || 'code'}-${x.suffix}`} aria-label={`Code ${x.label}`} />
-          </div>))}</div>
+          </div>{f.frac[x.id] && f.frac[x.id].auto && proposes[x.id] ? <p className="help" data-prerempli={x.id}>{`Prérempli : ${fmtL((proposes[x.id] * (1 - fracBourbesPct(db, x.id) / 100)))} débourbés d’usage + ${fmt(fracBourbesPct(db, x.id), 1)} % de bourbes — remplacez par le volume mesuré en sortie de pressoir.`}</p> : null}</div>))}</div>
       </Group>
-      {apercu.vol && apercu.vol.total > 0 ? <div className="flex flex-wrap gap-2 text-sm" data-volumes=""><Chip>cuvée {fmtL(apercu.vol.cuvee)}</Chip><Chip>tailles {fmtL(apercu.vol.taille)}</Chip><Chip>rebêches {fmtL(apercu.vol.rebeche)}</Chip><Chip tone={plafond && apercu.vol.aoc > plafond + 0.5 ? 'bad' : 'ok'}>revendicable {fmtL(apercu.vol.aoc)}{plafond ? ` / ${fmtL(plafond)}` : ''}</Chip>{totKg > 0 ? <Chip>{fmt((apercu.vol.total / totKg) * (P.ratioKg || 100), 1)} L / {P.ratioKg || 100} kg</Chip> : null}</div> : null}
+      {apercu.vol && apercu.vol.total > 0 ? <div className="flex flex-wrap gap-2 text-sm" data-volumes=""><Chip>cuvée {fmtL(apercu.vol.cuvee)}</Chip><Chip>tailles {fmtL(apercu.vol.taille)}</Chip><Chip>rebêches {fmtL(apercu.vol.rebeche)}</Chip>{apercu.deb ? <><Chip>revendicable non débourbé {fmtL(apercu.vol.aoc)}</Chip><Chip tone={plafond && apercu.deb.aoc > plafond + 0.5 ? (apercu.deb.source === 'estimation' ? 'warn' : 'bad') : 'ok'} title={DEBOURBE_SOURCES[apercu.deb.source]} data-debourbe={apercu.deb.source}>{apercu.deb.source === 'estimation' ? 'débourbé estimé ≈ ' : 'débourbé '}{fmtL(apercu.deb.aoc)}{plafond ? ` / ${fmtL(plafond)}` : ''}</Chip></> : <Chip tone={plafond && apercu.vol.aoc > plafond + 0.5 ? 'bad' : 'ok'}>revendicable {fmtL(apercu.vol.aoc)}{plafond ? ` / ${fmtL(plafond)}` : ''}</Chip>}{totKg > 0 ? <Chip>{fmt((apercu.vol.total / totKg) * (P.ratioKg || 100), 1)} L / {P.ratioKg || 100} kg</Chip> : null}</div> : null}
       <G n={3}><Field label="TAV en puissance (% vol.)" help={[P.registre ? 'Obligatoire au carnet.' : '', tapCharges ? `TAP moyen des pesées chargées : ${fmt(tapCharges.tap, 1)} % vol.` : ''].filter(Boolean).join(' ')}><NI value={f.tavp} onChange={(v) => set('tavp', v)} placeholder="ex. 10,2" aria-label="TAV en puissance" data-tavp="" /></Field>
         <Field label="Bourbes (hL, en fin de débourbage)" help={P.bourbesMax ? `Attendu : ${fmt(P.bourbesMin)} à ${fmt(P.bourbesMax)} % des moûts.` : ''}><VI value={f.bourbesL} onChange={(v) => set('bourbesL', v)} placeholder="hL" aria-label="Bourbes" /></Field>
         <Field label="Désignation"><TI value={f.designation} onChange={(v) => set('designation', v)} /></Field></G>
@@ -398,7 +407,7 @@ function MarcsView({ annee }) {
           { h: '', r: (o) => <div className="flex flex-wrap gap-1"><Btn size="sm" onClick={() => setBon(o.id)} title="Bon de pressoir de ce marc (à imprimer)" data-bon-pressoir-btn="">Bon de pressoir</Btn><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? (o.marc && o.marc.enCours ? 'Compléter' : 'Modifier') : 'Voir'}</Btn>
             {droits.ecrit && o.marc && !o.marc.valide && !o.marc.enCours && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => valider(o)}>Valider</Btn> : null}
             {droits.annuler && !isLocked(db, o.date) && !dependentsOf(db, o).length ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} />
-        <p className="help mt-2">{P.ratioKg ? `Plafond : ${P.ratioL} L de ${P.volume} pour ${P.ratioKg} kg (bloquant)${P.cadenceMax ? ` ; ${P.cadenceMax} marcs au plus par 24 h et par pressoir` : ''}${P.marcKg && P.cuveeL ? ` ; usage : ${fmtL(P.cuveeL)} de cuvée et ${fmtL(P.tailleL)} de taille pour ${fmt(P.marcKg)} kg (alerte)` : ''}.` : 'Profil sans plafond : aucun contrôle réglementaire de rendement au pressurage.'} Un marc validé crée ses lots dans les cuves (onglet Cuverie) ; il apparaît aussi dans l’onglet Opérations (pressurage).</p>
+        <p className="help mt-2">{P.ratioKg ? `Plafond : ${P.ratioL} L de ${P.volume} pour ${P.ratioKg} kg (bloquant)${P.cadenceMax ? ` ; ${P.cadenceMax} marcs au plus par 24 h et par pressoir` : ''}${P.marcKg && P.cuveeL ? ` ; usage : ${fmtL(P.cuveeL)} de cuvée et ${fmtL(P.tailleL)} de taille pour ${fmt(P.marcKg)} kg (alerte)` : ''}.` : 'Profil sans plafond : aucun contrôle réglementaire de rendement au pressurage.'} {P.debourbe ? 'Les volumes du carnet sont ceux de sortie pressoir (moûts non débourbés) ; le plafond et l’usage sont contrôlés sur le débourbé. ' : ''}Un marc validé crée ses lots dans les cuves (onglet Cuverie) ; il apparaît aussi dans l’onglet Opérations (pressurage).</p>
       </Sec>
       {form ? <MarcForm id={form.id} onClose={() => setForm(null)} /> : null}
       {annul ? <MotifSheet title={`Annuler le marc n° ${(annul.marc || {}).num || ''} ?`} body="Le marc est retiré du carnet (ses lots aussi, s’ils n’ont pas servi depuis) ; son n° n’est jamais réattribué et une copie est gardée au journal." ok="Annuler le marc" danger onClose={annuler} /> : null}
@@ -460,7 +469,7 @@ function BilanPressoirView({ annee }) {
     <div>
       <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
         <Kpi label="Raisins pesés" value={kgTxt(b.kgPeses)} sub={`${b.nbPesees} pesée(s)`} /><Kpi label="Raisins pressés" value={kgTxt(b.kgPresses)} sub={`${b.nbMarcs} marc(s) en ${b.jours} jour(s)`} />
-        <Kpi label="Moûts revendicables" value={fmtL(b.volumes.aoc)} sub={b.kgPresses ? `${fmt((b.volumes.aoc / b.kgPresses) * 160, 1)} L / 160 kg` : ''} /><Kpi label="Rebêches" value={fmtL(b.volumes.rebeche)} sub={b.tauxRebeches ? `minimum ${fmt(b.tauxRebeches, 1)} %` : 'pas de minimum cette année'} />
+        {b.params.debourbe ? <><Kpi label="Revendicables non débourbés" value={fmtL(b.volumes.aoc)} sub="sortie pressoir" /><Kpi label="Revendicables débourbés" value={fmtL(b.volumes.aocDebourbe)} sub={[b.kgPresses ? `${fmt((b.volumes.aocDebourbe / b.kgPresses) * 160, 1)} L / 160 kg` : '', b.volumes.sansDebourbe ? `${b.volumes.sansDebourbe} marc(s) sans débourbage ni bourbes` : ''].filter(Boolean).join(' · ')} tone={b.volumes.sansDebourbe ? 'warn' : undefined} /></> : <Kpi label="Moûts revendicables" value={fmtL(b.volumes.aoc)} sub={b.kgPresses ? `${fmt((b.volumes.aoc / b.kgPresses) * 160, 1)} L / 160 kg` : ''} />}<Kpi label="Rebêches" value={fmtL(b.volumes.rebeche)} sub={b.tauxRebeches ? `minimum ${fmt(b.tauxRebeches, 1)} %` : 'pas de minimum cette année'} />
         <Kpi label="Bourbes" value={fmtL(b.volumes.bourbes)} sub={b.volumes.total ? `${fmt((b.volumes.bourbes / b.volumes.total) * 100, 1)} % des moûts` : ''} />
         <Kpi label="TAP moyen" value={b.tap ? `${fmt(b.tap.tap, 1)} % vol.` : '—'} sub={b.tap ? `${kgTxt(b.tap.kg)} de raisins mesurés${b.tapBas ? ` · ${b.tapBas} sous le minimum` : ''}` : 'aucun TAP relevé'} tone={b.tapBas ? 'warn' : undefined} />
         <Kpi label="Pourriture acide" value={b.pourriture ? kgTxt(b.pourriture.kg) : 'aucune'} sub={b.pourriture ? `${b.pourriture.nb} pesée(s) · ${fmt(b.pourriture.moyenne, 1)} % en moyenne` : 'aucune pourriture acide relevée'} tone={b.pourriture ? 'warn' : undefined} />
@@ -543,7 +552,8 @@ function ReglagesPressoirView({ annee }) {
         <div className="flex flex-wrap gap-2">{Object.keys(PRESSOIR_PROFILS).filter((k) => reg === 'champagne' || k !== 'champagne').map((k) => <Btn key={k} kind={P.id === k ? 'primary' : undefined} aria-pressed={P.id === k} disabled={!droits.params} onClick={() => act((d) => pressoirParamsSet(d, { profil: k }), `Profil : ${PRESSOIR_PROFILS[k].nom}.`)} data-profil={k}>{PRESSOIR_PROFILS[k].nom}</Btn>)}</div>
         <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))' }}>
           {champ('ratioL', `Moûts au plus (${P.volume})`, 'L', 'pour le poids ci-contre ; un arrêté peut réduire ce volume')}{champ('ratioKg', 'Pour un poids de', 'kg')}
-          {champ('marcKg', 'Marc d’usage', 'kg')}{champ('cuveeL', 'Cuvée d’usage', 'L', 'alerte seulement')}{champ('tailleL', 'Taille d’usage', 'L', 'alerte seulement')}
+          {champ('marcKg', 'Marc d’usage', 'kg')}{champ('cuveeL', P.debourbe ? 'Cuvée d’usage (débourbée)' : 'Cuvée d’usage', 'L', 'alerte seulement')}{champ('tailleL', P.debourbe ? 'Taille d’usage (débourbée)' : 'Taille d’usage', 'L', 'alerte seulement')}
+          {P.debourbe ? champ('bourbesDefaut', 'Bourbes par défaut (préremplissage)', '%', 'valeur d’exemple à vérifier ; un taux par fraction dans Paramètres › Fractions de moût') : null}
           {champ('bourbesMin', 'Bourbes au moins', '%')}{champ('bourbesMax', 'Bourbes au plus', '%')}{champ('cadenceMax', 'Marcs au plus par 24 h', 'par pressoir')}
           {champ('capaciteMin', 'Capacité des pressoirs au moins', 'kg')}{champ('capaciteMax', 'au plus', 'kg')}{champ('tavpMin', 'TAV en puissance au moins', '% vol.', 'contrôlé aussi sur le TAP des pesées (alerte)')}{champ('saisieDiffereeMin', 'Saisie différée signalée après', 'min')}
           <label className="block"><span className="lbl">Rebêches : taux minimum {annee}</span><div className="flex items-center gap-1"><input className="inp num" inputMode="decimal" disabled={!droits.params} defaultValue={hasNum(taux) ? String(taux) : ''} key={`${annee}-${taux}`} placeholder={String(rebechesTaux(P, annee))} onBlur={(e) => { const v = e.target.value; if (v === (hasNum(taux) ? String(taux) : '')) return; act((d) => pressoirParamsSet(d, { rebechesPct: { [annee]: v } }), 'Taux de rebêches enregistré.'); }} aria-label={`Taux minimum de rebêches ${annee}`} data-rebeches-pct="" /><span className="text-sm text-ink2">%</span></div><span className="help block">fixé chaque année entre 0 et 10 % (0 % en 2024 et 2025)</span></label>

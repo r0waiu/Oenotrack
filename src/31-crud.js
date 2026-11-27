@@ -238,6 +238,8 @@ function fractionCont(db, op, id, patch) {
     if (patch.suffix != null) { if (sfx && L.some((x) => x.id !== id && x.suffix === sfx)) return fail(`Le suffixe « ${sfx} » est déjà utilisé.`); it.suffix = sfx; }
     if (patch.pressurage != null) it.pressurage = !!patch.pressurage;
     if (patch.role != null) { if (!fracRoleOk(patch.role)) return fail('Rôle de la fraction inconnu.'); it.role = patch.role; } // 0.38.0-alpha.3
+    // 0.41.0-alpha.1 : taux de bourbes de la fraction (%), pour préremplir les volumes non débourbés du carnet de pressoir ; vide = taux du profil
+    if (patch.bourbesPct !== undefined) { const x = patch.bourbesPct; if (x === '' || x === null) delete it.bourbesPct; else if (!hasNum(x) || num(x) < 0 || num(x) > 50) return fail('Taux de bourbes : entre 0 et 50 %.'); else it.bourbesPct = r2(num(x)); }
     return okr();
   }
   if (op === 'up' || op === 'down') { const j = op === 'up' ? i - 1 : i + 1; if (j < 0 || j >= L.length) return okr(); [L[i], L[j]] = [L[j], L[i]]; return okr(); }

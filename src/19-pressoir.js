@@ -16,7 +16,9 @@
    id 'pesee') : champs personnalisés dans op.champs ;
    marc = opération « pressurage » portant marc { num, heureDebut, heureFin, tavp, bourbesL, sousCharge, enCours, saisiLe, valide }.
    Journal (db.journalPressoir, ajout seul) : validations, corrections (motif, avant / après) et annulations (motif, copie) ; chaque ligne
-   porte son empreinte SHA-256. Les pesées et marcs validés ne sont jamais modifiés ni supprimés sans motif. */
+   porte son empreinte SHA-256. Les pesées et marcs validés ne sont jamais modifiés ni supprimés sans motif.
+   0.41.0-alpha.1 : volumes du marc = moûts NON débourbés (sortie pressoir, saisis par l'entreprise) ; plafond et usages contrôlés sur le débourbé
+   (marcDebourbe : débourbage saisi en cuverie, sinon bourbes du marc) ; préremplissage avec le taux de bourbes de chaque fraction (marcVolumesProposes). */
 
 /* ---------- profil régional ---------- */
 // settings.region : 'champagne' (spécificités champenoises) ou 'autre' (autres régions viticoles). Réglage de l'exploitation (base, synchronisé).
@@ -39,7 +41,9 @@ const crusMasquesRegion = (db) => (db.crus || []).filter((c) => c.masqueRegion).
 
 /* ---------- profils de pressurage (valeurs modifiables dans l'onglet Pressoir › Réglages) ---------- */
 const PRESSOIR_PROFILS = {
-  champagne: { nom: 'AOC Champagne', ratioKg: 160, ratioL: 102, volume: 'moûts débourbés', marcKg: 4000, cuveeL: 2050, tailleL: 500,
+  // 0.41.0-alpha.1 : debourbe = plafond et usages exprimés en moûts DÉBOURBÉS (les volumes sortie pressoir, non débourbés, sont saisis à la main) ;
+  // bourbesDefaut = taux de bourbes proposé pour préremplir les volumes non débourbés (valeur d'exemple à vérifier, milieu de 1 à 4 %)
+  champagne: { nom: 'AOC Champagne', ratioKg: 160, ratioL: 102, volume: 'moûts débourbés', debourbe: true, bourbesDefaut: 2.5, marcKg: 4000, cuveeL: 2050, tailleL: 500,
     rebechesPct: { 2024: 0, 2025: 0 }, rebechesDefaut: 0, rebechesMax: 10, bourbesMin: 1, bourbesMax: 4, cadenceMax: 6,
     moyennes: { simple: 5, qualitatif: 4, h24: 6 }, capaciteMin: 2000, capaciteMax: 12000, chargementPlein: true, registre: true,
     rebechesLimite: '12-15', bourbesLimite: '01-31', tavpMin: 8.5, saisieDiffereeMin: 60 },
@@ -50,7 +54,7 @@ const PRESSOIR_PROFILS = {
     rebechesMax: 0, bourbesMin: 0, bourbesMax: 0, cadenceMax: 0, moyennes: null, capaciteMin: 0, capaciteMax: 0, chargementPlein: false, registre: false,
     rebechesLimite: '', bourbesLimite: '', tavpMin: 0, saisieDiffereeMin: 0 },
 };
-const PRESSOIR_CHAMPS = ['ratioKg', 'ratioL', 'marcKg', 'cuveeL', 'tailleL', 'rebechesDefaut', 'bourbesMin', 'bourbesMax', 'cadenceMax', 'capaciteMin', 'capaciteMax', 'tavpMin', 'saisieDiffereeMin'];
+const PRESSOIR_CHAMPS = ['ratioKg', 'ratioL', 'marcKg', 'cuveeL', 'tailleL', 'bourbesDefaut', 'rebechesDefaut', 'bourbesMin', 'bourbesMax', 'cadenceMax', 'capaciteMin', 'capaciteMax', 'tavpMin', 'saisieDiffereeMin'];
 // réglages : settings.pressoir = { profil, valeurs: { champ: nombre }, rebechesPct: { année: % }, registre, chargementPlein, dates: { année: { finPressurage, remiseCarnets } } }
 function pressoirParams(db) {
   const s = ((db && db.settings) || {}).pressoir || {};
@@ -296,6 +300,43 @@ function marcVolumes(db, op) {
   return { ...v, aoc: v.cuvee + v.taille, total: v.cuvee + v.taille + v.rebeche + v.autre };
 }
 const marcKg = (op) => sum(op.charges || [], (c) => c.kg);
+/* ---------- moûts non débourbés et débourbés (0.41.0-alpha.1) ----------
+   En Champagne, ce qui sort du pressoir est du moût NON débourbé, saisi à la main par l'entreprise ; le plafond (102 L pour 160 kg) et l'usage
+   (20,50 hl de cuvée et 5,00 hl de taille pour 4 000 kg) portent sur les moûts DÉBOURBÉS. Volume débourbé d'une fraction : débourbage saisi en
+   cuverie sur sa portion (volume repris − bourbes), sinon estimé avec les bourbes du marc (même proportion pour toutes les fractions) ;
+   inconnu sans l'un ni l'autre (null). */
+const fracBourbesPct = (db, id) => { const f = fracDef(db, id) || {}; const t = hasNum(f.bourbesPct) ? num(f.bourbesPct) : num(pressoirParams(db).bourbesDefaut); return Math.min(50, Math.max(0, t)); };
+function marcDebourbe(db, op) {
+  const fr = (op.fractions || []).filter((f) => num(f.volL) > 0); if (!fr.length) return null;
+  const tot = sum(fr, (f) => f.volL); const m = op.marc || {}; const tb = hasNum(m.bourbesL) && tot > 0 ? Math.min(1, num(m.bourbesL) / tot) : null;
+  const v = { cuvee: 0, taille: 0, rebeche: 0, autre: 0 }; const src = new Set(); let inconnu = false;
+  fr.forEach((f) => {
+    const vol = num(f.volL); let clair = 0; let repris = 0;
+    (db.ops || []).filter((o) => o.type === 'debourbage' && f.portionId && o.portionId === f.portionId && o.date >= op.date).sort(byDate).forEach((o) => {
+      const r = Math.min(num(o.volL), vol - repris); if (!(r > 0)) return; repris += r; clair += Math.max(0, r - sum(o.pertes || [], (x) => x.volL)); });
+    if (repris > 0) src.add('debourbage');
+    const reste = vol - repris; if (reste > 0.5) { if (tb == null) { inconnu = true; return; } clair += reste * (1 - tb); src.add('bourbes'); }
+    v[fracRole(db, f.fractionId)] += clair;
+  });
+  if (inconnu) return null;
+  Object.keys(v).forEach((k) => { v[k] = r2(v[k]); });
+  return { ...v, aoc: r2(v.cuvee + v.taille), total: r2(v.cuvee + v.taille + v.rebeche + v.autre), source: src.size > 1 ? 'mixte' : [...src][0] };
+}
+// estimation avant débourbage : volume non débourbé de chaque fraction × (1 − son taux de bourbes)
+function marcDebourbeEstime(db, op) {
+  const v = { cuvee: 0, taille: 0, rebeche: 0, autre: 0 };
+  (op.fractions || []).forEach((f) => { if (num(f.volL) > 0) v[fracRole(db, f.fractionId)] += num(f.volL) * (1 - fracBourbesPct(db, f.fractionId) / 100); });
+  Object.keys(v).forEach((k) => { v[k] = r2(v[k]); });
+  return { ...v, aoc: r2(v.cuvee + v.taille), total: r2(v.cuvee + v.taille + v.rebeche + v.autre), source: 'estimation' };
+}
+const DEBOURBE_SOURCES = { debourbage: 'débourbage saisi', bourbes: 'estimé avec les bourbes du marc', mixte: 'débourbage saisi et bourbes du marc', estimation: 'estimé avec le taux de bourbes des fractions' };
+// préremplissage du carnet : volumes NON débourbés proposés = usage débourbé au prorata du poids chargé ÷ (1 − taux de bourbes de la fraction) ;
+// cuvée et taille seulement (1re fraction de chaque rôle), toujours modifiables
+function marcVolumesProposes(db, kg, fracIds) {
+  const p = pressoirParams(db); const out = {}; if (!(p.marcKg > 0) || !(num(kg) > 0)) return out; const k = num(kg) / p.marcKg;
+  [['cuvee', p.cuveeL], ['taille', p.tailleL]].forEach(([role, L]) => { if (!(L > 0)) return; const id = (fracIds || []).find((x) => fracRole(db, x) === role); if (!id) return; const t = p.debourbe ? fracBourbesPct(db, id) : 0; out[id] = Math.round((L * k) / (1 - t / 100)); });
+  return out;
+}
 function marcCepages(db, op) { const m = {}; (op.charges || []).forEach((c) => { const a = db.ops.find((x) => x.id === c.apportId); const k = (a && a.cepageId) || '?'; m[k] = (m[k] || 0) + num(c.kg); }); return m; }
 function marcApporteurs(db, op) { const m = {}; (op.charges || []).forEach((c) => { const a = db.ops.find((x) => x.id === c.apportId); const k = (a && a.apporteurId) || ''; m[k] = (m[k] || 0) + num(c.kg); }); return m; }
 // f : { date, heureDebut, heureFin, equipementId, charges [{ apportId, kg }], frac { fractionId: { volL, contenantId, code } }, code, designation, millesime,
@@ -349,16 +390,23 @@ function marcControles(db, op, opts) {
   if (!(kg > 0)) B('poids', 'Aucun poids chargé.');
   if (!(v.total > 0)) B('volumes', 'Volumes de moûts à renseigner.');
   if (p.registre && !hasNum(m.tavp)) B('tavp', 'TAV en puissance à renseigner (mesuré sur les moûts).');
+  // 0.41.0-alpha.1 : plafond et usages en moûts débourbés (profil « debourbe ») — bloquant sur le volume débourbé connu ou estimé avec les bourbes ;
+  // sans lui, simple alerte « à confirmer au débourbage » si l'estimation par les taux de bourbes des fractions dépasse
+  const deb = p.debourbe && v.total > 0 ? marcDebourbe(db, op) : null; const est = p.debourbe && v.total > 0 && !deb ? marcDebourbeEstime(db, op) : null;
   if (p.ratioKg > 0 && p.ratioL > 0 && kg > 0) {
     const max = (kg * p.ratioL) / p.ratioKg;
-    if (v.aoc > max + 0.5) B('ratio', `Volume revendicable ${fmtL(v.aoc)} au-dessus du plafond de ${fmtL(max)} (${p.ratioL} L de ${p.volume} pour ${p.ratioKg} kg) : le surplus passe en rebêches.`);
+    if (!p.debourbe) { if (v.aoc > max + 0.5) B('ratio', `Volume revendicable ${fmtL(v.aoc)} au-dessus du plafond de ${fmtL(max)} (${p.ratioL} L de ${p.volume} pour ${p.ratioKg} kg) : le surplus passe en rebêches.`); }
+    else if (deb) { if (deb.aoc > max + 0.5) B('ratio', `Volume revendicable débourbé ${fmtL(deb.aoc)} (${DEBOURBE_SOURCES[deb.source]}) au-dessus du plafond de ${fmtL(max)} (${p.ratioL} L de ${p.volume} pour ${p.ratioKg} kg) : le surplus passe en rebêches.`); }
+    else if (est && est.aoc > max + 0.5) A('ratio_attente', `Volume revendicable non débourbé ${fmtL(v.aoc)}, soit environ ${fmtL(est.aoc)} une fois débourbé (taux de bourbes des fractions) : au-dessus du plafond de ${fmtL(max)} (${p.ratioL} L de ${p.volume} pour ${p.ratioKg} kg) — à confirmer au débourbage (bourbes du marc ou débourbage des cuves).`);
   }
   const taux = rebechesTaux(p, annee);
   if (taux > 0 && v.aoc > 0 && v.rebeche + 0.5 < (v.aoc * taux) / 100) B('rebeches', `Rebêches ${fmtL(v.rebeche)} : au moins ${fmt(taux, 1)} % des moûts (${fmtL((v.aoc * taux) / 100)}) pour la récolte ${annee}.`);
   if (p.marcKg > 0 && kg > 0 && (p.cuveeL > 0 || p.tailleL > 0)) {
-    const k = kg / p.marcKg;
-    if (p.cuveeL > 0 && v.cuvee > p.cuveeL * k + 0.5) A('cuvee', `Cuvée ${fmtL(v.cuvee)} au-delà de l’usage (${fmtL(p.cuveeL * k)} pour ${fmt(kg)} kg, soit ${fmtL(p.cuveeL)} pour ${fmt(p.marcKg)} kg).`);
-    if (p.tailleL > 0 && v.taille > p.tailleL * k + 0.5) A('taille', `Taille ${fmtL(v.taille)} au-delà de l’usage (${fmtL(p.tailleL * k)} pour ${fmt(kg)} kg, soit ${fmtL(p.tailleL)} pour ${fmt(p.marcKg)} kg).`);
+    const k = kg / p.marcKg; const u = p.debourbe ? (deb || est) : v; const estime = p.debourbe && u && u.source !== 'debourbage';
+    const usage = (code, x, ref) => { const t = `${fmtL(x)} au-delà de l’usage (${fmtL(ref * k)} pour ${fmt(kg)} kg, soit ${fmtL(ref)} pour ${fmt(p.marcKg)} kg).`;
+      A(code, code === 'cuvee' ? (!p.debourbe ? `Cuvée ${t}` : estime ? `Cuvée débourbée (estimée) ${t}` : `Cuvée débourbée ${t}`) : (!p.debourbe ? `Taille ${t}` : estime ? `Taille débourbée (estimée) ${t}` : `Taille débourbée ${t}`)); };
+    if (u && p.cuveeL > 0 && u.cuvee > p.cuveeL * k + 0.5) usage('cuvee', u.cuvee, p.cuveeL);
+    if (u && p.tailleL > 0 && u.taille > p.tailleL * k + 0.5) usage('taille', u.taille, p.tailleL);
   }
   if (pr && pr.capaciteKg > 0 && kg > 0) {
     if (kg > pr.capaciteKg * 1.02) A('surcharge', `Chargement de ${fmt(kg)} kg au-delà de la capacité agréée du pressoir (${fmt(pr.capaciteKg)} kg).`);
@@ -426,7 +474,8 @@ function bilanPressoir(db, annee, today) {
     const plafondMoy = p.moyennes ? (pr && pr.h24 ? p.moyennes.h24 : p.moyennes[(pr && pr.agrement) || 'qualitatif']) : 0;
     return { id, nom: pr ? pr.nom : lbl(db, 'equipements', id), nb: L.length, max24, moyenne: r2(moy), plafondMoy, agrement: pr ? pr.agrement : '', h24: !!(pr && pr.h24) };
   });
-  const v = marcs.reduce((a, o) => { const x = marcVolumes(db, o); a.aoc += x.aoc; a.rebeche += x.rebeche; a.total += x.total; a.bourbes += num((o.marc || {}).bourbesL); a.kg += marcKg(o); return a; }, { aoc: 0, rebeche: 0, total: 0, bourbes: 0, kg: 0 });
+  const v = marcs.reduce((a, o) => { const x = marcVolumes(db, o); a.aoc += x.aoc; a.rebeche += x.rebeche; a.total += x.total; a.bourbes += num((o.marc || {}).bourbesL); a.kg += marcKg(o);
+    if (p.debourbe && x.total > 0) { const d = marcDebourbe(db, o); if (d) a.aocDebourbe += d.aoc; else a.sansDebourbe += 1; } return a; }, { aoc: 0, rebeche: 0, total: 0, bourbes: 0, kg: 0, aocDebourbe: 0, sansDebourbe: 0 });
   const taux = rebechesTaux(p, annee); const alertes = [];
   pressoirs.forEach((x) => { if (p.cadenceMax > 0 && x.max24 > p.cadenceMax) alertes.push({ niveau: 'bloquant', msg: `${x.nom} : ${x.max24} marcs en 24 h (${p.cadenceMax} au plus).` }); if (x.plafondMoy > 0 && x.moyenne > x.plafondMoy) alertes.push({ niveau: 'alerte', msg: `${x.nom} : ${fmt(x.moyenne, 2)} marcs par jour de vendange en moyenne (${x.plafondMoy} au plus en agrément ${x.h24 ? 'fonctionnant 24 h/24' : x.agrement}).` }); });
   if (taux > 0 && v.aoc > 0 && v.rebeche + 0.5 < (v.aoc * taux) / 100) alertes.push({ niveau: 'bloquant', msg: `Rebêches de la récolte ${annee} : ${fmtL(v.rebeche)} pour ${fmtL((v.aoc * taux) / 100)} au moins (${fmt(taux, 1)} %).` });
@@ -447,7 +496,7 @@ function bilanPressoir(db, annee, today) {
   if (tapBas.length) alertes.push({ niveau: 'alerte', msg: `${tapBas.length} pesée(s) sous le minimum de richesse en sucre (TAP inférieur à ${fmt(p.tavpMin, 1)} % vol.) : n° ${tapBas.map((o) => o.pesee.num || '?').join(', ')}.` });
   const pa = pesees.filter((o) => hasNum((o.pesee || {}).pourritureAcide) && num(o.pesee.pourritureAcide) > 0);
   const pourriture = pa.length ? { nb: pa.length, kg: r2(sum(pa, (o) => o.kg)), moyenne: Math.round((sum(pa, (o) => num(o.kg) * num(o.pesee.pourritureAcide)) / Math.max(1, sum(pa, (o) => o.kg))) * 10) / 10 } : null;
-  return { annee, params: p, pressoirs, jours: jours.length, nbMarcs: marcs.length, nbPesees: pesees.length, kgPeses: r2(sum(pesees, (o) => o.kg)), kgPresses: r2(v.kg), volumes: { aoc: r2(v.aoc), rebeche: r2(v.rebeche), total: r2(v.total), bourbes: r2(v.bourbes) }, tauxRebeches: taux, limiteRebeches: lr, limiteBourbes: lb, alertes, nonValides, tap, tapBas: tapBas.length, pourriture };
+  return { annee, params: p, pressoirs, jours: jours.length, nbMarcs: marcs.length, nbPesees: pesees.length, kgPeses: r2(sum(pesees, (o) => o.kg)), kgPresses: r2(v.kg), volumes: { aoc: r2(v.aoc), rebeche: r2(v.rebeche), total: r2(v.total), bourbes: r2(v.bourbes), ...(p.debourbe ? { aocDebourbe: r2(v.aocDebourbe), sansDebourbe: v.sansDebourbe } : {}) }, tauxRebeches: taux, limiteRebeches: lr, limiteBourbes: lb, alertes, nonValides, tap, tapBas: tapBas.length, pourriture };
 }
 
 /* ---------- exports CSV (séparateur « ; », décimales à la française) ---------- */

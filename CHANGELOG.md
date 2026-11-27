@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.41.0-alpha.1 — 27/11/2026
+
+- Pressoir : les volumes du carnet de pressoir sont ceux de sortie pressoir, en moûts non débourbés, saisis par l’entreprise ; le plafond (102 L pour 160 kg) et l’usage (20,50 hl de cuvée et 5,00 hl de taille pour 4 000 kg) sont contrôlés sur les moûts débourbés — débourbage saisi en cuverie sur la cuve de chaque fraction, sinon bourbes du marc. Le plafond ne bloque la validation que si le volume débourbé le dépasse ; avant le débourbage, une alerte « à confirmer au débourbage ».
+- Pressoir : volumes non débourbés préremplis à chaque marc d’après l’usage débourbé et le taux de bourbes de chaque fraction (Paramètres › Fractions de moût ; taux par défaut du profil de pressurage, valeur d’exemple à vérifier), toujours modifiables ; bon de pressoir et bilan : revendicable non débourbé et débourbé.
+
 ## 0.40.0-alpha.2 — 27/11/2026
 
 - Bulletins d’analyses : un rapport à plusieurs échantillons dont les paramètres sont répartis sur plusieurs tableaux (la suite des paramètres sous le premier tableau, ou sur les pages suivantes) est lu en entier — chaque tableau avec son propre en-tête, et les résultats d’un même échantillon réunis d’après son n° de laboratoire (deux n° différents restent deux échantillons, même avec la même référence).
