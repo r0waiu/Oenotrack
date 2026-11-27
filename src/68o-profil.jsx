@@ -47,7 +47,7 @@ function ProfilViticoleView() {
                   </label></li>))}</ul>
               </div>))}
           </div>)}
-        {R.enrichMax > 0 ? <p className="help mt-2">Seuils indicatifs non officiels : vérifiez-les auprès de votre organisme (ODG, douane) avant de vous y fier.</p> : null}
+        {R.enrichMax > 0 ? <p className="help mt-2">Enrichissement maximal de la zone viticole (règlement (UE) 1308/2013, annexe VIII) : relevable de 0,5 % vol les années exceptionnelles, éventuellement restreint par le cahier des charges de l’appellation.</p> : null}
       </Sec>
       {lect ? null : <div className="flex flex-wrap gap-2"><Btn kind="primary" disabled={!types.length} onClick={appliquer} data-profil-appliquer="">{`✓ Appliquer (${pris.length})`}</Btn></div>}
     </div>

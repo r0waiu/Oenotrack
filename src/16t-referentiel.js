@@ -1,39 +1,52 @@
-/* ============ RÉFÉRENTIEL RÉGLEMENTAIRE DES INTRANTS (0.40.0-alpha.1) ============
+/* ============ RÉFÉRENTIEL RÉGLEMENTAIRE DES INTRANTS (0.40.0-alpha.1, sources vérifiées le 27/11/2026) ============
    Base préétablie, dans le code (jamais dans la base) : réglementation de l'UE, cahier des charges de l'appellation (selon le vignoble du
    profil régional), labels et démarches (Bio UE, Demeter, Biodyvin, Terra Vitis, Nature & Progrès, AVN, S.A.I.N.S.).
    Pour chaque couple composé actif × référentiel : statut (oui | non | condition), dose maximale d'emploi (g/hL du composé),
-   teneur maximale résiduelle ou cumulée dans le vin (mg/L de l'espèce dosée : acide sorbique, cuivre…), condition, texte source.
-   TOUTES LES VALEURS SONT DES EXEMPLES « À VÉRIFIER » (CLAUDE.md) : relevées dans les textes cités et recoupées avec les catalogues
-   des fournisseurs archivés (16k-catalogues : doses maximales et mentions « utilisable en bio »), jamais présentées comme officielles.
+   teneur maximale résiduelle ou cumulée dans le vin (mg/L de l'espèce dosée : acide sorbique, cuivre…), condition, texte et article.
+   Chaque règle est « vérifiée » (aVerifier: false) seulement si elle a été relue dans le texte officiel en vigueur cité (référence exacte
+   dans « ref ») ; sinon elle reste « à vérifier » (CLAUDE.md). Textes relus : règlement délégué (UE) 2019/934 consolidé au 29/12/2024
+   (annexe I, tableau 2, dont la note 9 rend applicables les fiches du Code OIV ; annexe I partie B ; annexe II), Code international des
+   pratiques œnologiques de l'OIV, édition 2026 ; règlement (UE) 1308/2013 consolidé au 18/08/2026 (annexe VIII ; appendice 1 de
+   l'annexe VII) ; règlement d'exécution (UE) 2021/1165 consolidé au 01/01/2026 (annexe V partie D) ; cahier des charges de l'AOC
+   « Champagne » homologué par l'arrêté du 31/07/2025 ; cahiers des charges Demeter France (janvier 2024), Biodyvin (26/11/2024),
+   Nature & Progrès Vinification (édition 2025), charte S.A.I.N.S. ; AVN (2017, association inactive) et Terra Vitis (diffusé sur
+   demande, non consulté) restent « à vérifier ». Le règlement (CE) 1333/2008 (catégorie 14.2.2) renvoie, pour le vin, au 2019/934.
    Corrections de l'exploitation : db.settings.referentiel = { actif (absent = oui), exceptions: { 'label|composé' | 'label|so2t|vin':
      { statut, doseMax, teneurMax, valeur, condition, par, le } } } (réglage commun, droit Intrants ; les champs inconnus sont gardés).
    Revendications de l'exploitation → référentiels : lists.qualifs[].referentiels (absent : deviné d'après l'identifiant et le nom).
    Lot : lots[].labelsVises = [ids du référentiel] (labels visés en plus de la revendication).
    Produit : produits[].composes = [{ id, part }] (part : g de composé par g — ou par mL — de produit ; absent : deviné d'après le nom,
-     « 2 % » dans le nom → 0,02, sinon produit supposé pur). */
+     « 2 % » dans le nom → 0,02, sinon produit solide supposé pur ; produit liquide de teneur inconnue : dose et teneur non estimées). */
 const REG_TEXTES = {
-  ue: 'Règlement délégué (UE) 2019/934 (pratiques œnologiques), annexe I, modifié (règlement délégué (UE) 2024/3085) — exemple à vérifier',
-  ue_zones: 'Règlement (UE) n° 1308/2013, annexe VIII (enrichissement, acidification, désacidification par zone viticole) — exemple à vérifier',
-  champagne: 'Cahier des charges de l’AOC « Champagne » homologué (Code rural et de la pêche maritime, art. L641-6 et suivants) — exemple à vérifier',
-  bio: 'Règlement (UE) 2018/848, annexe II partie VI ; règlement d’exécution (UE) 2021/1165, annexe V partie D — exemple à vérifier',
-  demeter: 'Cahier des charges Demeter France, vinification (résumé 2024, fiche 2026) — exemple à vérifier',
-  biodyvin: 'Cahier des charges Biodyvin (SIVCBD, mise à jour du 26 novembre 2024) — exemple à vérifier',
-  terravitis: 'Cahier des charges Terra Vitis — aucune restriction d’intrant relevée : à vérifier',
-  np: 'Cahier des charges Nature & Progrès, vins — exemple à vérifier',
-  avn: 'Charte et cahier des charges de l’Association des Vins Naturels (AVN) — exemple à vérifier',
-  sains: 'Charte de l’association S.A.I.N.S. (Sans Aucun Intrant Ni Sulfite ajouté) — exemple à vérifier',
+  ue: 'Règlement délégué (UE) 2019/934, annexe I partie A, tableau 2 (version consolidée du 29/12/2024) et fiches du Code international des pratiques œnologiques de l’OIV qu’il rend applicables (note 9 ; Code OIV, édition 2026)',
+  ue_t1: 'Règlement délégué (UE) 2019/934, annexe I partie A, tableau 1 (version consolidée du 29/12/2024)',
+  ue_so2: 'Règlement délégué (UE) 2019/934, annexe I partie B (teneurs maximales en anhydride sulfureux)',
+  ue_zones: 'Règlement (UE) n° 1308/2013, annexe VIII partie I (version consolidée du 18/08/2026) ; règlement délégué (UE) 2019/934, annexe II partie A (vins mousseux)',
+  champagne: 'Cahier des charges de l’AOC « Champagne » homologué par l’arrêté du 31 juillet 2025 (JORF du 5 août 2025)',
+  bio: 'Règlement d’exécution (UE) 2021/1165, annexe V partie D (version consolidée du 01/01/2026)',
+  bio_so2: 'Règlement d’exécution (UE) 2021/1165, annexe V partie D, ligne « Anhydride sulfureux » (version consolidée du 01/01/2026)',
+  bio_sucre: 'Règlement (UE) 2018/848, annexe II partie VI (origine biologique des produits d’enrichissement) — à vérifier',
+  bio_pratiques: 'Règlement (UE) 2018/848, annexe II partie VI (pratiques et procédés : filtration) — à vérifier',
+  demeter: 'Cahier des charges Demeter France, édition janvier 2024, § 7.12.2 « Règles de transformation – vin » (tableau 27) ; fiche technique Viticulture 2026',
+  biodyvin: 'Cahier des charges Biodyvin (SIVCBD), seconde partie « Vinification – élevage », version du 26 novembre 2024',
+  terravitis: 'Cahier des charges Terra Vitis (diffusé sur demande, non consulté) — à vérifier',
+  np: 'Cahier des charges Vinification Nature & Progrès, édition 2025',
+  avn: 'Cahier des charges de l’Association des Vins Naturels adopté par l’AG du 22/03/2017 (association inactive ; texte reproduit par vinsnaturels.fr) — à vérifier',
+  sains: 'Charte de l’Association des Vins S.A.I.N.S. (vins-sains.org, consultée le 27/11/2026)',
 };
-// herite : référentiels dont les règles s'appliquent aussi (la plus restrictive l'emporte) ; defaut 'non' : tout intrant non listé « oui » est refusé
+// herite : référentiels dont les règles s'appliquent aussi (la plus restrictive l'emporte) ; defaut 'non' : tout intrant non listé est refusé
+// (liste fermée du cahier des charges : Bio UE, Demeter, Nature & Progrès, AVN, S.A.I.N.S.) ; inconnu 'non' : un produit dont aucun composé
+// n'est reconnu est aussi refusé (« aucun intrant » : AVN, S.A.I.N.S.)
 const REG_LABELS = [
-  { id: 'ue', label: 'Réglementation UE', court: 'UE', type: 'reglement', herite: [], texte: 'ue', note: 'S’applique à tous les vins.' },
-  { id: 'aoc-champagne', label: 'AOC Champagne', court: 'AOC', type: 'appellation', regions: ['champagne'], herite: ['ue'], texte: 'champagne', note: 'Appliqué quand le vignoble du profil régional est la Champagne.' },
-  { id: 'bio-ue', label: 'Bio européen (UE)', court: 'BIO', type: 'label', herite: ['ue'], texte: 'bio', note: 'Seuls les produits de l’annexe V partie D sont utilisables ; sucre, MCR et alcool d’origine biologique.' },
-  { id: 'demeter', label: 'Demeter', court: 'DEM', type: 'label', herite: ['bio-ue'], texte: 'demeter', note: 'Certification bio exigée ; au plus 5 interventions de vinification avant la mise en bouteille.' },
-  { id: 'biodyvin', label: 'Biodyvin', court: 'BDV', type: 'label', herite: ['bio-ue'], texte: 'biodyvin', note: 'Certification bio exigée.' },
-  { id: 'terra-vitis', label: 'Terra Vitis', court: 'TV', type: 'label', herite: ['ue'], texte: 'terravitis', note: 'Démarche de viticulture durable : règles de l’UE à défaut de restriction relevée.' },
-  { id: 'nature-progres', label: 'Nature & Progrès', court: 'N&P', type: 'label', herite: ['bio-ue'], texte: 'np', note: 'Règles au moins aussi strictes que le bio (à vérifier).' },
-  { id: 'avn', label: 'AVN (Vins Naturels)', court: 'AVN', type: 'label', herite: ['bio-ue'], texte: 'avn', defaut: 'non', note: 'Raisins bio certifiés ; aucun intrant ni additif, sulfites en doses minimes seulement.' },
-  { id: 'sains', label: 'Vins S.A.I.N.S.', court: 'SAINS', type: 'label', herite: ['bio-ue'], texte: 'sains', defaut: 'non', note: 'Raisins bio ; aucun intrant, aucun sulfite ajouté.' },
+  { id: 'ue', label: 'Réglementation UE', court: 'UE', type: 'reglement', herite: [], texte: 'ue', note: 'S’applique à tous les vins ; seuls les composés du tableau 2 de l’annexe I du règlement 2019/934 sont autorisés (article 3).' },
+  { id: 'aoc-champagne', label: 'AOC Champagne', court: 'AOC', type: 'appellation', regions: ['champagne'], herite: ['ue'], texte: 'champagne', note: 'Appliqué quand le vignoble du profil régional est la Champagne (zone viticole B).' },
+  { id: 'bio-ue', verifie: true, label: 'Bio européen (UE)', court: 'BIO', type: 'label', herite: ['ue'], texte: 'bio', defaut: 'non', note: 'Seuls les produits et substances de l’annexe V partie D du règlement 2021/1165 sont utilisables.' },
+  { id: 'demeter', verifie: true, label: 'Demeter', court: 'DEM', type: 'label', herite: ['bio-ue'], texte: 'demeter', defaut: 'non', note: 'Tous les produits et méthodes non mentionnés sont interdits ; au plus 5 interventions tolérées par cuvée ; certification bio exigée.' },
+  { id: 'biodyvin', label: 'Biodyvin', court: 'BDV', type: 'label', herite: ['bio-ue'], texte: 'biodyvin', note: 'Raisins bio et biodynamiques ; produits issus de l’agriculture biologique quand ils existent, conformes au Codex et non OGM.' },
+  { id: 'terra-vitis', label: 'Terra Vitis', court: 'TV', type: 'label', herite: ['ue'], texte: 'terravitis', note: 'Cahier des charges non consulté (diffusé sur demande) : règles de l’UE seulement.' },
+  { id: 'nature-progres', verifie: true, label: 'Nature & Progrès', court: 'N&P', type: 'label', herite: ['bio-ue'], texte: 'np', defaut: 'non', note: 'Raisins N&P ou bio ; tout procédé ou intrant non « recommandé » ou « autorisé » est interdit.' },
+  { id: 'avn', label: 'AVN (Vins Naturels)', court: 'AVN', type: 'label', herite: ['bio-ue'], texte: 'avn', defaut: 'non', inconnu: 'non', note: 'Raisins bio ou biodynamiques, vendange manuelle ; aucun intrant ni additif, aucun ajout de sucre.' },
+  { id: 'sains', verifie: true, label: 'Vins S.A.I.N.S.', court: 'SAINS', type: 'label', herite: ['ue'], texte: 'sains', defaut: 'non', inconnu: 'non', note: 'Vendange manuelle sans produits de synthèse ; levures et bactéries indigènes ; aucun intrant ni sulfite ajouté.' },
 ];
 const refLabel = (id) => REG_LABELS.find((l) => l.id === id) || null;
 const refLabelNom = (id) => (refLabel(id) || { label: id || '—' }).label;
@@ -57,10 +70,11 @@ const REG_COMPOSES = [
   ['albumine', 'Albumine d’œuf', /\b(albumin|ovalbumin|blanc d oeuf)/],
   ['proteines-vegetales', 'Protéines végétales (pois, pomme de terre, blé)', /\bproteines? (vegetales?|de pois|de pomme de terre|de ble)\b/],
   ['silice', 'Dioxyde de silicium (gel, solution colloïdale)', /\b(silice|dioxyde de silicium|kieselsol)/],
+  ['kaolin', 'Kaolin', /\bkaolin/],
   ['pvpp', 'PVPP', /\b(pvpp|polyvinylpolypyrrolidone)/, ['pvpp']],
   ['charbon', 'Charbon œnologique', /\bcharbon/, ['charbon']],
   ['tanins', 'Tanins œnologiques', /\b(tanin|tannin)/, ['tanin']],
-  ['chitosane', 'Chitosane (Aspergillus niger)', /\bchitosan/],
+  ['chitosane', 'Chitosane (Aspergillus niger, Agaricus bisporus)', /\bchitosan/],
   ['copeaux', 'Morceaux de bois de chêne (copeaux, douelles)', /\b(copeau|chips|douelle|stave|morceaux de bois)/, ['bois']],
   ['acide-ascorbique', 'Acide L-ascorbique', /\bascorbique/, [], 'ascorbique'],
   ['acide-citrique', 'Acide citrique', /\bacide citrique/, [], 'citrique'],
@@ -68,6 +82,8 @@ const REG_COMPOSES = [
   ['acide-malique', 'Acide malique', /\bacide (dl |l )?malique/],
   ['acide-lactique', 'Acide lactique', /\bacide lactique/],
   ['desacidifiants', 'Désacidifiants (bicarbonate de potassium, carbonate de calcium)', /\b(bicarbonate de potassium|carbonate de calcium|tartrate neutre de potassium|desacid)/, ['désacidifiant']],
+  ['bitartrate', 'Hydrogénotartrate de potassium (bitartrate, crème de tartre)', /\b(bitartrate|hydrogenotartrate|creme de tartre)/],
+  ['alginates', 'Alginates (adjuvants de remuage)', /\balginate/, ['adjuvant de remuage']],
   ['acide-metatartrique', 'Acide métatartrique', /\bmetatartrique/, [], 'metatartrique'],
   ['gomme-arabique', 'Gomme arabique', /\b(gomme arabique|gomme|arabique)/, ['gomme arabique'], 'gomme'],
   ['cmc', 'Carboxyméthylcellulose (CMC)', /\b(cmc|carboxymethylcellulose|carboxymethyl cellulose)\b/, [], 'cmc'],
@@ -82,121 +98,162 @@ const REG_COMPOSES = [
   ['ferrocyanure', 'Ferrocyanure de potassium', /\bferrocyanure/],
   ['phytate', 'Phytate de calcium', /\bphytate/],
   ['chlorure-argent', 'Chlorure d’argent', /\bchlorure d argent/, [], 'argent', 0.7527], // AgCl (143,32) → Ag (107,87)
+  ['filtration', 'Adjuvants de filtration (perlite, terre de diatomées, cellulose)', /\b(perlite|diatom|kieselgu|terre d infusoires|plaques? filtrantes?|plaques? de filtration|cellulose en poudre)/, ['filtration']],
   ['sucre', 'Saccharose, moût concentré (rectifié) : enrichissement, liqueurs', /\b(sucre|saccharose|mcr|mout concentre)/, ['sucre / MCR']],
 ].map(([id, label, re, familles, espece, facteur]) => ({ id, label, re, familles: familles || [], espece: espece === 'gomme' ? null : espece || null, facteur: facteur || 1 }));
 const refCompose = (id) => REG_COMPOSES.find((c) => c.id === id) || null;
-// règles : composé|référentiel|statut|dose max (g/hL de composé)|teneur max (mg/L de l'espèce)|condition|texte
-const REG_REGLES_TXT = `so2|ue|oui|||Teneur maximale en SO₂ total selon le type de vin (plafonds ci-dessous)|ue
-bisulfite-ammonium|ue|condition|||Moûts et vins en fermentation|ue
-levures|ue|oui||||ue
-levures-inactivees|ue|oui||||ue
-mannoproteines|ue|oui||||ue
-dap|ue|condition|100||1 g/L exprimé en sel (phosphate diammonique et sulfate d’ammonium ensemble)|ue
-thiamine|ue|condition|0.06||0,6 mg/L exprimée en thiamine|ue
-enzymes|ue|oui||||ue
-bacteries|ue|oui||||ue
-bentonite|ue|oui||||ue
-gelatine|ue|oui|||Allergène non concerné ; étiquetage selon l’usage|ue
-colle-poisson|ue|oui||||ue
-caseine|ue|oui|||Allergène (lait) : étiquetage si résidu|ue
-albumine|ue|oui|||Allergène (œuf) : étiquetage si résidu|ue
-proteines-vegetales|ue|oui||||ue
-silice|ue|oui||||ue
-pvpp|ue|oui|80|||ue
-tanins|ue|oui||||ue
-charbon|ue|condition|100||Moûts, vins nouveaux encore en fermentation, MCR et vins blancs (100 g de produit sec par hL)|ue
-chitosane|ue|condition|100||Chitosane d’Aspergillus niger ; dose selon l’usage (clarification, contaminants, micro-organismes)|ue
-copeaux|ue|oui|||Bois de chêne ; dimensions et traitement encadrés|ue
-acide-ascorbique|ue|oui|25|300|250 mg/L par traitement ; 300 mg/L dans le vin mis sur le marché|ue
-acide-citrique|ue|oui||1000|1 g/L au plus dans le vin traité (ajouts comptés, acide citrique naturel non compté)|ue
-acide-tartrique|ue|condition|||Acidification : limites et zones viticoles (Champagne : zone B)|ue_zones
-acide-malique|ue|condition|||Acidification : limites et zones viticoles|ue_zones
-acide-lactique|ue|condition|||Acidification : limites et zones viticoles|ue_zones
-desacidifiants|ue|condition|||Désacidification : limites et zones viticoles|ue_zones
-acide-metatartrique|ue|oui|10|100|100 mg/L au plus|ue
-gomme-arabique|ue|oui||||ue
-cmc|ue|condition|10|100|Vins blancs, rosés et mousseux ; 100 mg/L au plus|ue
-polyaspartate|ue|oui|10|100|100 mg/L au plus|ue
-sorbate|ue|oui||200|200 mg/L exprimés en acide sorbique dans le vin mis sur le marché|ue
-acide-sorbique|ue|oui||200|200 mg/L dans le vin mis sur le marché|ue
-lysozyme|ue|oui|50||500 mg/L au total (moût et vin)|ue
-dmdc|ue|condition|20||200 mg/L ; vins de plus de 5 g/L de sucres ; non décelable à la mise sur le marché|ue
-sulfate-cuivre|ue|oui|1|1|1 g/hL ; cuivre du vin traité ≤ 1 mg/L (2 mg/L pour les vins de liqueur)|ue
-citrate-cuivre|ue|oui|1|1|1 g/hL ; cuivre du vin traité ≤ 1 mg/L (2 mg/L pour les vins de liqueur)|ue
-acide-fumarique|ue|condition|60|600|Inhibition de la fermentation malolactique ; 600 mg/L au plus|ue
-ferrocyanure|ue|condition|||Sous la responsabilité d’un œnologue ; aucun résidu dans le vin|ue
-phytate|ue|condition|8||Vins rouges seulement|ue
-chlorure-argent|ue|condition|1|0.1|Argent résiduel < 0,1 mg/L|ue
-sucre|ue|condition|||Enrichissement dans les limites de la zone (Champagne : zone B) ; liqueurs de tirage et d’expédition|ue_zones
-copeaux|aoc-champagne|non|||Morceaux de bois de chêne non autorisés pour l’appellation (à vérifier dans le cahier des charges en vigueur)|champagne
-sucre|aoc-champagne|condition|||Enrichissement des vins de base et liqueurs selon le cahier des charges|champagne
-acide-tartrique|aoc-champagne|condition|||Acidification selon les décisions de la campagne et le cahier des charges|champagne
-so2|bio-ue|condition|||Anhydride sulfureux, bisulfite et métabisulfite de potassium seulement ; plafonds de SO₂ total réduits (ci-dessous)|bio
-bisulfite-ammonium|bio-ue|non|||Seuls l’anhydride sulfureux, le bisulfite et le métabisulfite de potassium|bio
-levures|bio-ue|condition|||Biologiques si disponibles|bio
-levures-inactivees|bio-ue|condition|||Biologiques si disponibles|bio
-mannoproteines|bio-ue|oui||||bio
-dap|bio-ue|oui||||bio
-thiamine|bio-ue|oui||||bio
-enzymes|bio-ue|condition|||Enzymes pectolytiques, pour la clarification seulement|bio
-bacteries|bio-ue|oui||||bio
-bentonite|bio-ue|oui||||bio
-gelatine|bio-ue|oui||||bio
-colle-poisson|bio-ue|oui||||bio
-caseine|bio-ue|oui||||bio
-albumine|bio-ue|condition|||Biologique si disponible|bio
-proteines-vegetales|bio-ue|condition|||Biologiques si disponibles|bio
-silice|bio-ue|oui||||bio
-pvpp|bio-ue|non||||bio
-charbon|bio-ue|oui||||bio
-tanins|bio-ue|oui||||bio
-copeaux|bio-ue|oui||||bio
-acide-ascorbique|bio-ue|oui||||bio
-acide-citrique|bio-ue|oui||||bio
-acide-tartrique|bio-ue|oui||||bio
-acide-malique|bio-ue|non||||bio
-acide-lactique|bio-ue|oui||||bio
-desacidifiants|bio-ue|oui||||bio
-acide-metatartrique|bio-ue|oui||||bio
-gomme-arabique|bio-ue|condition|||Biologique si disponible|bio
-cmc|bio-ue|non||||bio
-polyaspartate|bio-ue|non||||bio
-sorbate|bio-ue|non||||bio
-acide-sorbique|bio-ue|non||||bio
-lysozyme|bio-ue|non||||bio
-dmdc|bio-ue|non||||bio
-sulfate-cuivre|bio-ue|non||||bio
-citrate-cuivre|bio-ue|oui||||bio
-acide-fumarique|bio-ue|non||||bio
-ferrocyanure|bio-ue|non||||bio
-phytate|bio-ue|non||||bio
-chlorure-argent|bio-ue|non||||bio
-sucre|bio-ue|condition|||Saccharose, moût concentré et MCR d’origine biologique|bio
-levures|demeter|condition|||Fermentation par les levures indigènes ; levures exogènes certifiées bio et sans OGM seulement en cas d’arrêt de fermentation (prise de mousse : à vérifier)|demeter
-levures-inactivees|demeter|condition|||Écorces de levures bio en cas d’arrêt de fermentation ; autolysats ou levures inactivées si carence avérée (< 100 mg/L d’azote assimilable)|demeter
-dap|demeter|non|||À confirmer dans le cahier des charges complet|demeter
-thiamine|demeter|non|||À confirmer dans le cahier des charges complet|demeter
-enzymes|demeter|non|||À confirmer dans le cahier des charges complet|demeter
-sucre|demeter|condition|||Chaptalisation : +0,9 % vol au plus ; sucre d’origine bio ou Demeter|demeter
-so2|avn|condition|||Sulfites en doses minimes seulement (voir les plafonds de SO₂ total)|avn
-so2|sains|non|||Aucun sulfite ajouté|sains`;
-const REG_REGLES = REG_REGLES_TXT.split('\n').map((l) => { const [compose, label, statut, d, t, condition, texte] = l.split('|'); return { compose, label, statut, doseMax: d ? Number(d) : null, teneurMax: t ? Number(t) : null, condition: condition || '', source: REG_TEXTES[texte] || '' }; });
-// plafonds de SO₂ total (mg/L) : référentiel|vin|valeur|précision|texte
-const REG_SO2_TXT = `ue|rouge|150|sucres < 5 g/L (200 au-delà)|ue
-ue|blanc_rose|200|sucres < 5 g/L (250 au-delà)|ue
-ue|effervescent|185|vins mousseux de qualité (235 pour les autres vins mousseux)|ue
-bio-ue|rouge|100|sucres < 2 g/L (plafond de l’UE réduit de 30 mg/L au-delà)|bio
-bio-ue|blanc_rose|150|sucres < 2 g/L (plafond de l’UE réduit de 30 mg/L au-delà)|bio
-bio-ue|effervescent|155|vins mousseux de qualité (205 pour les autres vins mousseux)|bio
-demeter|rouge|70|sucres < 5 g/L ; dose dérogatoire 100|demeter
-demeter|blanc_rose|90|sucres < 5 g/L ; dose dérogatoire 120|demeter
-demeter|effervescent|70|sucres < 10 g/L (résumé 2024) ou < 12 g/L (fiche 2026) ; 100 au-delà ; dose dérogatoire 100|demeter
-biodyvin|rouge|80|sucres ≤ 5 g/L ; 110 après un élevage de plus de 9 mois|biodyvin
-nature-progres|rouge|70|vins rouges|np
-avn|rouge|30|vins rouges secs|avn
-avn|blanc_rose|40|autres vins|avn
-avn|effervescent|40|autres vins|avn`;
-const REG_SO2 = REG_SO2_TXT.split('\n').map((l) => { const [label, vin, v, note, texte] = l.split('|'); return { label, vin, valeur: Number(v), note, source: REG_TEXTES[texte] || '' }; });
+// règles : composé|référentiel|statut|dose max (g/hL de composé)|teneur max (mg/L de l'espèce)|condition|texte|article ou ligne|v (vérifié)
+const REG_REGLES_TXT = `so2|ue|oui|||Teneur maximale en SO₂ total selon le type de vin (plafonds ci-dessous)|ue|lignes 2.1 à 2.3 ; annexe I partie B|v
+bisulfite-ammonium|ue|condition|20||Fermentation alcoolique seulement ; 0,2 g/L exprimé en sels, dans la limite globale des sels d’ammonium (1 g/L)|ue|ligne 4.4 et appendice 3|v
+levures|ue|oui||||ue|lignes 1.11 et 9.1|v
+levures-inactivees|ue|oui||||ue|lignes 4.6 à 4.8 et 10.5|v
+mannoproteines|ue|oui|||Doses déterminées par le responsable du traitement|ue|ligne 6.10 ; fiche OIV 3.3.13|v
+dap|ue|condition|100||Fermentation alcoolique seulement ; 1 g/L exprimé en sels (sels d’ammonium ensemble) ; 0,3 g/L pour la seconde fermentation des vins mousseux (prise de mousse)|ue|lignes 4.2 et 4.3 ; appendice 3|v
+thiamine|ue|condition|0.06||Fermentation alcoolique seulement ; 0,6 mg/L exprimée en thiamine pour chaque traitement|ue|ligne 4.5|v
+enzymes|ue|condition|||Uniquement pour la macération, la clarification, la stabilisation, la filtration et la révélation des précurseurs aromatiques|ue|lignes 7.2 à 7.8|v
+bacteries|ue|oui||||ue|lignes 1.12 et 9.2|v
+bentonite|ue|oui||||ue|ligne 5.9 ; fiche OIV 3.3.5|v
+gelatine|ue|oui||||ue|ligne 5.1|v
+colle-poisson|ue|oui||||ue|ligne 5.5|v
+caseine|ue|oui||||ue|lignes 5.6 et 5.7|v
+albumine|ue|oui||||ue|ligne 5.8|v
+proteines-vegetales|ue|oui||||ue|lignes 5.2 à 5.4|v
+silice|ue|oui||||ue|ligne 5.10|v
+kaolin|ue|oui||||ue|ligne 5.11|v
+pvpp|ue|oui|80|||ue|ligne 5.16 ; fiche OIV 3.4.9|v
+charbon|ue|condition|100||Moûts, MCR et vins blancs seulement ; moins de 100 g de charbon sec par hL ; ni décoloration des vins rouges ou rosés, ni traitement successif du moût et du vin|ue|ligne 3.1 ; fiches OIV 2.1.9 et 3.5.9|v
+tanins|ue|oui||||ue|lignes 5.12 et 6.4|v
+chitosane|ue|condition|100||Chitosane d’Aspergillus niger ou d’Agaricus bisporus ; 100 g/hL (clarification, métaux lourds), 500 g/hL (contaminants), 10 g/hL (Brettanomyces)|ue|lignes 5.13 et 10.3 ; fiche OIV 3.4.16|v
+copeaux|ue|condition|||Morceaux de bois de chêne (Quercus) non brûlés, sans traitement chimique (prescriptions de l’appendice 7)|ue_t1|tableau 1, ligne 11 ; appendice 7|v
+acide-ascorbique|ue|oui|25|300|250 mg/L par traitement ; 300 mg/L au plus dans le vin (acides ascorbique et déhydroascorbique) quand le raisin ou le moût ont aussi été traités|ue|ligne 2.6 ; fiches OIV 2.2.7 et 3.4.7 (règlement délégué 2024/3085)|v
+acide-citrique|ue|oui||1000|1 g/L au plus dans le vin traité mis sur le marché|ue|lignes 1.10 et 6.3 ; fiche OIV 3.3.8|v
+acide-tartrique|ue|condition|400||Acidification ≤ 4 g/L exprimée en acide tartrique ; cuvée de vins mousseux ≤ 1,5 g/L (2,5 g/L les années exceptionnelles) ; acidification et enrichissement s’excluent|ue_zones|1308/2013 annexe VIII I C ; 2019/934 annexe II A 8 et 9 ; ligne 1.1|v
+acide-malique|ue|condition|||Acidification ≤ 4 g/L exprimée en acide tartrique (soit 53,3 meq/L)|ue_zones|1308/2013 annexe VIII I C ; ligne 1.2|v
+acide-lactique|ue|condition|||Acidification ≤ 4 g/L exprimée en acide tartrique (soit 53,3 meq/L)|ue_zones|1308/2013 annexe VIII I C ; ligne 1.3|v
+desacidifiants|ue|condition|||Désacidification des vins ≤ 1 g/L exprimée en acide tartrique ; acidification et désacidification d’un même produit s’excluent|ue_zones|1308/2013 annexe VIII I C 3 et 5 ; lignes 1.4 à 1.6 et 1.9|v
+bitartrate|ue|condition|||Uniquement pour favoriser la précipitation des sels tartriques|ue|ligne 6.1|v
+acide-metatartrique|ue|oui|10||Au dernier moment, avant la mise en bouteille ; 10 g/hL au plus|ue|ligne 6.7 ; fiche OIV 3.3.7|v
+gomme-arabique|ue|oui|30||Après la dernière filtration ou juste avant l’embouteillage ; 0,3 g/L au plus (0,8 g/L pour les vins de liqueur rouges)|ue|ligne 6.8 ; fiche OIV 3.3.6 (2022)|v
+cmc|ue|condition|20||Stabilisation tartrique seulement ; vins blancs, rosés et mousseux ; moins de 200 mg/L|ue|ligne 6.11 ; fiche OIV 3.3.14|v
+polyaspartate|ue|condition|10||Stabilisation tartrique seulement ; 10 g/hL au plus|ue|ligne 6.13 ; fiche OIV 3.3.15|v
+alginates|ue|condition|||Uniquement pour les vins mousseux et pétillants obtenus par fermentation en bouteille, avec séparation des lies par dégorgement|ue|lignes 5.17 et 5.18|v
+sorbate|ue|oui||200|Peu avant la mise en bouteille ; 200 mg/L au plus exprimés en acide sorbique|ue|ligne 2.4 ; fiche OIV 3.4.5|v
+acide-sorbique|ue|non|||Seul le sorbate de potassium (ligne 2.4) figure au tableau 2|ue|ligne 2.4 ; article 3|v
+lysozyme|ue|oui|50||500 mg/L au plus, moût et vin cumulés|ue|ligne 2.5 ; fiche OIV 3.4.12|v
+dmdc|ue|condition|20||Inscription au registre ; peu avant l’embouteillage ; 200 mg/L au plus ; vin mis sur le marché seulement quand le DMDC n’est plus décelable|ue|ligne 2.7 ; fiche OIV 3.4.13|v
+sulfate-cuivre|ue|oui|1|1|1 g/hL ; cuivre du vin traité ≤ 1 mg/L (2 mg/L pour certains vins de liqueur)|ue|ligne 10.1 ; fiche OIV 3.5.8|v
+citrate-cuivre|ue|oui|1|1|1 g/hL ; cuivre du vin traité ≤ 1 mg/L (2 mg/L pour certains vins de liqueur)|ue|ligne 10.2 ; fiche OIV 3.5.14|v
+acide-fumarique|ue|condition|60||Inhibition de la fermentation malolactique ; 300 à 600 mg/L|ue|ligne 6.14 ; fiches OIV 3.4.2 et 3.4.23|v
+ferrocyanure|ue|condition|||Conditions de l’appendice 4 (sous la responsabilité d’un œnologue ; traces de fer obligatoires après traitement)|ue|ligne 6.5 ; appendice 4|v
+phytate|ue|condition|8||Vins rouges seulement ; 8 g/hL au plus ; conditions de l’appendice 4|ue|ligne 6.6 ; appendice 4|v
+chlorure-argent|ue|non|||Ne figure pas au tableau 2 : non autorisé dans l’Union|ue|article 3 et tableau 2|v
+filtration|ue|oui|||Adjuvants de filtration inertes, sans résidus indésirables dans le produit traité|ue_t1|tableau 1, ligne 3 ; fiches OIV 2.1.11 et 3.2.2|v
+sucre|ue|condition|||Enrichissement par saccharose, MC ou MCR : +2 % vol en zone B (Champagne), +3 en A, +1,5 en C ; sucrage à sec exclu dans certains départements du Sud ; liqueur de tirage ≤ +1,5 % vol ; liqueur d’expédition ≤ +0,5 % vol ; édulcoration de la cuvée interdite|ue_zones|1308/2013 annexe VIII I A et B ; 2019/934 annexe II A 4 à 7|v
+copeaux|aoc-champagne|non|||L’utilisation de morceaux de bois est interdite|champagne|chapitre Ier, IX, 1° f)|v
+sucre|aoc-champagne|condition|||Après enrichissement, titre alcoométrique volumique total ≤ 13 % après prise de mousse ; augmentation du volume ≤ 1,12 % pour 1 % vol (enrichissement, liqueur de tirage)|champagne|chapitre Ier, IX, 1° f) et 2° d)|v
+so2|bio-ue|condition|||Anhydride sulfureux, bisulfite et métabisulfite de potassium seulement ; plafonds de SO₂ total réduits (ci-dessous)|bio_so2||v
+bisulfite-ammonium|bio-ue|non|||Ne figure pas à l’annexe V partie D|bio||v
+levures|bio-ue|condition|||Pour les différentes souches de levure : biologiques si disponibles|bio||v
+levures-inactivees|bio-ue|oui|||Autolysats, écorces de levures, levures inactivées|bio||v
+mannoproteines|bio-ue|oui||||bio||v
+dap|bio-ue|condition|||Seul l’hydrogénophosphate de diammonium (le sulfate d’ammonium ne figure pas à l’annexe)|bio||v
+thiamine|bio-ue|oui||||bio||v
+enzymes|bio-ue|condition|||Pectines lyases, pectine méthylestérase, polygalacturonase, hémicellulase, cellulase : à des fins de clarification seulement|bio||v
+bacteries|bio-ue|oui||||bio||v
+bentonite|bio-ue|oui||||bio||v
+gelatine|bio-ue|condition|||Provenant de matières premières biologiques si elles sont disponibles|bio||v
+colle-poisson|bio-ue|condition|||Provenant de matières premières biologiques si elles sont disponibles|bio||v
+caseine|bio-ue|condition|||Caséine biologique si disponible ; caséinates de potassium sans condition|bio||v
+albumine|bio-ue|condition|||Ovalbumine biologique si disponible|bio||v
+proteines-vegetales|bio-ue|condition|||Protéines de blé, de pois ou de pomme de terre biologiques si disponibles|bio||v
+silice|bio-ue|oui||||bio||v
+kaolin|bio-ue|non|||Ne figure pas à l’annexe V partie D|bio||v
+pvpp|bio-ue|non||||bio||v
+charbon|bio-ue|oui||||bio||v
+tanins|bio-ue|condition|||Provenant de matières premières biologiques si elles sont disponibles|bio||v
+chitosane|bio-ue|condition|||Seul le chitosane dérivé d’Aspergillus niger|bio||v
+copeaux|bio-ue|oui||||bio||v
+acide-ascorbique|bio-ue|oui||||bio||v
+acide-citrique|bio-ue|oui||||bio||v
+acide-tartrique|bio-ue|oui||||bio||v
+acide-malique|bio-ue|non||||bio||v
+acide-lactique|bio-ue|oui||||bio||v
+desacidifiants|bio-ue|condition|||Tartrate de potassium, bicarbonate de potassium, carbonate de calcium (pas le carbonate de potassium)|bio||v
+bitartrate|bio-ue|oui||||bio||v
+acide-metatartrique|bio-ue|oui||||bio||v
+gomme-arabique|bio-ue|condition|||Provenant de matières premières biologiques si elles sont disponibles|bio||v
+cmc|bio-ue|non||||bio||v
+polyaspartate|bio-ue|non||||bio||v
+alginates|bio-ue|condition|||Alginate de potassium seulement (l’alginate de calcium ne figure pas à l’annexe)|bio||v
+sorbate|bio-ue|non||||bio||v
+acide-sorbique|bio-ue|non||||bio||v
+lysozyme|bio-ue|non||||bio||v
+dmdc|bio-ue|non||||bio||v
+sulfate-cuivre|bio-ue|non||||bio||v
+citrate-cuivre|bio-ue|oui||||bio||v
+acide-fumarique|bio-ue|non||||bio||v
+ferrocyanure|bio-ue|non||||bio||v
+phytate|bio-ue|non||||bio||v
+chlorure-argent|bio-ue|non||||bio||v
+filtration|bio-ue|condition|||Filtration autorisée (taille des pores d’au moins 0,2 µm)|bio_pratiques||
+sucre|bio-ue|condition|||Saccharose, moût concentré et MCR d’origine biologique|bio_sucre||
+so2|demeter|condition|||SO₂ pur gazeux ou en solution, bisulfite et métabisulfite de potassium ; pastilles effervescentes interdites|demeter|7.12.2.11|v
+levures|demeter|condition|||Levures indigènes ; levurage exogène (souche bio) seulement pour la prise de mousse ou en cas d’arrêt ou de fermentation languissante (intervention tolérée)|demeter|7.12.2.8|v
+levures-inactivees|demeter|condition|||Écorces de levures (Demeter ou bio) en cas d’arrêt de fermentation ; autolysats ou levures inactivées si carence avérée (< 100 mg/L d’azote assimilable)|demeter|7.12.2.8|v
+dap|demeter|non|||Aucun nutriment pour levures, hors écorces et autolysats|demeter|7.12.2.8|v
+thiamine|demeter|non|||Aucun nutriment pour levures, hors écorces et autolysats|demeter|7.12.2.8|v
+enzymes|demeter|non|||Enzymes interdites quel que soit leur usage œnologique|demeter|7.12.2.6|v
+bacteries|demeter|condition|||Ensemencement en cas de difficulté de départ ou d’arrêt de la fermentation malolactique ; bactéries sans OGM|demeter|7.12.2.10|v
+sucre|demeter|condition|||Sucre, MC ou MCR Demeter (à défaut bio) : jusqu’à +0,9 % vol (1 intervention) ou +1,5 % vol (2) ; liqueur de tirage ≤ +1,5 % vol ; liqueur d’expédition pour les effervescents|demeter|7.12.2.7|v
+bitartrate|demeter|condition|||Bitartrate de potassium biodynamique ou bio si possible (intervention tolérée)|demeter|7.12.2.12|v
+albumine|demeter|condition|||Blanc d’œuf Demeter ou bio (intervention tolérée)|demeter|7.12.2.13|v
+proteines-vegetales|demeter|condition|||Protéines de pois, de blé ou de pomme de terre, biologiques si disponibles (intervention tolérée)|demeter|7.12.2.13|v
+caseine|demeter|condition|||Caséine (intervention tolérée)|demeter|7.12.2.13|v
+bentonite|demeter|condition|||Bentonite, de préférence sodique (intervention tolérée)|demeter|7.12.2.13|v
+charbon|demeter|condition|||Charbon végétal sur moût uniquement (intervention tolérée)|demeter|7.12.2.13|v
+chitosane|demeter|condition|10||Sous dérogation de Demeter France, uniquement contre Brettanomyces bruxellensis ; utilisable en bio ; compte pour 2 interventions|demeter|7.12.2.13|v
+acide-tartrique|demeter|condition|150||Acidification à l’acide tartrique seulement, 1,5 g/L au plus ; analyse requise|demeter|7.12.2.15|v
+desacidifiants|demeter|condition|||Bicarbonate de potassium seulement ; analyse requise|demeter|7.12.2.15|v
+filtration|demeter|condition|||Cellulose, polypropylène, perlite, terre de diatomées, céramique ; une intervention quel que soit le nombre de passages|demeter|7.12.2.14|v
+tanins|demeter|non|||Ajout de tanins interdit|demeter|7.12.2.16|v
+copeaux|demeter|non|||Tout ajout de bois au vin ou au moût est interdit (tonneaux autorisés)|demeter|7.12.2.16|v
+copeaux|biodyvin|non|||Aromatisation avec des douelles ou des copeaux de bois interdite|biodyvin|seconde partie, préambule|v
+desacidifiants|biodyvin|non|||Désacidification interdite|biodyvin|seconde partie, préambule|v
+so2|nature-progres|condition|||Solutions sulfureuses à 6 %, SO₂ pur liquéfié, mèches (récipients vides) et pastilles de soufre (récipients en bois secs) seulement ; apports à l’encuvage, en fin de FML et à la mise|np|IV.1 et IV.2|v
+levures|nature-progres|condition|||En cas de difficultés de fermentation : levures bio, non OGM, non aromatiques ; levurage systématique interdit|np|III|v
+tanins|nature-progres|condition|||Tanins sur vendange seulement, sous contrôle d’un œnologue|np|V.1|v
+albumine|nature-progres|condition|||Albumine de blancs d’œufs biologiques (poudre non biologique tolérée provisoirement)|np|VI.1|v
+caseine|nature-progres|condition|||Caséine pure (lactique) garantie sans résidus|np|VI.1|v
+bentonite|nature-progres|condition|||Bentonites sodiques déconseillées|np|VI.1|v
+kaolin|nature-progres|condition|||Autorisé mais déconseillé|np|VI.1|v
+sucre|nature-progres|condition|||+1 % vol au plus : sucre de canne ou de betterave bio, sucre de raisin, MC ou MCR N&P ou bio|np|VIII|v
+acide-tartrique|nature-progres|condition|100||Dans le Midi, en dernier recours, sur moût seulement, avec l’accord d’un œnologue : 1 g/L sur blancs, 0,5 g/L sur rouges|np|IX.1|v
+filtration|nature-progres|condition|||Plaques cellulosiques, perlite (filtre presse), kieselguhr à titre provisoire ; filtration stérilisante systématique interdite|np|VI.2|v
+desacidifiants|nature-progres|condition|||Bicarbonate de potassium ; carbonate de calcium toléré si une analyse le justifie|np|IX.2|v
+filtration|avn|non|||Filtration interdite|avn|11|
+so2|avn|non|||Pas d’emploi de SO₂ ; 10 mg/L au plus à l’analyse|avn|8|
+so2|sains|non|||Aucun sulfite ajouté|sains||v`;
+const REG_REGLES = REG_REGLES_TXT.split('\n').map((l) => { const [compose, label, statut, d, t, condition, texte, ref, v] = l.split('|'); return { compose, label, statut, doseMax: d ? Number(d) : null, teneurMax: t ? Number(t) : null, condition: condition || '', source: REG_TEXTES[texte] || '', ref: ref || '', verifie: v === 'v' }; });
+// plafonds de SO₂ total (mg/L) : référentiel|vin|valeur|précision|texte|article|v (vérifié)
+const REG_SO2_TXT = `ue|rouge|150|sucres < 5 g/L (200 au-delà)|ue_so2|A.1 a) et A.2 a)|v
+ue|blanc_rose|200|sucres < 5 g/L (250 au-delà)|ue_so2|A.1 b) et A.2 b)|v
+ue|effervescent|185|vins mousseux de qualité (235 pour les autres vins mousseux)|ue_so2|C.1|v
+bio-ue|rouge|100|sucres < 2 g/L (plafond de l’UE réduit de 30 mg/L au-delà)|bio_so2||v
+bio-ue|blanc_rose|150|sucres < 2 g/L (plafond de l’UE réduit de 30 mg/L au-delà)|bio_so2||v
+bio-ue|effervescent|155|plafond de l’UE (185) réduit de 30 mg/L ; 205 pour les autres vins mousseux|bio_so2||v
+demeter|rouge|70|sucres < 5 g/L ; 100 en dérogation (2 interventions)|demeter|7.12.2.11|v
+demeter|blanc_rose|90|sucres < 5 g/L ; 120 en dérogation (2 interventions)|demeter|7.12.2.11|v
+demeter|effervescent|70|sucres < 12 g/L (100 au-delà) ; 100 en dérogation (2 interventions)|demeter|7.12.2.11|v
+biodyvin|rouge|80|sucres ≤ 5 g/L ; 110 après un élevage de plus de 9 mois|biodyvin|seconde partie|v
+biodyvin|blanc_rose|105|sucres ≤ 5 g/L ; 135 après un élevage de plus de 9 mois|biodyvin|seconde partie|v
+biodyvin|effervescent|96|Champagnes, Crémants, mousseux ≤ 15 g/L de sucre (104 au-delà) ; +30 après un élevage de plus de 9 mois|biodyvin|seconde partie|v
+nature-progres|rouge|40|vins rouges|np|IV.3|v
+nature-progres|blanc_rose|40|rosés et blancs secs (100 pour les demi-secs et moelleux)|np|IV.3|v
+nature-progres|effervescent|40|mousseux et effervescents|np|IV.3|v
+avn|rouge|10|analyse après mise en bouteille|avn|8|
+avn|blanc_rose|10|analyse après mise en bouteille|avn|8|
+avn|effervescent|10|analyse après mise en bouteille|avn|8|`;
+const REG_SO2 = REG_SO2_TXT.split('\n').map((l) => { const [label, vin, v, note, texte, ref, ok] = l.split('|'); return { label, vin, valeur: Number(v), note, source: REG_TEXTES[texte] || '', ref: ref || '', verifie: ok === 'v' }; });
 const REG_STATUTS = { oui: 'autorisé', non: 'interdit', condition: 'sous condition' };
 const REG_POIDS = { oui: 0, condition: 1, non: 2 };
 
@@ -261,8 +318,8 @@ function refRegle(db, labelId, composeId) {
   const ex = refReglage(db).exceptions[`${labelId}|${composeId}`];
   const r = REG_REGLES.find((x) => x.label === labelId && x.compose === composeId);
   if (ex && REG_STATUTS[ex.statut]) return { compose: composeId, label: labelId, statut: ex.statut, doseMax: hasNum(ex.doseMax) ? num(ex.doseMax) : null, teneurMax: hasNum(ex.teneurMax) ? num(ex.teneurMax) : null, condition: String(ex.condition || (r && r.condition) || ''), source: `Correction de l’exploitation${ex.le ? ` (${ex.le})` : ''}`, exception: true, aVerifier: false, par: ex.par || '', le: ex.le || '' };
-  if (r) return { ...r, exemple: true, aVerifier: true };
-  const l = refLabel(labelId); if (l && l.defaut === 'non') return { compose: composeId, label: labelId, statut: 'non', doseMax: null, teneurMax: null, condition: 'Aucun intrant hors de ceux que le label accepte', source: REG_TEXTES[l.texte] || '', defaut: true, exemple: true, aVerifier: true };
+  if (r) return { ...r, exemple: !r.verifie, aVerifier: !r.verifie };
+  const l = refLabel(labelId); if (l && l.defaut === 'non') return { compose: composeId, label: labelId, statut: 'non', doseMax: null, teneurMax: null, condition: 'Aucun intrant hors de ceux que le label accepte', source: REG_TEXTES[l.texte] || '', defaut: true, exemple: !l.verifie, aVerifier: !l.verifie };
   return null;
 }
 // combinaison sur une liste de référentiels : la plus restrictive l'emporte (statut, dose, teneur), avec ses origines
@@ -280,12 +337,14 @@ function refRegleProduit(db, p, qualifId, vises) {
   if (!refActif(db) || !p || p.categorie === 'sec') return null;
   const labels = refLabelsPour(db, qualifId, vises).map((x) => x.id); const comps = refComposesDe(p); const avis = [];
   comps.forEach((c) => { const r = refCombiner(db, labels, c.id); if (r) avis.push({ ...r, part: c.part, supposee: c.supposee }); });
-  if (!comps.length) { const nl = labels.filter((id) => (refLabel(id) || {}).defaut === 'non'); if (nl.length) avis.push({ compose: null, statut: 'non', statutPar: nl[0], doseMax: null, teneurMax: null, conditions: [], regles: [], aVerifier: true, sansCompose: true }); }
+  if (!comps.length) { const nl = labels.filter((id) => (refLabel(id) || {}).inconnu === 'non'); if (nl.length) avis.push({ compose: null, statut: 'non', statutPar: nl[0], doseMax: null, teneurMax: null, conditions: [], regles: [], aVerifier: true, sansCompose: true }); }
   if (!avis.length) return null;
   const interdit = avis.find((a) => a.statut === 'non') || null; let doseMax = null; let dosePar = null; let doseCompose = null;
   const du = doseUnit(p.unite);
-  if (du) avis.forEach((a) => { if (a.doseMax == null) return; const d = a.doseMax / (a.part || 1); if (doseMax == null || d < doseMax) { doseMax = Math.round(d * 1e6) / 1e6; dosePar = a.dosePar; doseCompose = a.compose; } });
-  return { labels, avis, interdit: !!interdit, interditPar: interdit ? interdit.statutPar : null, interditCompose: interdit ? interdit.compose : null, doseMax, dosePar, doseCompose, conditions: avis.flatMap((a) => a.conditions.map((x) => ({ ...x, compose: a.compose }))), aVerifier: avis.some((a) => a.aVerifier) };
+  // produit liquide de teneur inconnue (gomme arabique en solution, solution sulfureuse…) : dose du composé non estimée (sinon fausse alerte)
+  const liquide = p.unite === 'mL' || p.unite === 'L'; const nonEstime = avis.filter((a) => a.supposee && liquide && a.doseMax != null).map((a) => a.compose);
+  if (du) avis.forEach((a) => { if (a.doseMax == null || (a.supposee && liquide)) return; const d = a.doseMax / (a.part || 1); if (doseMax == null || d < doseMax) { doseMax = Math.round(d * 1e6) / 1e6; dosePar = a.dosePar; doseCompose = a.compose; } });
+  return { labels, avis, nonEstime, interdit: !!interdit, interditPar: interdit ? interdit.statutPar : null, interditCompose: interdit ? interdit.compose : null, doseMax, dosePar, doseCompose, conditions: avis.flatMap((a) => a.conditions.map((x) => ({ ...x, compose: a.compose }))), aVerifier: avis.some((a) => a.aVerifier) };
 }
 
 /* ---------- teneurs dans le vin : espèces apportées par les intrants cumulés d'un lot ---------- */
@@ -293,7 +352,8 @@ function refRegleProduit(db, p, qualifId, vises) {
 function refTeneursDe(db, conc) {
   const out = {}; const prods = Object.fromEntries((db.produits || []).map((p) => [p.id, p]));
   Object.keys(conc || {}).forEach((pid) => { if (pid[0] === '@') return; const p = prods[pid]; if (!p || !doseUnit(p.unite)) return; const d = num(conc[pid]); if (!(d > 0)) return;
-    refComposesDe(p).forEach((c) => { const k = refCompose(c.id); if (!k || !k.espece) return; const o = (out[k.espece] = out[k.espece] || { espece: k.espece, mgL: 0, produits: [], supposee: false }); const v = d * c.part * k.facteur * 10; o.mgL += v; o.produits.push({ produitId: pid, compose: c.id, mgL: v }); if (c.supposee) o.supposee = true; }); });
+    const liquide = p.unite === 'mL' || p.unite === 'L';
+    refComposesDe(p).forEach((c) => { const k = refCompose(c.id); if (!k || !k.espece || (c.supposee && liquide)) return; /* liquide de teneur inconnue : non estimé */ const o = (out[k.espece] = out[k.espece] || { espece: k.espece, mgL: 0, produits: [], supposee: false }); const v = d * c.part * k.facteur * 10; o.mgL += v; o.produits.push({ produitId: pid, compose: c.id, mgL: v }); if (c.supposee) o.supposee = true; }); });
   return out;
 }
 // plafond de teneur d'une espèce pour des référentiels : le plus bas des composés de cette espèce
@@ -310,7 +370,7 @@ function refTeneursLot(db, R, lotId, conc) {
 /* ---------- SO₂ total : plafonds du référentiel pour un lot ---------- */
 function refSo2(db, labelId, vin) {
   const ex = refReglage(db).exceptions[`${labelId}|so2t|${vin}`]; if (ex && num(ex.valeur) > 0) return { label: labelId, vin, valeur: num(ex.valeur), note: String(ex.note || ''), source: 'Correction de l’exploitation', exception: true, aVerifier: false };
-  const r = REG_SO2.find((x) => x.label === labelId && x.vin === vin); return r ? { ...r, exemple: true, aVerifier: true } : null;
+  const r = REG_SO2.find((x) => x.label === labelId && x.vin === vin); return r ? { ...r, exemple: !r.verifie, aVerifier: !r.verifie } : null;
 }
 // candidats du référentiel : un plafond vérifié de l'exploitation pour la revendication (même type de vin) remplace celui de ses labels
 function refSo2Plafonds(db, R, lotId, typeVin, verifieExploitation) {

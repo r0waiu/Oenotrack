@@ -7,15 +7,17 @@
    SO₂ total estimé = dernière analyse du lot + ajouts depuis (produits dont la teneur en SO₂ est connue). Dépassement : avertir + motif tracé. */
 const VINS_TYPES = [{ id: 'effervescent', label: 'Vins effervescents' }, { id: 'blanc_rose', label: 'Vins blancs et rosés' }, { id: 'rouge', label: 'Vins rouges' }, { id: 'tous', label: 'Tous les vins' }];
 const vinTypeLabel = (id) => (VINS_TYPES.find((v) => v.id === id) || { label: id || '—' }).label;
+// 0.40.0-alpha.1 : valeurs relues dans les textes en vigueur (mêmes valeurs que le référentiel 16t-referentiel) ; elles restent des exemples
+// « à vérifier » tant que l'exploitation ne les a pas validées (le plafond validé de l'exploitation l'emporte sur le référentiel)
 const PLAFONDS_SOURCES = {
-  ue: 'Règlement délégué (UE) 2019/934, annexe I B — exemple à vérifier',
-  bio: 'Règlement (UE) 2018/848 (vin biologique) : plafonds de l’UE réduits de 30 mg/L — exemple à vérifier',
-  dem: 'Cahier des charges vinification Demeter France — exemple à vérifier (dérogations possibles)',
+  ue: 'Règlement délégué (UE) 2019/934, annexe I partie B (A.1 et C.1) — valeur relue, exemple à vérifier par l’exploitation',
+  bio: 'Règlement d’exécution (UE) 2021/1165, annexe V partie D, ligne « Anhydride sulfureux » : plafonds de l’UE réduits de 30 mg/L — valeur relue, exemple à vérifier par l’exploitation',
+  dem: 'Cahier des charges Demeter France, édition janvier 2024, § 7.12.2.11 (doses dérogatoires : 2 interventions) — valeur relue, exemple à vérifier par l’exploitation',
 };
 const PLAFONDS_EXEMPLES = () => [
   ['conv', 'rouge', 150, 'sucres < 5 g/L (200 au-delà)', 'ue'], ['conv', 'blanc_rose', 200, 'sucres < 5 g/L (250 au-delà)', 'ue'], ['conv', 'effervescent', 185, 'vins mousseux de qualité (235 pour les autres vins mousseux)', 'ue'],
   ['bio', 'rouge', 100, 'sucres < 2 g/L (120 de 2 à 5 g/L, 170 au-delà)', 'bio'], ['bio', 'blanc_rose', 150, 'sucres < 2 g/L (170 de 2 à 5 g/L, 220 au-delà)', 'bio'], ['bio', 'effervescent', 155, 'vins mousseux de qualité (205 pour les autres vins mousseux)', 'bio'],
-  ['dem', 'rouge', 70, 'sucres < 5 g/L ; dérogation possible à 100', 'dem'], ['dem', 'blanc_rose', 90, 'sucres < 5 g/L ; dérogation possible à 120', 'dem'], ['dem', 'effervescent', 70, 'sucres < 10 g/L (100 au-delà) ; dérogation possible à 100', 'dem'],
+  ['dem', 'rouge', 70, 'sucres < 5 g/L ; dérogation possible à 100', 'dem'], ['dem', 'blanc_rose', 90, 'sucres < 5 g/L ; dérogation possible à 120', 'dem'], ['dem', 'effervescent', 70, 'sucres < 12 g/L (100 au-delà) ; dérogation possible à 100', 'dem'],
 ].map(([qualifId, vin, valeur, note, s]) => ({ id: `ex-${qualifId}-${vin}`, qualifId, objet: 'so2t', vin, valeur, unite: 'mg/L', note, source: PLAFONDS_SOURCES[s], exemple: true, aVerifier: true }));
 const plafondsDe = (db) => (Array.isArray(db && db.plafonds) ? db.plafonds.filter((p) => p && p.id && ['so2t', 'substance'].includes(p.objet)) : PLAFONDS_EXEMPLES());
 // première modification : les exemples deviennent des données de la cave (synchronisées), qu'on peut valider, corriger ou retirer
