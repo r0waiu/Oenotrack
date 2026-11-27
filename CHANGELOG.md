@@ -9,6 +9,7 @@ Toutes les versions publiées, de la plus récente à la plus ancienne (numérot
 - Fiche du produit : composés actifs reconnus d’après le nom et la composition (ex. « Citrate de cuivre 2 % »), teneur modifiable ; les doses cumulées par lot sont converties en teneurs dans le vin (acide sorbique, cuivre, acide métatartrique, CMC…).
 - Alerte à la saisie : un intrant refusé par un label du lot, une dose ou une teneur maximale franchie pour l’une des revendications visées demande un motif avant validation (tracé avec l’opération) ; labels visés par lot en plus de sa revendication.
 - Alerte persistante sur le lot (fiche du lot et du lot fini) et dans Traçabilité › « ⚖ Conformité réglementaire » : intrant non conforme, dose cumulée, teneur ou SO₂ total au-delà du plafond, recalculés quand la revendication change (déclassement, passage en Bio, Demeter, S.A.I.N.S.…).
+- Catalogues : liste Ecocert des intrants utilisables en œnologie biologique (plus de 1 700 produits, règlement (UE) 2018/848) — mention « liste Ecocert » et restrictions d’emploi sur les produits des catalogues, et catalogue « Ecocert » des autres fournisseurs (Lallemand, Agrovin, Lamothe-Abiet, Erbslöh, Enartis…), à afficher dans Intrants › Catalogues ; page du produit, fiche technique et FDS en ligne relevées sur les sites Laffort, Martin Vialatte et Oenofrance, préremplies à l’ajout dans vos produits.
 
 ## 0.39.0-alpha.1 — 26/11/2026
 

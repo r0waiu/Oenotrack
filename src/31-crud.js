@@ -307,6 +307,8 @@ function produitSave(db, s, id) {
   if (s.reference !== undefined) item.reference = String(s.reference || '').trim().slice(0, 60);
   if (s.lien !== undefined) { const l = String(s.lien || '').trim(); if (l && !lienNorm(l)) return fail('Lien du produit : adresse web invalide (ex. https://www.fournisseur.fr/produit).'); item.lien = lienNorm(l); }
   if (s.fdsNonRequise !== undefined) item.fdsNonRequise = !!s.fdsNonRequise;
+  // 0.40.0-alpha.1 : fiche technique et FDS en ligne (site du fournisseur)
+  for (const k of ['ftUrl', 'fdsUrl']) { if (s[k] !== undefined) { const l = String(s[k] || '').trim(); if (l && !lienNorm(l)) return fail('Lien de la fiche technique ou de la FDS : adresse web invalide.'); item[k] = lienNorm(l); } }
   // 0.26.0-alpha.1 : informations du produit (FT, FDS), reprises seulement si elles sont fournies
   PRODUIT_INFOS.forEach(([k, , max]) => { if (s[k] !== undefined) item[k] = String(s[k] == null ? '' : s[k]).trim().slice(0, max); });
   // 0.30.0-alpha.1 : famille (catalogues), teneur en SO₂ (« 150 g/L », « 0,5 g/g », « 5 g/u ») pour l'estimation du SO₂ total

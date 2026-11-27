@@ -56,6 +56,20 @@ ok('fiche du produit : composés actifs (citrate de cuivre à 2 %, choisis)', /C
 await ov().locator('[data-composes] input').first().fill('3'); await ov().locator('button', { hasText: 'Enregistrer' }).last().click(); await page.waitForTimeout(500);
 d = await db(); ok('… teneur modifiée enregistrée (3 % → 0,03)', d.produits.find((p) => /Citrate de cuivre 2 %/.test(p.nom)).composes[0].part === 0.03);
 
+// ---- 3 bis. catalogues : liste Ecocert (masquée par défaut), préremplissage depuis le site du fournisseur
+await page.click('#tab-intrants'); await page.waitForTimeout(300); await sous('Catalogues');
+const cEco = page.locator('[data-catalogue="ecocert"] input[type=checkbox]');
+ok('catalogue « Liste Ecocert » présent, masqué par défaut', (await cEco.count()) === 1 && !(await cEco.isChecked()));
+await cEco.check(); await page.waitForTimeout(500); d = await db();
+ok('… affiché à la demande (réglage commun)', d.catalogueReglage && d.catalogueReglage.ecocert === true);
+await page.locator('input[aria-label="Rechercher"], [data-catalogue-res]').first().waitFor();
+const rech = page.locator('main input[placeholder*="Rechercher"]').last(); await rech.fill('KLIMA'); await page.waitForTimeout(500);
+const lgK = page.locator('[data-catalogue-res] tr', { hasText: 'ZYMAFLORE KLIMA' }).first();
+ok('recherche : ZYMAFLORE KLIMA avec « liste Ecocert » et liens vers la page, la FT et la FDS du fournisseur', (await lgK.locator('[data-ecocert]').count()) === 1 && (await lgK.locator('[data-catalogue-liens] a').count()) >= 2);
+await lgK.locator('button', { hasText: 'Ajouter à mes produits' }).click(); await page.waitForTimeout(500); d = await db();
+const pK = d.produits.find((p) => p.nom === 'ZYMAFLORE KLIMA');
+ok('… ajouté : page du produit, fiche technique et FDS préremplies, règle bio à vérifier', pK && /^https:\/\/laffort\.com\//.test(pK.lien) && /\.pdf$/.test(pK.ftUrl || '') && d.regles.some((r) => r.produitId === pK.id && r.qualifId === 'bio' && r.autorise && r.aVerifier), pK);
+
 // ---- 4. Traçabilité › Conformité réglementaire (alerte a posteriori, registre)
 await page.click('#tab-trace'); await page.waitForTimeout(400); await sous('⚖ Conformité réglementaire');
 t = await txt(page.locator('[data-conformite-registre]'));
