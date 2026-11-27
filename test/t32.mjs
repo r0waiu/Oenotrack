@@ -13,7 +13,7 @@ const o0 = await onglets();
 ok('12 onglets dans l’ordre d’origine (Cuverie, Opérations et À réaliser réunis dans Vinification depuis 0.34.0-alpha.1 ; Pressoir après ; Déclassements dans Opérations depuis 0.27.0-alpha.2 ; Équipements après Hygiène depuis 0.28.0-alpha.1), Paramètres en dernier', o0.join() === 'vinification,pressoir,tirage,cave,degorgement,analyses,intrants,hygiene,equipements,trace,registres,params', o0.join());
 ok('démarrage sur le premier module (Cuverie)', (await page.locator('#tab-cuverie').getAttribute('aria-selected')) === 'true');
 // 2. Tirages / Cave / Dégorgement et Registres / Paramètres
-await page.click('#tab-tirage'); await page.waitForTimeout(300); const tTir = await page.locator('main').innerText();
+await page.click('#tab-tirage'); await page.waitForTimeout(300); const tPrep = await page.locator('main').innerText(); await page.getByRole('tab', { name: /Tirer/ }).click(); await page.waitForTimeout(300); const tTir = tPrep + (await page.locator('main').innerText()); // 0.42.0-alpha.1 : sous-onglets Préparer / Tirer
 ok('Tirages : préparations de tirage et mixtions (pas de liqueur d’expédition)', tTir.includes('Tirages (mixtions)') && tTir.includes('Liqueur de tirage') && !tTir.includes('Lots finis') && !/\+ Liqueur d.expédition/.test(tTir));
 await page.click('#tab-cave'); await page.waitForTimeout(300); const tCave = await page.locator('main').innerText();
 ok('Cave : bouteilles sur lattes, âge, sur pointes, mouvements', tCave.includes('Bouteilles en cave') && /15\s?900/.test(tCave) && tCave.includes('Mouvements en cave') && tCave.includes('mois') && tCave.includes('Sur pointes'), tCave.slice(0, 140));

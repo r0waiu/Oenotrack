@@ -65,6 +65,8 @@ function OpForm(props) {
   const { db } = useApp(); const via = opViaPressoir(db, props);
   if (via === 'pesee') return <PeseeOpForm id={props.editId || null} onClose={props.onClose} />;
   if (via === 'marc') return <MarcForm id={props.editId || null} preset={props.preset} onClose={props.onClose} />;
+  const o0 = props.editId ? db.ops.find((o) => o.id === props.editId) : null; // suivi d'un levain (0.42.0-alpha.1) : formulaire propre
+  if ((o0 && o0.type === 'alimentation') || props.type === 'alimentation') return <AlimentationForm prepId={(o0 && o0.prepId) || (props.preset || {}).prepId} editId={props.editId || null} preset={props.preset} onClose={props.onClose} />;
   return <OpFormSaisie {...props} />;
 }
 function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, fromPrev }) {
@@ -130,8 +132,11 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
     if (r && r.ok) { engage.current = true; onClose(); }
   };
   // « Valider » : l'opération est réalisée, les stocks sont mis à jour
-  const valider = () => {
+  const valider = async () => {
     if (built.error) { toast(built.error, 'bad'); return; }
+    // revendication du levain ou de la liqueur plus basse que celle du vin tiré : accepté (alerte de déclassement), après confirmation (0.42.0-alpha.1)
+    if (!old && (type === 'tirage' || (type === 'preparation' && f.ptype === 'levain'))) { const qs = uniq((f.sources || []).map((s) => lotQ(s.portionId)).filter(Boolean)); const q = type === 'tirage' ? (qs.length ? minQualif(qs) : 'conv') : (f.qualifId || 'conv');
+      const al = tirageRevendicationAlertes(db, Rd, q, (f.prepUses || []).map((u) => u.prepId)); if (al.length && !(await confirm({ title: 'Revendication incompatible', body: al.join(' '), ok: 'Valider quand même', danger: true }))) return; }
     if (!old && champEffectif(fcfg, type, 'docs').obligatoire && !piecesRef.current.length && !(prevId && docsOf(db, 'prev', prevId).length)) { toast(`Joignez au moins un document : « ${champEffectif(fcfg, type, 'docs').libelle || 'Documents joints'} » est obligatoire pour cette opération.`, 'bad'); return; }
     const pvV = pvAJour(); const depsV = (pvV && pvV.ok && pvV.depassements) || []; if (pvV !== pv) setBuiltPv(built);
     if (depsV.length && !String(motifDep || '').trim()) { toast('Dépassement d’un plafond : indiquez le motif (il est tracé avec l’opération).', 'bad'); return; }
@@ -410,6 +415,9 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         <G n={3}><CF k="code" label="Code"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="volL" label="Volume préparé (hL)"><VI value={f.volL} onChange={(v) => upd({ volL: v })} /></CF><CF k="qualifId" label="Revendication" help="Selon la revendication du vin à tirer."><SI value={f.qualifId} onChange={(v) => upd({ qualifId: v })} options={qualifOptions(db, f.qualifId)} /></CF></G>
         <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
         <CF k="source" group label="Vin prélevé pour la préparation (facultatif)"><div className="grid2"><PortionSelect db={db} Rd={Rd} value={f.sourcePortionId} onChange={(v) => upd({ sourcePortionId: v })} placeholder="Aucun (pas de prélèvement)" /><VI value={f.sourceVolL} onChange={(v) => upd({ sourceVolL: v })} placeholder="Volume prélevé (hL)" /></div></CF>
+        {f.ptype === 'liqueur_tirage' ? <LiqueurFonteBox db={db} f={f} upd={upd} /> : null}
+        {f.ptype === 'levain' || f.ptype === 'pied_mlf' ? <G><CF k="eauL" label="Eau déchlorée (hL)" help="Comptée à part : elle entre dans le VRTP du tirage."><VI value={f.eauL} onChange={(v) => upd({ eauL: v })} /></CF><div /></G> : null}
+        {f.ptype === 'levain' ? <CF k="prepUses" group label="Liqueur de tirage utilisée"><PrepUsesEditor db={db} Rd={Rd} uses={f.prepUses || []} onChange={(v) => upd({ prepUses: v })} types={['liqueur_tirage']} /></CF> : null}
         <CF k="lignes" group label="Ingrédients (sucre, MCR, levures, SO₂…)"><LignesEditor {...lignesProps} qualif={f.qualifId} vol={num(f.volL)} cats={['oeno', 'aux']} hideDose /></CF>
       </>);
       case 'tirage': { const q = sourcesQ(f.sources, f.prepUses), mx = mixed(f.sources, f.prepUses); const sucre = hasNum(f.densBase) && hasNum(f.densMix) ? (num(f.densMix) - num(f.densBase)) * 1000 * num(db.settings.coefSucre) : null; return (<>

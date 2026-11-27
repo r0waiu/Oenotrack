@@ -135,7 +135,7 @@ function moduleAutorise(db, uid, mod) {
   return niveauModule(db, uid, mod) !== 'aucun';
 }
 // module concerné par une opération
-const moduleDeType = (type, x) => (type === 'preparation' ? ((x && x.ptype) === 'liqueur_exp' ? 'degorgement' : 'tirage') : ({ tirage: 'tirage', degorgement: 'degorgement', declassement: 'declass', apport: 'pressoir', pressurage: 'pressoir' })[type] || 'ops');
+const moduleDeType = (type, x) => (type === 'preparation' ? ((x && x.ptype) === 'liqueur_exp' ? 'degorgement' : 'tirage') : ({ alimentation: 'tirage', tirage: 'tirage', degorgement: 'degorgement', declassement: 'declass', apport: 'pressoir', pressurage: 'pressoir' })[type] || 'ops');
 
 /* ---------- gestion des utilisateurs et des profils (mots de passe déjà transformés en empreinte par l'appelant) ---------- */
 function securiteActiver(db, s) {

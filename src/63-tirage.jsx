@@ -59,7 +59,18 @@ function PrepsTable({ rows, onEdit, empty }) {
 }
 
 /* ---------- Tirages : préparations qualifiées et mixtions ---------- */
+// 0.42.0-alpha.1 : sous-onglets « Préparer » (calculateur, levains, liqueurs) et « Tirer » (mixtions, lots de tirage)
 function TabTirage() {
+  const { db, camp } = useApp(); const [vue, setVue] = useState(() => { try { return window.localStorage.getItem('oenotrack-tirage-vue') || 'preparer'; } catch (e) { return 'preparer'; } });
+  const [form, setForm] = useState(null);
+  const choisir = (v) => { setVue(v); try { window.localStorage.setItem('oenotrack-tirage-vue', v); } catch (e) { /* stockage indisponible */ } };
+  return (<div>
+    <div className="no-print"><SubNav value={vue} onChange={choisir} items={[{ id: 'preparer', label: '⚗ Préparer' }, { id: 'tirer', label: '🍾 Tirer' }]} /></div>
+    {vue === 'tirer' ? <TabTirageTirer /> : <TiragePreparer onForm={camp.figee ? () => {} : setForm} />}
+    {form ? <OpForm type={form.type} editId={form.editId} preset={form.preset} onClose={() => setForm(null)} /> : null}
+  </div>);
+}
+function TabTirageTirer() {
   const { db, R, camp } = useApp(); const [form, setForm] = useState(null); const edit = (id) => setForm({ editId: id });
   const { preps, tirOps } = useBouteilles();
   const pT = preps.filter((p) => !PREPS_DEGORGEMENT.includes(p.ptype)); const tirC = tirOps.filter((o) => o.date >= camp.debut && o.date <= camp.fin);
