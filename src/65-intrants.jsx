@@ -72,9 +72,9 @@ function ProduitForm({ id, onClose }) {
   );
 }
 function FournisseurForm({ id, onClose }) {
-  const { db, act } = useApp(); const x = id ? db.fournisseurs.find((y) => y.id === id) : null; const [f, set] = useDraft({ nom: x ? x.nom : '', contact: x ? x.contact : '' });
+  const { db, act } = useApp(); const x = id ? db.fournisseurs.find((y) => y.id === id) : null; const [f, set] = useDraft({ nom: x ? x.nom : '', contact: x ? x.contact : '', roles: x && Array.isArray(x.roles) ? x.roles : [] });
   const save = () => { const r = act((d) => fournisseurSave(d, f, id), 'Fournisseur enregistré.'); if (r.ok) onClose(); };
-  return (<FormSheet title={id ? 'Modifier le fournisseur' : 'Nouveau fournisseur'} onClose={onClose} onSave={save}><Field label="Nom"><TI value={f.nom} onChange={(v) => set('nom', v)} autoFocus /></Field><Field label="Contact"><TA value={f.contact} onChange={(v) => set('contact', v)} placeholder="Téléphone, e-mail…" /></Field></FormSheet>);
+  return (<FormSheet title={id ? 'Modifier le fournisseur' : 'Nouveau fournisseur'} onClose={onClose} onSave={save}><Field label="Nom"><TI value={f.nom} onChange={(v) => set('nom', v)} autoFocus /></Field><Field label="Contact"><TA value={f.contact} onChange={(v) => set('contact', v)} placeholder="Téléphone, e-mail…" /></Field><Check checked={(f.roles || []).includes('prestataire_tirage')} onChange={(v) => set('roles', v ? uniq([...(f.roles || []), 'prestataire_tirage']) : (f.roles || []).filter((r) => r !== 'prestataire_tirage'))} label="Prestataire de tirage (chantiers sur site)" /></FormSheet>);
 }
 
 function DoseInput({ value, onCommit, label }) {

@@ -80,6 +80,7 @@ function TabTirageTirer() {
         <Kpi label={`Tirages ${camp.nom}`} value={fmt(tirC.length)} /><Kpi label="Bouteilles tirées" value={fmt(sum(tirC, (o) => num(o.nbBouteilles)))} sub={`campagne ${camp.nom}`} />
         <Kpi label="Préparations disponibles" value={fmt(pT.filter((p) => p.remaining > 0.05).length)} sub="levain, pied de cuve, liqueur de tirage" /><Kpi label="Tirages (toutes campagnes)" value={fmt(tirOps.length)} />
       </div>
+      <ChantiersSec onForm={setForm} />
       <Sec title="Saisir" right={camp.figee ? <Chip tone="bad">Campagne figée : saisie impossible</Chip> : null}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
           <div className="card p-3"><div className="lbl">Préparations qualifiées</div><div className="flex flex-wrap gap-2">{Object.keys(PREP_TYPES).filter((k) => !PREPS_DEGORGEMENT.includes(k)).map((k) => <Btn key={k} disabled={camp.figee} onClick={() => setForm({ type: 'preparation', preset: { ptype: k } })}>+ {PREP_TYPES[k]}</Btn>)}</div></div>
@@ -89,7 +90,7 @@ function TabTirageTirer() {
         <p className="help mt-2">Les bouteilles tirées se suivent ensuite dans <VersModule id="cave">la Cave</VersModule>{moduleActif(db, 'cave') ? null : 'la Cave'} puis au <VersModule id="degorgement">Dégorgement</VersModule>{moduleActif(db, 'degorgement') ? null : 'Dégorgement'}.</p>
       </Sec>
       <Sec title="Tirages (mixtions)"><Tbl rows={tirOps} empty="Aucun tirage enregistré." cols={[
-        { h: 'Date', r: (o) => <span className="num">{fmtDate(o.date)}</span> }, { h: 'Lot', r: (o) => <LotLink id={o.lotId} /> }, { h: 'Bouteilles', cls: 'r', r: (o) => <span className="num">{fmt(o.nbBouteilles)}</span> },
+        { h: 'Date', r: (o) => <span className="num">{fmtDate(o.date)}</span> }, { h: 'Lot', r: (o) => <LotLink id={o.lotId} /> }, { h: 'Bouteilles', cls: 'r', r: (o) => <span className="num">{fmt(o.nbBouteilles)}</span> }, { h: 'Formats, VRTP', r: (o) => <span className="text-xs">{tirageFormatsDe(o).map((x) => `${fmt(x.nb)} × ${((tirageFormat(x.format) || { label: x.format }).label)}`).join(' · ')}<br /><TirageBilanBox db={db} R={R} op={o} /></span> }, { h: 'Mode', r: (o) => (TIRAGE_MODES.find((m) => m.id === o.mode) || { label: '—' }).label },
         { h: 'Sucre mixtion', cls: 'r', r: (o) => <span className="num">{(() => { const v = o.sucreGL != null ? o.sucreGL : (hasNum(o.densBase) && hasNum(o.densMix) ? (num(o.densMix) - num(o.densBase)) * 1000 * num(db.settings.coefSucre) : null); return v != null ? `${fmt(v, 1)} g/L` : '—'; })()}</span> },
         { h: 'Vin de base', r: (o) => <span className="flex flex-wrap gap-x-2">{(o.sources || []).map((s, i) => <span key={i}><LotLink id={s.lotId} /> <span className="num text-xs">{fmtL(s.volL)}</span></span>)}</span> },
         { h: 'Préparations', r: (o) => (o.prepUses || []).map((u) => `${prepOf(R, u.prepId).code || '?'} ${fmtL(u.volL)}`).join(' · ') || '—' },

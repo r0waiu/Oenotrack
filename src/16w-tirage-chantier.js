@@ -90,3 +90,12 @@ function chantierBilan(db, R, id) {
   const lots = T.map((o) => { const F = tirageFormatsDe(o); F.forEach((f) => { parFormat[f.format] = (parFormat[f.format] || 0) + num(f.nb); }); casse += num(o.casse); const b = tirageBilan(db, R, { ...o, formats: F }); return { opId: o.id, lotId: o.lotId, code: ((R.lots || {})[o.lotId] || lotById(db, o.lotId) || {}).code || (o.lotSpec || {}).code, date: o.date, mode: o.mode || '', formats: F, casse: num(o.casse), bilan: b }; });
   return { lots, parFormat, casse, cols: sum(Object.values(parFormat)), eqBouteilles: sum(lots, (l) => tirageEqBouteilles(l.formats)), volL: sum(lots, (l) => l.bilan.tireL) };
 }
+// pompe doseuse enregistrée avec le tirage : consignes, débit, tolérance, contrôles (nombres normalisés, lignes vides retirées)
+function tiragePompeSpec(P) {
+  const n = (v) => (hasNum(v) ? num(v) : undefined); const C = P.consignes || {}; const o = {};
+  const c = { liqueurPct: n(C.liqueurPct), levainPct: n(C.levainPct), ...(Array.isArray(C.adjuvants) && C.adjuvants.length ? { adjuvants: C.adjuvants.filter((a) => a && a.nom && hasNum(a.pct)).map((a) => ({ nom: String(a.nom).trim(), pct: num(a.pct) })) } : {}) };
+  Object.keys(c).forEach((k) => { if (c[k] === undefined) delete c[k]; }); if (Object.keys(c).length) o.consignes = c;
+  if (n(P.debitColsH) !== undefined) o.debitColsH = n(P.debitColsH); if (n(P.tolerancePct) !== undefined) o.tolerancePct = n(P.tolerancePct);
+  const K = (P.controles || []).filter((x) => x && (hasNum(x.mesure) || hasNum(x.densite) || String(x.action || '').trim())).map((x) => { const y = { heure: String(x.heure || '').trim(), type: x.type || 'eprouvette' }; ['nCols', 'mesure', 'cible', 'densite', 'tempC'].forEach((k) => { if (hasNum(x[k])) y[k] = num(x[k]); }); ['operateur', 'action', 'unite'].forEach((k) => { if (String(x[k] || '').trim()) y[k] = String(x[k]).trim(); }); return y; });
+  if (K.length) o.controles = K; return Object.keys(o).length ? o : null;
+}

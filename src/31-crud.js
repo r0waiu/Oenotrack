@@ -291,7 +291,8 @@ function contDelete(db, id) {
 function fournisseurSave(db, s, id) {
   const nom = String(s.nom || '').trim(); if (!nom) return fail('Nom du fournisseur requis.');
   if (nameTaken(db.fournisseurs, nom, id)) return fail('Ce fournisseur existe déjà.');
-  if (id) Object.assign(db.fournisseurs.find((x) => x.id === id), { nom, contact: s.contact || '' }); else db.fournisseurs.push({ id: nid(db, 'fo'), nom, contact: s.contact || '' });
+  const roles = Array.isArray(s.roles) ? uniq(s.roles.filter((r) => typeof r === 'string' && r)) : undefined; // rôles (0.42.0-alpha.2 : prestataire de tirage)
+  if (id) Object.assign(db.fournisseurs.find((x) => x.id === id), { nom, contact: s.contact || '', ...(roles ? { roles } : {}) }); else db.fournisseurs.push({ id: nid(db, 'fo'), nom, contact: s.contact || '', ...(roles && roles.length ? { roles } : {}) });
   return okr();
 }
 function fournisseurDelete(db, id) {
