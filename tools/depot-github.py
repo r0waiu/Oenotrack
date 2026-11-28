@@ -1,4 +1,4 @@
-# Dépôt GitHub d'Œnotrack (depuis 0.24.0-alpha.1) : le site en ligne à la racine (GitHub Pages, oenotrack.fr) et le code source.
+# Dépôt GitHub d’Œnotrack (depuis 0.24.0-alpha.1) : le site en ligne à la racine (site officiel : oenotrack.pages.dev) et le code source.
 # Usage : python3 tools/paquet-web.py && python3 tools/depot-github.py DOSSIER   (DOSSIER : clone git du dépôt, ou dossier vide)
 #  - site : index.html, pages fixes, manifeste, service worker, icônes, LICENCE.txt ; config.json seulement s'il manque
 #    (celui du dépôt garde vos identifiants Drive et vos mentions) ;

@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.47.0-alpha.3 — 28/11/2026
+
+- Onglet ouvert : un réglage pour le démarrage, un pour la connexion et un pour le déverrouillage (Paramètres › Modules), avec le choix « Dernière page visitée », retenue sur l’appareil pour chaque personne ; au déverrouillage, la page en cours reste par défaut.
+- Textes mis à jour : page de présentation (douze fonctions, configuration guidée, chiffrement sur l’appareil, dossier réseau), site officiel oenotrack.pages.dev, identifiants Google, Microsoft et Dropbox déjà en place pour tous sur le site officiel.
+
 ## 0.47.0-alpha.2 — 27/11/2026
 
 - Vocabulaire technique revu avec l’exploitation : TAV acquis pour les vins (SO₂ moléculaire) et TAP pour les moûts, TAV naturel et indice de Folin-Ciocalteu distincts dans les bulletins, enrichissement (saccharose, moût concentré, MCR), vin clarifié, fractions Cuvée, Taille et Rebêche d’une base neuve (sous-fractions ajoutées avec leur rôle), DDM au lieu de DLUO, ticket de pesée, revendication, apte au contact alimentaire, Premier Cru et Grand Cru, « non millésimé », déclaration d’intention de tirage et déclaration de revendication ; les libellés d’origine de vos listes sont mis à jour, ceux que vous avez changés sont gardés.
