@@ -238,6 +238,23 @@ function BonPressoir({ id, onClose }) {
   );
 }
 
+/* 0.48.0-alpha.1 : état vide de première utilisation (aucune pesée ou aucun marc dans l'année) — une phrase, l'action principale,
+   les pressoirs et balances à déclarer d'abord s'il n'y en a aucun */
+function PressoirVide({ titre, texte, action, onAction, data }) {
+  const { db, setTab } = useApp(); const sansEquip = !pressoirsDe(db).length;
+  return (
+    <div className="vide-accueil card" data-pressoir-vide={data}>
+      <div className="vide-ic" aria-hidden="true">🍇</div>
+      <h3 className="disp text-xl">{titre}</h3>
+      <p className="text-sm text-ink2">{texte}</p>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        {onAction ? <Btn kind="primary" onClick={onAction}>{action}</Btn> : null}
+        {sansEquip ? <Btn onClick={() => setTab('pressoir', 'reglages')} data-vide-reglages="">⚙ Déclarer pressoirs et balances</Btn> : null}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- registre des pesées ---------- */
 function PeseesView({ annee }) {
   const { db, act, camp, uid } = useApp(); const droits = usePressoirDroits();
@@ -263,7 +280,8 @@ function PeseesView({ annee }) {
       <Sec title={`Registre des pesées ${annee}`} right={<><input className="inp" style={{ width: 200 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher…" aria-label="Rechercher une pesée" />
         <SI value={jour} onChange={setJour} placeholder="Tous les jours" style={{ width: 'auto' }} options={jours.map((j) => ({ value: j, label: fmtDate(j) }))} aria-label="Jour" />
         {droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouvelle-pesee="">+ Nouvelle pesée</Btn> : null}</>}>
-        <Tbl rows={rows} empty={L.length ? 'Aucune pesée pour ces critères.' : 'Aucune pesée cette année : « + Nouvelle pesée » à l’arrivée de chaque chargement de raisins.'} cols={[
+        {!L.length ? <PressoirVide data="pesees" titre={`Aucune pesée en ${annee}`} texte="Enregistrez une pesée à l’arrivée de chaque chargement de raisins : elle alimente le registre des pesées, le ticket de pesée et le carnet de pressoir." action="＋ Enregistrer la première pesée" onAction={droits.ecrit && !camp.figee ? () => setForm({}) : null} /> : null}
+        {L.length ? <Tbl rows={rows} empty="Aucune pesée pour ces critères." cols={[
           { h: 'N°', r: (o) => <b className="num" data-num-pesee="">{(o.pesee || {}).num || '—'}</b> },
           { h: 'Date', r: (o) => <span className="num whitespace-nowrap">{fmtDate(o.date)} {(o.pesee || {}).heure || ''}</span> },
           { h: 'Apporteur', r: (o) => (o.apporteurId ? apporteurName(db, o.apporteurId) : <span className="text-ink2">exploitation</span>) },
@@ -275,7 +293,7 @@ function PeseesView({ annee }) {
           { h: 'Statut', r: (o) => statutChip(o.pesee, 'pesee') },
           { h: '', r: (o) => <div className="flex flex-wrap gap-1">{droits.ecrit && !camp.figee && reste(o) > 0.5 && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => setMarc({ date: o.date, charges: [{ apportId: o.id, kg: reste(o) }] })} title="Charger un marc avec le reste de cette pesée (pressurage)" data-presser={(o.pesee || {}).num || ''}>Presser</Btn> : null}<Btn size="sm" onClick={() => setTicket(o.id)} title="Ticket de pesée à remettre à l’apporteur" data-bon-pesee-btn="">Ticket de pesée</Btn><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? 'Modifier' : 'Voir'}</Btn>
             {droits.ecrit && !(o.pesee && o.pesee.valide) && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => valider(o)}>Valider</Btn> : null}
-            {droits.annuler && !isLocked(db, o.date) && reste(o) >= num(o.kg) - 0.5 ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} />
+            {droits.annuler && !isLocked(db, o.date) && reste(o) >= num(o.kg) - 0.5 ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} /> : null}
         <p className="help mt-2">Chaque pesée reçoit un n° continu dans l’année ; une pesée annulée garde son n° (journal). « Presser » charge un marc avec le reste de la pesée ; les pesées sont aussi proposées dans chaque pressurage (onglet Pressurages).</p>
       </Sec>
       {form ? <PeseeForm id={form.id} onClose={() => setForm(null)} onTicket={(id) => setTicket(id)} /> : null}
@@ -385,7 +403,8 @@ function MarcsView({ annee }) {
         <Kpi label="En cours" value={enCours} tone={enCours ? 'warn' : undefined} sub="volumes à compléter" /><Kpi label="À valider" value={aValider} tone={aValider ? 'warn' : 'ok'} sub={aValider ? 'marcs non validés' : 'carnet à jour'} />
       </div>
       <Sec title={`Carnet de pressoir ${annee}`} right={<><Btn onClick={() => setImp(true)} disabled={!L.length}>🖨 Imprimer le carnet</Btn>{droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouveau-marc="" title="Charger un marc : pesées pressées, cuves des moûts">+ Nouveau pressurage</Btn> : null}</>}>
-        <Tbl rows={L} empty="Aucun marc cette année : « + Nouveau pressurage » (ou « Presser » sur une pesée) au début de chaque pressurage." cols={[
+        {!L.length ? <PressoirVide data="marcs" titre={`Aucun pressurage en ${annee}`} texte="Chargez un marc au début de chaque pressurage (ou « Presser » sur une pesée) : il est numéroté au carnet de pressoir et crée les lots de moûts dans leurs cuves." action="＋ Nouveau pressurage" onAction={droits.ecrit && !camp.figee ? () => setForm({}) : null} /> : null}
+        {L.length ? <Tbl rows={L} empty="Aucun marc cette année." cols={[
           { h: 'N°', r: (o) => <b className="num" data-num-marc="">{(o.marc || {}).num || '—'}</b> },
           { h: 'Date', r: (o) => <span className="num whitespace-nowrap">{fmtDate(o.date)} {(o.marc || {}).heureDebut || ''}{(o.marc || {}).heureFin ? `–${o.marc.heureFin}` : ''}</span> },
           { h: 'Pressoir', cls: 'hm', r: (o) => lbl(db, 'equipements', o.equipementId) },
@@ -397,7 +416,7 @@ function MarcsView({ annee }) {
           { h: 'Statut', r: (o) => statutChip(o.marc, 'marc') },
           { h: '', r: (o) => <div className="flex flex-wrap gap-1"><Btn size="sm" onClick={() => setBon(o.id)} title="Bon de pressoir de ce marc (à imprimer)" data-bon-pressoir-btn="">Bon de pressoir</Btn><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? (o.marc && o.marc.enCours ? 'Compléter' : 'Modifier') : 'Voir'}</Btn>
             {droits.ecrit && o.marc && !o.marc.valide && !o.marc.enCours && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => valider(o)}>Valider</Btn> : null}
-            {droits.annuler && !isLocked(db, o.date) && !dependentsOf(db, o).length ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} />
+            {droits.annuler && !isLocked(db, o.date) && !dependentsOf(db, o).length ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} /> : null}
         <p className="help mt-2">{P.ratioKg ? `Plafond : ${P.ratioL} L de ${P.volume} pour ${P.ratioKg} kg (bloquant)${P.cadenceMax ? ` ; ${P.cadenceMax} marcs au plus par 24 h et par pressoir` : ''}${P.marcKg && P.cuveeL ? ` ; usage : ${fmtL(P.cuveeL)} de cuvée et ${fmtL(P.tailleL)} de taille pour ${fmt(P.marcKg)} kg (alerte)` : ''}.` : 'Profil sans plafond : aucun contrôle réglementaire de rendement au pressurage.'} Un marc validé crée ses lots dans les cuves (onglet Cuverie) ; il apparaît aussi dans l’onglet Opérations (pressurage).</p>
       </Sec>
       {form ? <MarcForm id={form.id} onClose={() => setForm(null)} /> : null}

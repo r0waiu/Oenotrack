@@ -1,4 +1,6 @@
-/* ============ ONGLET 1 : CUVERIE & LOTS (sites · plan de cave modifiable · clic droit · lots) ============ */
+/* ============ ONGLET 1 : CUVERIE & LOTS (sites · plan de cave modifiable · clic droit · lots) ============
+   0.48.0-alpha.1 : bouton « ⋯ » sur chaque contenant du plan et sur les lignes de lots, touche Menu, états vides (cuverie vide ≠ filtre sans résultat),
+   tuile « Capacités dépassées » → filtre des contenants en dépassement */
 function ContForm({ id, onClose, siteId }) {
   const { db, act, setTab, uid, secu } = useApp();
   const peutBareme = !secu || estAdmin(db, uid) || niveauModule(db, uid, 'params') === 'ecriture'; // identifiants activés : les barèmes relèvent des Paramètres
@@ -84,7 +86,8 @@ function PlanView({ site, conts, edit, onOpen, onMenu, onZone, sel }) {
   const planW = Math.max(edit ? PLAN_W : 420, maxR + (edit ? 200 : 28)); const planH = Math.max(edit ? 460 : 160, maxB + (edit ? 200 : 20));
   const fit = wrapW ? clamp((wrapW - 2) / planW, 0.42, 1) : 1; const z = zoom == null ? fit : zoom;
   const cancelLP = () => { if (lp.current) { clearTimeout(lp.current.t); lp.current = null; } };
-  const openMenuAt = (id, x, y) => { if (Date.now() < suppress.current) return; suppress.current = Date.now() + 800; cancelLP(); onMenu(id, x, y); };
+  // clavier (touche Menu, Maj+F10) et bouton « ⋯ » : toujours ouverts ; le délai n'écarte que le doublon appui long → clic droit du navigateur
+  const openMenuAt = (id, x, y, force) => { if (!force && Date.now() < suppress.current) return; suppress.current = Date.now() + 800; cancelLP(); onMenu(id, x, y); };
 
   const down = (e, kind, id, o) => {
     if (e.button != null && e.button !== 0) return;
@@ -109,7 +112,7 @@ function PlanView({ site, conts, edit, onOpen, onMenu, onZone, sel }) {
   };
   const key = (e, c) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(c.id); }
-    else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); openMenuAt(c.id, r.left + r.width / 2, r.top + r.height / 2); }
+    else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); openMenuAt(c.id, r.left + r.width / 2, r.top + r.height / 2, true); }
     else if (edit && e.key.startsWith('Arrow')) { e.preventDefault(); const dx = e.key === 'ArrowLeft' ? -GRID : e.key === 'ArrowRight' ? GRID : 0; const dy = e.key === 'ArrowUp' ? -GRID : e.key === 'ArrowDown' ? GRID : 0; act((x) => contMove(x, c.id, (c.x || 0) + dx, (c.y || 0) + dy)); }
   };
 
@@ -136,10 +139,12 @@ function PlanView({ site, conts, edit, onOpen, onMenu, onZone, sel }) {
               const p = posOf(c); const vol = R.contVol[c.id] || 0;
               return (
                 <div key={c.id} role="button" tabIndex={0} aria-pressed={sel ? sel.includes(c.id) : undefined} className={cx('pitem', ghost && ghost.kind === 'c' && ghost.id === c.id && 'drag', c.statut === 'archive' && 'opacity-60', sel && sel.includes(c.id) && 'is-sel')} style={{ left: p.x, top: p.y, width: t.w, height: t.h, zIndex: ghost && ghost.id === c.id ? 30 : 1 }}
-                  aria-label={`${c.nom}, ${fmtHL(vol)} hectolitres sur ${fmtHL(c.volMax)}. Clic droit ou appui long pour les opérations.`}
+                  aria-label={`${c.nom}, ${fmtHL(vol)} hectolitres sur ${fmtHL(c.volMax)}. Touche Menu, clic droit ou appui long pour les opérations.`}
                   onPointerDown={(e) => down(e, 'c', c.id, { x0: c.x || 0, y0: c.y || 0, w0: t.w, h0: t.h })} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
                   onClick={edit ? undefined : () => { if (Date.now() < suppress.current) return; onOpen(c.id); }}
                   onContextMenu={(e) => { e.preventDefault(); openMenuAt(c.id, e.clientX, e.clientY); }} onKeyDown={(e) => key(e, c)}>
+                  {!edit ? <button type="button" className="dots pdots no-print" tabIndex={-1} aria-label={`Opérations sur ${c.nom}`} title="Opérations (ou clic droit)" data-plan-menu={c.id}
+                    onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); openMenuAt(c.id, r.right - 8, r.bottom + 4, true); }}>⋯</button> : null}
                   <ContainerGlyph db={db} R={R} c={c} width={t.sw} />
                   <div className="pname" title={c.nom}>{c.nom}</div>
                   <div className="psub num">{fmtHL(vol)} / {fmtL(c.volMax)}</div>
@@ -190,12 +195,12 @@ function TankCards({ conts, onOpen, onMenu, sel }) {
   const { db, R } = useApp(); const suppress = useRef(0); const lp = useRef(null);
   const arm = (e, id) => { if (e.pointerType !== 'touch') return; const x = e.clientX, y = e.clientY; clearTimeout(lp.current); lp.current = setTimeout(() => { suppress.current = Date.now() + 800; onMenu(id, x, y); }, 520); };
   const stop = () => clearTimeout(lp.current);
-  if (!conts.length) return <Empty>Aucun contenant. Ajoutez votre première cuve avec « + Nouveau contenant ».</Empty>;
+  if (!conts.length) return <Empty>Aucun contenant ne correspond à ce filtre.</Empty>;
   return (
     <div className="tankgrid">{conts.map((c) => {
       const ps = lotsOfCont(R, c.id); const vol = R.contVol[c.id] || 0; const ov = !!R.capOver[c.id]; const t = tileSize(db, c); const ei = ps.length ? echelleInfo(contentComp(db, R, c.id)) : null;
       return (
-        <div key={c.id} role="button" tabIndex={0} aria-pressed={sel ? sel.includes(c.id) : undefined} className={cx('tankcard', c.statut === 'archive' && 'arch', sel && sel.includes(c.id) && 'is-sel')} onClick={() => { if (Date.now() < suppress.current) return; onOpen(c.id); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(c.id); } }}
+        <div key={c.id} role="button" tabIndex={0} aria-pressed={sel ? sel.includes(c.id) : undefined} className={cx('tankcard', c.statut === 'archive' && 'arch', sel && sel.includes(c.id) && 'is-sel')} onClick={() => { if (Date.now() < suppress.current) return; onOpen(c.id); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(c.id); } else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); suppress.current = Date.now() + 800; const r = e.currentTarget.getBoundingClientRect(); onMenu(c.id, r.left + r.width / 2, r.top + r.height / 2); } }}
           onContextMenu={(e) => { e.preventDefault(); if (Date.now() < suppress.current) return; suppress.current = Date.now() + 800; onMenu(c.id, e.clientX, e.clientY); }}
           onPointerDown={(e) => arm(e, c.id)} onPointerUp={stop} onPointerMove={stop} onPointerCancel={stop} aria-label={`${c.nom}, ${fmtHL(vol)} hectolitres sur ${fmtHL(c.volMax)}`}>
           <button type="button" className="dots" aria-label={`Opérations sur ${c.nom}`} title="Opérations (ou clic droit)" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); onMenu(c.id, r.right - 8, r.bottom + 4); }} onPointerDown={(e) => e.stopPropagation()}>⋯</button>
@@ -212,12 +217,29 @@ function TankCards({ conts, onOpen, onMenu, sel }) {
   );
 }
 
+// 0.48.0-alpha.1 : première utilisation — une phrase, l'action principale, les barèmes, la configuration guidée
+function CuverieVide({ onNouveau, onBaremes, onQuestionnaire }) {
+  return (
+    <div className="vide-accueil card" data-cuverie-vide="">
+      <div className="vide-ic" aria-hidden="true">🛢</div>
+      <h3 className="disp text-xl">Votre cuverie est vide</h3>
+      <p className="text-sm text-ink2">Créez vos contenants (cuves, fûts, foudres…) : leur barème de jaugeage peut être importé en même temps. Les lots naîtront ensuite des opérations (pressurage, entrée de moûts, reprise de stock).</p>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        <Btn kind="primary" onClick={onNouveau} data-vg="cuverie-nouveau">＋ Créer votre premier contenant</Btn>
+        {onBaremes ? <Btn onClick={onBaremes} data-vide-baremes="">📏 Importer des barèmes de jaugeage</Btn> : null}
+        {onQuestionnaire ? <Btn kind="ghost" onClick={onQuestionnaire} data-vide-questionnaire="">🧭 Configuration guidée</Btn> : null}
+      </div>
+    </div>
+  );
+}
+
 function TabCuverie() {
-  const { db, R, act, confirm, showCont, showLot, openMenu, setTab, nav, uid, secu } = useApp();
+  const { db, R, act, confirm, showCont, showLot, openMenu, setTab, nav, uid, secu, openQuestionnaire } = useApp();
+  const lectParams = useLectureSeule('params');
   // 0.39.0-alpha.1 : les barèmes de jaugeage (épalement) sont ici, avec les contenants (avant : Paramètres) ; droits des paramètres
   const voirBaremes = !secu || niveauModule(db, uid, 'params') !== 'aucun';
   const SOUS_CUVERIE = ['plan', 'cartes', 'lots', 'liste', ...(voirBaremes ? ['jaugeage'] : [])];
-  const [sub, setSub] = useState(() => (SOUS_CUVERIE.includes(nav.sub) ? nav.sub : 'plan')); useEffect(() => { if (nav.sub && SOUS_CUVERIE.includes(nav.sub)) setSub(nav.sub); }, [nav]); const [filter, setFilter] = useState('actif'); const [q, setQ] = useState(''); const [form, setForm] = useState(null);
+  const [sub, setSub] = useState(() => (SOUS_CUVERIE.includes(nav.sub) ? nav.sub : 'plan')); useEffect(() => { if (nav.sub && SOUS_CUVERIE.includes(nav.sub)) setSub(nav.sub); }, [nav]); const [filter, setFilter] = useState('actif'); const [depF, setDepF] = useState(false); const [q, setQ] = useState(''); const [form, setForm] = useState(null);
   const [lotF, setLotF] = useState('stock'); const [lq, setLq] = useState(''); const [edit, setEdit] = useState(false); const [siteForm, setSiteForm] = useState(null); const [zoneForm, setZoneForm] = useState(null); const [printPlan, setPrintPlan] = useState(false);
   // saisie groupée (0.29.0-alpha.1) : sélection de plusieurs cuves, action commune ; étiquettes QR ; scanner
   const [selMode, setSelMode] = useState(false); const [sel, setSel] = useState([]); const [grp, setGrp] = useState(null); const [etiq, setEtiq] = useState(null); const [scan, setScan] = useState(false);
@@ -227,7 +249,14 @@ function TabCuverie() {
   const setSite = (id) => { setEdit(false); act((d) => { d.settings.siteActif = id; return okr(); }); };
   const nat = (a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true });
   const inSite = (c) => siteActif === 'all' || c.siteId === siteActif;
-  const conts = db.contenants.filter((c) => inSite(c) && (filter === 'tous' || (filter === 'actif' ? c.statut !== 'archive' : c.statut === 'archive')) && (!q || norm(c.nom).includes(norm(q)))).sort(nat);
+  const conts = db.contenants.filter((c) => inSite(c) && (filter === 'tous' || (filter === 'actif' ? c.statut !== 'archive' : c.statut === 'archive')) && (!depF || R.capOver[c.id]) && (!q || norm(c.nom).includes(norm(q)))).sort(nat);
+  // 0.48.0-alpha.1 : première utilisation (aucun contenant dans la base) ≠ site sans contenant ≠ filtre sans résultat
+  const cuverieVide = !db.contenants.length; const filtre = filter !== 'actif' || depF || !!q;
+  const effacerFiltre = () => { setFilter('actif'); setDepF(false); setQ(''); };
+  const voirDepasses = () => { setDepF(true); setFilter('tous'); setQ(''); if (sub !== 'plan' && sub !== 'cartes' && sub !== 'liste') setSub('liste'); };
+  const videSite = (sid) => (filtre && db.contenants.some((c) => c.siteId === sid)
+    ? <Empty><span>Aucun contenant ne correspond à ce filtre.</span> <button type="button" className="linkish" onClick={effacerFiltre} data-effacer-filtre="">Effacer le filtre</button></Empty>
+    : <Empty><span>Aucun contenant sur ce site.</span> <button type="button" className="linkish" onClick={() => setForm('new')}>＋ Ajouter un contenant ici</button></Empty>);
   const scope = db.contenants.filter(inSite); const active = scope.filter((c) => c.statut !== 'archive');
   const capTot = sum(active, (c) => c.volMax); const volTot = sum(scope, (c) => R.contVol[c.id] || 0);
   const occupied = scope.filter((c) => (R.contVol[c.id] || 0) > 0).length; const over = scope.filter((c) => R.capOver[c.id]).length;
@@ -249,7 +278,7 @@ function TabCuverie() {
         <Kpi label={`Vin en cuverie${siteActif === 'all' ? '' : ' (site)'}`} value={fmtL(volTot)} sub={`sur ${fmtL(capTot)} de capacité`} />
         <Kpi label="Contenants occupés" value={`${occupied} / ${active.length}`} sub="actifs" />
         <Kpi label="Lots en stock" value={lotsIn.size} sub={`${fmt(bottles)} bouteilles sur lattes`} />
-        <Kpi label="Capacités dépassées" value={over} tone={over ? 'bad' : 'ok'} sub={over ? 'à vérifier' : 'aucune'} />
+        <Kpi label="Capacités dépassées" value={over} tone={over ? 'bad' : 'ok'} sub={over ? 'à vérifier' : 'aucune'} onClick={over ? voirDepasses : undefined} va={over ? 'Voir les contenants' : undefined} />
       </div>
       <div className="sitebar" role="group" aria-label="Sites de cuverie">
         <button type="button" className="sitebtn" aria-pressed={siteActif === 'all'} onClick={() => setSite('all')}><b>Tous les sites</b><span className="text-xs text-ink2">{db.contenants.filter((c) => c.statut !== 'archive').length} contenants · {fmtL(R.totalVol)}</span></button>
@@ -259,10 +288,12 @@ function TabCuverie() {
       </div>
       <SubNav value={sub} onChange={(v) => { setSub(v); if (v !== 'plan') setEdit(false); }} items={[{ id: 'plan', label: 'Plan de cave' }, { id: 'cartes', label: 'Cartes' }, { id: 'lots', label: 'Lots' }, { id: 'liste', label: 'Contenants (liste)' }, ...(voirBaremes ? [{ id: 'jaugeage', label: '📏 Barèmes de jaugeage' }] : [])]} />
       {sub === 'jaugeage' ? <div data-cuverie-baremes=""><ParamsLecture /><BaremesView /></div> : null}
-      {sub !== 'lots' && sub !== 'jaugeage' ? (
+      {cuverieVide && sub !== 'jaugeage' && (sub !== 'lots' || !Object.keys(R.lots).length) ? <CuverieVide onNouveau={() => setForm('new')} onBaremes={voirBaremes ? () => setSub('jaugeage') : null} onQuestionnaire={openQuestionnaire && !lectParams ? () => openQuestionnaire({ premiere: false }) : null} /> : null}
+      {sub !== 'lots' && sub !== 'jaugeage' && !cuverieVide ? (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="flex gap-1">{[['actif', 'Actifs'], ['archive', 'Archivés'], ['tous', 'Tous']].map(([k, l]) => <button key={k} type="button" className={cx('btn btn-sm', filter === k && 'btn-primary')} onClick={() => setFilter(k)}>{l}</button>)}</div>
           <div className="w-44"><TI value={q} onChange={setQ} placeholder="Rechercher une cuve…" aria-label="Rechercher un contenant" /></div>
+          {depF ? <button type="button" className="chip chip-bad" onClick={() => setDepF(false)} aria-label="Retirer le filtre des capacités dépassées" data-filtre-depasse="">⚠ Capacités dépassées ✕</button> : null}
           {sub === 'plan' || sub === 'cartes' ? <VueChoix /> : null}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {!edit ? <><Btn onClick={() => setScan(true)} title="Lire l’étiquette QR d’une cuve">📷 Scanner</Btn><Btn kind={selMode ? 'primary' : undefined} aria-pressed={selMode} onClick={() => (selMode ? finSel() : setSelMode(true))} title="Choisir plusieurs cuves pour une saisie groupée (sulfitage, levurage, relevés…) ou leurs étiquettes">{selMode ? '✓ Sélection en cours' : '☑ Sélection multiple'}</Btn></> : null}
@@ -273,21 +304,21 @@ function TabCuverie() {
           </div>
         </div>
       ) : null}
-      {sub === 'plan' ? (<>
+      {sub === 'plan' && !cuverieVide ? (<>
         {edit ? <div className="mb-3"><Notice tone="info" title="Plan déverrouillé">Glissez les contenants (ou les zones) pour reproduire l’organisation réelle ; au clavier : flèches. Un toucher ouvre la fiche. Quand c’est fini, « Verrouiller le plan » pour éviter tout déplacement accidentel.</Notice></div> : <PlanLegend />}
-        {!edit ? <div className="mb-2 text-xs text-ink2">{selMode ? 'Sélection multiple : touchez les cuves à traiter ensemble, puis choisissez l’opération en bas de l’écran.' : 'Clic droit (ou appui long) sur un contenant : opérations directes. Clic : fiche avec composition et intrants.'}</div> : null}
+        {!edit ? <div className="mb-2 text-xs text-ink2">{selMode ? 'Sélection multiple : touchez les cuves à traiter ensemble, puis choisissez l’opération en bas de l’écran.' : '« ⋯ », clic droit, appui long ou touche Menu sur un contenant : opérations directes. Clic : fiche avec composition et intrants.'}</div> : null}
         <div className="space-y-5">
           {sitesShown.map((s) => (
             <section key={s.id} aria-label={`Plan ${s.nom}`}>
               {sitesShown.length > 1 ? <div className="mb-1 flex flex-wrap items-baseline gap-2"><h3 className="disp text-xl">{s.nom}</h3><span className="text-xs text-ink2">{s.adresse}</span></div> : (s.adresse ? <div className="mb-1 text-xs text-ink2">{s.nom} — {s.adresse}</div> : null)}
-              {conts.filter((c) => c.siteId === s.id).length || (s.zones || []).length ? <PlanView site={s} conts={conts.filter((c) => c.siteId === s.id)} edit={edit} onOpen={ouvrir} onMenu={openMenu} onZone={(zid) => zoneEdit(s.id, zid)} sel={selMode ? sel : null} /> : <Empty>Aucun contenant sur ce site pour ce filtre.</Empty>}
+              {conts.filter((c) => c.siteId === s.id).length || (s.zones || []).length ? <PlanView site={s} conts={conts.filter((c) => c.siteId === s.id)} edit={edit} onOpen={ouvrir} onMenu={openMenu} onZone={(zid) => zoneEdit(s.id, zid)} sel={selMode ? sel : null} /> : videSite(s.id)}
             </section>
           ))}
         </div>
       </>) : null}
-      {sub === 'cartes' ? <><PlanLegend /><TankCards conts={conts} onOpen={ouvrir} onMenu={openMenu} sel={selMode ? sel : null} /></> : null}
-      {sub === 'liste' ? (
-        <Tbl rows={conts} onRow={(c) => ouvrir(c.id)} onCtx={(c, e) => openMenu(c.id, e.clientX, e.clientY)} empty="Aucun contenant." cols={[
+      {sub === 'cartes' && !cuverieVide ? <><PlanLegend /><TankCards conts={conts} onOpen={ouvrir} onMenu={openMenu} sel={selMode ? sel : null} /></> : null}
+      {sub === 'liste' && !cuverieVide ? (
+        <Tbl rows={conts} onRow={(c) => ouvrir(c.id)} onCtx={(c, e) => openMenu(c.id, e.clientX, e.clientY)} empty="Aucun contenant ne correspond à ce filtre." cols={[
           ...(selMode ? [{ h: '', r: (c) => <input type="checkbox" className="h-4 w-4" style={{ accentColor: 'var(--accent)' }} checked={sel.includes(c.id)} onChange={() => ouvrir(c.id)} onClick={(e) => e.stopPropagation()} aria-label={`Sélectionner la cuve ${c.nom}`} /> }] : []),
           { h: 'Nom', r: (c) => <span className="inline-flex items-center gap-2"><ContainerGlyph db={db} R={R} c={c} width={22} /><b>{c.nom}</b></span> }, ...(multi ? [{ h: 'Site', r: (c) => siteName(db, c.siteId) }] : []), { h: 'Type', r: (c) => lbl(db, 'typesContenant', c.type) }, { h: 'Matière', r: (c) => lbl(db, 'matieres', c.matiere) }, { h: 'Fabricant', cls: 'hm', r: (c) => c.fabricant || '—' }, { h: 'Année', cls: 'hm', r: (c) => c.annee || '—' },
           { h: 'Volume max', cls: 'r', r: (c) => <span className="num">{fmtL(c.volMax)}</span> }, { h: 'Volume actuel', cls: 'r', r: (c) => <span className={cx('num', R.capOver[c.id] && 'text-bad font-semibold')}>{fmtL(R.contVol[c.id] || 0)}</span> },
@@ -295,19 +326,20 @@ function TabCuverie() {
           { h: '', r: (c) => <button type="button" className="btn btn-sm" aria-label={`Opérations sur ${c.nom}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); openMenu(c.id, r.right - 8, r.bottom + 4); }}>⋯</button> },
         ]} />
       ) : null}
-      {sub === 'lots' ? (<>
+      {sub === 'lots' && (!cuverieVide || Object.keys(R.lots).length) ? (<>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="w-56"><SI plain value={lotF} onChange={setLotF} options={[{ value: 'stock', label: 'En stock' }, { value: 'tous', label: 'Tous les lots' }, ...stadeList(db).filter((x) => stock.some((l) => l.stade === x.id)).map((x) => ({ value: `s:${x.id}`, label: `Stade : ${x.label}` })), ...couleurList(db).filter((x) => stock.some((l) => l.couleur === x.id)).map((x) => ({ value: `c:${x.id}`, label: `Couleur : ${x.label}` })), ...Object.keys(LOT_TYPES).map((k) => ({ value: `t:${k}`, label: `Nature : ${LOT_TYPES[k]}` }))]} aria-label="Filtrer les lots" /></div>
           <div className="w-56"><TI value={lq} onChange={setLq} placeholder="Code ou désignation…" aria-label="Rechercher un lot" /></div>
           {parStade.length ? <div className="flex w-full flex-wrap items-center gap-1.5 text-xs" role="group" aria-label="Lots en stock par stade"><span className="text-ink2">En stock par stade :</span>{parStade.map((g) => <button key={g.x.id} type="button" className={cx('chip chip-c', lotF === `s:${g.x.id}` && 'font-bold')} style={{ '--c': g.x.couleur, cursor: 'pointer' }} aria-pressed={lotF === `s:${g.x.id}`} onClick={() => setLotF(lotF === `s:${g.x.id}` ? 'stock' : `s:${g.x.id}`)} title={`${g.n} lot(s) · ${fmtL(g.v)}`}>{g.x.court || g.x.label} · {g.n}{g.v > 0 ? ` · ${fmtL(g.v)}` : ''}</button>)}</div> : null}
           <span className="ml-auto text-sm text-ink2">{lots.length} lot(s){siteActif !== 'all' && lotF === 'stock' ? ' présents sur ce site' : ''} — les lots naissent des opérations (pressurage, entrée de moûts, assemblage, tirage, reprise de stock).</span>
         </div>
-        <Tbl rows={lots} onRow={(l) => showLot(l.id)} empty="Aucun lot pour ce filtre." cols={[
+        <Tbl rows={lots} onRow={(l) => showLot(l.id)} onCtx={(l, e) => ouvrirMenuLot(openMenu, R, l.id, e.clientX, e.clientY)} empty={Object.keys(R.lots).length ? 'Aucun lot pour ce filtre.' : 'Aucun lot pour l’instant : les lots naissent des opérations (pressurage, entrée de moûts, reprise de stock).'} cols={[
           { h: 'Code', r: (l) => <b>{l.code}</b> }, { h: 'Désignation', r: (l) => l.designation }, { h: 'Millésime', cls: 'hm', r: (l) => millesimeAffiche(l.millesime) || '—' }, { h: 'Stade', r: (l) => <StadeChip id={l.stade} compact /> }, { h: 'Couleur', cls: 'hm', r: (l) => <CouleurChip id={l.couleur} /> }, { h: 'Nature', cls: 'hm', r: (l) => LOT_TYPES[l.type] },
           { h: 'Revendication', r: (l) => <QChip id={l.qualif} /> }, { h: ECH.nom, r: (l) => <EChip info={lotEchelle(db, R, l.id)} /> },
           { h: 'Volume / stock', cls: 'r', r: (l) => <span className="num">{(R.lotVol[l.id] || 0) > 0 ? fmtL(R.lotVol[l.id]) : ''}{R.tir[l.id] && R.tir[l.id].nb > 0 ? ` ${fmt(R.tir[l.id].nb)} btl` : ''}{!(R.lotVol[l.id] > 0) && !(R.tir[l.id] && R.tir[l.id].nb > 0) ? '—' : ''}</span> },
           { h: 'Contenants', cls: 'hm', r: (l) => uniq(Object.values(R.portions).filter((p) => p.lotId === l.id).map((p) => contName(db, p.contenantId))).join(', ') || '—' },
           { h: 'Origine', cls: 'hm', r: (l) => ((l.parentIds || []).length ? (l.parentIds || []).map((p) => lotCode(db, R, p)).join(', ') : '—') },
+          { h: '', r: (l) => ((R.lotVol[l.id] || 0) > 0 ? <button type="button" className="btn btn-sm" aria-label={`Opérations sur le lot ${l.code}`} title="Opérations (ou clic droit)" data-lot-menu={l.id} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); ouvrirMenuLot(openMenu, R, l.id, r.right - 8, r.bottom + 4); }}>⋯</button> : null) },
         ]} />
       </>) : null}
       {form ? <ContForm id={form === 'new' ? null : form} siteId={siteActif} onClose={() => setForm(null)} /> : null}

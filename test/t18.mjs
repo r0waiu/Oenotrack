@@ -3,7 +3,7 @@ const SH = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + '/pdf'; fs.
 const { browser, page, errors } = await open();
 await page.click('#tab-ops'); await page.waitForTimeout(300);
 const row = page.locator('main tbody tr', { hasText: 'GH-482-KT' }).first();
-await row.locator('button[aria-label="Fiche d’enregistrement"]').click(); await page.waitForTimeout(600);
+await row.locator('[data-op-menu]').click(); await page.waitForTimeout(150); await row.locator('button[aria-label="Fiche d’enregistrement"]').click(); await page.waitForTimeout(600);
 await page.screenshot({ path: SH + '/dialog.png' });
 const top = page.locator('.overlay').last();
 const champOpr = top.locator('label', { hasText: 'Opérateur(s)' }).locator('input'); // 0.12.0-alpha.1 : par défaut, les opérateurs de l'opération

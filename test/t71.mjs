@@ -22,7 +22,7 @@ const ov = () => page.locator('.overlay').last();
 
 // 1. fiche d'opération à remplir : couleurs imprimées
 await page.click('#tab-ops'); await page.waitForTimeout(300);
-await page.locator('main tbody tr', { hasText: 'GH-482-KT' }).first().locator('button[aria-label="Fiche d’enregistrement"]').click(); await page.waitForTimeout(700);
+await page.locator('main tbody tr', { hasText: 'GH-482-KT' }).first().locator('[data-op-menu]').click(); await page.waitForTimeout(150); await page.locator('main tbody tr', { hasText: 'GH-482-KT' }).first().locator('button[aria-label="Fiche d’enregistrement"]').click(); await page.waitForTimeout(700);
 await ov().locator('button:has-text("Bordeaux")').click(); await page.waitForTimeout(200);
 const sw = await ov().locator('.fiche .ft td.saisie').count();
 ok('fiche : cases « relevé » à remplir présentes (modèle Bordeaux : #FFF8E8)', sw > 0, sw);

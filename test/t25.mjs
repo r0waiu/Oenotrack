@@ -20,7 +20,7 @@ log('pied :', (await page.locator('footer').innerText()).replace(/\s+/g, ' '));
 // document joint + logo
 fs.writeFileSync(SC + '/fiche-remplie.pdf', '%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF');
 await page.click('#tab-ops'); await page.waitForTimeout(300);
-await page.locator('main tbody tr').first().locator('button[aria-label^="Documents"]').click(); await page.waitForTimeout(300);
+await page.locator('main tbody tr').first().locator('[data-op-menu]').click(); await page.waitForTimeout(150); await page.locator('main tbody tr').first().locator('button[aria-label^="Documents"]').first().click(); await page.waitForTimeout(300);
 await top().locator('input[aria-label="Fichiers à joindre"]').setInputFiles(SC + '/fiche-remplie.pdf'); await page.waitForTimeout(600);
 await page.keyboard.press('Escape'); await page.waitForTimeout(200);
 // page Sauvegarde : statut via la puce de l'en-tête

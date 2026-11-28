@@ -741,6 +741,28 @@ button.chip{cursor:pointer}
 /* - */
 /* - */
 /* ===== 0.48.0-alpha.1 — opérations, cuverie, fiche du lot ===== */
+/* sélecteur « Nouvelle opération » : familles en colonnes d'au moins 250 px, libellés longs sur plusieurs lignes (plus de débordement) */
+.nouvelle-op .ops-familles{grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))}
+.op-choix{display:inline-flex;align-items:stretch;max-width:100%;min-width:0}
+.op-choix>.btn{white-space:normal;text-align:left;justify-content:flex-start;line-height:1.25;min-width:0;max-width:100%;overflow-wrap:anywhere}
+.op-fav{flex:none;min-width:30px;min-height:36px;border:0;background:transparent;color:var(--ink2);cursor:pointer;font-size:16px;line-height:1;border-radius:5px}
+.op-fav:hover{background:var(--surface2);color:var(--ink)}
+.op-fav[aria-pressed="true"]{color:var(--warn)}
+.op-fav:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* journal : actions de ligne sur une seule ligne (« Modifier » + « ⋯ ») */
+.tbl td.op-acts-td .op-acts{flex-wrap:nowrap}
+.menu-deroulant{min-width:220px}
+/* plan de cave : bouton « ⋯ » de chaque contenant */
+.pitem .pdots{top:0;right:0;min-height:24px;min-width:24px;font-size:15px;background:color-mix(in srgb,var(--surface) 78%,transparent);border-color:var(--line);opacity:.8;z-index:2}
+.pitem:hover .pdots,.pitem:focus-within .pdots{opacity:1}
+/* états vides de première utilisation */
+.vide-accueil{max-width:680px;margin:8px auto 20px;padding:24px 20px;text-align:center}
+.vide-accueil .vide-ic{font-size:34px;line-height:1;margin-bottom:6px}
+.vide-accueil p{margin-top:6px}
+/* fiche du lot : barre d'actions sous le titre, volume et contenants avant le stade */
+.lot-barre{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.lot-resume{font-size:14px;line-height:1.5}
+@media print{.pitem .pdots,.lot-barre{display:none!important}}
 /* (fin du bloc opérations) */
 /* - */
 /* - */

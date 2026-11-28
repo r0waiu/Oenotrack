@@ -99,7 +99,7 @@ await ligne.locator('button:text-is("Modifier")').click(); await page.waitForTim
 const tc = await s.innerText();
 ok('opération validée ouverte en consultation (« Fermer » seulement), saisie par Thomas', tc.includes('Consultation') && tc.includes('Saisie par Thomas Girard') && (await s.locator('button:text-is("Enregistrer")').count()) === 0 && (await s.locator('button:text-is("Fermer")').count()) >= 1);
 await s.locator('.sheet-f button:text-is("Fermer")').click(); await page.waitForTimeout(200);
-await ligne.locator('button[class*="danger"]').first().click(); await page.waitForTimeout(250);
+await ligne.locator('[data-op-menu]').click(); await page.waitForTimeout(150); await ligne.locator('button[aria-label="Supprimer l’opération"]').first().click(); // 0.48.0-alpha.1 : « Supprimer » dans « ⋯ » await page.waitForTimeout(250);
 if (await page.locator('[role=alertdialog]').count()) { await page.locator('[role=alertdialog] button:text-is("Supprimer")').click(); await page.waitForTimeout(400); }
 ok('suppression refusée (droits insuffisants)', /Droits insuffisants/.test(await toast()) && /supprimer/.test(await toast()), await toast());
 ok('… l’opération est toujours là', (await dbLS()).ops.some((o) => o.id === opT.id));

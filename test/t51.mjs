@@ -20,7 +20,7 @@ const top = () => page.locator('.overlay').last(); const db = () => page.evaluat
 const toasts = []; const lireToasts = async (n = 16) => { for (let i = 0; i < n; i += 1) { await page.waitForTimeout(250); (await page.locator('.toast').allInnerTexts().catch(() => [])).forEach((x) => { if (!toasts.includes(x)) toasts.push(x); }); } };
 // 1. documents joints : chaque fichier vérifié
 await page.click('#tab-ops'); await page.waitForTimeout(400);
-await page.locator('main button', { hasText: /📎/ }).first().click(); await page.waitForTimeout(500);
+await page.locator('main tbody tr').first().locator('[data-op-menu]').click(); await page.waitForTimeout(150); await page.locator('main button', { hasText: /📎/ }).first().click(); await page.waitForTimeout(500);
 const inp = top().locator('input[aria-label="Fichiers à joindre"]');
 for (const f of ['facture.pdf', 'page.txt', 'lettre.docx', 'fiche-active.pdf', 'notes.txt']) { await inp.setInputFiles(`${FX}/${f}`); await lireToasts(); }
 const T = toasts.join(' | ');

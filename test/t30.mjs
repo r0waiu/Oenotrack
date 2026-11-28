@@ -60,7 +60,7 @@ await r1.locator('button:text-is("Modifier")').click(); await page.waitForTimeou
 await top().locator('.opr-tog', { hasText: 'Thomas Girard' }).click(); await top().locator('.sheet-f button:text-is("Enregistrer")').click(); await page.waitForTimeout(400);
 ok('modification : opérateur retiré', !(await page.locator('main tbody tr').first().innerText()).includes('Thomas G.') && (await page.locator('main tbody tr').first().innerText()).includes('Sophie L.'));
 // fiche à imprimer : opérateurs pré-remplis
-await page.locator('main tbody tr').first().locator('button[aria-label="Fiche d’enregistrement"]').click(); await page.waitForTimeout(600);
+await page.locator('main tbody tr').first().locator('[data-op-menu]').click(); await page.waitForTimeout(150); await page.locator('main tbody tr').first().locator('button[aria-label="Fiche d’enregistrement"]').click(); await page.waitForTimeout(600);
 ok('fiche : « Opérateur(s) : Sophie Lambert » pré-rempli', /Opérateur\(s\)\s*:\s*Sophie Lambert/.test((await top().locator('.fiche').first().innerText()).replace(/\s+/g, ' ')), (await top().locator('.fh-champs').first().innerText()).replace(/\s+/g, ' '));
 await page.keyboard.press('Escape'); await page.waitForTimeout(300);
 

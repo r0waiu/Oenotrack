@@ -146,7 +146,7 @@ ok('modèle enregistré avec {x_partenaires_fraction_cepage_cru_millesime}', col
 // impression de la fiche de l'entrée d'exemple : la colonne contient le partenaire
 await page.click('#tab-ops'); await page.waitForTimeout(300);
 const rowM = page.locator('main tr', { hasText: 'GH-482-KT' }).first();
-await rowM.locator('button[title*="iche"], button:has-text("🖨")').first().click(); await page.waitForTimeout(600);
+await rowM.locator('[data-op-menu]').click(); await page.waitForTimeout(150); await rowM.locator('button[title*="iche"], button:has-text("🖨")').first().click(); await page.waitForTimeout(600);
 const fi = await page.locator('.overlay').last().innerText();
 ok('fiche imprimée : « Maison Dubois (60 %), Lefèvre Père & Fils (40 %) · Taille · Pinot noir · Mareuil-sur-Ay · 2026 »', fi.includes('Maison Dubois (60 %), Lefèvre Père & Fils (40 %) · Taille · Pinot noir · Mareuil-sur-Ay · 2026'), fi.slice(fi.indexOf('C3'), fi.indexOf('C3') + 200));
 await page.screenshot({ path: SH + '/t33-fiche.png' });
