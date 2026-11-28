@@ -1,11 +1,11 @@
 {
   "google": {
-    "clientId": ""
+    "clientId": "79395359772-f4056seoi4veuds94hkii08dk3ovljsi.apps.googleusercontent.com"
   },
   "microsoft": {
-    "clientId": ""
+    "clientId": "15becbba-69c8-4a85-b7e3-6aa3423adace"
   },
   "dropbox": {
-    "appKey": ""
+    "appKey": "6ir7vkriw0wt913"
   }
 }
