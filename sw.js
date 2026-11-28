@@ -1,5 +1,5 @@
 // Œnotrack — service worker : l'application s'ouvre même sans réseau (cave, vignes) ; nouvelle version prise dès que le réseau est là
-const VERSION = 'oenotrack-0.48.0-alpha.1-5bd1a5b8';
+const VERSION = 'oenotrack-0.49.0-alpha.1-e3640937';
 const COEUR = ['./', './index.html', './manifest.webmanifest', './icone-192.png', './icone-512.png', './icone-maskable-512.png', './apple-touch-icon.png'];
 // 0.38.0-alpha.1 : bibliothèques et polices servies par le site (vendor/) : mises en cache dès l'installation ; aucun CDN
 // 0.38.0-alpha.3 : seules les polices de la charte par défaut sont mises en cache à l'installation (les autres le sont à leur premier
