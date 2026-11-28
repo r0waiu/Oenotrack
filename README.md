@@ -208,13 +208,23 @@ L’onglet **Équipements** (après l’Hygiène) rassemble le matériel et son 
 **Paramètres › 🍇 Vignoble** réunit tout ce qui décrit votre vignoble, en six étapes :
 
 1. **Région** : cliquez votre bassin sur la **carte de France** (13 bassins : Champagne, Alsace, Bourgogne, Beaujolais, Bordeaux, Val de Loire, Vallée du Rhône, Languedoc-Roussillon, Provence, Sud-Ouest, Jura et Savoie, Corse, Charentes) ou choisissez un pays (Italie, Espagne, Portugal, Allemagne, Suisse, Autriche, États-Unis, Australie) ;
-2. **Appellations** produites, cochées dans le référentiel officiel — AOP, IGP, **dénominations rattachées** (Côtes du Rhône Villages + commune, Côtes de Provence Sainte-Victoire, Muscadet Sèvre et Maine + cru communal, Val de Loire + département…), **Vin de France** ; la recherche retrouve aussi les anciens noms (Corbières-Boutenac, Minervois-La Livinière…) ; les ajouts écrits à la main sont marqués **« à vérifier »** ;
+2. **Appellations** produites, cochées dans le référentiel officiel — AOP, IGP, **dénominations rattachées** (Côtes du Rhône Villages + commune, Côtes de Provence Sainte-Victoire, Muscadet Sèvre et Maine + cru communal, Val de Loire + département…), **Vin de France** ; la recherche retrouve aussi les anciens noms (Corbières-Boutenac, Minervois-La Livinière…) ; dénominations, mentions et couleurs **lues dans les cahiers des charges en vigueur** (Bulletin officiel, fiches de l’INAO), chacune avec son texte et sa date d’homologation ;
 3. **Types de vins** (tranquilles blancs, rosés, rouges, effervescents en méthode traditionnelle ou ancestrale, moelleux, liquoreux, vins doux naturels et vins de liqueur) : **déduits de vos appellations**, ou cochés à la main ; un type qu’aucune appellation de la région n’autorise est signalé **« hors appellation »**, jamais interdit ;
 4. **Communes & crus** (en Champagne : villages de l’échelle des crus) ;
 5. **Parcelles** ;
 6. **Adaptations**, appliquées **aussitôt** : onglets Tirages, Cave et Dégorgement selon les effervescents ; opérations des rouges, rosés, effervescents et vins doux (éraflage, macérations, pigeage, délestage, écoulage, saignée, mutage, remuage…) ; tailles et rebêche au pressurage ; spécificités champenoises (pressoir AOC Champagne, échelle des crus) et déclarations de tirage (AIDAC, Innov OI). Chaque élément peut être forcé **« toujours affiché »** ou **« toujours masqué »**.
 
 Rien n’est supprimé : un onglet ou une opération masqués reviennent dès qu’ils redeviennent utiles, les réglages faits à la main restent (un changement fait dans Paramètres › Modules ou dans le catalogue des opérations devient une exception), et les valeurs réglées d’un profil de pressoir sont reprises quand on y revient. L’identité de la société et **Pressoir › Réglages** montrent le résumé du vignoble, avec un lien. Seuil indicatif d’enrichissement maximal de la zone viticole : exemple non officiel, **à vérifier**.
+
+## Mise en bouteille (vins tranquilles et doux)
+
+Onglet **Mise en bouteille** (affiché dès que vous produisez des vins tranquilles ou doux ; les Tirages, la Cave et le Dégorgement restent ceux des effervescents) :
+
+- **🍷 Mettre** : une mise prend le vin dans une ou plusieurs cuves et crée aussitôt le **lot fini** — n° de lot, DDM, cols par format, casse, bouchage (liège naturel, colmaté, technique, synthétique, capsule à vis, verre, couronne), capsule de surbouchage CRD ou non, filtration et inertage à la mise, contrôles en ligne (niveau, volume, SO₂ libre, oxygène dissous, TPO, CO₂…), rappel des dernières analyses des cuves, fournitures décomptées ;
+- **chantiers de mise** : une journée de mise en interne ou chez un prestataire (camion d’embouteillage, embouteilleur à façon), la ligne, le bilan (cols, équivalent bouteilles, pertes, casse) et les documents ;
+- **📦 Fournitures** : bouteilles, bouchons, capsules, étiquettes — vos intrants, sans stock en double ;
+- **🏷 Habillage & cartons** : habillage, réétiquetage et mise en carton des lots en bouteilles ;
+- **DRM** : la mise fait passer le vin du vrac au conditionné dans le même produit.
 
 **Appellations** (Paramètres › Listes) : recherche dans le **référentiel officiel de 1 692 appellations** relevé sur les sources officielles (INAO et eAmbrosia pour la France et l’Union européenne, OFAG, TTB, Wine Australia) et ajout à votre liste. Chaque appellation reçoit sa **hiérarchie des crus** (Champagne, Bourgogne, Chablis, Beaujolais, Côtes du Rhône, Médoc, Saint-Émilion, Sauternes, Graves, Alsace, Loire, Languedoc, DOC / DOCG, DO / DOCa, pyramide allemande de 2021, DAC autrichiennes, Portugal, Suisse…), proposée d’après son nom et sa région puis confirmée ; chaque parcelle porte son appellation et son niveau, et la fiche d’un lot en montre la répartition. Hiérarchies et repères sont **à vérifier**.
 

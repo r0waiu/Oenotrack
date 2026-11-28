@@ -65,7 +65,7 @@ function DeclarationForm({ id, type0, chantierId0, onClose }) {
   const [f, setF] = useState(() => (old ? { chantierId: old.chantierId || '', opIds: old.opIds || [], date: old.date, champs: JSON.parse(JSON.stringify(old.champs || {})) }
     : { chantierId: chantierId0 || '', opIds: [], date: defaultDate, champs: type === 'prealable' ? { dateTirage: cht0 ? cht0.dateDebut : '', lieuTirage: dd.lieuTirage, faitA: dd.faitA, signataire: dd.signataire } : { lieuTirage: dd.lieuTirage, lieuStockage: dd.lieuStockage, faitA: dd.faitA, signataire: dd.signataire, facon: '' } }));
   const setC = (p) => setF((x) => ({ ...x, champs: { ...x.champs, ...p } })); const ch = f.champs; const decl = ch.declarant || {}; const setD = (p) => setC({ declarant: { ...decl, ...p } });
-  const T = useMemo(() => (db.ops || []).filter((o) => o.type === 'tirage' && o.date >= camp.debut && o.date <= camp.fin).sort(byDate), [db, camp]);
+  const T = useMemo(() => (db.ops || []).filter((o) => o.type === 'tirage' && !estMise(o) && o.date >= camp.debut && o.date <= camp.fin).sort(byDate), [db, camp]);
   const dv = { ...old, type, ...f }; const pcF = type === 'prealable' && f.chantierId ? declPrealableCuvees(db, R, f.chantierId) : null; const k = type === 'prealable' && !pcF ? declPrealableCalcul(db, ch) : null; const c = type === 'finale' ? declFinaleCalcul(db, R, dv) : null;
   const delai = type === 'prealable' ? declDelaiHeures(f.date, ch.dateTirage) : null;
   const save = () => { const r = act((d) => declarationTirageSave(d, { ...f, type }, id, uid), 'Déclaration enregistrée.'); if (r && r.ok) onClose(r.id); };

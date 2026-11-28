@@ -6,7 +6,7 @@
    (empreinte calculée par l'interface, securiteActiver). settings.personnalisation = { mode, reponses (sans compte), le, par, version }. */
 
 const PERSO_MODES = [{ id: 'basique', label: 'Basique' }, { id: 'avance', label: 'Avancé' }];
-const PERSO_MODULES_NOMS = { pressoir: 'Pressoir', tirage: 'Tirages', cave: 'Cave', degorgement: 'Dégorgement', hygiene: 'Hygiène', equipements: 'Équipements', plan: 'Plan de vinification' };
+const PERSO_MODULES_NOMS = { pressoir: 'Pressoir', tirage: 'Tirages', cave: 'Cave', degorgement: 'Dégorgement', mise: 'Mise en bouteille', hygiene: 'Hygiène', equipements: 'Équipements', plan: 'Plan de vinification' };
 const PERSO_SECTIONS = [['exploitation', 'Votre exploitation'], ['vins', 'Vos vins'], ['revendications', 'Revendications et labels'], ['chai', 'Cave et chai'], ['equipe', 'Équipe et accès'], ['donnees', 'Données et déclarations']];
 const PERSO_REVENDICATIONS = [
   { id: 'conv', label: 'Conventionnel', court: 'CONV', couleur: '#5F7A8A', referentiels: [] },
@@ -111,6 +111,7 @@ function persoPlan(db, mode, reponses, ctx) {
   const on = (id, v) => { modules[id] = !!v; };
   if (a('pressoir')) on('pressoir', r.pressoir !== false);
   if (mousse) { const ici = r.tirage !== 'aucun'; on('tirage', ici); on('cave', ici && (a('cave') ? r.cave !== false : true)); on('degorgement', ici && (a('degorgement') ? r.degorgement !== false : true)); } else if (r.types) { on('tirage', false); on('cave', false); on('degorgement', false); }
+  if (Array.isArray(r.types) && r.types.length) on('mise', profilVeutMise(r.types)); // 0.50.0-alpha.2 : mise en bouteille des vins tranquilles et doux
   if (a('hygiene')) { on('hygiene', r.hygiene !== false); if (!a('equipements')) on('equipements', r.hygiene !== false); }
   if (a('equipements')) on('equipements', r.equipements !== false);
   if (a('plan')) on('plan', r.plan !== false);
@@ -217,6 +218,11 @@ const VISITE_CHAPITRES = [
   { id: 'cave', titre: 'Cave', module: 'cave', etapes: [
     { cible: '[data-vg="cave-saisir"]', titre: 'Remuage et mouvements', texte: 'Remuage, mise sur pointes et mouvements des bouteilles sur lattes.' },
     { cible: '[data-vg="cave-bouteilles"]', titre: 'Bouteilles en cave', texte: 'Chaque lot de tirage : bouteilles, âge sur lattes, étapes.' },
+  ] },
+  { id: 'mise', titre: 'Mise en bouteille', module: 'mise', etapes: [ // 0.50.0-alpha.2
+    { cible: '[data-mise-nouvelle]', titre: 'Mettre en bouteille', texte: 'Le vin pris en cuve devient un lot fini : n° de lot, DDM, bouchage, contrôles en ligne et fournitures.' },
+    { cible: '[data-chantier-mise-nouveau]', titre: 'Chantiers de mise', texte: 'Une journée de mise, en interne ou chez un prestataire, avec la ligne et ses documents.' },
+    { cible: '@onglets', titre: 'Fournitures et habillage', texte: 'Bouteilles, bouchons, capsules et étiquettes ; habillage et mise en carton des lots en bouteilles.' },
   ] },
   { id: 'degorgement', titre: 'Dégorgement', module: 'degorgement', etapes: [
     { cible: '[data-vg="degorgement-saisir"]', titre: 'Dégorger', texte: 'Dégorgement avec la liqueur d’expédition : le lot fini en reprend le SO₂.' },

@@ -11,7 +11,7 @@
 const TIRAGE_MODES = [{ id: 'mixtion', label: 'Mixtion en cuve' }, { id: 'pompe', label: 'Pompe doseuse / injecteuse en ligne' }, { id: 'ancestrale', label: 'Méthode ancestrale (en fermentation, sans liqueur de tirage)' }]; // 0.46.0-alpha.1 : méthode ancestrale
 const TIRAGE_LIGNE = [['depalettiseur', 'Dépalettiseur'], ['tireuse', 'Tireuse'], ['injecteuse', 'Injecteuse (pompe doseuse)'], ['biduleuse', 'Biduleuse'], ['capsuleuse', 'Capsuleuse'], ['marquage', 'Marquage (laser, jet d’encre)'], ['emboxeur', 'Emboxeur'], ['robot', 'Robot de palettisation'], ['vision', 'Contrôle par vision']];
 const POMPE_CONTROLES = [{ id: 'eprouvette', label: 'Éprouvette (volume injecté)' }, { id: 'pesee', label: 'Pesée de cols' }, { id: 'densite', label: 'Densité du vin mixtionné' }, { id: 'debit', label: 'Débit de la ligne' }];
-const FOURNISSEUR_ROLES = [{ id: 'prestataire_tirage', label: 'Prestataire de tirage' }];
+const FOURNISSEUR_ROLES = [{ id: 'prestataire_tirage', label: 'Prestataire de tirage' }, { id: 'prestataire_mise', label: 'Prestataire de mise en bouteille' }]; // 0.50.0-alpha.2
 const fournisseurRoles = (f) => (Array.isArray(f && f.roles) ? f.roles : []);
 const prestatairesTirage = (db) => (db.fournisseurs || []).filter((f) => fournisseurRoles(f).includes('prestataire_tirage'));
 

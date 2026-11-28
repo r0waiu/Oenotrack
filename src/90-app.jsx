@@ -10,6 +10,7 @@ const MODULE_DEFS = {
   tirage: { label: 'Tirages', icone: '🍾', desc: 'Préparations (levain, pied de cuve, liqueur de tirage) et tirages (mixtions) : saisis ici, plus dans « Opérations & Assemblages ».' },
   cave: { label: 'Cave', icone: '🕯', desc: 'Bouteilles sur lattes : stock par lot, âge, remuage et mise sur pointes (saisis ici).' },
   degorgement: { label: 'Dégorgement', icone: '🥂', desc: 'Liqueurs d’expédition, dégorgements (saisis ici) et lots finis.' },
+  mise: { label: 'Mise en bouteille', icone: '🍷', desc: 'Vins tranquilles et doux : mises en bouteille (lot fini, bouchage, DDM, contrôles), chantiers de mise, fournitures, habillage et mise en carton.' }, // 0.50.0-alpha.2
   analyses: { label: 'Analyses', icone: '🔬', desc: 'Analyses et paramètres personnalisables.' },
   intrants: { label: 'Intrants & Stocks', icone: '📦', desc: 'Produits œnologiques, arrivages, lots fournisseurs, DDM et stocks.' },
   hygiene: { label: 'Hygiène', icone: '🧽', desc: 'Journal des nettoyages, rinçages et désinfections.' },

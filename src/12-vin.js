@@ -4,7 +4,7 @@
 const STADE_PHASES = [['mout', 'Moût'], ['ferm', 'Fermentation'], ['vin', 'Vin'], ['bout', 'Bouteille']];
 const STADE_ROLES = [
   ['', '— aucun —'], ['entree', 'Moût reçu ou pressé'], ['debourbage', 'Après débourbage'], ['levurage', 'Après levurage (levures, levain, pied de cuve)'],
-  ['finfa', 'Fin de fermentation alcoolique'], ['bacteries', 'Après ensemencement malolactique'], ['finfml', 'Fin de fermentation malolactique'], ['clair', 'Vin clarifié (reprise de stock)'], ['assemblage', 'Lot créé par assemblage de vins'], ['tirage', 'Tirage (mise en bouteille)'], ['degorgement', 'Dégorgement'],
+  ['finfa', 'Fin de fermentation alcoolique'], ['bacteries', 'Après ensemencement malolactique'], ['finfml', 'Fin de fermentation malolactique'], ['clair', 'Vin clarifié (reprise de stock)'], ['assemblage', 'Lot créé par assemblage de vins'], ['tirage', 'Tirage (mise en bouteille)'], ['degorgement', 'Dégorgement'], ['mise', 'Mise en bouteille d’un vin tranquille ou doux'],
 ];
 const DEFAULT_STADES = () => ([
   { id: 'mout', label: 'Moût', court: 'Moût', phase: 'mout', role: 'entree', couleur: '#C9B458' },
@@ -23,6 +23,7 @@ const DEFAULT_STADES = () => ([
   { id: 'tire', label: 'Tiré (prise de mousse, sur lattes)', court: 'Tiré', phase: 'bout', role: 'tirage', couleur: '#6A4C9C' },
   { id: 'sur_pointes', label: 'Remué, sur pointes', court: 'Sur pointes', phase: 'bout', role: '', couleur: '#4E3E7E' },
   { id: 'degorge', label: 'Dégorgé', court: 'Dégorgé', phase: 'bout', role: 'degorgement', couleur: '#33305A' },
+  { id: 'en_bouteille', label: 'Mis en bouteille', court: 'En bouteille', phase: 'bout', role: 'mise', couleur: '#5C3A52' }, // 0.50.0-alpha.2 : vins tranquilles et doux
 ]);
 // Couleurs du vin : « mélange » = couleur obtenue quand on assemble des couleurs différentes (rosé d'assemblage : blanc + rouge).
 const DEFAULT_COULEURS_VIN = () => ([

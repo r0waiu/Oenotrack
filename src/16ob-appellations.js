@@ -20,7 +20,7 @@ function appRef() {
   });
   // 0.50.0-alpha.1 : anciens noms (alias), compléments écrits à la main (16od : dénominations rattachées, Vin de France), sans doublon d'id
   if (typeof appAliasDe === 'function') _appRef.forEach((a) => { a.genre = 'aop'; a.alias = appAliasDe(a); a.parentId = ''; });
-  if (typeof appComplements === 'function') { const ids = new Set(_appRef.map((a) => a.id)); appComplements().forEach((a) => { if (!ids.has(a.id)) { ids.add(a.id); _appRef.push(a); } }); }
+  if (typeof appComplements === 'function') { const ids = new Set(_appRef.map((a) => a.id)); const parIds = Object.fromEntries(_appRef.map((a) => [a.id, a])); appComplements().forEach((a) => { if (!ids.has(a.id)) { ids.add(a.id); if (!a.sousRegion && parIds[a.parentId]) a.sousRegion = parIds[a.parentId].sousRegion; _appRef.push(a); } }); }
   return _appRef;
 }
 const appRefDef = (id) => appRef().find((a) => a.id === id) || null;

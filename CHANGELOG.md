@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.50.0-alpha.2 — 28/11/2026
+
+- Mise en bouteille des vins tranquilles et doux : nouvel onglet « Mise en bouteille » (Mettre · Fournitures · Habillage & cartons), affiché selon le réglage Vignoble ; une mise prend le vin dans une ou plusieurs cuves et crée aussitôt le lot fini — n° de lot, DDM, cols par format, casse, bouchage (liège, technique, synthétique, vis, verre…), capsule CRD ou non, filtration et inertage, contrôles en ligne (niveau, SO₂ libre, oxygène dissous…), rappel des dernières analyses, fournitures décomptées.
+- Chantiers de mise (interne, camion d’embouteillage ou embouteilleur à façon) avec la ligne, le bilan (cols, équivalent bouteilles, pertes, casse) et les documents ; habillage et mise en carton des lots en bouteilles ; DRM : vrac → conditionné dans le même produit ; nouveau stade « Mis en bouteille » ; fournitures : bouchon de mise, capsule de surbouchage, étiquette.
+
 ## 0.50.0-alpha.1 — 28/11/2026
 
 - Paramètres › 🍇 Vignoble : région, appellations, types de vins, communes et crus, parcelles réunis en une rubrique ; région choisie sur une carte de France, appellations produites cochées dans le référentiel officiel, types de vins déduits des appellations (ou cochés à la main) ; les raccourcis sont retirés.

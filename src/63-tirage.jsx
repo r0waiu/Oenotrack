@@ -24,7 +24,7 @@ function useBouteilles() {
   return {
     opOf, prepIn: (id) => R.prepUse.filter((u) => u.prepId === id),
     preps: Object.values(R.preps).sort(desc_), tirs: Object.values(R.tir).sort(desc_),
-    tirOps: db.ops.filter((o) => o.type === 'tirage').sort(desc_), finis: [...(db.lotsFinis || [])].sort(desc_),
+    tirOps: db.ops.filter((o) => o.type === 'tirage' && !estMise(o)).sort(desc_), finis: [...(db.lotsFinis || [])].filter((f) => !f.mise).sort(desc_), // 0.50.0-alpha.2 : mises en bouteille dans leur onglet
     // continuité de la traçabilité (0.39.0-alpha.1) : mixtion qui a créé un lot de tirage → vins de base (lots de la vinification)
     tirageDe: (lotId) => db.ops.find((o) => o.type === 'tirage' && o.lotId === lotId) || null,
   };

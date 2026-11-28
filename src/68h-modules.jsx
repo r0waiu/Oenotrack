@@ -10,7 +10,8 @@ function moduleContenu(db, R, id) {
     case 'ops': return { txt: pl_(db.ops.length, 'opération', 'opérations') };
     case 'previsions': return { txt: `${pl_(prev, 'opération', 'opérations')} à réaliser`, attente: prev ? `${prev > 1 ? `${fmt(prev)} opérations planifiées restent en attente et ne sont plus visibles` : '1 opération planifiée reste en attente et n’est plus visible'} ; le bouton « Planifier » disparaît des formulaires.` : '' };
     case 'declass': return { txt: `${pl_(att, 'alerte', 'alertes')} en attente`, attente: att ? `${att > 1 ? `${fmt(att)} alertes de déclassement restent en attente : la revendication des lots ne change pas tant qu’elles ne sont pas validées` : '1 alerte de déclassement reste en attente : la revendication du lot ne change pas tant qu’elle n’est pas validée'}.` : '' };
-    case 'tirage': return { txt: pl_(db.ops.filter((o) => o.type === 'tirage').length, 'tirage', 'tirages') };
+    case 'tirage': return { txt: pl_(db.ops.filter((o) => o.type === 'tirage' && !estMise(o)).length, 'tirage', 'tirages') };
+    case 'mise': return { txt: pl_(db.ops.filter(estMise).length, 'mise en bouteille', 'mises en bouteille') }; // 0.50.0-alpha.2
     case 'cave': { const nb = sum(Object.values(R.tir), (t) => t.nb); return { txt: `${pl_(nb, 'bouteille', 'bouteilles')} sur lattes` }; }
     case 'degorgement': return { txt: pl_((db.lotsFinis || []).length, 'lot fini', 'lots finis') };
     case 'analyses': return { txt: pl_((db.analyses || []).length, 'analyse', 'analyses') };

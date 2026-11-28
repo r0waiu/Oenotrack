@@ -83,7 +83,10 @@ const profilViticole = (db) => {
   return { ...s, region, types, defini: !!profilRegionDef(s.region) };
 };
 const PROFIL_MODULES_MOUSSE = ['tirage', 'cave', 'degorgement'];
-const PROFIL_MODULES_NOMS = { tirage: 'Tirages', cave: 'Cave', degorgement: 'Dégorgement' };
+const PROFIL_MODULES_NOMS = { tirage: 'Tirages', cave: 'Cave', degorgement: 'Dégorgement', mise: 'Mise en bouteille' };
+// 0.50.0-alpha.2 : mise en bouteille des vins tranquilles et doux (onglet « Mise en bouteille »)
+const PROFIL_TYPES_MISE = ['blanc', 'rose', 'rouge', 'doux'];
+const profilVeutMise = (T) => (T || []).some((t) => PROFIL_TYPES_MISE.includes(t));
 // opérations proposées selon les types de vins (0.46.0-alpha.1 : vins rouges et rosés, vins doux) et la région (élevage sous voile : Jura)
 const PROFIL_OPS = { rouge: ['maceration', 'delestage', 'ecoulage', 'eraflage', 'mpf_froid', 'mac_carbonique', 'mac_semi_carbonique', 'thermovinification', 'flash_detente', 'pigeage', 'mfc', 'pressurage_marcs', 'micro_oxygenation'],
   rose: ['maceration', 'saignee', 'eraflage', 'mpf_froid'], mousse: ['remuage'], doux: ['arret_fermentation', 'mutage'], jura: ['elevage_voile'] };
@@ -99,6 +102,7 @@ function profilPlan(db, region, types) {
   const pousser = (id, groupe, label, avant, apres, x) => out.push({ id, groupe, label, avant, apres, ...(x || {}) });
   // onglets
   PROFIL_MODULES_MOUSSE.forEach((m) => { const on = moduleActif(db, m); if (on !== mousse) pousser(`module:${m}`, 'onglets', PROFIL_MODULES_NOMS[m], on ? 'affiché' : 'masqué', mousse ? 'affiché' : 'masqué'); });
+  { const on = moduleActif(db, 'mise'); const veut = profilVeutMise(T); if (on !== veut) pousser('module:mise', 'onglets', PROFIL_MODULES_NOMS.mise, on ? 'affiché' : 'masqué', veut ? 'affiché' : 'masqué'); }
   // opérations
   const ops = opList(db); const defOps = DEFAULT_OPERATIONS(); const deja = Array.isArray(pv.ops) ? pv.ops : [];
   const voulues = uniq([...(T.includes('rouge') ? PROFIL_OPS.rouge : []), ...(T.includes('rose') ? PROFIL_OPS.rose : []), ...(mousse ? PROFIL_OPS.mousse : []), ...(T.includes('doux') ? PROFIL_OPS.doux : []), ...(region === 'jura_savoie' ? PROFIL_OPS.jura : [])]);

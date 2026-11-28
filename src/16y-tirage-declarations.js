@@ -91,7 +91,7 @@ function declarationTirageSave(db, s, id, uid) {
   const type = DECL_TIRAGE_TYPES.some((t) => t.id === s.type) ? s.type : (old ? old.type : 'finale');
   if (!isoOK(s.date)) return fail('Date de la déclaration invalide.'); if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.');
   if (s.chantierId && !chantierTirage(db, s.chantierId)) return fail('Chantier introuvable.');
-  const opIds = uniq((s.opIds || []).filter((x) => (db.ops || []).some((o) => o.id === x && o.type === 'tirage')));
+  const opIds = uniq((s.opIds || []).filter((x) => (db.ops || []).some((o) => o.id === x && o.type === 'tirage' && !estMise(o))));
   if (type === 'finale' && !s.chantierId && !opIds.length) return fail('Choisissez le chantier ou les lots de tirage déclarés.');
   const champs = JSON.parse(JSON.stringify(s.champs || {}));
   if (type === 'prealable' && champs.dateTirage && !isoOK(champs.dateTirage)) return fail('Date du tirage invalide.');
@@ -132,7 +132,7 @@ function declarationTirageReglagesSet(db, s) {
 // tirages de la campagne pas encore couverts par une déclaration de fin de tirage
 function tiragesNonDeclares(db, camp) {
   const pris = new Set(); declarationsTirage(db).filter((d) => d.type === 'finale').forEach((d) => declTirageOps(db, d).forEach((o) => pris.add(o.id)));
-  return (db.ops || []).filter((o) => o && o.type === 'tirage' && !pris.has(o.id) && (!camp || (o.date >= camp.debut && o.date <= camp.fin))).sort(byDate);
+  return (db.ops || []).filter((o) => o && o.type === 'tirage' && !estMise(o) && !pris.has(o.id) && (!camp || (o.date >= camp.debut && o.date <= camp.fin))).sort(byDate);
 }
 
 /* ---------- ordre de tirage (avant le chantier) ---------- */

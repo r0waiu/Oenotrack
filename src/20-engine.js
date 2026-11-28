@@ -30,7 +30,7 @@ const R_FINIS = new WeakSet(); // états rejoués terminés (0.38.0-alpha.3, voi
 function replay(db, upTo, opts) {
   syncConfig(db);
   const R = { upTo: upTo || null, fusions: {}, lots: {}, portions: {}, pinfo: {}, contVol: {}, preps: {}, tir: {}, raisins: {}, arrUsed: {}, apps: [], warn: {}, flows: [], prepUse: [], opsByLot: {}, capOver: {}, stadeHist: {},
-    conc: {}, concDir: {}, concPrep: {}, tirVol: {}, so2Ev: {}, depass: {}, arrRegul: {} };
+    conc: {}, concDir: {}, concPrep: {}, tirVol: {}, so2Ev: {}, depass: {}, arrRegul: {}, mises: {} };
   // régularisations manuelles de stock (0.36.0-alpha.1) : ajoutées au restant de leur lot fournisseur, à leur date
   const regAv = {}; (Array.isArray(db.regulStocks) ? db.regulStocks : []).forEach((x) => { if (!x || !x.arrivageId || !isoOK(x.date) || (upTo && x.date > upTo)) return; R.arrRegul[x.arrivageId] = (R.arrRegul[x.arrivageId] || 0) + num(x.qty); (regAv[x.arrivageId] = regAv[x.arrivageId] || []).push(x); });
   const regulAu = (aid, date) => sum((regAv[aid] || []).filter((x) => x.date <= date), (x) => x.qty); // cumul des intrants, SO₂ ajouté, dépassements (0.30.0-alpha.1)
@@ -247,10 +247,12 @@ function replay(db, upTo, opts) {
       case 'tirage': {
         touch(op, op.lotId);
         mixWarn(op, [...(op.sources || []).map((s) => pq(s.portionId)), ...(op.prepUses || []).map((u) => (R.preps[u.prepId] || {}).qualif)], `la cuvée de tirage ${(R.lots[op.lotId] || {}).code || ''}`);
-        const parts = []; (op.sources || []).forEach((s) => { const t = take(op, s.portionId, s.volL); if (t) { flow(op, 'tirage', -t.vol, { lotId: t.lotId }); parts.push({ lotId: t.lotId, vol: t.vol }); } });
+        const parts = []; (op.sources || []).forEach((s) => { const t = take(op, s.portionId, s.volL); if (t) { flow(op, 'tirage', -t.vol, { lotId: t.lotId, ...(estMise(op) ? { mise: true } : {}) }); parts.push({ lotId: t.lotId, vol: t.vol }); } });
         { const v = sum(parts, (x) => x.vol); if (v > 0) { const v0 = R.tirVol[op.lotId] || 0; concMelange(op.lotId, v0, concDe(parts), v); R.tirVol[op.lotId] = v0 + v; } }
         (op.prepUses || []).forEach((u) => { const pr = usePrep(op, u, op.lotId); if (pr) { const v0 = R.tirVol[op.lotId] || 0; prepVerse(op, pr.id, op.lotId, v0, num(u.volL)); R.tirVol[op.lotId] = v0 + num(u.volL); } });
-        R.tir[op.lotId] = { lotId: op.lotId, nb: num(op.nbBouteilles), mis: num(op.nbBouteilles), date: op.date, ...(Array.isArray(op.formats) && op.formats.length ? { formats: op.formats.map((x) => ({ format: x.format, nb: num(x.nb), L: num(x.L) })) } : {}), ...(num(op.casse) > 0 ? { casse: num(op.casse) } : {}) };
+        // 0.50.0-alpha.2 : mise en bouteille d'un vin tranquille ou doux → bouteilles finies (lot fini), jamais sur lattes
+        if (estMise(op)) { R.mises[op.lotId] = { lotId: op.lotId, opId: op.id, nb: num(op.nbBouteilles), date: op.date, formats: tirageFormatsDe(op), ...(num(op.casse) > 0 ? { casse: num(op.casse) } : {}) }; setStade(op, op.lotId, stadeRole(db, 'mise') || 'en_bouteille'); }
+        else R.tir[op.lotId] = { lotId: op.lotId, nb: num(op.nbBouteilles), mis: num(op.nbBouteilles), date: op.date, ...(Array.isArray(op.formats) && op.formats.length ? { formats: op.formats.map((x) => ({ format: x.format, nb: num(x.nb), L: num(x.L) })) } : {}), ...(num(op.casse) > 0 ? { casse: num(op.casse) } : {}) };
         applyLignes(op, op.lignes, { kind: 'tirage', lotId: op.lotId, vol: num(op.nbBouteilles) * num(op.volBouteilleL || 0.75), qualif: R.lots[op.lotId] && R.lots[op.lotId].qualif });
         // 0.42.0-alpha.3 : fournitures suivies par lot fournisseur sans décompte → tracées (quantité 0, quantité utilisée gardée à part)
         (Array.isArray(op.fournitures) ? op.fournitures : []).filter((x) => x && !x.decompte && x.produitId && prod[x.produitId]).forEach((x) => { const a = arr[x.arrivageId]; R.apps.push({ opId: op.id, date: op.date, opType: op.type, opSousType: '', produitId: x.produitId, arrivageId: x.arrivageId || null, numLot: a ? a.numLot : '', qty: 0, nonDecompte: num(x.qty), unite: prod[x.produitId].unite, kind: 'tirage', portionId: null, lotId: op.lotId || null, contenantId: null, prepId: null, vol: null, dose: null, qualif: null, unauth: false, over: false, volLot: null, cumul: null, so2: 0 }); });
@@ -409,7 +411,7 @@ function opCreates(op) {
   if (op.type === 'reprise' && op.portionId) c.portions.push(op.portionId);
   if (op.type === 'entree_mout') { (op.lots || []).forEach((l) => { c.lots.push(l.lotId); c.portions.push(l.portionId); }); if (op.lotId) c.lots.push(op.lotId); }
   if (op.type === 'preparation') c.preps.push(op.prepId);
-  if (op.type === 'degorgement') c.finis.push(op.lotFiniId);
+  if (op.type === 'degorgement' || (op.type === 'tirage' && op.lotFiniId)) c.finis.push(op.lotFiniId); // 0.50.0-alpha.2 : lot fini d'une mise en bouteille
   if (op.type === 'apport') c.apports.push(op.id);
   return c;
 }

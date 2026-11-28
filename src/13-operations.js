@@ -91,6 +91,7 @@ const DEFAULT_OPERATIONS = () => ([
   { id: 'tirage', base: 'tirage', label: 'Tirage (mixtion)', groupe: 'Tirage & bouteilles', stadeAuto: { actif: true, stade: 'tire' } },
   { id: 'remuage', base: 'etape', label: 'Remuage', groupe: 'Tirage & bouteilles', icone: '↯', aide: 'Bouteilles remuées (gyropalettes ou pupitres) puis mises sur pointes : le dépôt est amené au col avant le dégorgement.', stadeAuto: { actif: true, stade: 'sur_pointes' } },
   { id: 'degorgement', base: 'degorgement', label: 'Dégorgement', groupe: 'Tirage & bouteilles' },
+  { id: 'mise_bouteille', base: 'tirage', label: 'Mise en bouteille', groupe: 'Tirage & bouteilles', icone: '🍷', interne: true, aide: 'Vin tranquille ou doux mis en bouteille : saisi dans l’onglet « Mise en bouteille » (lot fini, bouchage, DDM, contrôles).' }, // 0.50.0-alpha.2
   // Sorties de cave
   { id: 'sortie', base: 'sortie', label: 'Vente de vin en vrac', groupe: 'Sorties de cave', menu: true, aide: 'Vin ou moût vendu en vrac et enlevé (DAE) : le volume sort du stock de la cave.', motif: 'Vente en vrac' },
   { id: 'distillerie', base: 'sortie', label: 'Prestations viniques (distillerie)', groupe: 'Sorties de cave', icone: '⚗', aide: 'Lies, bourbes ou vins livrés à la distillerie (obligation réglementaire) : le volume sort du stock.', motif: 'Prestations viniques' },
@@ -117,6 +118,7 @@ const opEtapePour = (db, stade) => { const v = opList(db).find((x) => x.base ===
 const OP_MODULES_SAISIE = { preparation: 'tirage', alimentation: 'tirage', tirage: 'tirage', degorgement: 'degorgement' };
 function opModuleSaisie(db, x) {
   const d = typeof x === 'string' ? opDef(db, x) : x; if (!d) return 'ops';
+  if (d.id === 'mise_bouteille') return 'mise'; // 0.50.0-alpha.2
   if (OP_MODULES_SAISIE[d.base]) return OP_MODULES_SAISIE[d.base];
   return d.id === 'remuage' || d.groupe === OP_GROUPES[4] ? 'cave' : 'ops';
 }

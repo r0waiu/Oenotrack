@@ -13,7 +13,7 @@
    la main sinon. Rien n'est supprimé : masquer un onglet ou une opération ne touche aucune donnée. Les versions antérieures lisent les mêmes
    champs qu'avant (settings.modulesOff, lists.operations[].masque, lists.fractions[].pressurage, settings.region, settings.profilViticole). */
 const PROFIL_FORCE_VALEURS = ['affiche', 'masque'];
-const PROFIL_POUR = { rouge: 'Vins tranquilles rouges', rose: 'Vins tranquilles rosés', mousse: 'Vins effervescents', doux: 'Vins doux', jura: 'Jura et Savoie' };
+const PROFIL_POUR = { tranquille: 'Vins tranquilles', rouge: 'Vins tranquilles rouges', rose: 'Vins tranquilles rosés', mousse: 'Vins effervescents', doux: 'Vins doux', jura: 'Jura et Savoie' };
 const PROFIL_CIBLE_GROUPES = [['onglets', 'Onglets'], ['operations', 'Opérations'], ['fractions', 'Fractions au pressurage'], ['champagne', 'Spécificités champenoises']];
 const profilForces = (db) => { const f = (((db && db.settings) || {}).profilViticole || {}).forces; const out = {}; if (f && typeof f === 'object') Object.keys(f).forEach((k) => { if (PROFIL_FORCE_VALEURS.includes(f[k])) out[k] = f[k]; }); return out; };
 const profilEstDirect = (db) => !!((((db && db.settings) || {}).profilViticole || {}).direct);
@@ -33,6 +33,7 @@ function profilCibles(db, region, types) {
   const mousse = T.includes('effervescent') || T.includes('ancestrale'); const champ = reg === 'champagne'; const forces = profilForces(db); const out = [];
   const add = (cle, groupe, label, voulu, actuel, x) => { const f = forces[cle] || ''; const main = !!(x && x.main); out.push({ cle, groupe, label, voulu: !!voulu, actuel: actuel == null ? null : !!actuel, force: f, main, pour: (x && x.pour) || [], effectif: f ? f === 'affiche' : (main && actuel != null ? !!actuel : !!voulu) }); };
   PROFIL_MODULES_MOUSSE.forEach((m) => add(`module:${m}`, 'onglets', PROFIL_MODULES_NOMS[m], mousse, moduleActif(db, m), { pour: mousse ? ['mousse'] : [] }));
+  add('module:mise', 'onglets', PROFIL_MODULES_NOMS.mise, profilVeutMise(T), moduleActif(db, 'mise'), { pour: T.filter((t) => PROFIL_TYPES_MISE.includes(t)).map((t) => (t === 'doux' ? 'doux' : 'tranquille')).filter((x, i, a) => a.indexOf(x) === i) }); // 0.50.0-alpha.2
   const ops = opList(db); const defOps = DEFAULT_OPERATIONS(); const deja = Array.isArray(pv.ops) ? pv.ops : [];
   const veulent = { rouge: T.includes('rouge'), rose: T.includes('rose'), mousse, doux: T.includes('doux'), jura: reg === 'jura_savoie' };
   uniq(Object.values(PROFIL_OPS).flat()).forEach((id) => {

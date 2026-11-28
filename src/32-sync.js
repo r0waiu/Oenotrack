@@ -27,6 +27,7 @@ const SYNC_NOMS = {
   catalogues: ['catalogue importé', 'catalogues importés'], catalogueReglage: ['réglage des catalogues', 'réglages des catalogues'], plafonds: ['plafond de revendication', 'plafonds des revendications'], // 0.30.0-alpha.1
   schemas: ['schéma de vinification', 'schémas de vinification'], // 0.31.0-alpha.1
   plansVinif: ['plan de vinification', 'plans de vinification'], // 0.39.0-alpha.1
+  chantiersMise: ['chantier de mise en bouteille', 'chantiers de mise en bouteille'], // 0.50.0-alpha.2
   codifRegles: ['règle de codification', 'règles de codification'], codifTables: ['table de codification', 'tables de codification'], habillages: ['habillage ou mise en carton', 'habillages et mises en carton'], // 0.41.0-alpha.1
   chantiersTirage: ['chantier de tirage', 'chantiers de tirage'], // 0.42.0-alpha.2
   declarationsTirage: ['déclaration de tirage', 'déclarations de tirage'], // 0.42.0-alpha.4

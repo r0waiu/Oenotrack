@@ -159,7 +159,7 @@ function operateurDelete(db, id) {
    settings.modulesOrdre = [ids] : ordre des onglets (un id inconnu — module d'une version plus récente — garde sa place) ;
    settings.modulesOff = [ids] : modules désactivés (onglet masqué, aucune donnée supprimée). « Paramètres » reste toujours actif.
    Un module ajouté par une version plus récente et absent de l'ordre enregistré se place après son voisin de l'ordre d'origine. */
-const MODULES_DEFAUT = ['cuverie', 'pressoir', 'ops', 'previsions', 'plan', 'declass', 'tirage', 'cave', 'degorgement', 'analyses', 'intrants', 'hygiene', 'equipements', 'trace', 'registres', 'params'];
+const MODULES_DEFAUT = ['cuverie', 'pressoir', 'ops', 'previsions', 'plan', 'declass', 'tirage', 'cave', 'degorgement', 'mise', 'analyses', 'intrants', 'hygiene', 'equipements', 'trace', 'registres', 'params'];
 const MODULE_FIXE = 'params';
 const estModule = (id) => MODULES_DEFAUT.includes(id);
 function modulesOrdre(db) {
@@ -246,7 +246,7 @@ function moduleActiver(db, id, actif, opts) {
   if (!actif) off.push(id);
   db.settings.modulesOff = off;
   // 0.50.0-alpha.1 : changé à la main contre le réglage Vignoble (en direct) → exception notée (16oe)
-  if (!(opts && opts.profil) && typeof profilNoterMain === 'function' && PROFIL_MODULES_MOUSSE.includes(id)) profilNoterMain(db, `module:${id}`, !!actif);
+  if (!(opts && opts.profil) && typeof profilNoterMain === 'function' && [...PROFIL_MODULES_MOUSSE, 'mise'].includes(id)) profilNoterMain(db, `module:${id}`, !!actif);
   return okr();
 }
 function modulesReinitialiser(db, quoi) { // 'ordre' | 'activation' | (les deux)

@@ -121,6 +121,10 @@ function normalizeDb(d) {
     out.settings.stadesV9 = true;
   }
   if (!Array.isArray(out.lists.stadesMelanges)) out.lists.stadesMelanges = DEFAULT_STADES_MELANGES();
+  // 0.50.0-alpha.2 : stade « Mis en bouteille » (vins tranquilles et doux) ajouté une fois à une base existante (retiré ensuite : pas remis)
+  // 0.50.0-alpha.2 : nouvel onglet « Mise en bouteille » masqué une fois pour un profil défini sans vin tranquille ni doux (Champagne seul)
+  if (!out.settings.moduleMise050) { const pv = out.settings.profilViticole || {}; if (Array.isArray(pv.types) && pv.types.length && !profilVeutMise(pv.types) && !(out.settings.modulesOff || []).includes('mise')) out.settings.modulesOff = [...(Array.isArray(out.settings.modulesOff) ? out.settings.modulesOff : []), 'mise']; out.settings.moduleMise050 = true; }
+  if (!out.settings.stadeMise050) { if (!out.lists.stades.some((y) => y && (y.id === 'en_bouteille' || y.role === 'mise'))) out.lists.stades.push({ phase: 'bout', role: 'mise', ...DEFAULT_STADES().find((x) => x.id === 'en_bouteille') }); out.settings.stadeMise050 = true; }
   { const D = DEFAULT_OPERATIONS(); const cur = Array.isArray(dlists.operations) ? dlists.operations.filter((x) => x && x.id).map((x) => ({ ...x })) : [];
     D.forEach((x, i) => { if (cur.some((y) => y.id === x.id)) return; let pos = -1; for (let j = i - 1; j >= 0 && pos < 0; j -= 1) pos = cur.findIndex((y) => y.id === D[j].id); cur.splice(pos + 1, 0, { ...x }); });
     // opérations d'origine : les réglages de l'utilisateur priment, les nouveaux champs par défaut complètent ; comportement toujours d'origine
@@ -221,7 +225,7 @@ function assignIds(db, op, old) {
       break;
     case 'debourbage': case 'soutirage': case 'transfert': keep('outPortionId', 'por'); break;
     case 'assemblage': keep('lotId', 'lot'); keep('outPortionId', 'por'); break;
-    case 'tirage': keep('lotId', 'lot'); break;
+    case 'tirage': keep('lotId', 'lot'); if (estMise(op)) keep('lotFiniId', 'fini'); break; // 0.50.0-alpha.2 : lot fini de la mise
     case 'preparation': keep('prepId', 'prep'); break;
     case 'degorgement': keep('lotFiniId', 'fini'); break;
     case 'reprise': keep('lotId', 'lot'); if (op.contenantId) keep('portionId', 'por'); break;
@@ -246,10 +250,13 @@ function syncEntities(db, op) {
     const qs = [...srcs.map((s) => lq(s.lotId)), ...(op.type === 'tirage' ? prepQ : [])];
     const q = qs.length ? minQualif(qs) : 'conv';
     const agg = {}; srcs.forEach((s) => { agg[s.lotId] = (agg[s.lotId] || 0) + num(s.volL); });
-    const type = op.type === 'tirage' ? 'cuvee_tirage' : (sp.type || 'assemblage');
+    const mise = estMise(op); const type = mise ? 'mise_bouteille' : op.type === 'tirage' ? 'cuvee_tirage' : (sp.type || 'assemblage');
     const srcL = Object.keys(agg).map((k) => Rd.lots[k] || lotById(db, k) || {});
-    const stade = op.stade || (op.type === 'tirage' ? stadeRole(db, 'tirage') : stadeAssemblage(db, srcL.map((l) => l.stade))) || 'assemble';
+    const stade = op.stade || (mise ? (stadeRole(db, 'mise') || 'en_bouteille') : op.type === 'tirage' ? stadeRole(db, 'tirage') : stadeAssemblage(db, srcL.map((l) => l.stade))) || 'assemble';
     upsert(db.lots, { id: op.lotId, code: sp.code, designation: sp.designation, millesime: sp.millesime, type, qualif: q, parentIds: Object.keys(agg), sources: Object.keys(agg).map((k) => ({ lotId: k, volL: r2(agg[k]) })), opId: op.id, date: op.date, stade, couleur: op.couleur || mixCouleur(db, srcL.map((l) => l.couleur)) || couleurDefaut(db), ...(sp.codif ? { codif: sp.codif } : {}), ...(op.mixtion ? { mixtion: true } : {}) });
+    // 0.50.0-alpha.2 : la mise en bouteille crée aussitôt le lot fini (habillage, mise en carton, DRM) ; même code que le lot de mise
+    if (mise && op.lotFiniId) { const lo = db.lots.find((x) => x.id === op.lotId) || {}; const M = op.mise || {}; if (!db.lotsFinis) db.lotsFinis = [];
+      upsert(db.lotsFinis, { id: op.lotFiniId, code: sp.code, designation: sp.designation, sourceLotId: op.lotId, date: op.date, nb: num(op.nbBouteilles), qualif: q, opId: op.id, couleur: lo.couleur || couleurDefaut(db), mise: true, ...(M.ddm ? { ddm: M.ddm } : {}), formats: tirageFormatsDe(op), volBouteilleL: num(op.volBouteilleL) || 0.75, ...(sp.codif ? { codif: sp.codif } : {}) }); }
   }
   if (op.type === 'reprise') {
     const sp = op.lotSpec || {};

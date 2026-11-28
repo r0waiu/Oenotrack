@@ -16,6 +16,10 @@ const FOURNITURE_TYPES = [
   { id: 'agrafe', label: 'Agrafe', caracs: ['fabricant', 'modele', 'matiere'], mots: /\bagrafes?\b/i },
   { id: 'adjuvant', label: 'Adjuvant de remuage', caracs: ['fabricant', 'modele'], mots: /\b(adjuvants?\s+de\s+remuage|bentonite.*remuage|alginate)\b/i },
   { id: 'emballage', label: 'Caisse, palette, intercalaire', caracs: ['fabricant', 'modele', 'matiere', 'contenance'], mots: /\b(caisses?-?fils?|intercalaires?|palettes?|gyropalettes?)\b/i },
+  // 0.50.0-alpha.2 : fournitures de mise en bouteille (vins tranquilles et doux)
+  { id: 'bouchon_mise', label: 'Bouchon ou obturateur de mise (liège, synthétique, vis)', caracs: ['fabricant', 'modele', 'diametre', 'matiere'], mots: /\b(bouchons?\s+(liege|li[eè]ge|synth|technique|colmat|agglo)|capsules?\s+(a|à)\s+vis|stelvin)\b/i },
+  { id: 'capsule_surbouchage', label: 'Capsule de surbouchage (CRD ou non)', caracs: ['fabricant', 'modele', 'diametre', 'matiere', 'couleur'], mots: /\b(capsules?\s+(crd|de\s+surbouchage|complexe|etain|étain)|surbouchage)\b/i },
+  { id: 'etiquette', label: 'Étiquette, contre-étiquette, collerette', caracs: ['fabricant', 'modele'], mots: /(^|[\s,;(«-])([eé]tiquettes?|collerettes?|contre-?[eé]tiquettes?)(?![a-zà-ÿ])/i },
   { id: 'autre', label: 'Autre fourniture de tirage', caracs: ['fabricant', 'modele'] },
 ];
 const FOURNITURE_CARACS = { verrier: 'Verrier', fabricant: 'Fabricant', modele: 'Modèle', format: 'Format', teinte: 'Teinte', bague: 'Bague (mm)', poids: 'Poids (g)', marquage: 'Marquage', diametre: 'Diamètre (mm)', matiere: 'Matière', couleur: 'Couleur', joint: 'Joint', contenance: 'Contenance (cols)' };
@@ -53,15 +57,15 @@ function fournitureQteTirage(db, p, t) {
   const type = fournitureTypeDe(p); const F = (t.formats || []).filter((f) => num(f.nb) > 0); const n = sum(F, (f) => num(f.nb)); const casse = num(t.casse);
   if (!n) return null;
   if (type === 'bouteille') { const fm = fournitureFormat(p); const nf = fm ? sum(F.filter((f) => (f.format || 'bouteille') === fm), (f) => num(f.nb)) : n; return Math.round(nf + casse * nf / n); }
-  if (['obturateur', 'capsule', 'bouchon', 'agrafe'].includes(type)) return Math.round(n + casse);
+  if (['obturateur', 'capsule', 'bouchon', 'agrafe', 'bouchon_mise', 'capsule_surbouchage'].includes(type)) return Math.round(n + casse);
   return null;
 }
 // fournitures proposées pour un tirage : pour chaque format, la bouteille du format la plus en stock ; un obturateur et une capsule
-function tirageFournituresProposees(db, R, t) {
+function tirageFournituresProposees(db, R, t, types) {
   const F = (t.formats || []).filter((f) => num(f.nb) > 0); const out = [];
   const meilleur = (P) => { const L = P.map((p) => { const A = (db.arrivages || []).filter((a) => a.produitId === p.id).map((a) => ({ a, rest: arrivalRest(R, a) })).filter((x) => x.rest > 0).sort((x, y) => (x.a.date < y.a.date ? -1 : 1)); return { p, A, tot: sum(A, (x) => x.rest) }; }).filter((x) => x.p.actif !== false).sort((x, y) => y.tot - x.tot); return L[0] || null; };
   uniq(F.map((f) => f.format || 'bouteille')).forEach((fm) => { const P = fournituresTirage(db, 'bouteille').filter((p) => fournitureFormat(p) === fm || (!fournitureFormat(p) && fm === 'bouteille')); const m = meilleur(P); if (m) out.push({ produitId: m.p.id, arrivageId: m.A.length ? m.A[0].a.id : '', type: 'bouteille', format: fm }); });
-  ['obturateur', 'capsule'].forEach((ty) => { const m = meilleur(fournituresTirage(db, ty)); if (m) out.push({ produitId: m.p.id, arrivageId: m.A.length ? m.A[0].a.id : '', type: ty }); });
+  (types || ['obturateur', 'capsule']).forEach((ty) => { /* 0.50.0-alpha.2 : mise en bouteille → bouchon de mise, capsule de surbouchage */ const m = meilleur(fournituresTirage(db, ty)); if (m) out.push({ produitId: m.p.id, arrivageId: m.A.length ? m.A[0].a.id : '', type: ty }); });
   return out.map((x) => ({ ...x, calc: fournitureQteTirage(db, _fProd(db, x.produitId), t) }));
 }
 // fournitures d'un tirage → trace (op.fournitures) et lignes décomptées (op.lignes, fourniture: true)

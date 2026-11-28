@@ -108,7 +108,7 @@ const drmFinPeriode = (db, key) => { const p = drmPeriode(db, key); return p ? p
 
 /* ---------- rattachement des lots aux produits ---------- */
 function drmNatureLot(db, Rs, lotId) {
-  const l = (db.lots || []).find((x) => x.id === lotId) || {}; if (l.type === 'cuvee_tirage') return 'mousseux';
+  const l = (db.lots || []).find((x) => x.id === lotId) || {}; if (l.type === 'cuvee_tirage') return 'mousseux'; if (l.type === 'mise_bouteille') return 'tranquille'; // 0.50.0-alpha.2
   const bout = stadeList(db).filter((s) => s.phase === 'bout').map((s) => s.id);
   return Rs.some((R) => R && ((R.tir && R.tir[lotId]) || (R.tirVol && R.tirVol[lotId] > 0) || (R.lots && R.lots[lotId] && bout.includes(R.lots[lotId].stade)))) ? 'mousseux' : 'tranquille';
 }
@@ -145,6 +145,8 @@ function drmSaisieSet(db, periode, produitId, patch) {
 // que les saisies mensuelles, une DRA compte aussi les saisies annuelles
 function drmFinis(db, D, prodDe, type) {
   const s = {};
+  // 0.50.0-alpha.2 : bouteilles mises (vins tranquilles et doux) : vrac → conditionné dans le même produit
+  (db.ops || []).forEach((o) => { if (!estMise(o) || !o.date || o.date > D || !(num(o.nbBouteilles) > 0)) return; const pid = prodDe(o.lotId); s[pid] = (s[pid] || 0) + tirageVolFormats(tirageFormatsDe(o)); });
   (db.ops || []).forEach((o) => { if (o.type !== 'degorgement' || !o.date || o.date > D || !(num(o.nb) > 0)) return; const pid = prodDe(o.sourceLotId); s[pid] = (s[pid] || 0) + num(o.nb) * num(o.volBouteilleL || DRM_BOUTEILLE_L); });
   (db.drmSorties || []).forEach((x) => { if (type === 'M' && !String(x.periode).startsWith('M:')) return; const fin = drmFinPeriode(db, x.periode); if (!fin || fin > D) return; const n = num(x.entrees) - num(x.ventesFrance) - num(x.ventesFranceAnt) - num(x.definitives) - num(x.degustation) - num(x.autres); s[x.produitId] = (s[x.produitId] || 0) + n * DRM_BOUTEILLE_L; });
   return s;

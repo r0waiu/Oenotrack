@@ -18,14 +18,14 @@ function FournitureProduitBox({ f, set }) {
 }
 
 // fournitures d'un lot de tirage : quantités calculées (cols + casse) ou saisies, lot fournisseur, alertes
-function FournituresTirageBox({ db, Rd, f, upd, F0 }) {
+function FournituresTirageBox({ db, Rd, f, upd, F0, types, titre }) { // 0.50.0-alpha.2 : types proposés (mise en bouteille : bouchon de mise, capsule de surbouchage)
   const L = f.fournitures || []; const t = { formats: F0, casse: num(f.casse) }; const setL = (i, p) => upd({ fournitures: L.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const P = fournituresTirage(db).filter((p) => p.actif !== false || L.some((x) => x.produitId === p.id)).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   const arrs = (pid) => (db.arrivages || []).filter((a) => a.produitId === pid).map((a) => ({ a, rest: arrivalRest(Rd, a) })).sort((x, y) => (x.a.date < y.a.date ? -1 : 1));
-  const proposer = () => { const N = tirageFournituresProposees(db, Rd, t).filter((x) => !L.some((y) => y.produitId === x.produitId)); upd({ fournitures: [...L, ...N] }); };
+  const proposer = () => { const N = tirageFournituresProposees(db, Rd, t, types).filter((x) => !L.some((y) => y.produitId === x.produitId)); upd({ fournitures: [...L, ...N] }); };
   const al = fournituresAlertes(db, Rd, L.map((x) => ({ ...x, calc: fournitureQteTirage(db, prodOf(db, x.produitId), t) })), t);
   return (<div className="rounded-md border border-line p-3 grid gap-2" data-fournitures-tirage="">
-    <div className="flex flex-wrap items-center gap-2"><span className="lbl">Fournitures du lot (bouteilles, obturateurs, capsules…)</span>
+    <div className="flex flex-wrap items-center gap-2"><span className="lbl">{titre || 'Fournitures du lot (bouteilles, obturateurs, capsules…)'}</span>
       <Btn size="sm" onClick={proposer} disabled={!F0.length}>Proposer d’après les formats</Btn><Btn size="sm" onClick={() => upd({ fournitures: [...L, { produitId: '', arrivageId: '' }] })}>＋ Fourniture</Btn></div>
     {L.map((x, i) => { const p = prodOf(db, x.produitId); const calc = x.produitId ? fournitureQteTirage(db, p, t) : null; const A = x.produitId ? arrs(x.produitId) : []; const man = !!x.manuel || calc == null;
       return (<div key={i} className="flex flex-wrap items-end gap-2" data-fourniture-ligne={i}>
