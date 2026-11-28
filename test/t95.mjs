@@ -156,7 +156,7 @@ const choisi = async (page, id) => (await page.locator(`#tab-${id}`).getAttribut
   await page.click('#tab-degorgement'); await page.waitForTimeout(400); t = await txt(page.locator('main'));
   ok('… Dégorgement : « New disgorging », « 🖨 Print / PDF »', /New disgorging/.test(t) && /🖨 Print \/ PDF/.test(t), t.slice(0, 500));
   await page.click('#tab-analyses'); await page.waitForTimeout(400); t = await txt(page.locator('main'));
-  ok('… Analyses : « + New analysis », « Parameters & sheet templates »', /\+ New analysis/.test(t) && /Parameters & sheet templates/.test(t), t.slice(0, 400));
+  ok('… Analyses : « + New analysis », sous-onglet « ⚙ Settings » (0.48 : réglages des modules)', /\+ New analysis/.test(t) && /⚙ Settings/.test(t), t.slice(0, 400));
   await page.click('#tab-trace'); await page.waitForTimeout(400); t = await txt(page.locator('main'));
   ok('… Traçabilité : « 🔎 Search », filtres « All · Additive · Cru · Plot · Partner »', /🔎 Search/.test(t) && (await page.locator('[data-trace-filtre]').allInnerTexts()).join('·') === 'All·Additive·Cru·Plot·Partner', t.slice(0, 300));
   ok('aucune erreur (anglais)', errors.length === 0, errors);
