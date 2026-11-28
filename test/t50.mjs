@@ -12,6 +12,8 @@ const JPEG = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDB
   const ov = () => page.locator('.overlay').last();
   await page.click('#tab-ops'); await page.waitForTimeout(400);
   await page.locator('main button:text-is("Soutirage")').click(); await page.waitForTimeout(500); const f = ov();
+  // 0.48.0-alpha.1 : au téléphone, la section « Documents joints » (vide) est repliée avec son compteur : on la déplie
+  await f.locator('[data-cf-tel="docs"] > summary').click(); await page.waitForTimeout(150);
   const ph = f.locator('[data-photo]');
   ok('téléphone : bouton « 📷 Photo » à côté de « Joindre des fichiers »', (await ph.count()) === 1 && await ph.isVisible() && /Photo/.test(await ph.innerText()) && (await f.locator('[data-zone-depot]').count()) === 1);
   const inp = f.locator('input[aria-label="Photo à joindre"]');
