@@ -11,6 +11,8 @@ const APP_CATS = { t: 'tranquille', e: 'effervescent', p: 'petillant', a: 'ances
 const APP_COUL = { b: 'blanc', o: 'rose', r: 'rouge' };
 const APP_ETATS = { absente_inao: 'enregistrée dans l’UE, absente de la liste de l’INAO', annulee: 'annulée dans l’UE', demande: 'demande d’enregistrement en cours' };
 let _appRef = null;
+// relevé seul, sans les compléments ni les corrections des cahiers des charges (tests, comptes du relevé)
+const appRefReleve = () => String(typeof APP_REF_TXT === 'string' ? APP_REF_TXT : '').split('\n').filter(Boolean).map((l) => { const [nom, region, pays, signe, eu, sousRegion, c, k, v, etat] = l.split('\t'); return { id: `${region}:${norm(nom)}`, nom, region, pays, signe, eu, sousRegion, libre: c === '*', cats: c === '*' ? [] : c.split('').map((x) => APP_CATS[x]).filter(Boolean), couleurs: (k || '').split('').map((x) => APP_COUL[x]).filter(Boolean), verifie: v === '1', etat: etat || '', source: '' }; });
 function appRef() {
   if (_appRef) return _appRef;
   _appRef = String(typeof APP_REF_TXT === 'string' ? APP_REF_TXT : '').split('\n').filter(Boolean).map((l) => {
