@@ -279,7 +279,7 @@ function PeseesView({ annee }) {
       </div>
       <Sec title={`Registre des pesées ${annee}`} right={<><input className="inp" style={{ width: 200 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher…" aria-label="Rechercher une pesée" />
         <SI value={jour} onChange={setJour} placeholder="Tous les jours" style={{ width: 'auto' }} options={jours.map((j) => ({ value: j, label: fmtDate(j) }))} aria-label="Jour" />
-        {droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouvelle-pesee="">+ Nouvelle pesée</Btn> : null}</>}>
+        {droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouvelle-pesee="">＋ Nouvelle pesée</Btn> : null}</>}>
         {!L.length ? <PressoirVide data="pesees" titre={`Aucune pesée en ${annee}`} texte="Enregistrez une pesée à l’arrivée de chaque chargement de raisins : elle alimente le registre des pesées, le ticket de pesée et le carnet de pressoir." action="＋ Enregistrer la première pesée" onAction={droits.ecrit && !camp.figee ? () => setForm({}) : null} /> : null}
         {L.length ? <Tbl rows={rows} empty="Aucune pesée pour ces critères." cols={[
           { h: 'N°', r: (o) => <b className="num" data-num-pesee="">{(o.pesee || {}).num || '—'}</b> },
@@ -354,7 +354,7 @@ function MarcForm({ id, onClose, preset }) {
             <NI value={c.kg} onChange={(v) => setCh(f.charges.map((x, k) => (k === i ? { ...x, kg: v } : x)))} placeholder="kg" aria-label={`Poids chargé ${i + 1}`} />
             <Btn kind="danger" size="sm" aria-label="Retirer" onClick={() => setCh(f.charges.filter((_, k) => k !== i))}>✕</Btn>
           </div>))}
-          <div className="flex flex-wrap gap-2"><Btn size="sm" onClick={() => setCh([...f.charges, { apportId: '', kg: '' }])}>+ Ajouter une pesée</Btn><Btn size="sm" kind="ghost" onClick={remplir} data-remplir="">Charger les pesées du jour</Btn>
+          <div className="flex flex-wrap gap-2"><Btn size="sm" onClick={() => setCh([...f.charges, { apportId: '', kg: '' }])}>＋ Ajouter une pesée</Btn><Btn size="sm" kind="ghost" onClick={remplir} data-remplir="">Charger les pesées du jour</Btn>
             {!dispo.length ? <span className="help">Aucune pesée à presser à cette date : enregistrez d’abord les pesées (onglet Pesées).</span> : null}</div>
         </div>
       </Group>
@@ -402,7 +402,7 @@ function MarcsView({ annee }) {
         <Kpi label="Marcs" value={L.length} sub={`${fmt(sum(L, marcKg))} kg pressés`} /><Kpi label="Moûts" value={fmtL(sum(L, (o) => marcVolumes(db, o).total))} sub={`dont rebêches ${fmtL(sum(L, (o) => marcVolumes(db, o).rebeche))}`} />
         <Kpi label="En cours" value={enCours} tone={enCours ? 'warn' : undefined} sub="volumes à compléter" /><Kpi label="À valider" value={aValider} tone={aValider ? 'warn' : 'ok'} sub={aValider ? 'marcs non validés' : 'carnet à jour'} />
       </div>
-      <Sec title={`Carnet de pressoir ${annee}`} right={<><Btn onClick={() => setImp(true)} disabled={!L.length}>🖨 Imprimer le carnet</Btn>{droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouveau-marc="" title="Charger un marc : pesées pressées, cuves des moûts">+ Nouveau pressurage</Btn> : null}</>}>
+      <Sec title={`Carnet de pressoir ${annee}`} right={<><Btn onClick={() => setImp(true)} disabled={!L.length}>🖨 Imprimer le carnet</Btn>{droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouveau-marc="" title="Charger un marc : pesées pressées, cuves des moûts">＋ Nouveau pressurage</Btn> : null}</>}>
         {!L.length ? <PressoirVide data="marcs" titre={`Aucun pressurage en ${annee}`} texte="Chargez un marc au début de chaque pressurage (ou « Presser » sur une pesée) : il est numéroté au carnet de pressoir et crée les lots de moûts dans leurs cuves." action="＋ Nouveau pressurage" onAction={droits.ecrit && !camp.figee ? () => setForm({}) : null} /> : null}
         {L.length ? <Tbl rows={L} empty="Aucun marc cette année." cols={[
           { h: 'N°', r: (o) => <b className="num" data-num-marc="">{(o.marc || {}).num || '—'}</b> },
@@ -562,7 +562,7 @@ function ReglagesPressoirView({ annee }) {
         <p className="help mt-2">Champs affichés, repliés ou masqués, obligatoires, valeurs proposées et relevés personnalisés (pourriture grise, acidité…). La date et l’heure, le poids, le cépage, l’apporteur et la revendication particulière, mentions du registre et du ticket de pesée, restent toujours affichés.</p>
       </Sec>
       {formEd ? <FormulaireEditor catId="pesee" onClose={() => setFormEd(false)} /> : null}
-      <Sec title="Pressoirs et balances" right={droits.params ? <><SI value={sorte} onChange={setSorte} style={{ width: 'auto' }} options={[{ value: 'pressoir', label: 'Pressoir' }, { value: 'balance', label: 'Balance / bascule' }]} aria-label="Type d’équipement" /><input className="inp" style={{ width: 220 }} value={nouv} onChange={(e) => setNouv(e.target.value)} placeholder={sorte === 'balance' ? 'ex. Bascule 3 t' : 'ex. Pressoir Coquard 8 000 kg'} aria-label="Nom du nouvel équipement" /><Btn onClick={() => { const r = act((d) => equipementAjouter(d, nouv, sorte), 'Équipement ajouté.'); if (r.ok) setNouv(''); }} disabled={!nouv.trim()}>+ Ajouter</Btn></> : null}>
+      <Sec title="Pressoirs et balances" right={droits.params ? <><SI value={sorte} onChange={setSorte} style={{ width: 'auto' }} options={[{ value: 'pressoir', label: 'Pressoir' }, { value: 'balance', label: 'Balance / bascule' }]} aria-label="Type d’équipement" /><input className="inp" style={{ width: 220 }} value={nouv} onChange={(e) => setNouv(e.target.value)} placeholder={sorte === 'balance' ? 'ex. Bascule 3 t' : 'ex. Pressoir Coquard 8 000 kg'} aria-label="Nom du nouvel équipement" /><Btn onClick={() => { const r = act((d) => equipementAjouter(d, nouv, sorte), 'Équipement ajouté.'); if (r.ok) setNouv(''); }} disabled={!nouv.trim()}>＋ Ajouter</Btn></> : null}>
         <Tbl rows={PR} empty="Aucun pressoir : ajoutez-en un (capacité agréée)." cols={[{ h: 'Pressoir', r: (x) => <b>{x.nom}</b> },
           { h: 'Capacité agréée (kg)', r: (x) => <input className="inp num" style={{ width: 110 }} inputMode="decimal" defaultValue={x.capaciteKg || ''} key={`${x.id}-${x.capaciteKg}`} disabled={!droits.params} onBlur={(e) => { if (num(e.target.value) !== x.capaciteKg) act((d) => equipementPressoirSet(d, x.id, { pressoir: { capaciteKg: e.target.value } }), 'Capacité enregistrée.'); }} aria-label={`Capacité de ${x.nom}`} /> },
           { h: 'Agrément', r: (x) => <SI value={x.agrement} onChange={(v) => act((d) => equipementPressoirSet(d, x.id, { pressoir: { agrement: v } }))} options={[{ value: 'qualitatif', label: 'qualitatif (4 marcs / jour en moyenne)' }, { value: 'simple', label: 'simple (5 en moyenne)' }]} aria-label={`Agrément de ${x.nom}`} /> },

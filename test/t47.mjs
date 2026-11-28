@@ -32,7 +32,7 @@ await e.locator('[data-fe-champ="caisses"] [role=radio][aria-label="Masqué"]').
 await e.locator('[data-fe-champ="tap"] input[type=checkbox]').check();
 await e.locator('[data-fe-champ="etat"] button[aria-label^="Détails"]').click(); await page.waitForTimeout(100);
 await e.locator('[data-fe-champ="etat"] select[aria-label^="Valeur par défaut"]').selectOption('faible');
-await e.locator('button', { hasText: '+ Ajouter un champ' }).click(); await page.waitForTimeout(200);
+await e.locator('button', { hasText: '＋ Ajouter un champ' }).click(); await page.waitForTimeout(200);
 let c = ov(); await c.locator('[aria-label="Nom du champ"]').fill('Pourriture grise'); await c.locator('[aria-label="Type de champ"]').selectOption('nombre'); await c.locator('[aria-label="Unité"]').fill('%');
 await c.locator('.sheet-f .btn-primary', { hasText: 'Ajouter le champ' }).click(); await page.waitForTimeout(200);
 await ov().locator('.sheet-f .btn-primary', { hasText: 'Enregistrer le formulaire' }).click(); await page.waitForTimeout(400);

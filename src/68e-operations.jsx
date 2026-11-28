@@ -89,7 +89,7 @@ function OperationsView() {
         <Kpi label="Opérations proposées" value={fmt(L.filter((x) => !x.masque && !x.interne).length)} /><Kpi label="Personnalisées" value={fmt(nPerso)} /><Kpi label="Avec stade automatique" value={fmt(nAuto)} /><Kpi label="Masquées" value={fmt(nMasq)} />
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Btn kind="primary" onClick={() => setEd({ id: null })}>+ Nouvelle opération</Btn>
+        <Btn kind="primary" onClick={() => setEd({ id: null })}>＋ Nouvelle opération</Btn>
         <TI value={q} onChange={setQ} placeholder="Rechercher une opération…" style={{ width: 240 }} aria-label="Rechercher une opération" />
         <Check checked={voir} onChange={setVoir} label="Afficher les opérations masquées" />
       </div>

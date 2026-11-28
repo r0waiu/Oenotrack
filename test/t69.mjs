@@ -84,7 +84,7 @@ await s.locator('[aria-label="Nom du produit de maintenance"]').fill('Huile de c
 await s.locator('[aria-label="Usage"]').fill('Compresseur du pressoir'); await s.locator('[aria-label="Apte au contact alimentaire"] [data-oui-non="non"]').click(); await s.locator('[aria-label="Utilisation en cave de vinification"] [data-oui-non="oui"]').click();
 ok('… alerte : utilisé en cave, non apte au contact alimentaire', /non apte au contact alimentaire/.test(await txt(s)));
 await s.locator('[data-suivi-stock] input[type=checkbox]').check(); await page.waitForTimeout(100); await s.locator('[aria-label="Stock minimal"]').fill('2');
-await s.locator('button', { hasText: '+ Champ' }).click(); await s.locator('[aria-label="Nom du champ 1"]').fill('Viscosité'); await s.locator('[aria-label="Valeur du champ 1"]').fill('ISO VG 46');
+await s.locator('button', { hasText: '＋ Champ' }).click(); await s.locator('[aria-label="Nom du champ 1"]').fill('Viscosité'); await s.locator('[aria-label="Valeur du champ 1"]').fill('ISO VG 46');
 await s.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(500);
 d = await db(); const hp = d.produitsMaintenance.find((p) => p.nom === 'Huile de compresseur fictive');
 ok('produit de maintenance créé (fournisseur, usage, contact Non, cave Oui, suivi du stock, champ perso)', hp && hp.fournisseur === 'Fournisseur test' && hp.contactAlimentaire === 'non' && hp.caveVinif === 'oui' && hp.suiviStock && hp.seuil === 2 && hp.champs[0].valeur === 'ISO VG 46', hp);

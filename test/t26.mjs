@@ -7,7 +7,7 @@ const top = () => page.locator('.overlay').last(); const log = (...a) => console
 await page.click('#tab-params'); await page.click('main button:has-text("Crus & parcelles")'); await page.waitForTimeout(300);
 await page.locator('main button', { hasText: 'Parcelles ·' }).click(); await page.waitForTimeout(300);
 log('parcelles :', (await page.locator('main tbody tr').allInnerTexts()).map((r) => r.replace(/\s+/g, ' ').slice(0, 90)).join(' || '));
-await page.locator('main button', { hasText: '+ Nouvelle parcelle' }).click(); await page.waitForTimeout(300);
+await page.locator('main button', { hasText: '＋ Nouvelle parcelle' }).click(); await page.waitForTimeout(300);
 await top().locator('input').first().fill('Le Clos du Puits');
 await pick(page, top().locator('input[aria-label="Cru (village)"]'), 'Ambo', 'Ambonnay');
 await top().locator('input[inputmode=decimal]').first().fill('18,4');
@@ -32,7 +32,7 @@ log('trace parcelle :', (await page.locator('main tbody tr td:first-child').allI
 await page.click('#tab-previsions'); await page.waitForTimeout(200); await page.locator('main button', { hasText: 'Modèles de fiches' }).click(); await page.waitForTimeout(300);
 await page.locator('main button', { hasText: /Personnaliser|Modifier/ }).first().click(); await page.waitForTimeout(400);
 const v = top().locator('input[aria-label="Libellé de la ligne 1 du cartouche"]'); await v.fill('Indice');
-await top().locator('button', { hasText: '+ Ligne libre' }).click(); await page.waitForTimeout(100);
+await top().locator('button', { hasText: '＋ Ligne libre' }).click(); await page.waitForTimeout(100);
 await top().locator('input[aria-label="Valeur de la ligne 5 du cartouche"]').fill('ENR-CUV-07');
 await top().locator('input[aria-label="Valeur de la ligne 1 du cartouche"]').fill('3');
 log('aperçu cartouche :', (await top().locator('.fiche .fh-ver').first().innerText()).replace(/\s+/g, ' '));

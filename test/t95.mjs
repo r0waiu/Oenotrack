@@ -31,7 +31,7 @@ const choisi = async (page, id) => (await page.locator(`#tab-${id}`).getAttribut
   ok('… liqueurs de tirage modifiables depuis Préparer (ou campagne figée signalée), lots servis', /Modifier|figée/.test(t) && /Utilisée pour/i.test(t), t.slice(0, 300));
   await sous(page, /Tirer/);
   t = await txt(page.locator('main'));
-  ok('U07 : « Tirer » sans boutons de préparation ni second tableau des préparations', !/\+ Levain levurien|\+ Liqueur de tirage|\+ Pied de cuve/.test(t) && !/Préparations \(levain, pied de cuve/.test(t) && /Tirages \(mixtions\)/.test(t), t.slice(0, 500));
+  ok('U07 : « Tirer » sans boutons de préparation ni second tableau des préparations', !/＋ Levain levurien|＋ Liqueur de tirage|＋ Pied de cuve/.test(t) && !/Préparations \(levain, pied de cuve/.test(t) && /Tirages \(mixtions\)/.test(t), t.slice(0, 500));
   const lien = page.locator('[data-preparations-lien] button');
   ok('… un lien « Préparations disponibles (n) → Préparer »', /^Préparations disponibles \(\d+\) → Préparer$/.test((await lien.innerText()).trim()), await lien.innerText());
   await lien.click(); await page.waitForTimeout(400);
@@ -156,7 +156,7 @@ const choisi = async (page, id) => (await page.locator(`#tab-${id}`).getAttribut
   await page.click('#tab-degorgement'); await page.waitForTimeout(400); t = await txt(page.locator('main'));
   ok('… Dégorgement : « New disgorging », « 🖨 Print / PDF »', /New disgorging/.test(t) && /🖨 Print \/ PDF/.test(t), t.slice(0, 500));
   await page.click('#tab-analyses'); await page.waitForTimeout(400); t = await txt(page.locator('main'));
-  ok('… Analyses : « + New analysis », sous-onglet « ⚙ Settings » (0.48 : réglages des modules)', /\+ New analysis/.test(t) && /⚙ Settings/.test(t), t.slice(0, 400));
+  ok('… Analyses : « + New analysis », sous-onglet « ⚙ Settings » (0.48 : réglages des modules)', /＋ New analysis/.test(t) && /⚙ Settings/.test(t), t.slice(0, 400));
   await page.click('#tab-trace'); await page.waitForTimeout(400); t = await txt(page.locator('main'));
   ok('… Traçabilité : « 🔎 Search », filtres « All · Additive · Cru · Plot · Partner »', /🔎 Search/.test(t) && (await page.locator('[data-trace-filtre]').allInnerTexts()).join('·') === 'All·Additive·Cru·Plot·Partner', t.slice(0, 300));
   ok('aucune erreur (anglais)', errors.length === 0, errors);

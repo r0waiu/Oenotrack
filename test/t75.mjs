@@ -41,7 +41,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   await page.screenshot({ path: SC + '/shots/t75-params.png' });
   // réglages rangés dans Vinification
   await page.locator('[data-params-item="operations"]').click(); await page.waitForTimeout(400);
-  ok('« ⚙ Opérations » → Vinification › Opérations & Assemblages › Catalogue des opérations', (await page.locator('[data-ops-catalogue]').count()) === 1 && (await page.locator('main button', { hasText: '+ Nouvelle opération' }).count()) >= 1);
+  ok('« ⚙ Opérations » → Vinification › Opérations & Assemblages › Catalogue des opérations', (await page.locator('[data-ops-catalogue]').count()) === 1 && (await page.locator('main button', { hasText: '＋ Nouvelle opération' }).count()) >= 1);
   await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('[data-params-item="jaugeage"]').click(); await page.waitForTimeout(400);
   ok('« 📏 Barèmes de jaugeage » → Vinification › Cuverie & Lots (sous-onglet Barèmes)', (await page.locator('[data-cuverie-baremes]').count()) === 1);
   await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('[data-params-item="schemas"]').click(); await page.waitForTimeout(400);
@@ -111,7 +111,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   await fa.locator('input[aria-label="Mot de passe"]').fill(MDP); await fa.locator('input[aria-label="Confirmer le mot de passe"]').fill(MDP);
   await fa.locator('button[type=submit]').click(); await page.waitForTimeout(1800);
   await ov().locator('label', { hasText: 'J’ai noté ce code' }).locator('input').check(); await ov().locator('button:text-is("Terminer")').click(); await page.waitForTimeout(400);
-  await page.locator('main button', { hasText: '+ Nouvel utilisateur' }).first().click(); await page.waitForTimeout(400);
+  await page.locator('main button', { hasText: '＋ Nouvel utilisateur' }).first().click(); await page.waitForTimeout(400);
   const f = ov(); await f.locator('input[aria-label="Identifiant"]').fill('chai'); await f.locator('label', { hasText: 'Nom affiché' }).locator('input').fill('Opérateur Essai');
   await f.locator('input[aria-label="Mot de passe provisoire"]').fill('Chai-2026!zz'); await f.locator('select[aria-label="Profil de droits"]').selectOption('pf_operateur');
   await f.locator('label', { hasText: 'À changer à la première connexion' }).locator('input').uncheck(); await f.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(1500);

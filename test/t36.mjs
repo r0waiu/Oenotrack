@@ -10,7 +10,7 @@ const dbLS = async () => page.evaluate(() => JSON.parse(localStorage.getItem('oe
 const has = (t, x) => t.toLowerCase().includes(x.toLowerCase()); // libellés en capitales (CSS)
 const allerOps = async () => { await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('main button', { hasText: 'Opérations' }).first().click(); await page.waitForTimeout(300); };
 const ajout = async (f) => {
-  await sheet().locator('button', { hasText: '+ Ajouter un champ' }).click(); await page.waitForTimeout(250); const d = sheet();
+  await sheet().locator('button', { hasText: '＋ Ajouter un champ' }).click(); await page.waitForTimeout(250); const d = sheet();
   await d.locator('input[aria-label="Nom du champ"]').fill(f.label); await d.locator('select[aria-label="Type de champ"]').selectOption(f.type);
   if (f.unite) await d.locator('input[aria-label="Unité"]').fill(f.unite); if (f.dec != null) await d.locator('select[aria-label="Décimales"]').selectOption(String(f.dec));
   if (f.min != null) await d.locator('input[aria-label="Minimum"]').fill(String(f.min)); if (f.max != null) await d.locator('input[aria-label="Maximum"]').fill(String(f.max));
@@ -41,7 +41,7 @@ await ajout({ label: 'Écart de température', type: 'calcul', unite: '°C', dec
 await ajout({ label: 'Contrôle visuel effectué', type: 'ouinon', obl: true });
 await ajout({ label: 'Aspect', type: 'liste', options: ['Limpide', 'Voilé', 'Trouble'] });
 // formule invalide refusée
-await sheet().locator('button', { hasText: '+ Ajouter un champ' }).click(); await page.waitForTimeout(200);
+await sheet().locator('button', { hasText: '＋ Ajouter un champ' }).click(); await page.waitForTimeout(200);
 await sheet().locator('input[aria-label="Nom du champ"]').fill('Faux calcul'); await sheet().locator('select[aria-label="Type de champ"]').selectOption('calcul'); await sheet().locator('input[aria-label="Formule"]').fill('inconnue * 2');
 ok('formule : variable inconnue signalée', (await sheet().innerText()).includes('variable inconnue « inconnue »'));
 await sheet().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(200);

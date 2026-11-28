@@ -43,7 +43,7 @@ await f.locator('input[aria-label="Périodicité en mois"]').fill('12'); await c
 const vj = await champ(f, 'Valable jusqu’au').inputValue();
 ok('vérification : « Valable jusqu’au » calculé (dernière + 12 mois)', vj === '2026-12-01', vj);
 await f.locator('input[aria-label="Organisme de vérification"]').fill('Laboratoire fictif');
-await f.locator('[data-equip-champs] button', { hasText: '+ Ajouter une information' }).click(); await page.waitForTimeout(150);
+await f.locator('[data-equip-champs] button', { hasText: '＋ Ajouter une information' }).click(); await page.waitForTimeout(150);
 await f.locator('input[aria-label="Intitulé 1"]').fill('Plage de mesure'); await f.locator('input[aria-label="Valeur 1"]').fill('0–32 % Brix');
 await f.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(600);
 let d = await db(); const ref = d.lists.equipements.find((x) => x.label === 'Réfractomètre de poche');
@@ -117,7 +117,7 @@ ok('… réactivé', (await page.locator('#tab-equipements').count()) === 1);
 await page.evaluate(() => { localStorage.setItem('oenotrack-langue', 'en'); }); await page.reload(); await page.waitForTimeout(1500);
 await page.click('#tab-equipements'); await page.waitForTimeout(500);
 t = await txt(page.locator('main'));
-ok('anglais : « Equipment fleet », « Equipment in service », « Broken down », « Weighing and measuring instruments », « + New equipment »', /Equipment fleet/i.test(t) && /Equipment in service/i.test(t) && /Broken down/i.test(t) && /Weighing and measuring instruments/i.test(t) && /\+ New equipment/.test(t) && /Fleet To do/.test(await txt(page.locator('main [role=tablist]').first())), t.slice(0, 600));
+ok('anglais : « Equipment fleet », « Equipment in service », « Broken down », « Weighing and measuring instruments », « + New equipment »', /Equipment fleet/i.test(t) && /Equipment in service/i.test(t) && /Broken down/i.test(t) && /Weighing and measuring instruments/i.test(t) && /＋ New equipment/.test(t) && /Fleet To do/.test(await txt(page.locator('main [role=tablist]').first())), t.slice(0, 600));
 ok('… plus de français dans le parc', !/Matériel en service|En panne|Pompes, tuyaux|Rechercher|à prévoir|en ordre|Vérifications/.test(t), t.slice(0, 900));
 await page.locator(`[data-equip="${ref.id}"]`).click(); await page.waitForTimeout(400); t = await txt(ov());
 ok('… fiche : « Equipment record — », « Make, model », « Serial no. », « Periodic check », « every 12 months »', /Equipment record — Réfractomètre de poche/.test(t) && /Make, model/i.test(t) && /Serial no\./i.test(t) && /Periodic check/i.test(t) && /every 12 months/.test(t) && /Interventions \(1\)/.test(t) && /printed on 21\/11\/2026/.test(t) && /Laboratoire/.test(t) && !/Laboratory/.test(t) && !/édité le/.test(t), t.slice(0, 900));

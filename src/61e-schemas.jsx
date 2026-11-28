@@ -134,7 +134,7 @@ function SchemasView() {
         <span>Les exemples sont des valeurs courantes non officielles : adaptez-les avec votre œnologue.</span>{nv ? <>{' '}<span translate="no">{fmt(nv)}</span> <span>schéma(s) à vérifier.</span></> : null}
       </Notice>
       <div className="my-3"><Check checked={reg.proposer} disabled={lect} onChange={(v) => act((d) => { d.settings.schemas = { ...((d.settings && d.settings.schemas) || {}), proposer: v }; return okr(); }, v ? 'Un schéma sera proposé à la création des lots.' : 'Plus de proposition automatique : appliquez un schéma depuis la fiche du lot.')} label="Proposer un schéma à la création d’un lot (pressurage validé, entrée de moûts)" /></div>
-      <Sec title="Schémas" right={lect ? null : <Btn kind="primary" onClick={() => setForm({})}>+ Nouveau schéma</Btn>}>
+      <Sec title="Schémas" right={lect ? null : <Btn kind="primary" onClick={() => setForm({})}>＋ Nouveau schéma</Btn>}>
         <div data-schemas=""><Tbl rows={L} empty="Aucun schéma." cols={[
           { h: 'Schéma', r: (s) => <b>{s.nom}</b> }, { h: 'Pour', r: (s) => <span className="text-sm">{criteresTexte(db, s.criteres || {})}</span> },
           { h: 'Étapes', r: (s) => <span className="num whitespace-nowrap"><span translate="no">{fmt(s.etapes.length)}</span> · <span>{`J+${Math.max(0, ...s.etapes.map((e) => e.jour))}`}</span></span> }, { h: 'État', r: schemaEtatChip },
@@ -183,7 +183,7 @@ function SchemaForm({ id, onClose }) {
                 <Btn size="sm" kind="danger" aria-label="Retirer l’étape" onClick={() => set('etapes', f.etapes.filter((_, k) => k !== i))}>✕</Btn></div>
             </div>
           ))}
-          <Btn size="sm" onClick={() => set('etapes', [...f.etapes, E({ id: `e${Date.now().toString(36)}`, jour: f.etapes.length ? f.etapes[f.etapes.length - 1].jour : 0, opId: 'suivi', famille: '', dose: null, unite: '', note: '' })])}>+ Ajouter une étape</Btn>
+          <Btn size="sm" onClick={() => set('etapes', [...f.etapes, E({ id: `e${Date.now().toString(36)}`, jour: f.etapes.length ? f.etapes[f.etapes.length - 1].jour : 0, opId: 'suivi', famille: '', dose: null, unite: '', note: '' })])}>＋ Ajouter une étape</Btn>
         </div>
       </Group>
       <Field label="Note"><TA value={f.note} onChange={(v) => set('note', v)} rows={2} /></Field>

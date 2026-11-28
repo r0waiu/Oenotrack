@@ -55,7 +55,7 @@ function HygieneForm({ id, preset, onClose }) {
                 {e && e.k !== 'ok' ? <Chip tone={e.tone}>{e.label}</Chip> : null}<button type="button" className="linkish" onClick={() => setVoir(p.id)}>fiche du produit</button></div> : null}
               {p && p.incompatibilites ? <div className="mt-1 text-xs text-bad">Ne jamais mélanger avec : {p.incompatibilites}</div> : null}
             </div>); })}
-          <div className="flex flex-wrap items-center gap-2"><Btn size="sm" onClick={() => ajouter('')}>+ Ajouter un produit</Btn><Btn size="sm" kind="ghost" onClick={() => setCree(true)}>+ Nouveau produit d’hygiène…</Btn>
+          <div className="flex flex-wrap items-center gap-2"><Btn size="sm" onClick={() => ajouter('')}>＋ Ajouter un produit</Btn><Btn size="sm" kind="ghost" onClick={() => setCree(true)}>＋ Nouveau produit d’hygiène…</Btn>
             {!aDesProduits ? <span className="help">Aucun produit enregistré : créez-le (avec sa FDS) ou décrivez simplement la méthode ci-dessous.</span> : null}</div>
         </div>
       </Group>
@@ -115,7 +115,7 @@ function HygJournal({ onAFaire }) {
   return (
     <div>
       {T.length ? <Notice tone={nT('nonconforme') ? 'bad' : nT('retard') ? 'warn' : 'info'} title="Plans de nettoyage et de maintenance : tâches en attente"><span className="inline-flex flex-wrap items-center gap-2" data-hyg-resume="">{nT('nonconforme') ? <Chip tone="bad"><b>{nT('nonconforme')}</b> non-conformité(s)</Chip> : null}{nT('retard') ? <Chip tone="warn"><b>{nT('retard')}</b> en retard</Chip> : null}{nT('afaire') ? <Chip tone="info"><b>{nT('afaire')}</b> à faire</Chip> : null}{onAFaire ? <button type="button" className="linkish" onClick={onAFaire}>Voir « À faire »</button> : null}</span></Notice> : null}
-      <Sec title="Dernière action par cuve, équipement et local" right={<Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-vg="hygiene-nouvelle">+ Nouvelle entrée</Btn>}>
+      <Sec title="Dernière action par cuve, équipement et local" right={<Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-vg="hygiene-nouvelle">＋ Nouvelle entrée</Btn>}>
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))' }}>{cards.map((x) => { const d = x.last ? daysBetween(x.last.date, today) : null;
           return (<button key={x.key} type="button" className="card hyg-carte p-2 text-left hover:border-ink2" data-hyg-carte={x.key} disabled={camp.figee} onClick={() => setForm({ preset: { cibleType: x.type, cibleId: x.id } })} title="Ajouter une entrée pour cette cible">
             <b className="hyg-nom" title={x.nom} translate="no">{x.nom}</b>{x.type === 'equipement' ? <div className="hyg-type"><Chip>équipement</Chip></div> : x.type === 'local' ? <div className="hyg-type"><Chip>local</Chip></div> : x.full ? <div className="hyg-type"><Chip tone="info">plein</Chip></div> : null}

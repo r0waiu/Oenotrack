@@ -59,7 +59,7 @@ function PlanVinifTableauEdit({ plan, lect }) {
         })}
       </tbody>
     </table>
-    {lect ? null : <div className="mt-2 flex flex-wrap gap-2 no-print"><Btn size="sm" onClick={() => act((d) => planVinifLigne(d, id, '', 'inserer', 'etape', uid))}>+ Étape</Btn><Btn size="sm" onClick={() => act((d) => planVinifLigne(d, id, '', 'inserer', 'section', uid))}>+ Titre de section</Btn><Btn size="sm" onClick={() => act((d) => planVinifLigne(d, id, '', 'inserer', 'note', uid))}>+ Note</Btn></div>}
+    {lect ? null : <div className="mt-2 flex flex-wrap gap-2 no-print"><Btn size="sm" onClick={() => act((d) => planVinifLigne(d, id, '', 'inserer', 'etape', uid))}>＋ Étape</Btn><Btn size="sm" onClick={() => act((d) => planVinifLigne(d, id, '', 'inserer', 'section', uid))}>＋ Titre de section</Btn><Btn size="sm" onClick={() => act((d) => planVinifLigne(d, id, '', 'inserer', 'note', uid))}>＋ Note</Btn></div>}
     {outils ? <PlanLigneOutils plan={plan} ligneId={outils} onClose={() => setOutils(null)} /> : null}
   </>);
 }

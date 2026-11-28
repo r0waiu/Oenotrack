@@ -42,7 +42,7 @@ ok('volume ajusté à la main : gardé, signalé', (await V1.inputValue()) === '
 await s.locator('[data-hauteur-cuve="1-1"] button', { hasText: 'Reprendre le calcul' }).click(); await page.waitForTimeout(150);
 ok('« Reprendre le calcul » : volume de l’épalement', /^15(,00?)?$/.test(await V1.inputValue()), await V1.inputValue());
 // moût 2 de l'onglet 1 : Cuve 02 (sans épalement), 5 hL
-await s.locator('button:has-text("+ Ajouter un moût")').click(); await page.waitForTimeout(150);
+await s.locator('button:has-text("＋ Ajouter un moût")').click(); await page.waitForTimeout(150);
 await s.locator('[aria-label="Cépage du moût 2"]').selectOption({ label: 'Meunier' });
 await pick(page, s.locator('input[aria-label="Cuve de destination 1 du moût 2"]'), 'Cuve 02', 'Cuve 02');
 ok('cuve sans table d’épalement : pas de champ de hauteur', (await s.locator('[aria-label="Hauteur en cuve 1 du moût 2 (cm)"]').count()) === 0);
@@ -128,7 +128,7 @@ await avance(); await page.locator('.pitem', { hasText: 'Cuve 03' }).first().cli
 await page.locator('[role=menuitem]').filter({ hasText: /must/i }).first().click(); await page.waitForTimeout(500); s = ov();
 await s.locator('[aria-label="Height in tank 1 of must 1 (cm)"], [aria-label="Hauteur en cuve 1 du moût 1 (cm)"]').first().fill('120'); await page.waitForTimeout(300);
 t = await txt(s);
-ok('anglais : onglets partenaires, épalement, analyses imposées', /Partners in the tanker \(1\)/i.test(t) && /Partner no\. 1/.test(t) && /\+ Partner/.test(t) && /Height after receipt \(cm\)/i.test(t) && /in tank − .* already there = .* received/.test(t) && /Analyses of received lots/.test(t), t.slice(t.indexOf('Partner no'), t.indexOf('Partner no') + 1500));
+ok('anglais : onglets partenaires, épalement, analyses imposées', /Partners in the tanker \(1\)/i.test(t) && /Partner no\. 1/.test(t) && /＋ Partner/.test(t) && /Height after receipt \(cm\)/i.test(t) && /in tank − .* already there = .* received/.test(t) && /Analyses of received lots/.test(t), t.slice(t.indexOf('Partner no'), t.indexOf('Partner no') + 1500));
 await page.screenshot({ path: SC + '/shots/t68-en.png', fullPage: true });
 await fermer();
 await browser.close();

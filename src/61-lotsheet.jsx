@@ -115,7 +115,7 @@ function LotBilan({ lotId }) {
   // 0.38.0-alpha.3 : deux rejeux par campagne, refaits seulement quand la base change (plus à chaque rendu : toasts, synchronisation)
   const cols = useMemo(() => (!lot ? [] : lotBilanCols(db, lot, lotId)), [db, lot, lotId]);
   if (!lot || !cols.length) return null;
-  const LINES = [['open', 'Stock à l’ouverture'], ['recu', '+ Reçu (pressurage, reprise, assemblage)'], ['ajout', '+ Préparations ajoutées'], ['perte', '− Pertes (bourbes, lies…)'], ['jau', '± Écart de jaugeage'], ['prel', '− Prélevé pour préparations'], ['tir', '− Mis en bouteilles (tirage)'], ['vente', '− Sorties de cave (vente, distillerie…)'], ['sorti', '− Sorti vers d’autres assemblages'], ['calc', '= Stock de clôture calculé'], ['close', 'Stock en cuve à la clôture'], ['ecart', 'Contrôle']].filter(([key]) => ['open', 'calc', 'close', 'ecart'].includes(key) || cols.some((v) => Math.abs(v[key]) > 0.004));
+  const LINES = [['open', 'Stock à l’ouverture'], ['recu', '+ Reçu (pressurage, reprise, assemblage)'], ['ajout', '＋ Préparations ajoutées'], ['perte', '− Pertes (bourbes, lies…)'], ['jau', '± Écart de jaugeage'], ['prel', '− Prélevé pour préparations'], ['tir', '− Mis en bouteilles (tirage)'], ['vente', '− Sorties de cave (vente, distillerie…)'], ['sorti', '− Sorti vers d’autres assemblages'], ['calc', '= Stock de clôture calculé'], ['close', 'Stock en cuve à la clôture'], ['ecart', 'Contrôle']].filter(([key]) => ['open', 'calc', 'close', 'ecart'].includes(key) || cols.some((v) => Math.abs(v[key]) > 0.004));
   const bold = (key) => ['open', 'calc', 'close'].includes(key);
   return (
     <Sec title="Bilan matière du lot par campagne" className="mb-5">

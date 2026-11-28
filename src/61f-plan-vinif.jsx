@@ -104,15 +104,15 @@ function PlanVinifForm({ id, base, onClose }) {
             <div className="card space-y-2 p-3" data-planv-groupes=""><div className="lbl">Groupes de cépages</div>
               {f.groupes.map((g, i) => <div key={g.id} className="rounded-md border border-line p-2"><div className="flex gap-1"><TI value={g.label} onChange={(v) => liste('groupes', i, { label: v })} aria-label="Groupe de cépages" /><Btn size="sm" kind="ghost" onClick={() => retirer('groupes', i)} aria-label="Retirer le groupe" disabled={f.groupes.length < 2}>✕</Btn></div>
                 <div className="mt-1 flex flex-wrap gap-x-3">{cepages.map((c) => <Check key={c.id} checked={(g.cepages || []).includes(c.id)} onChange={(v) => coche('groupes', i, 'cepages', c.id, v)} label={c.label} />)}</div></div>)}
-              <Btn size="sm" onClick={() => set('groupes', [...f.groupes, { id: planVinifIdNeuf(f.groupes, 'g'), label: '', cepages: [] }])}>+ Groupe</Btn></div>
+              <Btn size="sm" onClick={() => set('groupes', [...f.groupes, { id: planVinifIdNeuf(f.groupes, 'g'), label: '', cepages: [] }])}>＋ Groupe</Btn></div>
             <div className="card space-y-2 p-3" data-planv-revendications=""><div className="lbl">Revendications</div>
               {f.revendications.map((r, i) => <div key={r.id} className="flex gap-1"><select className="inp" value={qualifs.some((q) => q.id === r.id) ? r.id : ''} onChange={(e) => { const q = qualifs.find((x) => x.id === e.target.value); liste('revendications', i, q ? { id: q.id, label: qualifAffiche(q) } : { id: planVinifIdNeuf(f.revendications, 'r') }); }} aria-label="Revendication de la liste"><option value="">— autre —</option>{qualifs.map((q) => <option key={q.id} value={q.id}>{qualifAffiche(q)}</option>)}</select>
                 <TI value={r.label} onChange={(v) => liste('revendications', i, { label: v })} aria-label="Libellé de la revendication" /><Btn size="sm" kind="ghost" onClick={() => retirer('revendications', i)} aria-label="Retirer la revendication" disabled={f.revendications.length < 2}>✕</Btn></div>)}
-              <Btn size="sm" onClick={() => set('revendications', [...f.revendications, { id: planVinifIdNeuf(f.revendications, 'r'), label: '' }])}>+ Revendication</Btn></div>
+              <Btn size="sm" onClick={() => set('revendications', [...f.revendications, { id: planVinifIdNeuf(f.revendications, 'r'), label: '' }])}>＋ Revendication</Btn></div>
             <div className="card space-y-2 p-3" data-planv-fractions=""><div className="lbl">Fractions</div>
               {f.fractions.map((x, i) => <div key={x.id} className="rounded-md border border-line p-2"><div className="flex gap-1"><TI value={x.label} onChange={(v) => liste('fractions', i, { label: v })} aria-label="Fraction" /><Btn size="sm" kind="ghost" onClick={() => retirer('fractions', i)} aria-label="Retirer la fraction" disabled={f.fractions.length < 2}>✕</Btn></div>
                 <div className="mt-1 flex flex-wrap gap-x-3">{fracs.map((c) => <Check key={c.id} checked={(x.fractions || []).includes(c.id)} onChange={(v) => coche('fractions', i, 'fractions', c.id, v)} label={c.label} />)}</div></div>)}
-              <Btn size="sm" onClick={() => set('fractions', [...f.fractions, { id: planVinifIdNeuf(f.fractions, 'f'), label: '', fractions: [] }])}>+ Fraction</Btn></div>
+              <Btn size="sm" onClick={() => set('fractions', [...f.fractions, { id: planVinifIdNeuf(f.fractions, 'f'), label: '', fractions: [] }])}>＋ Fraction</Btn></div>
           </div>
           <p className="help mt-1">Les cépages et les fractions cochés servent à trouver la colonne d’un lot (cépage majoritaire, fraction) ; la revendication du lot choisit sa revendication.</p>
         </Group>
@@ -129,7 +129,7 @@ function PlanVinifForm({ id, base, onClose }) {
                 </div>
                 {l.type === 'etape' ? <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))' }}>{cases.map((c) => <label key={c.key} className="text-xs"><span className="text-ink2">{c.label}</span><input className="inp" value={(l.valeurs || {})[c.key] || ''} onChange={(e) => valeur(i, c.key, e.target.value)} aria-label={`${l.etape || 'Étape'} — ${c.label}`} data-planv-case={c.key} /></label>)}</div> : null}
               </div>); })}
-            <div className="flex flex-wrap gap-2"><Btn size="sm" onClick={() => ajouter('etape')}>+ Étape</Btn><Btn size="sm" onClick={() => ajouter('section')}>+ Titre de section</Btn><Btn size="sm" onClick={() => ajouter('note')}>+ Note</Btn></div>
+            <div className="flex flex-wrap gap-2"><Btn size="sm" onClick={() => ajouter('etape')}>＋ Étape</Btn><Btn size="sm" onClick={() => ajouter('section')}>＋ Titre de section</Btn><Btn size="sm" onClick={() => ajouter('note')}>＋ Note</Btn></div>
             <p className="help">Doses écrites comme dans votre document (« 4,3 cL/hL », « 10 g/hL », « 22 g/L », « 18 °C »…) : celles en g, cL ou mL par hL ou par L donnent une quantité calculée pour le volume d’un lot.</p>
           </div>
         </Group>
@@ -167,7 +167,7 @@ function PlanVinifVue() {
             {sel ? <Btn onClick={() => act((d) => { const p = plansVinifMaterialiser(d).find((x) => x.id === sel.id); if (!p) return fail('Plan de vinification introuvable.'); p.actif = p.actif === false; return okr(); }, sel.actif === false ? 'Plan rétabli.' : 'Plan archivé.')}>{sel.actif === false ? 'Rétablir' : 'Archiver'}</Btn> : null}
             {sel ? <Btn kind="danger" onClick={() => ask('Retirer ce plan de vinification ?', (d) => planVinifSupprimer(d, sel.id), 'Plan retiré.')}>Retirer</Btn> : null}
             <Btn onClick={() => setImporter(!importer)} data-planv-importer="">⬆ Importer un tableur</Btn>
-            <Btn kind="primary" onClick={() => setForm({})} data-planv-nouveau="">+ Nouveau plan</Btn>
+            <Btn kind="primary" onClick={() => setForm({})} data-planv-nouveau="">＋ Nouveau plan</Btn>
           </>}
         </span>
       </div>

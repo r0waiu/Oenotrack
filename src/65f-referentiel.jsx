@@ -118,7 +118,7 @@ function ComposesChoix({ auto, liste, onChange }) {
       {L.map((x, i) => <div key={x.id} className="flex flex-wrap items-center gap-2"><span className="text-sm" translate="no">{(refCompose(x.id) || {}).label}</span>
         <input className="inp num" style={{ maxWidth: 90, minHeight: 30 }} inputMode="decimal" value={x.part} placeholder="100" aria-label="Teneur du produit en composé (%)" onChange={(e) => onChange(L.map((y, k) => (k === i ? { ...y, part: e.target.value } : y)))} /><span className="text-xs text-ink2">%</span>
         <Btn size="sm" kind="ghost" onClick={() => onChange(L.filter((_, k) => k !== i))} aria-label="Retirer">✕</Btn></div>)}
-      <SI value="" onChange={(v) => { if (v) onChange([...L, { id: v, part: '' }]); }} placeholder="+ Ajouter un composé…" style={{ width: 'auto' }} options={REG_COMPOSES.filter((k) => !L.some((x) => x.id === k.id)).map((k) => ({ value: k.id, label: k.label }))} aria-label="Ajouter un composé" />
+      <SI value="" onChange={(v) => { if (v) onChange([...L, { id: v, part: '' }]); }} placeholder="＋ Ajouter un composé…" style={{ width: 'auto' }} options={REG_COMPOSES.filter((k) => !L.some((x) => x.id === k.id)).map((k) => ({ value: k.id, label: k.label }))} aria-label="Ajouter un composé" />
       <div className="help"><span>{liste ? 'Composés choisis pour ce produit.' : 'Reconnus d’après le nom et la composition.'}</span> <span>Teneur vide : produit supposé pur (estimation prudente).</span></div>
       {liste ? <button type="button" className="linkish text-xs" onClick={() => onChange(null)}>Revenir aux composés reconnus</button> : null}
     </div>

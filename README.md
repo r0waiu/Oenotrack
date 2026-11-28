@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.47.0--alpha.3-8C6E2F">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.48.0--alpha.1-8C6E2F">
   <img alt="Licence" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-1E242B">
   <img alt="Langues" src="https://img.shields.io/badge/langues-FR%20%C2%B7%20EN%20%C2%B7%20ES%20%C2%B7%20IT%20%C2%B7%20DE%20%C2%B7%20PT-5B636D">
 </p>
@@ -222,7 +222,9 @@ Vos personnalisations ne sont jamais écrasées : rien n’est supprimé ni reno
 ## Prise en main : configuration et visite guidées
 
 - **Configuration guidée** à la première ouverture (ou depuis **Paramètres › Affichage & application**) : une question par écran, en mode basique ou avancé — entreprise, région et types de vins, revendications (HVE, VDC, BIO et son code d’agrément…), modules, identifiants DRM, opérateurs, campagne, verrouillage, base vide ou exemple. Un aperçu liste chaque changement ; rien n’est supprimé.
-- **Visite guidée par chapitres** (« ❓ Visite guidée » dans l’en-tête) : « Prise en main » puis un chapitre par module affiché, ou « Tout voir ».
+- **Visite guidée par chapitres** (« ❓ Visite guidée » dans l’en-tête) : « Prise en main » puis un chapitre par module affiché, le parcours « ★ L’essentiel » (10 étapes) ou « Tout voir ».
+- **Recherche dans l’en-tête** (Ctrl+K) : un lot, une cuve, une pesée, un n° de lot fournisseur… ouvre directement sa fiche ; « Tout voir dans Traçabilité » pour la chaîne complète.
+- **Au téléphone** : en-tête compact, tableaux du chai en cartes, fiches de saisie compactes ; une suppression peut être annulée pendant 10 secondes.
 - **Onglet ouvert** (Paramètres › Modules) : un réglage pour le démarrage, un pour la connexion et un pour le déverrouillage — un onglet, le premier de la barre, ou la **dernière page visitée** (retenue sur l’appareil, pour chaque personne).
 
 ## Langues

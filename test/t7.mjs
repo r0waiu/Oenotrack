@@ -15,7 +15,7 @@ await sh.locator('[aria-label="Volume vers la cuve 1 du moût 1"]').fill('4,5');
 await sh.locator('text=Personnaliser les fractions').click(); await page.waitForTimeout(300);
 const dlg = page.locator('.overlay').last();
 await dlg.locator('input[aria-label="Nouvelle fraction"]').fill('Vin de presse'); await dlg.locator('input[aria-label="Suffixe"]').fill('vp');
-await dlg.locator('button:has-text("+ Ajouter")').click(); await page.waitForTimeout(300);
+await dlg.locator('button:has-text("＋ Ajouter")').click(); await page.waitForTimeout(300);
 await dlg.locator('button:has-text("Terminé")').click(); await page.waitForTimeout(300);
 await fracSel.selectOption({ label: 'Vin de presse' }); await page.waitForTimeout(150);
 log('code proposé:', await sh.locator('[aria-label^="Code du lot en"]').first().getAttribute('placeholder'));

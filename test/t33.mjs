@@ -61,7 +61,7 @@ await s.locator('[aria-label="N° de lot du moût 1"]').fill('LOT-A');
 await s.locator('[aria-label="TAP du moût 1"]').fill('9,6');
 await s.locator('[aria-label="AT du moût 1"]').fill('8');
 // moût 2 : un seul partenaire, autre n° de lot, vers la même cuve
-await s.locator('button:has-text("+ Ajouter un moût")').click(); await page.waitForTimeout(150);
+await s.locator('button:has-text("＋ Ajouter un moût")').click(); await page.waitForTimeout(150);
 await s.locator('[aria-label="Compartiment du moût 2"]').fill('C2');
 await s.locator('[aria-label="Cépage du moût 2"]').selectOption({ label: 'Pinot noir' });
 await pick(page, s.locator('input[aria-label="Partenaire du moût 2"]'), 'Henn', 'Domaine Hennequin');

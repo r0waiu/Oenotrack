@@ -2,7 +2,6 @@
    libellés des lignes de portions, de pertes, de préparations et d'intrants, pied « ⋯ » et sous-titre repliés au téléphone ============
    [français, English, Español, Italiano, Deutsch, Português] */
 TRAD_TABLE.push(...[
-  ['Autres actions', 'More actions', 'Otras acciones', 'Altre azioni', 'Weitere Aktionen', 'Outras ações'],
   ['Détails', 'Details', 'Detalles', 'Dettagli', 'Details', 'Detalhes'],
 ]);
 TRAD_MOTIFS.push(...[

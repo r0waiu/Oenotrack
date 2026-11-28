@@ -22,7 +22,7 @@ await nv.fill('Vin de goutte'); await page.waitForTimeout(100);
 ok('… nom changé : proposition suivie (autre)', (await page.locator('select[aria-label="Rôle de la nouvelle fraction"]').inputValue()) === 'autre');
 await page.locator('select[aria-label="Rôle de la nouvelle fraction"]').selectOption('cuvee'); await nv.fill('Vin de goutte fin'); await page.waitForTimeout(100);
 ok('… rôle choisi à la main : gardé quand le nom change', (await page.locator('select[aria-label="Rôle de la nouvelle fraction"]').inputValue()) === 'cuvee');
-await nv.locator('xpath=..').locator('button', { hasText: '+ Ajouter' }).click(); await page.waitForTimeout(600);
+await nv.locator('xpath=..').locator('button', { hasText: '＋ Ajouter' }).click(); await page.waitForTimeout(600);
 let d1 = await db(); const fG = d1.lists.fractions.find((f) => f.label === 'Vin de goutte fin');
 ok('fraction ajoutée avec son rôle (cuvée)', !!fG && fG.role === 'cuvee');
 await page.locator(`select[aria-label="Rôle de la fraction (Vin de goutte fin)"]`).selectOption('rebeche'); await page.waitForTimeout(500);

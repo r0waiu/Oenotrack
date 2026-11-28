@@ -4600,7 +4600,7 @@ console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (7)');
       const h = L.clone(g); L.ongletDefautSet(h, 'tirage', 'connexion');
       t('droits : les onglets d’ouverture relèvent des paramètres', L.gardeDroits(g, h, 'u-t65').ok === false); }
     t('site officiel : oenotrack.pages.dev (identifiants déclarés), Cloudflare Pages parmi les hébergeurs', L.OENOTRACK_SITE === 'https://oenotrack.pages.dev' && L.siteOfficielIci('oenotrack.pages.dev') && L.HEBERGEURS.some((h) => h.id === 'cloudflare' && !h.ue));
-    t('version 0.47.0-alpha.3', L.APP_VERSION === '0.47.0-alpha.3' && L.CHANGELOG[0].v === '0.47.0-alpha.3' && L.CHANGELOG[1].v === '0.47.0-alpha.2');
+    t('version 0.47.0-alpha.3 (notes gardées)', L.CHANGELOG.find((c) => c.v === '0.47.0-alpha.3').notes.length === 2 && L.CHANGELOG.findIndex((c) => c.v === '0.47.0-alpha.3') + 1 === L.CHANGELOG.findIndex((c) => c.v === '0.47.0-alpha.2'));
     t('traductions : réglages des onglets, présentation, notes de version dans les six langues', L.tradControle().length === 0 && L.CHANGELOG[0].notes.every((n) => L.LANGUES_TRAD.every((lg) => L.traduire(n, lg) !== n)) && L.traduire('Dernière page visitée', 'en') === 'Last page visited' && L.traduire('Onglet ouvert à la connexion : Tirages.', 'en') !== 'Onglet ouvert à la connexion : Tirages.');
     // compatibilité : la 0.47.0-alpha.2 gelée ouvre, modifie et synchronise une base 0.47.0-alpha.3
     const f65 = L.normalizeDb(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'base-0.47.0-alpha.3-onglets.json'), 'utf8'))); L.syncConfig(f65);
@@ -4614,6 +4614,23 @@ console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES TESTS PASSENT (7)');
     const N = L.clone(f65); L.ongletDefautSet(N, 'registres', 'connexion'); N.meta.modifLe = '2026-12-20T11:00:00Z';
     const FX = L.syncFusion(f65, N, x); const FX2 = O.syncFusion(f65, x, N);
     t('… synchronisation 0.47.0-alpha.3 ↔ 0.47.0-alpha.2 : démarrage changé là-bas, connexion changée ici, réglage du déverrouillage gardé', [FX.db, FX2.db].every((y) => y.settings.ongletDefaut === 'cave' && y.settings.ongletConnexion === 'registres' && y.settings.ongletDeverrouillage === 'analyses'), [FX.db.settings.ongletDefaut, FX.db.settings.ongletConnexion, FX2.db.settings.ongletConnexion]);
+  }
+  // ================= 66. 0.48.0-alpha.1 : refonte de l'interface (audit validé) — version, traductions, compatibilité 0.47.0-alpha.3 =================
+  {
+    t('version 0.48.0-alpha.1 : mineure après 0.47.0-alpha.3 (nouvelles fonctions d’interface), trois notes', L.APP_VERSION === '0.48.0-alpha.1' && L.CHANGELOG[0].v === '0.48.0-alpha.1' && L.CHANGELOG[1].v === '0.47.0-alpha.3' && L.CHANGELOG[0].notes.length === 3 && L.versionNum('0.48.0-alpha.1') > L.versionNum('0.47.0-alpha.3'));
+    t('traductions : notes de version, en-tête, libellés « ＋ » harmonisés dans les six langues', L.tradControle().length === 0 && L.CHANGELOG[0].notes.every((n) => L.LANGUES_TRAD.every((lg) => L.traduire(n, lg) !== n)) && L.traduire('＋ Nouvelle pesée', 'en') === '＋ New weighing' && L.traduire('⬇ Exporter (CSV)', 'de') === '⬇ Exportieren (CSV)' && L.traduire('Aller au contenu', 'en') === 'Skip to content');
+    const f66 = L.normalizeDb(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'base-0.48.0-alpha.1-interface.json'), 'utf8'))); L.syncConfig(f66);
+    t('fixture 0.48.0-alpha.1 : versions enregistrées, cépage ajouté, réglages des onglets gardés, rien de l’appareil dans la base', f66.meta.versions.includes('0.48.0-alpha.1') && f66.lists.cepages.some((c) => c.label === 'Cépage fictif 0.48') && f66.settings.ongletConnexion === 'tirage' && !/oenotrack-(ops-choix|aides|listes-replis|derniere-page)/.test(JSON.stringify(f66)));
+    const dirO = path.join(__dirname, 'anciennes', '0.47.0-alpha.3');
+    const O = new Function('React', files.filter((f) => fs.existsSync(path.join(dirO, f))).map((f) => fs.readFileSync(path.join(dirO, f), 'utf8')).join('\n').replace(/const \{ useState[^\n]*\n/, '') + '\n;return { APP_VERSION, APP_NUM, normalizeDb, clone, syncConfig, getR, syncFusion, ongletDefautSet };')({ useState() {}, useEffect() {}, useMemo() {}, useRef() {}, useCallback() {} });
+    t('0.47.0-alpha.3 gelée chargée', O.APP_VERSION === '0.47.0-alpha.3' && L.APP_NUM > O.APP_NUM);
+    const KX = ['ops', 'lots', 'contenants', 'produits', 'arrivages', 'plansVinif', 'chantiersTirage', 'declarationsTirage', 'habillages'];
+    const x = O.normalizeDb(O.clone(f66)); O.syncConfig(x); O.getR(x);
+    t('… la 0.47.0-alpha.3 ouvre la base 0.48.0-alpha.1 sans rien perdre', KX.every((k) => canonJ(x[k] || []) === canonJ(f66[k] || [])) && x.lists.cepages.some((c) => c.label === 'Cépage fictif 0.48') && x.settings.ongletConnexion === 'tirage');
+    O.ongletDefautSet(x, 'cave', 'demarrage'); x.meta.modifLe = '2026-12-22T12:00:00Z';
+    const N = L.clone(f66); N.lists.cepages.push({ id: L.nid(N, 'cep'), label: 'Cépage fictif ici', couleur: 'noir' }); N.meta.modifLe = '2026-12-22T11:00:00Z';
+    const FX = L.syncFusion(f66, N, x); const FX2 = O.syncFusion(f66, x, N);
+    t('… synchronisation 0.48.0-alpha.1 ↔ 0.47.0-alpha.3 : onglet changé là-bas, cépage ajouté ici, rien de perdu', [FX.db, FX2.db].every((y) => y.settings.ongletDefaut === 'cave' && y.lists.cepages.some((c) => c.label === 'Cépage fictif ici') && y.lists.cepages.some((c) => c.label === 'Cépage fictif 0.48')));
   }
   // ================= 66b. 0.48.0-alpha.1 : formulaires — le moteur renvoie aussi le champ en cause (fail(msg, { champ })) =================
   {

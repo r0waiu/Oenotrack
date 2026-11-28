@@ -43,7 +43,7 @@ await page.screenshot({ path: SH + '/t34-admin.png' });
 
 // 2. comptes de l'équipe
 const creer = async (ident, nom, profil, opr) => {
-  await page.locator('main button', { hasText: '+ Nouvel utilisateur' }).click(); await page.waitForTimeout(300); const s = sheet();
+  await page.locator('main button', { hasText: '＋ Nouvel utilisateur' }).click(); await page.waitForTimeout(300); const s = sheet();
   await s.locator('input[aria-label="Identifiant"]').fill(ident); await s.locator('label', { hasText: 'Nom affiché' }).locator('input').fill(nom);
   await s.locator('select[aria-label="Profil de droits"]').selectOption({ label: profil }); if (opr) await s.locator('select[aria-label="Opérateur correspondant"]').selectOption({ label: opr });
   const mdp = await s.locator('input[aria-label="Mot de passe provisoire"]').inputValue(); await s.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(700); return mdp;

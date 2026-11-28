@@ -33,7 +33,7 @@ function EquipForm({ id, onClose, onSaved }) {
       </Group>
       <Group label="Vos informations" help="Ce que vous voulez suivre en plus : puissance, contrat d’entretien, n° d’agrément, consommables…">
         <div className="space-y-2" data-equip-champs="">{f.champs.map((c, i) => <div key={i} className="flex flex-wrap items-center gap-2"><TI value={c.label} onChange={(v) => setC(i, { label: v })} placeholder="Intitulé" aria-label={`Intitulé ${i + 1}`} style={{ flex: '1 1 140px' }} /><TI value={c.valeur} onChange={(v) => setC(i, { valeur: v })} placeholder="Valeur" aria-label={`Valeur ${i + 1}`} style={{ flex: '2 1 180px' }} /><Btn size="sm" kind="danger" onClick={() => setF((x) => ({ ...x, champs: x.champs.filter((_, j) => j !== i) }))} aria-label={`Retirer ${i + 1}`}>✕</Btn></div>)}
-          <Btn size="sm" onClick={() => setF((x) => ({ ...x, champs: [...x.champs, { label: '', valeur: '' }] }))}>+ Ajouter une information</Btn></div>
+          <Btn size="sm" onClick={() => setF((x) => ({ ...x, champs: [...x.champs, { label: '', valeur: '' }] }))}>＋ Ajouter une information</Btn></div>
       </Group>
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></Field>
     </FormSheet>
@@ -53,7 +53,7 @@ function EquipFiche({ id, onClose }) {
       footer={<><Btn kind="danger" className="mr-auto" onClick={suppr}>Supprimer</Btn><BoutonsSortie out={out} html={false} /></>}>
       <div className="no-print mb-3 flex flex-wrap items-center gap-2" data-equip-fiche={e.id}>
         <EquipEtatChip k={S.k} /><VerifChip v={S.verif} />
-        <span className="ml-auto flex flex-wrap gap-1"><Btn size="sm" onClick={() => setEd(true)}>Modifier la fiche</Btn><Btn size="sm" kind="primary" onClick={() => setMt({ preset: { equipementId: e.id, type: 'curative', statut: 'ouverte' } })}>⚠ Signaler une panne</Btn><Btn size="sm" onClick={() => setMt({ preset: { equipementId: e.id, entreeId: S.plan.length === 1 ? S.plan[0].e.id : '', type: 'preventive' } })}>+ Intervention</Btn><DocsButton cible={{ type: 'equipement', id: e.id }} kind="equipement" title={e.label} /></span>
+        <span className="ml-auto flex flex-wrap gap-1"><Btn size="sm" onClick={() => setEd(true)}>Modifier la fiche</Btn><Btn size="sm" kind="primary" onClick={() => setMt({ preset: { equipementId: e.id, type: 'curative', statut: 'ouverte' } })}>⚠ Signaler une panne</Btn><Btn size="sm" onClick={() => setMt({ preset: { equipementId: e.id, entreeId: S.plan.length === 1 ? S.plan[0].e.id : '', type: 'preventive' } })}>＋ Intervention</Btn><DocsButton cible={{ type: 'equipement', id: e.id }} kind="equipement" title={e.label} /></span>
       </div>
       <div ref={ref} className="report">
         <ReportHead title={`Fiche équipement — ${e.label}`} sub={hygLib(EQUIP_CATEGORIES, equipCategorie(e))} />
@@ -98,7 +98,7 @@ function EquipParc() {
         <SI plain value={cat} onChange={setCat} style={{ width: 'auto' }} options={[{ value: '', label: 'Toutes catégories' }, ...hygOpts(EQUIP_CATEGORIES, cat)]} aria-label="Catégorie" />
         {(db.sites || []).length > 1 ? <SI plain value={site} onChange={setSite} style={{ width: 'auto' }} options={[{ value: '', label: 'Tous les sites' }, ...db.sites.map((s) => ({ value: s.id, label: s.nom }))]} aria-label="Site" /> : null}
         <SI plain value={etat} onChange={setEtat} style={{ width: 'auto' }} options={[{ value: '', label: 'En usage' }, ...Object.keys(EQUIP_ETAT_TXT).map((k) => ({ value: k, label: EQUIP_ETAT_TXT[k] }))]} aria-label="État" />
-        <Btn kind="primary" onClick={() => setNouveau(true)} data-equip-nouveau="">+ Nouvel équipement</Btn></>}>
+        <Btn kind="primary" onClick={() => setNouveau(true)} data-equip-nouveau="">＋ Nouvel équipement</Btn></>}>
         {!vus.length ? <Empty>{L.length ? 'Aucun équipement pour ces critères.' : 'Aucun équipement : « + Nouvel équipement ».'}</Empty> : null}
         <div className="space-y-4" data-equip-parc="">{cats.map(([c, cl]) => (
           <div key={c}><div className="lbl mb-1.5">{`${cl} (${vus.filter((x) => x.cat === c).length})`}</div>

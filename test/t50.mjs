@@ -48,7 +48,7 @@ await fermer();
 
 // noms : casse harmonisée à la création
 await page.click('#tab-intrants'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: 'Produits & règles' }).click(); await page.waitForTimeout(300);
-await page.locator('main button', { hasText: '+ Nouveau produit' }).click(); await page.waitForTimeout(300); let f = ov();
+await page.locator('main button', { hasText: '＋ Nouveau produit' }).click(); await page.waitForTimeout(300); let f = ov();
 await f.locator('input').first().fill('PROVINHY OX2'); await page.waitForTimeout(150);
 ok('nouveau produit : « Enregistré sous « Provinhy OX2 » » annoncé', /Enregistré sous « Provinhy OX2 »/.test(await txt(f)));
 await f.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(400);
@@ -83,7 +83,7 @@ ok('enregistré : informations du document gardées, dose saisie enregistrée', 
 
 // produit d'hygiène : nom à la création, FDS relue avec l'IA (simulée)
 await page.click('#tab-hygiene'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: 'Produits d’hygiène' }).click(); await page.waitForTimeout(300);
-await page.locator('main button', { hasText: '+ Nouveau produit' }).click(); await page.waitForTimeout(300); f = ov();
+await page.locator('main button', { hasText: '＋ Nouveau produit' }).click(); await page.waitForTimeout(300); f = ov();
 await f.locator('label', { hasText: 'Nom du produit' }).locator('input').fill('HYDROSANT SP'); await page.waitForTimeout(150);
 ok('produit d’hygiène : « Enregistré sous « Hydrosant SP » »', /Enregistré sous « Hydrosant SP »/.test(await txt(f)));
 await f.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(500); await fermer();

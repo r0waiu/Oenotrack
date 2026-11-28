@@ -90,7 +90,7 @@ function RecapSheet({ cle, titre, colonnes, defaut, calcul, filtres, nomFichier,
   const th = { textAlign: 'left', fontSize: 10, verticalAlign: 'bottom' }; const td = { fontSize: 10, verticalAlign: 'top' };
   return (
     <Sheet wide title={titre} sub="Choisissez les colonnes à inclure, puis imprimez ou téléchargez (PDF, CSV)." onClose={onClose}
-      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={csv} disabled={!cols.length} data-recap-csv="">⬇ CSV</Btn><BoutonsSortie out={out} /></>}>
+      footer={<><Btn onClick={onClose} className="mr-auto">Fermer</Btn><Btn onClick={csv} disabled={!cols.length} data-recap-csv="">⬇ Exporter (CSV)</Btn><BoutonsSortie out={out} /></>}>
       <div className="mb-3 rounded-md border border-line p-3" data-recap-colonnes="">
         <div className="mb-1 flex flex-wrap items-center gap-2"><b className="text-sm">Colonnes</b><span className="text-xs text-ink2">{cols.length} / {colonnes.length}</span><span className="ml-auto flex gap-1"><Btn size="sm" onClick={() => setCols(colonnes.map((c) => c[0]))}>Tout</Btn><Btn size="sm" onClick={() => setCols(defaut)}>Par défaut</Btn></span></div>
         <div className="flex flex-wrap gap-x-4 gap-y-1">{colonnes.map(([k, lab]) => <Check key={k} checked={cols.includes(k)} onChange={() => tog(k)} label={lab} />)}</div>

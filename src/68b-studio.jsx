@@ -23,7 +23,7 @@ function StudioView() {
                 <div className="flex items-center justify-between text-xs text-ink2"><span>{listUsage(db, 'typesContenant', t.id)} contenant(s)</span><button type="button" className="linkish text-bad" onClick={() => act((d) => typeCont(d, 'del', t.id), 'Type supprimé.')}>Supprimer</button></div>
               </div>
             </div>))}
-          <div className="card space-y-2 p-3"><div className="lbl">Nouveau type</div><TI value={nt.label} onChange={(v) => setNt({ ...nt, label: v })} placeholder="ex. Cuve tronconique" /><SI value={nt.forme} onChange={(v) => setNt({ ...nt, forme: v })} options={FORMES.map((f) => ({ value: f.id, label: f.label }))} /><Btn kind="primary" size="sm" onClick={() => { const r = act((d) => typeCont(d, 'add', null, nt), 'Type ajouté.'); if (r.ok) setNt({ label: '', forme: 'cuve' }); }}>+ Ajouter</Btn></div>
+          <div className="card space-y-2 p-3"><div className="lbl">Nouveau type</div><TI value={nt.label} onChange={(v) => setNt({ ...nt, label: v })} placeholder="ex. Cuve tronconique" /><SI value={nt.forme} onChange={(v) => setNt({ ...nt, forme: v })} options={FORMES.map((f) => ({ value: f.id, label: f.label }))} /><Btn kind="primary" size="sm" onClick={() => { const r = act((d) => typeCont(d, 'add', null, nt), 'Type ajouté.'); if (r.ok) setNt({ label: '', forme: 'cuve' }); }}>＋ Ajouter</Btn></div>
         </div>
       </Sec>
       <Sec title="Matières (couleur et finition du dessin)">
@@ -37,7 +37,7 @@ function StudioView() {
                 <div className="flex items-center justify-between text-xs text-ink2"><span>{listUsage(db, 'matieres', m.id)} contenant(s)</span><button type="button" className="linkish text-bad" onClick={() => act((d) => matiereCont(d, 'del', m.id), 'Matière supprimée.')}>Supprimer</button></div>
               </div>
             </div>))}
-          <div className="card space-y-2 p-3"><div className="lbl">Nouvelle matière</div><TI value={nm.label} onChange={(v) => setNm({ ...nm, label: v })} placeholder="ex. Polyéthylène" /><div className="flex gap-2"><ColorInp label="Couleur" value={nm.couleur} onChange={(v) => setNm({ ...nm, couleur: v })} /><SI value={nm.finition} onChange={(v) => setNm({ ...nm, finition: v })} options={FINITIONS.map((f) => ({ value: f.id, label: f.label }))} /></div><Btn kind="primary" size="sm" onClick={() => { const r = act((d) => matiereCont(d, 'add', null, nm), 'Matière ajoutée.'); if (r.ok) setNm({ label: '', couleur: '#B9C4CC', finition: 'lisse' }); }}>+ Ajouter</Btn></div>
+          <div className="card space-y-2 p-3"><div className="lbl">Nouvelle matière</div><TI value={nm.label} onChange={(v) => setNm({ ...nm, label: v })} placeholder="ex. Polyéthylène" /><div className="flex gap-2"><ColorInp label="Couleur" value={nm.couleur} onChange={(v) => setNm({ ...nm, couleur: v })} /><SI value={nm.finition} onChange={(v) => setNm({ ...nm, finition: v })} options={FINITIONS.map((f) => ({ value: f.id, label: f.label }))} /></div><Btn kind="primary" size="sm" onClick={() => { const r = act((d) => matiereCont(d, 'add', null, nm), 'Matière ajoutée.'); if (r.ok) setNm({ label: '', couleur: '#B9C4CC', finition: 'lisse' }); }}>＋ Ajouter</Btn></div>
         </div>
       </Sec>
       <Sec title="Ce que montrent les contenants (plan et cartes)">
@@ -65,7 +65,7 @@ function StudioView() {
           <Field label="Nom" className="min-w-[160px] flex-1"><TI value={mx.nom} onChange={(v) => setMx({ ...mx, nom: v })} placeholder="ex. Blanc de noirs" /></Field>
           <Group label="Cépages de l’assemblage"><div className="flex flex-wrap gap-3">{db.lists.cepages.map((c) => <Check key={c.id} checked={mx.cepages.includes(c.id)} onChange={(v) => setMx({ ...mx, cepages: v ? [...mx.cepages, c.id] : mx.cepages.filter((x) => x !== c.id) })} label={c.label} />)}</div></Group>
           <Group label="Couleur"><ColorInp label="Couleur" value={mx.couleur} onChange={(v) => setMx({ ...mx, couleur: v })} /></Group>
-          <Btn kind="primary" onClick={() => { if (mx.cepages.length < 2) return act(() => fail('Cochez au moins deux cépages.')); const key = [...mx.cepages].sort().join('|'); if ((ap.melanges || []).some((m) => [...m.cepages].sort().join('|') === key)) return act(() => fail('Cet assemblage a déjà une couleur.')); setAp({ melanges: [...(ap.melanges || []), { id: `mx${Date.now()}`, nom: mx.nom.trim() || mx.cepages.map((c) => lbl(db, 'cepages', c)).join(' + '), cepages: mx.cepages, couleur: mx.couleur }] }, 'Couleur d’assemblage ajoutée.'); setMx({ nom: '', cepages: [], couleur: '#B5835A' }); return null; }}>+ Ajouter</Btn>
+          <Btn kind="primary" onClick={() => { if (mx.cepages.length < 2) return act(() => fail('Cochez au moins deux cépages.')); const key = [...mx.cepages].sort().join('|'); if ((ap.melanges || []).some((m) => [...m.cepages].sort().join('|') === key)) return act(() => fail('Cet assemblage a déjà une couleur.')); setAp({ melanges: [...(ap.melanges || []), { id: `mx${Date.now()}`, nom: mx.nom.trim() || mx.cepages.map((c) => lbl(db, 'cepages', c)).join(' + '), cepages: mx.cepages, couleur: mx.couleur }] }, 'Couleur d’assemblage ajoutée.'); setMx({ nom: '', cepages: [], couleur: '#B5835A' }); return null; }}>＋ Ajouter</Btn>
         </div>
       </Sec>
       <Sec title="Couleur du contour">
@@ -90,7 +90,7 @@ function CrusView() {
         { h: 'Autres noms', cls: 'hm', r: (c) => c.alias || '' }, { h: 'Origine', r: (c) => (c.custom ? <Chip tone="info">personnalisé</Chip> : <span className="text-xs text-ink2">fichier</span>) },
         { h: 'Utilisé', cls: 'r', r: (c) => cruUsage(db, c.id) || '' },
         { h: 'Listes de saisie', r: (c) => <button type="button" className={cx('chip', c.masque ? '' : 'chip-ok')} aria-pressed={!c.masque} title={c.masque ? 'Masqué : cliquez pour le proposer à nouveau' : 'Proposé à la saisie : cliquez pour le masquer'} onClick={(e) => { e.stopPropagation(); act((d) => cruMask(d, [c.id], !c.masque)); }}>{c.masque ? '◌ masqué' : '● visible'}</button> },
-        { h: '', r: (c) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => cruDelete(d, c.id), 'Cru supprimé.'); }}>Suppr.</Btn> }];
+        { h: '', r: (c) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => cruDelete(d, c.id), 'Cru supprimé.'); }}>Supprimer</Btn> }];
   /* 0.48.0-alpha.1 : crus regroupés par département, repliés quand la liste est longue (plus de 60 crus sans recherche) ; une recherche les déplie */
   const groupes = useMemo(() => { const G = new Map(); rows.forEach((c) => { const k = String(c.dep || '').trim(); if (!G.has(k)) G.set(k, []); G.get(k).push(c); }); return [...G.entries()].sort((x, y) => (!x[0] ? 1 : !y[0] ? -1 : x[0].localeCompare(y[0], 'fr'))); }, [rows]);
   const [ouv, setOuv] = useState({}); useEffect(() => setOuv({}), [q, f]); const auto = !!q.trim() || rows.length <= 60;
@@ -103,7 +103,7 @@ function CrusView() {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input className="inp" style={{ width: 'auto', flex: '1 1 220px' }} placeholder="Rechercher un village…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un village" data-crus-recherche="" />
         {[['all', 'Tous'], ...[...ECHELLES].reverse().map((e) => [e.id, e.label]), ...(n('') ? [['', 'Non classés']] : []), ['custom', 'Personnalisés'], ['visibles', 'Visibles'], ['masques', 'Masqués']].map(([k, l]) => <Btn key={k} size="sm" kind={f === k ? 'primary' : undefined} onClick={() => setF(k)}>{l}</Btn>)}
-        <Btn kind="primary" onClick={() => setForm({})}>+ Cru personnalisé</Btn><Btn onClick={restore}>Rétablir la liste d’origine</Btn>
+        <Btn kind="primary" onClick={() => setForm({})}>＋ Cru personnalisé</Btn><Btn onClick={restore}>Rétablir la liste d’origine</Btn>
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm"><span className="text-ink2">Pour ne garder dans les listes de saisie que vos villages : filtrez, puis</span><Btn size="sm" disabled={!vis} onClick={() => act((d) => cruMask(d, rows.map((c) => c.id), true), `${vis} cru(s) masqué(s) des listes.`)}>Masquer les {vis} crus affichés</Btn><Btn size="sm" disabled={vis === rows.length} onClick={() => act((d) => cruMask(d, rows.map((c) => c.id), false), 'Crus de nouveau proposés à la saisie.')}>Réafficher les {rows.length - vis} crus masqués affichés</Btn></div>
       <p className="mb-2 text-xs text-ink2">Liste de départ issue du fichier « Échelle des crus en Champagne » (sans les pourcentages) : pour une autre région, masquez ces villages et ajoutez les vôtres (« + Cru personnalisé »). Le classement d’un lot est celui du cru de rang le plus bas qui le compose.</p>
@@ -130,7 +130,7 @@ function ParcellesView() {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input className="inp" style={{ width: 'auto', flex: '1 1 220px' }} placeholder="Rechercher une parcelle, un lieu-dit, un cadastre…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une parcelle" />
         <div style={{ width: 240 }}><CruSelect value={cru} onChange={setCru} allowAdd={false} placeholder="Tous les crus" includeHidden /></div>{cru ? <Btn size="sm" kind="ghost" onClick={() => setCru('')}>Tous les crus</Btn> : null}
-        <Btn kind="primary" onClick={() => setForm({ preset: cru ? { cruId: cru } : {} })}>+ Nouvelle parcelle</Btn>
+        <Btn kind="primary" onClick={() => setForm({ preset: cru ? { cruId: cru } : {} })}>＋ Nouvelle parcelle</Btn>
       </div>
       <Tbl rows={rows} onRow={(p) => setForm({ id: p.id })} empty={P.length ? 'Aucune parcelle ne correspond.' : 'Aucune parcelle : « + Nouvelle parcelle » (nom, cru, lieu-dit, cadastre, surface, cépage). Vous pourrez ensuite la choisir dans un apport de vendange.'} cols={[
         { h: 'Parcelle', r: (p) => <b>{p.nom}</b> }, { h: 'Cru (village)', r: (p) => <span className="inline-flex flex-wrap items-center gap-1">{cruName(db, p.cruId)} <EChip id={cruEchelle(db, p.cruId)} compact /></span> },
@@ -138,7 +138,7 @@ function ParcellesView() {
         { h: 'Cépage', cls: 'hm', r: (p) => (p.cepageId ? lbl(db, 'cepages', p.cepageId) : '') }, { h: 'Exploitant', cls: 'hm', r: (p) => (p.apporteurId ? apporteurName(db, p.apporteurId) : '') },
         { h: 'Vendanges', cls: 'r', r: (p) => (kg(p.id) ? <span className="num">{fmt(kg(p.id))} kg</span> : '') },
         { h: 'Listes de saisie', r: (p) => <button type="button" className={cx('chip', p.masque ? '' : 'chip-ok')} aria-pressed={!p.masque} onClick={(e) => { e.stopPropagation(); act((d) => parcelleSave(d, { ...p, masque: !p.masque }, p.id)); }}>{p.masque ? '◌ masquée' : '● visible'}</button> },
-        { h: '', r: (p) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => parcelleDelete(d, p.id), 'Parcelle supprimée.'); }}>Suppr.</Btn> }]} />
+        { h: '', r: (p) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => parcelleDelete(d, p.id), 'Parcelle supprimée.'); }}>Supprimer</Btn> }]} />
       {form ? <ParcelleForm id={form.id} preset={form.preset} onClose={() => setForm(null)} /> : null}
     </div>
   );
@@ -158,14 +158,14 @@ function ApporteursView() {
   };
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2"><p className="mr-auto text-sm text-ink2">Viticulteurs, coopératives ou négociants : <b>apporteurs</b> de raisins ou de moûts (apports, entrées de moûts, plusieurs par compartiment) et <b>vendeurs de vins</b> (entrées de vin). Des crus par défaut peuvent être proposés à la saisie.</p><Btn kind="primary" onClick={() => setForm({})}>+ Partenaire</Btn></div>
+      <div className="mb-3 flex flex-wrap items-center gap-2"><p className="mr-auto text-sm text-ink2">Viticulteurs, coopératives ou négociants : <b>apporteurs</b> de raisins ou de moûts (apports, entrées de moûts, plusieurs par compartiment) et <b>vendeurs de vins</b> (entrées de vin). Des crus par défaut peuvent être proposés à la saisie.</p><Btn kind="primary" onClick={() => setForm({})}>＋ Partenaire</Btn></div>
       <Tbl rows={db.apporteurs} onRow={(a) => setForm({ id: a.id })} empty="Aucun partenaire." cols={[
         { h: 'Partenaire', r: (a) => <b>{a.nom}</b> }, { h: 'Rôles', r: (a) => <span className="flex flex-wrap gap-1">{apporteurRoles(a).map((x) => <Chip key={x}>{x}</Chip>)}</span> }, { h: 'Commune', cls: 'hm', r: (a) => a.commune },
         { h: 'Crus par défaut', cls: 'hm', r: (a) => (a.crusDefaut || []).length ? <span className="flex flex-wrap items-center gap-1">{a.crusDefaut.map((c) => <CruBadge key={c} id={c} />)}{a.cruAuto ? <span className="text-xs text-ink2">· proposé</span> : null}</span> : '—' },
         { h: 'Raisin livré', cls: 'r', r: (a) => <span className="num">{fmt(stat(a.id).kg)} kg</span> }, { h: 'Moûts', cls: 'r', r: (a) => <span className="num">{fmtL(stat(a.id).L)}</span> },
         { h: 'Vins achetés', cls: 'r hm', r: (a) => { const s = stat(a.id); return <span className="num">{s.vins ? fmtL(s.vins) : ''}{s.vins && s.bt ? ' · ' : ''}{s.bt ? `${fmt(s.bt)} bt` : ''}{!s.vins && !s.bt ? '—' : ''}</span>; } },
         { h: 'Crus livrés', cls: 'hm', r: (a) => <span className="flex flex-wrap gap-1">{stat(a.id).crus.map((c) => <CruBadge key={c} id={c} />)}</span> },
-        { h: '', r: (a) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => apporteurDelete(d, a.id), 'Partenaire supprimé.'); }}>Suppr.</Btn> }]} />
+        { h: '', r: (a) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => apporteurDelete(d, a.id), 'Partenaire supprimé.'); }}>Supprimer</Btn> }]} />
       {form ? <ApporteurForm id={form.id} onClose={() => setForm(null)} /> : null}
     </div>
   );
@@ -175,12 +175,12 @@ function SitesView() {
   const { db, R, act } = useApp(); const [form, setForm] = useState(null);
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2"><p className="mr-auto text-sm text-ink2">Les sites ne séparent pas les stocks : un transfert peut passer d’un site à l’autre et les registres restent communs. Le site sert à organiser le plan de cave.</p><Btn kind="primary" onClick={() => setForm('new')}>+ Site</Btn></div>
+      <div className="mb-3 flex flex-wrap items-center gap-2"><p className="mr-auto text-sm text-ink2">Les sites ne séparent pas les stocks : un transfert peut passer d’un site à l’autre et les registres restent communs. Le site sert à organiser le plan de cave.</p><Btn kind="primary" onClick={() => setForm('new')}>＋ Site</Btn></div>
       <Tbl rows={db.sites} onRow={(s) => setForm(s.id)} cols={[
         { h: 'Site', r: (s) => <b>{s.nom}</b> }, { h: 'Adresse', cls: 'hm', r: (s) => s.adresse },
         { h: 'Contenants', cls: 'r', r: (s) => db.contenants.filter((c) => c.siteId === s.id && c.statut !== 'archive').length },
         { h: 'Volume', cls: 'r', r: (s) => <span className="num">{fmtL(sum(db.contenants.filter((c) => c.siteId === s.id), (c) => R.contVol[c.id] || 0))}</span> },
-        { h: '', r: (s) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => siteDelete(d, s.id), 'Site supprimé.'); }}>Suppr.</Btn> }]} />
+        { h: '', r: (s) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => siteDelete(d, s.id), 'Site supprimé.'); }}>Supprimer</Btn> }]} />
       {form ? <SiteForm id={form === 'new' ? null : form} onClose={() => setForm(null)} /> : null}
     </div>
   );
@@ -207,7 +207,7 @@ function FractionsEditor() {
         <input className="inp" style={{ width: 90 }} value={nv.suffix} onChange={(e) => setNv({ ...nv, suffix: e.target.value })} placeholder="Suffixe" maxLength={4} aria-label="Suffixe" />
         <Check checked={nv.pressurage} onChange={(v) => setNv({ ...nv, pressurage: v })} label="au pressurage" />
         <label className="flex items-center gap-1 text-sm"><span className="text-ink2">Rôle</span><SI plain value={nv.role} options={roleOpts} onChange={(v) => setNv({ ...nv, role: v, roleManuel: true })} aria-label="Rôle de la nouvelle fraction" /></label>
-        <Btn kind="primary" size="sm" onClick={() => { const r = act((d) => fractionCont(d, 'add', null, { label: nv.label, suffix: nv.suffix, pressurage: nv.pressurage, role: nv.role }), 'Fraction ajoutée.'); if (r.ok) setNv({ label: '', suffix: '', pressurage: true, role: 'autre', roleManuel: false }); }}>+ Ajouter</Btn>
+        <Btn kind="primary" size="sm" onClick={() => { const r = act((d) => fractionCont(d, 'add', null, { label: nv.label, suffix: nv.suffix, pressurage: nv.pressurage, role: nv.role }), 'Fraction ajoutée.'); if (r.ok) setNv({ label: '', suffix: '', pressurage: true, role: 'autre', roleManuel: false }); }}>＋ Ajouter</Btn>
       </div>
       <p className="help">Toutes les fractions sont proposées à l’entrée de moûts ; celles cochées « au pressurage » apparaissent aussi dans le formulaire de pressurage. Le suffixe complète le code lot (P26-01-<b>C</b>, M26-02-<b>T1</b>). Le rôle (cuvée, taille, rebêche ou autre) compte la fraction dans les marcs, les plafonds et les rendements : il est proposé d’après le nom, vérifiez-le. Une fraction déjà utilisée peut être renommée mais pas supprimée.</p>
       <p className="help" data-sous-fractions="">Sous-fractions (cœur de cuvée, tête de cuvée, 1re / 2e taille…) : ajoutez-les avec leur rôle (cuvée ou taille) ; elles comptent alors avec leur fraction dans les marcs, les plafonds et les rendements.</p>

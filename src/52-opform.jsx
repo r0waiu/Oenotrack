@@ -55,7 +55,7 @@ function SourcesEditor({ db, Rd, sources, onChange, label = 'Portions sources' }
           <Btn kind="danger" size="sm" aria-label={`Retirer la portion ${i + 1}`} onClick={() => onChange(sources.filter((_, k) => k !== i))}>✕</Btn>
         </div>
       ))}
-      <div className="flex flex-wrap items-center gap-3"><Btn size="sm" onClick={() => onChange([...sources, { portionId: '', volL: '' }])}>+ Ajouter une portion</Btn><span className="text-sm text-ink2">Total repris : <b className="num">{fmtL(sum(sources, (s) => s.volL))}</b></span></div>
+      <div className="flex flex-wrap items-center gap-3"><Btn size="sm" onClick={() => onChange([...sources, { portionId: '', volL: '' }])}>＋ Ajouter une portion</Btn><span className="text-sm text-ink2">Total repris : <b className="num">{fmtL(sum(sources, (s) => s.volL))}</b></span></div>
     </div>
   );
 }
@@ -235,7 +235,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
             <div className="mb-2 flex flex-wrap items-center gap-1" role="tablist" aria-label="Partenaires de la citerne" data-onglets-partenaires="">
               {P.map((p0, k) => { const p = ongletVal(p0, k); return <button key={p.id} type="button" role="tab" aria-selected={p.id === actif} className={cx('opr-tog', p.id === actif && 'on')} data-onglet-partenaire={k + 1} onClick={() => setOngletMout(p.id)}>
                 <span translate={p.apporteurId ? 'no' : undefined}>{p.apporteurId ? apporteurName(db, p.apporteurId) : `Partenaire n° ${k + 1}`}</span>{p.ref ? <span className="text-ink2" translate="no"> · {p.ref}</span> : null} <span className="chip">{nTab(p.id)}</span></button>; })}
-              <Btn size="sm" onClick={ajouterOnglet} data-ajouter-partenaire="">+ Partenaire</Btn>
+              <Btn size="sm" onClick={ajouterOnglet} data-ajouter-partenaire="">＋ Partenaire</Btn>
             </div>
             <div role="tabpanel" className="space-y-3 rounded-md border border-line p-3" data-onglet-actif={kA + 1}>
               <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,240px),1fr))' }}>
@@ -283,10 +283,10 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
                       </div>
                       {cfVisible(cfgv, 'd.hauteur') ? <HauteurCuve contId={d.contenantId} hauteur={d.hauteur} volL={d.volL} volAvant={moutVolAvant(Rd, f, i, j)} n={i + 1} j={j + 1} onChange={(h, v) => setD(i, j, { hauteur: h, ...(v != null ? { volL: String(Math.round(v)) } : {}) })} /> : null}
                     </div>))}
-                    <Btn size="sm" onClick={() => setE(i, { dests: [...e.dests, { contenantId: '', volL: '' }] })}>+ Répartir sur une autre cuve</Btn>
+                    <Btn size="sm" onClick={() => setE(i, { dests: [...e.dests, { contenantId: '', volL: '' }] })}>＋ Répartir sur une autre cuve</Btn>
                   </div></div>
               </div>))}
-              <Btn onClick={() => upd({ entrees: [...f.entrees, { ...nvLigne(), partId: actif }] })}>+ Ajouter un moût (compartiment)</Btn>
+              <Btn onClick={() => upd({ entrees: [...f.entrees, { ...nvLigne(), partId: actif }] })}>＋ Ajouter un moût (compartiment)</Btn>
               {P.length > 1 ? <div><Btn size="sm" kind="danger" onClick={() => retirerOnglet(actif)} data-retirer-partenaire="">Retirer ce partenaire</Btn></div> : null}
               </div>
             </div>
@@ -319,7 +319,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
               <NI value={c.kg} onChange={(v) => setCharges(f.charges.map((x, k) => (k === i ? { ...x, kg: v } : x)))} placeholder="kg pressés" />
               <Btn kind="danger" size="sm" aria-label="Retirer" onClick={() => setCharges(f.charges.filter((_, k) => k !== i))}>✕</Btn>
             </div>))}
-            <Btn size="sm" onClick={() => setCharges([...f.charges, { apportId: '', kg: '' }])}>+ Ajouter une pesée</Btn>{!Object.keys(Rd.raisins).length ? <div className="help">Aucune pesée à cette date : enregistrez d’abord une « Pesée de vendange ».</div> : null}
+            <Btn size="sm" onClick={() => setCharges([...f.charges, { apportId: '', kg: '' }])}>＋ Ajouter une pesée</Btn>{!Object.keys(Rd.raisins).length ? <div className="help">Aucune pesée à cette date : enregistrez d’abord une « Pesée de vendange ».</div> : null}
           </div>
         </CF>
         <G n={3}><CF k="code" label="Code du lot parent"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation" className="sm:col-span-1"><TI value={f.designation} onChange={(v) => upd({ designation: v })} /></CF><CF k="millesime" label="Millésime"><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder={String(yearOf(f.date))} /></CF></G>

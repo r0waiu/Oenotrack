@@ -113,7 +113,7 @@ function CrusEditor({ crus, onChange, echelle, onEchelle }) {
           <Btn kind="danger" size="sm" aria-label="Retirer le cru" onClick={() => onChange(crus.length > 1 ? crus.filter((_, k) => k !== i) : [{ cruId: '', pct: '' }])}>✕</Btn>
         </div>
       ))}
-      <Btn size="sm" onClick={() => onChange([...crus, { cruId: '', pct: '' }])}>+ Ajouter un cru</Btn>
+      <Btn size="sm" onClick={() => onChange([...crus, { cruId: '', pct: '' }])}>＋ Ajouter un cru</Btn>
       {!used ? <Field label={`${ECH.nom} (si les villages sont inconnus)`}><SI value={echelle} onChange={onEchelle} placeholder="Non renseignée" options={[...ECHELLES].reverse().map((e) => ({ value: e.id, label: e.un }))} /></Field> : null}
     </div>
   );

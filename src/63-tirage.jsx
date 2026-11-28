@@ -100,7 +100,7 @@ function TabTirageTirer({ onPreparer }) {
       <ChantiersSec onForm={setForm} />
       <Sec title="Saisir" right={camp.figee ? <Chip tone="bad">Campagne figée : saisie impossible</Chip> : null}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
-          <div className="card p-3"><div className="lbl">Lot de tirage</div><Btn kind="primary" disabled={camp.figee} onClick={() => setForm({ type: 'tirage' })}>Nouveau tirage</Btn><p className="help">Mixtion en cuve, pompe doseuse ou méthode ancestrale (une seule à la fois) → lot de tirage, en bouteilles sur lattes ; à rattacher de préférence à un chantier.</p></div>
+          <div className="card p-3"><div className="lbl">Lot de tirage</div><Btn kind="primary" disabled={camp.figee} onClick={() => setForm({ type: 'tirage' })}>＋ Nouveau tirage</Btn><p className="help">Mixtion en cuve, pompe doseuse ou méthode ancestrale (une seule à la fois) → lot de tirage, en bouteilles sur lattes ; à rattacher de préférence à un chantier.</p></div>
           <div className="card p-3" data-preparations-lien=""><div className="lbl">Préparations</div><button type="button" className="linkish text-left" onClick={onPreparer}>{`Préparations disponibles (${nDispo}) → Préparer`}</button><p className="help">Levains, pieds de cuve et liqueurs de tirage se créent et se suivent dans « Préparer ».</p></div>
           <AutresOpsModule mod="tirage" sauf={['tirage', 'preparation']} onForm={setForm} />
         </div>
@@ -186,7 +186,7 @@ function TabDegorgement() {
       </div>
       <Sec title="Saisir" data-vg="degorgement-saisir" right={camp.figee ? <Chip tone="bad">Campagne figée : saisie impossible</Chip> : null}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
-          <div className="card p-3"><div className="lbl">Dégorgement</div><Btn kind="primary" disabled={camp.figee || !aDeg.length} onClick={() => degorger(null)}>Nouveau dégorgement</Btn><p className="help">Sort les bouteilles de la cave et crée un lot fini tracé (dosage, liqueur, bouchage).</p></div>
+          <div className="card p-3"><div className="lbl">Dégorgement</div><Btn kind="primary" disabled={camp.figee || !aDeg.length} onClick={() => degorger(null)}>＋ Nouveau dégorgement</Btn><p className="help">Sort les bouteilles de la cave et crée un lot fini tracé (dosage, liqueur, bouchage).</p></div>
           <div className="card p-3"><div className="lbl">Liqueur d’expédition</div><Btn disabled={camp.figee} onClick={() => setForm({ type: 'preparation', preset: { ptype: 'liqueur_exp' } })}>+ {PREP_TYPES.liqueur_exp}</Btn><p className="help">Saccharose dissous dans du vin, MCR, moût concentré ou vin seul (non dosé) ; distillat de vin éventuel. Jamais d’eau.</p></div>
           <AutresOpsModule mod="degorgement" sauf={['degorgement']} onForm={setForm} />
         </div>

@@ -67,7 +67,7 @@ const fCsv = SC + '/catalogue-test.csv'; fs.writeFileSync(fCsv, Buffer.from(csv,
   await page.click('#tab-cuverie'); await page.waitForTimeout(400); await page.locator('main [role=tab]', { hasText: 'Cartes' }).click(); await page.waitForTimeout(300);
   await page.locator('.tankcard', { hasText: 'Cuve D1' }).first().click(); await page.waitForTimeout(600);
   await ov().locator('[data-rubrique=lots] button', { hasText: 'Intrant' }).first().click(); await page.waitForTimeout(600);
-  const ajout = ov().locator('button', { hasText: '+ Ajouter un intrant' }); if (!(await ov().locator('[data-ligne-intrant]').count())) { await ajout.first().click(); await page.waitForTimeout(250); }
+  const ajout = ov().locator('button', { hasText: '＋ Ajouter un intrant' }); if (!(await ov().locator('[data-ligne-intrant]').count())) { await ajout.first().click(); await page.waitForTimeout(250); }
   const lg = ov().locator('[data-ligne-intrant="0"]');
   ok('ligne d’intrant : « Fournisseur » d’abord, produit inactif tant qu’il n’est pas choisi', (await lg.locator('[aria-label="Fournisseur"]').count()) === 1 && (await lg.locator('[aria-label="Produit"]').first().isDisabled()));
   await choisir(page, lg.locator('[aria-label="Fournisseur"]'), 'En stock');
@@ -108,7 +108,7 @@ const fCsv = SC + '/catalogue-test.csv'; fs.writeFileSync(fCsv, Buffer.from(csv,
   await page.click('#tab-cuverie'); await page.waitForTimeout(400); await page.locator('main [role=tab]', { hasText: 'Cards' }).click(); await page.waitForTimeout(300);
   await page.locator('.tankcard', { hasText: 'Cuve D1' }).first().click(); await page.waitForTimeout(600);
   await ov().locator('[data-rubrique=lots] button', { hasText: 'Additive' }).first().click(); await page.waitForTimeout(600);
-  if (!(await ov().locator('[data-ligne-intrant]').count())) { await ov().locator('button', { hasText: '+ Add an additive' }).first().click(); await page.waitForTimeout(250); }
+  if (!(await ov().locator('[data-ligne-intrant]').count())) { await ov().locator('button', { hasText: '＋ Add an additive' }).first().click(); await page.waitForTimeout(250); }
   const lg = ov().locator('[data-ligne-intrant="0"]'); const ph = await lg.locator('[aria-label="Product"], [aria-label="Produit"]').first().evaluate((e) => e.getAttribute('placeholder') || (e.options && e.options[0] ? e.options[0].text : ''));
   const fph = await lg.locator('[aria-label="Supplier"], [aria-label="Fournisseur"]').first().evaluate((e) => e.getAttribute('placeholder') || (e.options && e.options[0] ? e.options[0].text : ''));
   ok('… ligne d’intrant : « Supplier or “In stock”… », « Choose the supplier first »', /Supplier or “In stock”…/.test(fph) && /Choose the supplier first/.test(ph), [fph, ph]);

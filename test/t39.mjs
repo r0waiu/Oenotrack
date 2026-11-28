@@ -35,7 +35,7 @@ ok('Conventionnel : ni supprimable ni déplaçable', await ed.locator('[data-qua
 await ed.locator('input[aria-label="Nom de la nouvelle revendication"]').fill('HVE');
 await ed.locator('select[aria-label="Rang de la nouvelle revendication"]').selectOption('conv');
 ok('règles proposées : celles de la revendication juste en dessous', (await ed.locator('select[aria-label="Règles des intrants de la nouvelle revendication"]').inputValue()) === 'conv');
-await ed.locator('button', { hasText: '+ Ajouter' }).click(); await page.waitForTimeout(300);
+await ed.locator('button', { hasText: '＋ Ajouter' }).click(); await page.waitForTimeout(300);
 let d = await dbj();
 ok('HVE ajoutée au rang 2 avec les règles de Conventionnel', d.lists.qualifs.map((q) => q.id).join() === 'conv,hve,bio,dem' && d.regles.filter((r) => r.qualifId === 'hve').length === d.regles.filter((r) => r.qualifId === 'conv').length && (await toast()).includes('reprises'), d.lists.qualifs.map((q) => q.id).join());
 ok('variable de couleur posée pour la nouvelle revendication', (await page.evaluate(() => document.documentElement.style.getPropertyValue('--qhve'))).trim() === '#2f7d8c' || (await page.evaluate(() => document.documentElement.style.getPropertyValue('--qhve'))).trim().toLowerCase() === '#2f7d8c');
@@ -122,7 +122,7 @@ await echap();
 
 // ================= 3. journal d'hygiène avec produits =================
 await page.locator('main [role=tab]', { hasText: 'Journal d’hygiène' }).click(); await page.waitForTimeout(300);
-await page.locator('main button', { hasText: '+ Nouvelle entrée' }).click(); await page.waitForTimeout(400);
+await page.locator('main button', { hasText: '＋ Nouvelle entrée' }).click(); await page.waitForTimeout(400);
 const cinp = top().locator('input[role=combobox]').first(); await pick(page, cinp, 'Cuve 04', 'Cuve 04');
 const l0 = top().locator('[data-hyg-ligne="0"]');
 const pin = l0.locator('input[aria-label="Produit 1"], select[aria-label="Produit 1"]').first();
@@ -130,7 +130,7 @@ if ((await pin.evaluate((e) => e.tagName)) === 'SELECT') await pin.selectOption(
 await page.waitForTimeout(200);
 ok('produit choisi : concentration proposée (bas de la plage), rappels de sécurité', (await l0.locator('input[aria-label="Concentration du produit 1"]').inputValue()) === '1' && (await l0.locator('[data-securite] svg').count()) >= 4 && (await l0.innerText()).includes('Ne jamais mélanger'));
 await l0.locator('input[aria-label="Concentration du produit 1"]').fill('3'); await l0.locator('input[aria-label="Quantité du produit 1"]').fill('2,5');
-await top().locator('button', { hasText: '+ Ajouter un produit' }).click(); await page.waitForTimeout(200);
+await top().locator('button', { hasText: '＋ Ajouter un produit' }).click(); await page.waitForTimeout(200);
 const pin2 = top().locator('[data-hyg-ligne="1"]').locator('input[aria-label="Produit 2"], select[aria-label="Produit 2"]').first();
 if ((await pin2.evaluate((e) => e.tagName)) === 'SELECT') await pin2.selectOption({ label: 'Acide citrique (détartrant) (1 à 2 %)' }); else await pick(page, pin2, 'Acide citrique', 'Acide citrique');
 await page.waitForTimeout(200);
@@ -151,8 +151,8 @@ await page.locator('main select[aria-label="Produit d’hygiène"]').selectOptio
 ok('filtre par produit', (await page.locator('main table tbody tr').count()) === 1);
 await page.locator('main select[aria-label="Produit d’hygiène"]').selectOption(''); await page.waitForTimeout(200);
 // création d'un produit depuis l'entrée
-await page.locator('main button', { hasText: '+ Nouvelle entrée' }).click(); await page.waitForTimeout(400);
-await top().locator('button', { hasText: '+ Nouveau produit d’hygiène' }).click(); await page.waitForTimeout(300);
+await page.locator('main button', { hasText: '＋ Nouvelle entrée' }).click(); await page.waitForTimeout(400);
+await top().locator('button', { hasText: '＋ Nouveau produit d’hygiène' }).click(); await page.waitForTimeout(300);
 await top().locator('label:has-text("Nom du produit") input').fill('Eau ozonée démo'); await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(400);
 ok('produit créé depuis l’entrée : ajouté à la liste des produits utilisés', (await top().locator('[data-hyg-ligne]').count()) === 1 && /Eau Ozonée Démo/.test(await top().locator('[data-hyg-ligne="0"]').innerText() + (await top().locator('[data-hyg-ligne="0"] input, [data-hyg-ligne="0"] select').first().inputValue())));
 await echap();
@@ -186,7 +186,7 @@ await browser.close();
   await p2.locator('main button.card').first().click(); await p2.waitForTimeout(300); await p2.screenshot({ path: SC + '/shots/t39-mobile-fiche.png' });
   await p2.keyboard.press('Escape'); await p2.waitForTimeout(200);
   await p2.locator('main [role=tab]', { hasText: 'Journal d’hygiène' }).click(); await p2.waitForTimeout(200);
-  await p2.locator('main button', { hasText: '+ Nouvelle entrée' }).click(); await p2.waitForTimeout(400); await p2.screenshot({ path: SC + '/shots/t39-mobile-entree.png' });
+  await p2.locator('main button', { hasText: '＋ Nouvelle entrée' }).click(); await p2.waitForTimeout(400); await p2.screenshot({ path: SC + '/shots/t39-mobile-entree.png' });
   const lw = await p2.evaluate(() => { const s = document.querySelector('.overlay .sheet-b'); return s ? s.scrollWidth - s.clientWidth : -1; });
   ok('téléphone : formulaire d’entrée sans débordement', lw <= 1, lw);
   log('erreurs (téléphone) :', e2.length ? e2 : 'aucune');

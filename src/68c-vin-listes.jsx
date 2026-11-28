@@ -21,7 +21,7 @@ function RichAdd({ k, placeholder, extra }) {
     <div className="flex flex-wrap items-center gap-2 border-t border-line pt-2">
       <ColorInp label="Couleur du nouvel élément" value={c} onChange={setC} />
       <input className="inp" style={{ flex: '1 1 220px', width: 'auto' }} value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} placeholder={placeholder} aria-label={placeholder} />
-      <Btn kind="primary" size="sm" onClick={add}>+ Ajouter</Btn>
+      <Btn kind="primary" size="sm" onClick={add}>＋ Ajouter</Btn>
     </div>
   );
 }
@@ -143,7 +143,7 @@ function QualifsEditor() {
         <div className="mt-2 flex flex-wrap items-end gap-2">
           <Field label="Rang"><SI plain value={apres} onChange={(v) => setNv({ ...nv, after: v })} options={L.map((x, i) => ({ value: x.id, label: `rang ${i + 2} — ${i === L.length - 1 ? 'en dernier, ' : ''}juste après ${x.label}` }))} aria-label="Rang de la nouvelle revendication" /></Field>
           <Field label="Règles des intrants" className="min-w-[220px] flex-1"><SI plain value={copie} onChange={(v) => setNv({ ...nv, copieDe: v })} options={[...L.map((x) => ({ value: x.id, label: `Reprendre celles de ${x.label}` })), { value: 'aucune', label: 'Aucune (rien d’autorisé, à régler ensuite)' }]} aria-label="Règles des intrants de la nouvelle revendication" /></Field>
-          <Btn kind="primary" onClick={add}>+ Ajouter</Btn>
+          <Btn kind="primary" onClick={add}>＋ Ajouter</Btn>
         </div>
       </div>
       <Btn size="sm" onClick={() => act((d) => { const r = richListReset(d, 'qualifs'); syncConfig(d); return r; }, 'Revendications d’origine réajoutées (en fin de liste).')}>Réajouter Conventionnel, BIO et Demeter s’ils manquent</Btn>

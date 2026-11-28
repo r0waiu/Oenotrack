@@ -162,7 +162,7 @@ function TabTrace() {
             : <div className="flex flex-wrap gap-2">{ECHELLES.slice().reverse().map((e) => <Btn key={e.id} kind={ech === e.id ? 'primary' : undefined} onClick={() => setEch(e.id)}>{e.label}</Btn>)}</div>}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="help mr-auto">{mode === 'intrant' ? 'Recherche descendante : ajouts directs, puis tous les assemblages, cuvées de tirage et lots finis issus de ces lots.' : 'Recherche à partir de la composition calculée de chaque lot (raisins et moûts → pressées → assemblages → tirage).'}</span>
-          <Btn disabled={!res} onClick={csv}>⬇ Export CSV</Btn><Btn disabled={!res} onClick={() => setPrinting(true)}>🖨 Rapport imprimable</Btn>
+          <Btn disabled={!res} onClick={csv}>⬇ Exporter (CSV)</Btn><Btn disabled={!res} onClick={() => setPrinting(true)}>🖨 Rapport imprimable</Btn>
         </div>
       </div>
       {Body() /* 0.38.0-alpha.3 : appelée, plus montée comme composant (recréé à chaque rendu) */}</>}

@@ -701,6 +701,9 @@ button.chip{cursor:pointer}
 :root:not([data-mode="dark"]) .chip-ok,:root:not([data-mode="dark"]) .bg-okSoft.text-ok{color:color-mix(in srgb,var(--ok) 70%,var(--ink))}
 :root:not([data-mode="dark"]) .chip-bad,:root:not([data-mode="dark"]) .bg-badSoft.text-bad{color:color-mix(in srgb,var(--bad) 70%,var(--ink))}
 .bg-badSoft .linkish,.bg-warnSoft .linkish,.bg-accentSoft .linkish,.bg-okSoft .linkish{color:inherit;text-decoration:underline}
+/* pastilles longues (résultats d'analyses…) : jamais plus larges que leur conteneur */
+.chip{max-width:100%}
+@media (max-width:767px){.tbl-cartes .chip,main td .chip{white-space:normal;text-align:left}}
 /* champs : jamais plus larges que leur conteneur (téléphone) */
 .inp,select.inp,select{max-width:100%}
 .inp{min-width:0}

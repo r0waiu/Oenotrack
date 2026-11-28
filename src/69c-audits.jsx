@@ -43,7 +43,7 @@ function AuditModeleForm({ id, onClose }) {
             <div className="flex gap-2"><TI value={p.texte} onChange={(v) => setP(i, { texte: v })} placeholder="ex. Factures des raisins achetés disponibles" aria-label={`Point ${i + 1}`} style={{ flex: 1 }} /><Btn size="sm" kind="danger" onClick={() => setF((x) => ({ ...x, points: x.points.filter((_, j) => j !== i) }))} aria-label={`Retirer le point ${i + 1}`}>✕</Btn></div>
             {f.pieces.length ? <div className="mt-1.5 flex flex-wrap gap-1">{f.pieces.map((pc) => <button key={pc} type="button" className={cx('chip', (p.pieces || []).includes(pc) && 'chip-info')} onClick={() => setP(i, { pieces: (p.pieces || []).includes(pc) ? p.pieces.filter((y) => y !== pc) : [...(p.pieces || []), pc] })}>{auditPieceNom(pc)}</button>)}</div> : null}
           </div>))}
-          <Btn size="sm" onClick={() => setF((x) => ({ ...x, points: [...x.points, { id: '', texte: '', pieces: [] }] }))}>+ Ajouter un point de contrôle</Btn></div>
+          <Btn size="sm" onClick={() => setF((x) => ({ ...x, points: [...x.points, { id: '', texte: '', pieces: [] }] }))}>＋ Ajouter un point de contrôle</Btn></div>
       </Group>
       <Group label="Réglages" help="Valeurs à vérifier avec votre cahier des charges ou votre organisme (laisser vide : pas de contrôle).">
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,190px),1fr))' }}>
@@ -173,7 +173,7 @@ function AuditsView() {
   return (
     <div data-audits="">
       <Notice tone="info" title="Mode audit">Préparez la visite d’un auditeur (organisme bio ou Demeter, douanes, contrôle sanitaire, appellation…) : chaque type d’audit réunit les pièces qu’il attend — registres, bilan matière, stocks, test de traçabilité… — et ses points de contrôle. Pendant la visite, le mode audit présente tout chapitre par chapitre, note vos réponses, et le dossier s’imprime. Les types fournis sont des aide-mémoire à adapter : vérifiez-les avec votre organisme.</Notice>
-      <Sec title="Types d’audit" right={<Btn onClick={() => setEdM({})} data-audit-nouveau-type="">+ Nouveau type d’audit</Btn>}>
+      <Sec title="Types d’audit" right={<Btn onClick={() => setEdM({})} data-audit-nouveau-type="">＋ Nouveau type d’audit</Btn>}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,300px),1fr))' }}>
           {M.map((m) => (
             <div key={m.id} className="card flex flex-col gap-2 p-4" data-audit-type={m.id}>

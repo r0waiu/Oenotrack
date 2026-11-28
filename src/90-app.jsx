@@ -122,11 +122,11 @@ function App() {
   const act = useCallback((fn, okMsg, opts) => {
     const avant = dbRef.current; const d = clone(avant); let r;
     try { r = fn(d); } catch (e) { console.error(e); r = fail('Erreur interne : ' + e.message); }
-    if (r && r.ok === false) { toast(r.msg, 'bad'); return r; }
+    if (r && r.ok === false) { toast(r.msg, 'bad'); try { ficheErreur(r); } catch (e) { /* ignoré */ } return r; } // 0.48.0-alpha.1 : erreur aussi dans la fiche ouverte (sous le champ)
     // identifiants activés : chaque modification est contrôlée (droits du profil) puis tracée (journal, saisi / corrigé par)
     if (!(opts && opts.systeme) && securiteActive(avant)) {
       let g; try { g = gardeDroits(avant, d, sessionRef.current); } catch (e) { console.error(e); g = { ok: false, msg: 'Erreur interne (droits) : ' + e.message }; }
-      if (!g.ok) { try { syncConfig(avant); } catch (e) { /* listes globales : remises comme avant la modification refusée */ } toast(g.msg, 'bad'); return fail(g.msg); }
+      if (!g.ok) { try { syncConfig(avant); } catch (e) { /* listes globales : remises comme avant la modification refusée */ } toast(g.msg, 'bad'); try { ficheErreur(fail(g.msg)); } catch (e) { /* ignoré */ } return fail(g.msg); }
       gardeAppliquer(d, g, sessionRef.current);
     }
     d.meta.modifLe = new Date().toISOString(); // départage les conflits de synchronisation (la modification la plus récente gagne)

@@ -172,7 +172,8 @@ function persoMemoriser(db, mode, reponses, uid) {
 const VISITE_CHAPITRES = [
   { id: 'prise', titre: 'Prise en main', module: null, etapes: [
     { cible: '[data-brand-presentation]', titre: 'Œnotrack', texte: 'Le logo ramène à la page de présentation de l’application.' },
-    { cible: '.hdr-camp', titre: 'La campagne', texte: 'Choisissez la campagne affichée ; une campagne figée n’est plus modifiable.' },
+    { cible: '.hdr-camp', titre: 'La campagne', texte: 'Choisissez la campagne affichée ; la pastille « Ouverte » ouvre le menu pour figer ou rouvrir la campagne (une campagne figée n’est plus modifiable).' },
+    { cible: '[data-recherche-globale]', titre: 'Recherche', texte: 'Cherchez un lot, une cuve ou une pesée depuis n’importe quel onglet (Ctrl+K) : la fiche s’ouvre directement.' },
     { cible: '#tab-vinification', titre: 'Les onglets', texte: 'Chaque module a son onglet ; les modules masqués ou non autorisés n’apparaissent pas (Paramètres › Modules).' },
     { cible: '.hdr-status', titre: 'État de l’appareil', texte: 'Qui saisit, sauvegarde, synchronisation et thème de l’affichage.' },
     { cible: '[data-visite-bouton]', titre: 'Revoir la visite', texte: 'Ce bouton rouvre la visite : choisissez un chapitre ou faites tout le tour.' },
@@ -241,8 +242,8 @@ const VISITE_CHAPITRES = [
     { cible: '@onglets', titre: 'Maintenance et vérifications', texte: 'À faire, maintenance, produits de maintenance et vérifications périodiques.' },
   ] },
   { id: 'trace', titre: 'Traçabilité', module: 'trace', etapes: [
-    { cible: '[data-trace-etapes]', titre: 'Toutes les étapes', texte: 'De la bouteille à la parcelle : cherchez un lot, une cuve ou un code.', clic: 0 },
-    { cible: '@onglets', titre: 'Rappels et audits', texte: 'Rappel d’un lot d’intrant, par cru, parcelle, partenaire ou échelle, conformité réglementaire, mode audit, rapports.' },
+    { cible: '[data-trace-etapes]', titre: 'Recherche', texte: 'De la bouteille à la parcelle : une seule recherche (lot, cuve, code, date…), filtrée par intrant, cru, parcelle ou partenaire.', clic: 0 },
+    { cible: '@onglets', titre: 'Rappels et audits', texte: 'Échelle des crus, conformité réglementaire, mode audit et sommaire de tous les documents imprimables.' },
   ] },
   { id: 'registres', titre: 'Registres & DRM', module: 'registres', etapes: [
     { cible: '[data-vg="registres-export"]', titre: 'Registres', texte: 'Tous les registres en CSV ou Excel.', sub: 'registres' },

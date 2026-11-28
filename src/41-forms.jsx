@@ -21,7 +21,7 @@ function PortionSelect({ db, Rd, value, onChange, filter, placeholder = 'Choisir
 /* ---------- lignes d'intrants (fournisseur, produit + lot fournisseur + quantité) ---------- */
 // 0.30.0-alpha.1 : le fournisseur (ou « En stock ») se choisit à chaque ligne, puis ses produits (y compris ceux de ses catalogues) ;
 // un produit sans lot fournisseur se reçoit depuis la ligne (« ＋ Réception… »)
-function LignesEditor({ db, Rd, lignes, onChange, qualif, vol, cats, hideDose, addLabel = '+ Ajouter un intrant' }) {
+function LignesEditor({ db, Rd, lignes, onChange, qualif, vol, cats, hideDose, addLabel = '＋ Ajouter un intrant' }) {
   const [recep, setRecep] = useState(null);
   const arrivals = (pid) => db.arrivages.filter((a) => a.produitId === pid).map((a) => ({ a, rest: arrivalRest(Rd, a) })).sort((x, y) => (x.a.dluo || '9999') < (y.a.dluo || '9999') ? -1 : 1);
   const upd = (i, patch) => onChange(lignes.map((l, k) => (k === i ? { ...l, ...patch } : l)));
@@ -76,7 +76,7 @@ function PertesEditor({ db, pertes, onChange, defaultType }) {
           <Btn kind="danger" size="sm" aria-label="Retirer la perte" onClick={() => onChange(pertes.filter((_, k) => k !== i))}>✕</Btn>
         </div>
       ))}
-      <Btn size="sm" onClick={() => onChange([...pertes, { typeId: defaultType || (db.lists.typesPerte[0] || {}).id, volL: '' }])}>+ Ajouter une perte</Btn>
+      <Btn size="sm" onClick={() => onChange([...pertes, { typeId: defaultType || (db.lists.typesPerte[0] || {}).id, volL: '' }])}>＋ Ajouter une perte</Btn>
     </div>
   );
 }
@@ -96,7 +96,7 @@ function PrepUsesEditor({ db, Rd, uses, onChange, types }) {
           <Btn kind="danger" size="sm" aria-label={`Retirer la préparation ${i + 1}`} onClick={() => onChange(uses.filter((_, k) => k !== i))}>✕</Btn>
         </div>
       ))}
-      <Btn size="sm" onClick={() => onChange([...uses, { prepId: '', volL: '' }])}>+ Ajouter une préparation</Btn>
+      <Btn size="sm" onClick={() => onChange([...uses, { prepId: '', volL: '' }])}>＋ Ajouter une préparation</Btn>
       {!preps.length ? <div className="help">Aucune préparation disponible à cette date : créez-en dans l’onglet Tirage & Dégorgement.</div> : null}
     </div>
   );

@@ -95,7 +95,7 @@ const actif = (page) => page.evaluate(() => { const a = document.activeElement; 
   const lg = rep.find((x) => x.k === 'lignes'); const eq = rep.find((x) => x.k === 'equipementIds'); const dc = rep.find((x) => x.k === 'docs');
   ok('sections facultatives vides repliées, avec leur compteur (intrants, équipements, documents)', lg && !lg.ouvert && /\(0\)$/.test(lg.titre) && eq && !eq.ouvert && /Équipements utilisés \(0\)/.test(eq.titre) && dc && !dc.ouvert && /\(0\)$/.test(dc.titre), rep);
   await f.locator('[data-cf-tel="lignes"] > summary').click(); await page.waitForTimeout(150);
-  await f.locator('[data-cf-tel="lignes"] button', { hasText: '+ Ajouter un intrant' }).click(); await page.waitForTimeout(150);
+  await f.locator('[data-cf-tel="lignes"] button', { hasText: '＋ Ajouter un intrant' }).click(); await page.waitForTimeout(150);
   ok('… une section dépliée s’utilise (ligne d’intrant ajoutée, section restée ouverte)', (await f.locator('[data-cf-tel="lignes"] [data-ligne-intrant]').count()) === 1 && await f.locator('[data-cf-tel="lignes"]').evaluate((d) => d.open));
   await page.screenshot({ path: `${SC}/shots/t94-tel-sections.png`, fullPage: false });
   // menu : « Annuler » ferme la fiche

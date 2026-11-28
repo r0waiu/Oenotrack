@@ -46,7 +46,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   await pick(page, f.locator('input[placeholder="Cuve · lot · volume…"]').first(), prep.lot, prep.lot); await page.waitForTimeout(150);
   await f.locator('input[placeholder="0"]').first().fill('6,7');
   for (const [i, code, vol] of [[0, 'LT-T80', '0,36'], [1, 'LEV-T80', '0,375']]) {
-    await f.getByRole('button', { name: '+ Ajouter une préparation' }).click(); await page.waitForTimeout(100);
+    await f.getByRole('button', { name: '＋ Ajouter une préparation' }).click(); await page.waitForTimeout(100);
     const sel = f.locator('select').filter({ hasText: 'Préparation…' }).nth(i);
     if (await sel.count()) await sel.selectOption(await sel.locator('option', { hasText: code }).first().getAttribute('value')); else await pick(page, f.locator('input[placeholder="Préparation…"]').nth(i), code, code);
     await f.locator('input[placeholder="0"]').nth(1 + i).fill(vol);

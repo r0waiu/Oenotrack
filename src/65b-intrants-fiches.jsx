@@ -294,7 +294,7 @@ function IntrantsFichesView() {
       {V.etat ? <div className="mb-3"><VeilleProgres v={V} /></div> : null}
       <div className="hidden md:block"><Tbl rows={rows} empty={filtre === 'revoir' ? 'Rien à revoir : toutes les FDS sont jointes et récentes.' : 'Aucun intrant ne correspond.'} cols={[
         { h: 'Produit', r: (p) => <div><button type="button" className="linkish text-left font-semibold" onClick={() => setForm(p.id)}>{p.nom}</button>{p.actif === false ? <Chip className="ml-1">inactif</Chip> : null}<div className="text-xs text-ink2">{[CATEGORIES[p.categorie], fo(p), p.reference ? `réf. ${p.reference}` : ''].filter(Boolean).join(' · ')}</div></div> },
-        { h: 'Lien fournisseur', r: (p) => (lienNorm(p.lien) ? <LienProduit url={p.lien} court /> : <button type="button" className="linkish text-xs text-ink2" onClick={() => setForm(p.id)}>+ ajouter</button>) },
+        { h: 'Lien fournisseur', r: (p) => (lienNorm(p.lien) ? <LienProduit url={p.lien} court /> : <button type="button" className="linkish text-xs text-ink2" onClick={() => setForm(p.id)}>＋ ajouter</button>) },
         { h: 'FDS', r: (p) => <FdsChipProd p={p} /> },
         { h: 'Fiche technique', r: (p) => { const e = prodFtEtat(db, p); return p.categorie === 'sec' && !e.n ? <span className="text-xs text-ink2">—</span> : <span className={cx('text-sm', !e.n && 'text-ink2')}>{e.label}</span>; } },
         { h: 'En ligne', r: (p) => (p.categorie === 'sec' && !p.veille ? <span className="text-xs text-ink2">—</span> : <VeilleChip p={p} onClick={() => setVoir(p.id)} />) },

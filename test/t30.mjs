@@ -69,7 +69,7 @@ await page.locator('main tbody tr').first().locator('.opr-chip', { hasText: 'Sop
 const fs1 = (await top().innerText()).replace(/\s+/g, ' ');
 ok('fiche opérateur : identité, fonction, appareil', fs1.includes('Sophie Lambert') && fs1.includes('Caviste') && fs1.includes('opérateur de cet appareil'), fs1.slice(0, 140));
 ok('fiche opérateur : opérations réalisées', (await top().locator('tbody tr').count()) >= 3 && fs1.includes('Opérations réalisées'));
-await top().locator('button:text-is("⬇ CSV")').click(); await page.waitForTimeout(500);
+await top().locator('button:text-is("⬇ Exporter (CSV)")').click(); await page.waitForTimeout(500);
 const sv = await page.evaluate(() => window.__saved[window.__saved.length - 1]);
 ok('fiche opérateur : export CSV de l’activité', sv && /activite-sophie-lambert/.test(sv.filename) && sv.text.includes('Sophie Lambert') && sv.text.split('\n').length >= 4, sv && sv.filename);
 await page.screenshot({ path: SH + '/t30-fiche-operateur.png' });
@@ -81,15 +81,15 @@ const sec = page.locator('main [data-section="operateurs"]');
 ok('société : 5 opérateurs actifs, 1 archivé masqué', (await sec.locator('tbody tr').count()) === 5 && (await sec.innerText()).includes('Afficher les opérateurs archivés (1)'));
 await sec.locator('label', { hasText: 'Afficher les opérateurs archivés' }).click(); await page.waitForTimeout(200);
 ok('société : archivé affiché sur demande', (await sec.locator('tbody tr').count()) === 6 && (await sec.innerText()).includes('Marc Rivière'));
-await page.locator('main button:text-is("+ Opérateur")').click(); await page.waitForTimeout(300);
+await page.locator('main button:text-is("＋ Opérateur")').click(); await page.waitForTimeout(300);
 const inps = top().locator('input'); await inps.nth(0).fill('Julien'); await inps.nth(1).fill('Morel'); await page.waitForTimeout(100);
 ok('ajout : doublon signalé avant d’enregistrer', (await top().innerText()).includes('existe déjà'));
 await inps.nth(0).fill('Hugo'); await inps.nth(1).fill('Perrin'); await inps.nth(2).fill('Apprenti');
 await top().locator('.sheet-f button:text-is("Enregistrer")').click(); await page.waitForTimeout(400);
 ok('ajout : Hugo Perrin dans la liste', (await toast()).includes('Hugo Perrin') && (await sec.innerText()).includes('Hugo Perrin'), await toast());
 const rowH = sec.locator('tbody tr', { hasText: 'Hugo Perrin' });
-ok('suppression possible seulement si inutilisé', (await rowH.locator('button', { hasText: 'Suppr.' }).count()) === 1 && (await sec.locator('tbody tr', { hasText: 'Julien Morel' }).locator('button', { hasText: 'Suppr.' }).count()) === 0);
-await rowH.locator('button', { hasText: 'Suppr.' }).click(); await page.waitForTimeout(200); await page.locator('[role=alertdialog] button:text-is("Supprimer")').click(); await page.waitForTimeout(300);
+ok('suppression possible seulement si inutilisé', (await rowH.locator('button:text-is("Supprimer")').count()) === 1 && (await sec.locator('tbody tr', { hasText: 'Julien Morel' }).locator('button', { hasText: 'Suppr.' }).count()) === 0);
+await rowH.locator('button:text-is("Supprimer")').click(); await page.waitForTimeout(200); await page.locator('[role=alertdialog] button:text-is("Supprimer")').click(); await page.waitForTimeout(300);
 ok('suppression : Hugo Perrin retiré', !(await sec.innerText()).includes('Hugo Perrin'));
 await page.screenshot({ path: SH + '/t30-societe.png', fullPage: false });
 
@@ -117,7 +117,7 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(300);
 
 // 7. hygiène
 await page.click('#tab-hygiene'); await page.waitForTimeout(300);
-await page.locator('main button:has-text("+ Nouvelle entrée")').click(); await page.waitForTimeout(300);
+await page.locator('main button:has-text("＋ Nouvelle entrée")').click(); await page.waitForTimeout(300);
 const tg = top().locator('select, input[role=combobox]').nth(2);
 await top().locator('.opr-tog', { hasText: 'Thomas Girard' }).click();
 const cible = top().locator('input[role=combobox]').first();

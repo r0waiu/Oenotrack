@@ -63,7 +63,7 @@ await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(
 // 8. Paramètres › Opérations : créer une opération (fiche associée), stade automatique
 await page.click('#tab-params'); await page.click('main button:has-text("⚙ Opérations")'); await page.waitForTimeout(300);
 await page.screenshot({ path: SH + '/t27-catalogue.png' });
-await page.click('main button:has-text("+ Nouvelle opération")'); await page.waitForTimeout(300);
+await page.click('main button:has-text("＋ Nouvelle opération")'); await page.waitForTimeout(300);
 await top().locator('input[aria-label="Nom de l’opération"]').fill('Tanisage');
 await top().locator('label', { hasText: 'Traitement sur une cuve avec intrants' }).click();
 await top().locator('select[aria-label="Groupe"]').selectOption('Élevage & stabilisation');

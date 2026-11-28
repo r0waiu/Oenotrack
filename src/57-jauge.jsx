@@ -408,7 +408,7 @@ function BaremeTableau({ b, onChange, lecture }) {
             <td className="r">{lecture ? <span className="num">{fmt(p[1], p[1] % 1 ? 1 : 0)}</span> : <input className="inp num jg-inp" inputMode="decimal" defaultValue={String(p[1]).replace('.', ',')} onBlur={(e) => { const v = e.target.value; if (hasNum(v) && Math.abs(num(v) - p[1]) > 1e-9) maj(k, v); }} aria-label={`Volume à ${fmt(p[0], 1)} cm`} />}</td>
             <td className="r num">{fmtHL(p[1])}</td><td className="text-xs">{c ? (c.mode === 'manuel' ? `modifiée (avant : ${c.lu})` : c.lu ? `« ${c.lu} »` : 'case vide') : ''}</td>
             {!lecture ? <td><button type="button" className="btn btn-sm" aria-label={`Retirer la ligne ${fmt(p[0], 1)} cm`} onClick={() => suppr(k)}>✕</button></td> : null}</tr>))}</tbody></table></div>
-      {!lecture ? <div className="mt-2 flex flex-wrap items-end gap-2"><Field label="Ajouter : hauteur (cm)"><NI value={ajout.h} onChange={(v) => setAjout({ ...ajout, h: v })} aria-label="Hauteur de la ligne ajoutée" /></Field><Field label="volume (L)"><NI value={ajout.v} onChange={(v) => setAjout({ ...ajout, v })} aria-label="Volume de la ligne ajoutée" /></Field><Btn onClick={ajouter} disabled={!hasNum(ajout.h) || !hasNum(ajout.v)}>+ Ajouter la ligne</Btn></div> : null}
+      {!lecture ? <div className="mt-2 flex flex-wrap items-end gap-2"><Field label="Ajouter : hauteur (cm)"><NI value={ajout.h} onChange={(v) => setAjout({ ...ajout, h: v })} aria-label="Hauteur de la ligne ajoutée" /></Field><Field label="volume (L)"><NI value={ajout.v} onChange={(v) => setAjout({ ...ajout, v })} aria-label="Volume de la ligne ajoutée" /></Field><Btn onClick={ajouter} disabled={!hasNum(ajout.h) || !hasNum(ajout.v)}>＋ Ajouter la ligne</Btn></div> : null}
     </div>
   );
 }

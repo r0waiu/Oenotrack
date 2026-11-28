@@ -98,7 +98,7 @@ const cuve = await page.evaluate((id) => { const D = normalizeDb(JSON.parse(loca
 await page.locator('button', { hasText: /^Cartes$/ }).first().click(); await page.waitForTimeout(500);
 await page.locator('.tankcard', { hasText: cuve }).first().click(); await page.waitForTimeout(600);
 await ov().locator('[data-rubrique=lots] button', { hasText: 'Intrant' }).first().click(); await page.waitForTimeout(600);
-if (!(await ov().locator('[data-ligne-intrant]').count())) { await ov().locator('button', { hasText: '+ Ajouter un intrant' }).first().click(); await page.waitForTimeout(250); }
+if (!(await ov().locator('[data-ligne-intrant]').count())) { await ov().locator('button', { hasText: '＋ Ajouter un intrant' }).first().click(); await page.waitForTimeout(250); }
 const lg = ov().locator('[data-ligne-intrant="0"]');
 await choisir(lg.locator('[aria-label="Fournisseur"]'), 'En stock');
 await pick(page, lg.locator('input[aria-label="Produit"]'), 'Sorbate de potassium (f', 'Sorbate de potassium (fictif)'); await page.waitForTimeout(400);

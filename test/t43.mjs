@@ -29,7 +29,7 @@ const tableauOk = (g) => g.chev === 0 && g.pleineLargeur && g.rangees && g.haute
 const { browser, page, errors } = await open({ routes, viewport: { width: 1440, height: 950 } });
 const top = () => page.locator('.overlay').last();
 const champ = { nom: () => top().locator('input[placeholder="ex. Cuve 12"]'), cap: () => top().locator('input[placeholder="ex. 40"]'), fab: () => top().locator('input[aria-label="Fabricant"]') };
-const nouveau = async (pg = page) => { await pg.click('#tab-cuverie'); await pg.waitForTimeout(300); if (await pg.locator('main [role=tab]', { hasText: 'Plan de cave' }).count()) { await pg.locator('main [role=tab]', { hasText: 'Plan de cave' }).click(); await pg.waitForTimeout(200); } await pg.locator('main button', { hasText: '+ Nouveau contenant' }).click(); await pg.waitForTimeout(300); };
+const nouveau = async (pg = page) => { await pg.click('#tab-cuverie'); await pg.waitForTimeout(300); if (await pg.locator('main [role=tab]', { hasText: 'Plan de cave' }).count()) { await pg.locator('main [role=tab]', { hasText: 'Plan de cave' }).click(); await pg.waitForTimeout(200); } await pg.locator('main button', { hasText: '＋ Nouveau contenant' }).click(); await pg.waitForTimeout(300); };
 
 // 1. création d'un contenant avec son cahier d'épalement (texte) : valeurs reprises, tableau corrigé à la main, enregistré avec le contenant
 await nouveau();

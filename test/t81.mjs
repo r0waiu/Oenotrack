@@ -41,7 +41,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   await ov().getByRole('button', { name: 'Enregistrer', exact: true }).click(); await page.waitForTimeout(500);
   t = await txt(page.locator('[data-declaration-rapport="finale"]'));
   ok('rapport de fin de tirage : volumes, VRTP, lots, ventilation', /Volume résultant d’exigences techniques particulières/.test(t) && /Cuvée déclarée/.test(t) && /Par revendication/i.test(t) && /11,20 % vol/.test(t), t.slice(0, 500));
-  ok('… export CSV et PDF proposés', (await ov().getByRole('button', { name: '⬇ CSV' }).count()) === 1 && (await ov().locator('[data-sortie-pdf]').count()) === 1);
+  ok('… export CSV et PDF proposés', (await ov().getByRole('button', { name: '⬇ Exporter (CSV)' }).count()) === 1 && (await ov().locator('[data-sortie-pdf]').count()) === 1);
   await page.screenshot({ path: `${SC}/shots/t81-fin-tirage.png`, fullPage: true });
   await ov().getByRole('button', { name: 'Marquer déposée' }).click(); await page.waitForTimeout(200);
   await ov().getByLabel('Référence du dépôt').fill('ACC-T81'); await ov().getByRole('button', { name: 'Enregistrer', exact: true }).click(); await page.waitForTimeout(500);

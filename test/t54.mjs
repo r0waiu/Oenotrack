@@ -104,7 +104,7 @@ ok('moment, type de maintenance ajoutés ; contrôle d’origine renommé (ident
 await page.screenshot({ path: SC + '/shots/t54-listes.png', fullPage: true });
 // plan de nettoyage : zone masquée plus proposée, moment personnalisé et contrôle ajouté proposés
 await sous('Plan de nettoyage');
-await page.locator('main button', { hasText: '+ Ajouter une ligne' }).click(); await page.waitForTimeout(350); f = ov();
+await page.locator('main button', { hasText: '＋ Ajouter une ligne' }).click(); await page.waitForTimeout(350); f = ov();
 const zones = await f.locator('select[aria-label="Zone"] option').evaluateAll((L) => L.map((o) => o.value));
 const moments = await f.locator('select[aria-label="Moment 1"] option').evaluateAll((L) => L.map((o) => o.textContent));
 const ctls = await f.locator('select[aria-label="Contrôle après rinçage"] option').evaluateAll((L) => L.map((o) => o.value));
@@ -114,7 +114,7 @@ ok('… résultat attendu du contrôle ajouté prérempli', (await f.locator('la
 await fermer();
 // journal : contrôle ajouté directement depuis la saisie, puis utilisé
 await sous('Journal d’hygiène');
-await page.locator('main button', { hasText: '+ Nouvelle entrée' }).click(); await page.waitForTimeout(350); f = ov();
+await page.locator('main button', { hasText: '＋ Nouvelle entrée' }).click(); await page.waitForTimeout(350); f = ov();
 await f.locator('[data-ajout-controle]').click(); await page.waitForTimeout(150);
 await f.locator('[data-ajout-controle-form] input[aria-label="Nouveau moyen de contrôle"]').fill('Conductimètre'); await f.locator('[data-ajout-controle-form] input[aria-label="Résultat attendu du contrôle"]').fill('< 50 µS/cm');
 await f.locator('[data-ajout-controle-form] button', { hasText: 'Ajouter' }).click(); await page.waitForTimeout(350);
@@ -129,7 +129,7 @@ await sous('⚙ Réglages');
 ok('Listes : utilisation comptée, suppression bloquée', /1×/.test(await txt(carte('hygControles').locator('[data-hyg-item="conductimetre"]'))) && await carte('hygControles').locator('[data-hyg-item="conductimetre"] button', { hasText: 'Supprimer' }).isDisabled());
 // maintenance : type ajouté proposé et accepté
 await sous('Maintenance');
-await page.locator('main button', { hasText: /Enregistrer une intervention|\+ Intervention/ }).first().click(); await page.waitForTimeout(350); f = ov();
+await page.locator('main button', { hasText: /Enregistrer une intervention|＋ Intervention/ }).first().click(); await page.waitForTimeout(350); f = ov();
 const types = await f.locator('select[aria-label="Type d’intervention"] option').evaluateAll((L) => L.map((o) => o.value));
 ok('maintenance : type « Étalonnage » proposé', types.includes('etalonnage'), types);
 await f.locator('select[aria-label="Type d’intervention"]').selectOption('etalonnage');
