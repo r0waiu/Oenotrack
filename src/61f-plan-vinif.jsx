@@ -4,7 +4,8 @@
      l'instruction de travail de la cave ; modification, duplication, vérification, import d'un tableur (.xlsx, .xls, .ods, .csv).
    - Appliquer à un lot : colonne du plan qui s'applique au lot (cépage majoritaire, revendication, fraction), quantités calculées pour son
      volume (doses en g/hL, cL/hL, mL/hL, g/L), fiche à imprimer.
-   - Schémas par lot : les schémas de vinification (avant : Paramètres › Schémas de vinification). */
+   - Schémas par lot : les schémas de vinification (avant : Paramètres › Schémas de vinification).
+   0.48.0-alpha.1 : sous-onglet « Tableau du plan » (plus le nom du module répété) ; explication repliable (Aide « plan-vinif »). */
 const PLANV_TYPES_LIB = { etape: 'Étape', section: 'Titre de section', note: 'Note (toute la largeur)' };
 const PLANV_ETENDUES_LIB = { colonne: 'Une dose par colonne', revendication: 'Cuvée et tailles réunies', groupe: 'Tout le groupe de cépages' };
 const planVinifEtat = (p) => (p.aVerifier ? <Chip tone="warn">{p.exemple ? 'exemple à vérifier' : 'à vérifier'}</Chip> : <Chip tone="good">vérifié</Chip>);
@@ -148,11 +149,10 @@ function PlanVinifVue() {
   const ct = sel ? planConditionsTexte(db, sel) : '';
   return (
     <div data-planv="">
-      <Notice tone={sel && sel.aVerifier ? 'warn' : 'info'} title="Plan de vinification">
+      <Aide id="plan-vinif" resume="Les doses sont à adapter à chaque lot, avec votre œnologue.">
         <span>Instruction de travail de la cave : pour chaque étape (sulfitage, enzymage, débourbage, levurage, chaptalisation, FML, passage au froid, filtration, tirage…), le produit et la dose selon le groupe de cépages, la revendication et la fraction.</span>{' '}
-        <span>Les doses sont à adapter à chaque lot, avec votre œnologue.</span>{' '}
         <span>Modifiez directement les cases du tableau. À la création d’un lot, les étapes de sa colonne lui sont proposées dans l’ordre, comme opérations à réaliser ; une variante (partenaire, cru, échelle, revendication…) remplace le plan général pour les lots qui remplissent ses conditions.</span>
-      </Notice>
+      </Aide>
       <div className="my-3 flex flex-wrap items-center gap-2">
         {L.length > 1 ? <select className="inp" style={{ width: 'auto', maxWidth: 360 }} value={sel ? sel.id : ''} onChange={(e) => setSel(e.target.value)} aria-label="Plan de vinification">{L.map((p) => <option key={p.id} value={p.id}>{`${planVinifEstVariante(p) ? '↳ ' : ''}${p.nom}${planVinifTitre(p) ? ` (${planVinifTitre(p)})` : ''}${p.actif === false ? ' — archivé' : ''}`}</option>)}</select> : null}
         {sel ? <><span className="text-sm text-ink2">{planVinifTitre(sel)}</span>{planVinifEtat(sel)}</> : null}
@@ -228,7 +228,7 @@ function TabPlan() {
   const { db, uid, secu } = useApp();
   const voirSchemas = !secu || niveauModule(db, uid, 'params') !== 'aucun';
   // 0.43.0-alpha.2 : « Schémas par lot » retiré (schémas convertis en variantes du plan) ; l'ancien identifiant mène au plan
-  const items = [{ id: 'plan', label: '🗂 Plan de vinification' }, { id: 'lot', label: 'Appliquer à un lot' }]; void voirSchemas;
+  const items = [{ id: 'plan', label: 'Tableau du plan' }, { id: 'lot', label: 'Appliquer à un lot' }]; void voirSchemas; // 0.48.0-alpha.1 : plus le nom du module répété
   const [sub0, setSub] = useSousOnglet([...items, { id: 'schemas', label: '' }], 'plan'); const sub = sub0 === 'schemas' ? 'plan' : sub0;
   return <div><SubNav value={sub} onChange={setSub} items={items} />{sub === 'lot' ? <PlanVinifLot /> : <PlanVinifVue />}</div>;
 }

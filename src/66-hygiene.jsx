@@ -141,7 +141,7 @@ const maintDansEquipements = (db, uid) => moduleActif(db, 'equipements') && modu
 function TabHygiene() {
   const { db, uid } = useApp(); const nMq = hygListe(db).filter((p) => !p.archive && hygFdsEtat(db, p).k === 'manquante').length; const T0 = usePlanTaches();
   const eq = maintDansEquipements(db, uid); const T = eq ? T0.filter((x) => x.origine !== 'maintenance') : T0;
-  const items = [{ id: 'journal', label: 'Journal d’hygiène' }, { id: 'afaire', label: 'À faire', badge: T.length || null }, { id: 'plan', label: 'Plan de nettoyage' }, ...(eq ? [] : [{ id: 'maintenance', label: 'Maintenance' }]), { id: 'produits', label: 'Produits d’hygiène', badge: nMq || null }, { id: 'listes', label: '⚙ Listes' }];
+  const items = [{ id: 'journal', label: 'Journal d’hygiène' }, { id: 'afaire', label: 'À faire', badge: T.length || null }, { id: 'plan', label: 'Plan de nettoyage' }, ...(eq ? [] : [{ id: 'maintenance', label: 'Maintenance' }]), { id: 'produits', label: 'Produits d’hygiène', badge: nMq || null }, { id: 'listes', label: '⚙ Réglages' }];
   const [sub, setSub] = useSousOnglet(items, 'journal');
   const V = { produits: HygProduitsView, plan: PlanNettoyageView, maintenance: PlanMaintenanceView }[sub];
   return (<div><SubNav value={sub} onChange={setSub} items={items} />{sub === 'afaire' ? <HygAFaire quoi={eq ? 'hygiene' : undefined} /> : sub === 'listes' ? <HygListesView groupes={eq ? ['hygiene'] : ['hygiene', 'maintenance']} /> : V ? <V /> : <HygJournal onAFaire={() => setSub('afaire')} />}</div>);

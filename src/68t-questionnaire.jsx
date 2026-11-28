@@ -74,22 +74,44 @@ function Questionnaire({ premiere, onClose, onVisite }) {
 }
 
 /* ---------- visite guidée par chapitres (0.45.0-alpha.1 ; chapitres : VISITE_CHAPITRES, 16z) ----------
-   Sommaire des chapitres (modules affichés et autorisés) ou « Tout voir » ; chaque étape ouvre l'onglet et le sous-onglet voulus,
-   puis met la cible en avant (bulle et halo) ; une cible absente est sautée. Suivant / Précédent / flèches, Échap pour fermer. */
+   Sommaire des chapitres (modules affichés et autorisés), « L’essentiel » ou « Tout voir » ; chaque étape ouvre l'onglet et le sous-onglet
+   voulus, puis met la cible en avant (bulle et halo) ; une cible absente est sautée. Suivant / Précédent / flèches, Échap pour fermer.
+   0.48.0-alpha.1 : sommaire toujours dans l'écran (centré d'après sa hauteur réelle, en haut sous 600 px, boutons dans un pied collant),
+   fermé au toucher du voile ; bulle placée sous, au-dessus ou à côté de la cible, jamais dessus quand il y a la place (au téléphone :
+   feuille basse) ; cible « A || B » (repli) ; nombre d'étapes et durée annoncés ; parcours « L’essentiel » (VISITE_ESSENTIEL, 16z). */
 const visiteAttendre = (ms) => new Promise((r) => setTimeout(r, ms));
 const visiteOnglets = () => [...document.querySelectorAll('main [role=tablist]')].find((x) => !x.closest('[data-onglet-groupe]') && x.getClientRects().length > 0) || null;
-const visiteCible = (sel) => { try { const el = sel === '@onglets' ? visiteOnglets() : document.querySelector(sel); return el && el.getClientRects().length > 0 ? el : null; } catch (x) { return null; } };
+const visiteCible1 = (sel) => { try { const el = sel === '@onglets' ? visiteOnglets() : document.querySelector(sel); return el && el.getClientRects().length > 0 ? el : null; } catch (x) { return null; } };
+const visiteCible = (sel) => { for (const s of String(sel || '').split('||')) { const el = visiteCible1(s.trim()); if (el) return el; } return null; };
+const VISITE_MARGE = 12;
+// position de la bulle (largeur W, hauteur h) autour du rectangle r de la cible, dans un écran vw × vh
+function visitePlacer(r, W, h, vw, vh) {
+  const m = VISITE_MARGE; const tel = vw < 640;
+  if (!r) return { top: Math.max(m, (vh - h) / 2), left: Math.max(m, (vw - W) / 2), cote: 'centre' };
+  const cx0 = Math.max(m, Math.min(vw - W - m, r.x + r.w / 2 - W / 2));
+  const haut = Math.max(m, Math.min(vh - h - m, Math.max(r.y, m)));
+  if (vh - (r.y + r.h) >= h + 2 * m) return { top: r.y + r.h + m, left: cx0, cote: 'dessous' };
+  if (r.y >= h + 2 * m) return { top: r.y - h - m, left: cx0, cote: 'dessus' };
+  if (!tel && vw - (r.x + r.w) >= W + 2 * m) return { top: haut, left: r.x + r.w + m, cote: 'droite' };
+  if (!tel && r.x >= W + 2 * m) return { top: haut, left: r.x - W - m, cote: 'gauche' };
+  if (tel) return { feuille: true, cote: 'feuille' };
+  return { top: vh - h - m, left: vw - W - m, cote: 'coin' };
+}
 function VisiteGuidee({ onClose }) {
   const { db, nav, setTab, niveau } = useApp();
-  const chapitres = useMemo(() => visiteChapitres(db, (m) => niveau(m) !== 'aucun'), [db]); // eslint-disable-line react-hooks/exhaustive-deps
+  const voir = (m) => niveau(m) !== 'aucun';
+  const chapitres = useMemo(() => visiteChapitres(db, voir), [db]); // eslint-disable-line react-hooks/exhaustive-deps
+  const essentiel = useMemo(() => visiteEssentiel(db, voir), [db]); // eslint-disable-line react-hooks/exhaustive-deps
   const [file, setFile] = useState(null); const [pos, setPos] = useState({ c: 0, e: 0, dir: 1 }); const [r, setR] = useState(null); const [pret, setPret] = useState(false); const [fin, setFin] = useState(false);
+  const [hB, setHB] = useState(0); const bulleRef = useRef(null);
   const navRef = useRef(nav); navRef.current = nav; const elRef = useRef(null);
   const ch = file ? file[pos.c] : null; const et = ch ? ch.etapes[pos.e] : null;
   const total = file ? sum(file, (c) => c.etapes.length) : 0; const rangE = file ? sum(file.slice(0, pos.c), (c) => c.etapes.length) + pos.e + 1 : 0;
+  const nTout = sum(chapitres, (c) => c.etapes.length);
   const deplacer = (dir) => setPos((p) => { const F = file || []; let c = p.c; let e = p.e + dir;
     if (e >= ((F[c] || {}).etapes || []).length) { c += 1; e = 0; } else if (e < 0) { c -= 1; e = c >= 0 ? F[c].etapes.length - 1 : 0; }
     if (c >= F.length) { setFin(true); return p; } if (c < 0) return { c: 0, e: 0, dir: 1 }; return { c, e, dir }; });
-  const mesurer = () => { const el = elRef.current; if (!el || !document.body.contains(el)) { setR(null); return; } const b = el.getBoundingClientRect(); setR({ x: b.left, y: b.top, w: b.width, h: b.height }); };
+  const mesurer = () => { const el = elRef.current; if (!el || !document.body.contains(el)) { setR(null); return; } const b = el.getBoundingClientRect(); setR((x) => (x && x.x === b.left && x.y === b.top && x.w === b.width && x.h === b.height ? x : { x: b.left, y: b.top, w: b.width, h: b.height })); };
   useEffect(() => { if (!file || fin || !et) return undefined; let annule = false; setPret(false);
     (async () => {
       const sub = et.sub || null;
@@ -97,32 +119,41 @@ function VisiteGuidee({ onClose }) {
       if (et.clic != null) { const T = visiteOnglets(); const b = T ? T.querySelectorAll('[role=tab]')[et.clic] : null; if (b && b.getAttribute('aria-selected') !== 'true') { b.click(); await visiteAttendre(320); } }
       if (annule) return; let el = visiteCible(et.cible); if (!el) { await visiteAttendre(250); el = visiteCible(et.cible); }
       if (annule) return; if (!el) { deplacer(pos.dir || 1); return; }
-      elRef.current = el; try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (x) { /* ignoré */ } await visiteAttendre(60); if (!annule) { mesurer(); setPret(true); }
+      elRef.current = el; const haute = el.getBoundingClientRect().height > window.innerHeight * 0.55; // cible haute : son début en haut de l'écran
+      try { el.scrollIntoView({ block: haute ? 'start' : 'center', inline: 'nearest' }); } catch (x) { /* ignoré */ } await visiteAttendre(60); if (!annule) { mesurer(); setPret(true); }
     })();
     return () => { annule = true; };
   }, [file, pos, fin]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const f = () => mesurer(); window.addEventListener('resize', f); window.addEventListener('scroll', f, true); return () => { window.removeEventListener('resize', f); window.removeEventListener('scroll', f, true); }; }, []);
   useEffect(() => { if (!pret) return undefined; const h = setInterval(mesurer, 350); return () => clearInterval(h); }, [pret]); /* la page peut encore bouger après la mesure (images, polices) */
+  React.useLayoutEffect(() => { const b = bulleRef.current; const h = b ? Math.ceil(b.offsetHeight) : 0; if (h && Math.abs(h - hB) > 1) setHB(h); }); // hauteur réelle de la bulle
   useEffect(() => { const k = (ev) => { if (ev.key === 'Escape') onClose(); else if (file && !fin && pret && ev.key === 'ArrowRight') deplacer(1); else if (file && !fin && pret && ev.key === 'ArrowLeft') deplacer(-1); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }); // eslint-disable-line react-hooks/exhaustive-deps
   const lancer = (L) => { setFin(false); setR(null); elRef.current = null; setPos({ c: 0, e: 0, dir: 1 }); setFile(L); };
   const sommaire = () => { setFile(null); setFin(false); setR(null); };
   const vw = typeof window !== 'undefined' ? window.innerWidth : 800; const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
   if (!file || fin) {
+    const W = Math.min(460, vw - 2 * VISITE_MARGE); const h = hB || Math.min(560, vh - 2 * VISITE_MARGE);
+    const top = vh < 600 || vw < 600 ? VISITE_MARGE : Math.max(VISITE_MARGE, (vh - h) / 2);
+    const nE = sum(essentiel, (c) => c.etapes.length);
     return ReactDOM.createPortal(<div className="visite" role="dialog" aria-modal="true" aria-label="Visite guidée" data-visite-sommaire="">
-      <div className="visite-voile" />
-      <div className="visite-bulle card" style={{ top: Math.max(12, vh / 2 - 230), left: Math.max(12, vw / 2 - Math.min(460, vw - 24) / 2), width: Math.min(460, vw - 24), maxHeight: vh - 24, overflowY: 'auto' }}>
-        <div className="font-semibold">{fin ? 'Fin de la visite' : '❓ Visite guidée'}</div>
-        <p className="text-sm text-ink2">{fin ? 'Choisissez un autre chapitre, ou fermez la visite.' : 'Choisissez un chapitre (un module), ou faites tout le tour. Seuls les modules affichés sont présentés.'}</p>
-        <div className="my-2 grid gap-1" data-visite-chapitres="">{chapitres.map((c) => <button key={c.id} type="button" className="btn btn-sm justify-between" style={{ width: '100%' }} onClick={() => lancer([c])} data-visite-chapitre={c.id}><span>{c.titre}</span><span className="text-xs text-ink2">{`${c.etapes.length} étape(s)`}</span></button>)}</div>
-        <div className="mt-2 flex flex-wrap gap-2"><Btn size="sm" kind="ghost" onClick={onClose} data-visite-passer="">Fermer</Btn><span className="ml-auto" /><Btn size="sm" kind="primary" onClick={() => lancer(chapitres)} data-visite-tout="">Tout voir →</Btn></div>
+      <div className="visite-voile" onClick={onClose} data-visite-voile="" />
+      <div ref={bulleRef} className="visite-bulle visite-sommaire card" style={{ top, left: Math.max(VISITE_MARGE, (vw - W) / 2), width: W, maxHeight: vh - 2 * VISITE_MARGE }}>
+        <div className="visite-corps">
+          <div className="font-semibold">{fin ? 'Fin de la visite' : '❓ Visite guidée'}</div>
+          <p className="text-sm text-ink2">{fin ? 'Choisissez un autre chapitre, ou fermez la visite.' : 'Choisissez un chapitre (un module), ou faites tout le tour. Seuls les modules affichés sont présentés.'}</p>
+          {essentiel.length ? <button type="button" className="btn btn-sm mt-2 justify-between" style={{ width: '100%' }} onClick={() => lancer(essentiel)} data-visite-essentiel=""><span>★ L’essentiel</span><span className="text-xs text-ink2">{`${nE} étapes · ~${visiteDuree(nE)} min`}</span></button> : null}
+          <div className="my-2 grid gap-1" data-visite-chapitres="">{chapitres.map((c) => <button key={c.id} type="button" className="btn btn-sm justify-between" style={{ width: '100%' }} onClick={() => lancer([c])} data-visite-chapitre={c.id}><span>{c.titre}</span><span className="text-xs text-ink2">{`${c.etapes.length} étape(s)`}</span></button>)}</div>
+        </div>
+        <div className="visite-pied flex flex-wrap items-center gap-2"><Btn size="sm" kind="ghost" onClick={onClose} data-visite-passer="">Fermer</Btn><span className="ml-auto" /><Btn size="sm" kind="primary" onClick={() => lancer(chapitres)} data-visite-tout="">{`Tout voir · ${nTout} étapes · ~${visiteDuree(nTout)} min →`}</Btn></div>
       </div>
     </div>, document.body);
   }
-  const W = Math.min(340, vw - 24); const dessous = !r || r.y + r.h + 200 < vh; const top = r ? (dessous ? r.y + r.h + 12 : Math.max(12, r.y - 192)) : vh / 2 - 80; const left = r ? Math.max(12, Math.min(vw - W - 12, r.x + r.w / 2 - W / 2)) : vw / 2 - W / 2;
+  const W = Math.min(340, vw - 2 * VISITE_MARGE); const P = visitePlacer(r, W, hB || 200, vw, vh);
+  const halo = r ? (() => { const y0 = Math.max(r.y - 6, 4); const y1 = Math.min(r.y + r.h + 6, vh - 4); return { left: r.x - 6, top: y0, width: r.w + 12, height: Math.max(0, y1 - y0) }; })() : null; // halo limité à l'écran
   const dernier = pos.c === file.length - 1 && pos.e === ch.etapes.length - 1;
   return ReactDOM.createPortal(<div className="visite" data-visite={rangE} data-visite-chap={ch.id} role="dialog" aria-modal="true" aria-label="Visite guidée">
-    {pret && r ? <div className="visite-cible" style={{ left: r.x - 6, top: r.y - 6, width: r.w + 12, height: r.h + 12 }} /> : <div className="visite-voile" />}
-    {pret ? <div className="visite-bulle card" style={{ top, left, width: W }}>
+    {pret && halo ? <div className="visite-cible" style={halo} /> : <div className="visite-voile" />}
+    {pret ? <div ref={bulleRef} className={cx('visite-bulle card', P.feuille && 'visite-feuille')} style={P.feuille ? undefined : { top: P.top, left: P.left, width: W }} data-visite-cote={P.cote}>
       <div className="text-xs text-ink2"><span translate="no">{ch.titre}</span>{` · étape ${rangE} / ${total}`}</div>
       <div className="font-semibold">{et.titre}</div><p className="text-sm">{et.texte}</p>
       <div className="mt-2 flex flex-wrap gap-2"><Btn size="sm" kind="ghost" onClick={onClose} data-visite-passer="">Passer</Btn><Btn size="sm" kind="ghost" onClick={sommaire} data-visite-retour="">Sommaire</Btn><span className="ml-auto" />{rangE > 1 ? <Btn size="sm" onClick={() => deplacer(-1)}>← Précédent</Btn> : null}<Btn size="sm" kind="primary" onClick={() => deplacer(1)} data-visite-suivant="">{dernier ? 'Terminer' : 'Suivant →'}</Btn></div>

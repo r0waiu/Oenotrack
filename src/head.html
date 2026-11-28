@@ -782,6 +782,21 @@ button.chip{cursor:pointer}
 .aide[open]>summary{border-bottom:1px solid var(--line)}
 .aide>.aide-c{padding:8px 12px}
 @media print{.aide{display:none}}
+/* Paramètres : menu des rubriques en liste simple ; au téléphone, la liste puis la rubrique choisie (« ‹ Rubriques » pour revenir) */
+.params-menu-liste .btn{white-space:normal}
+@media (max-width:767.98px){.params-tel-rubrique .params-menu{display:none}.params-tel-liste .params-contenu{display:none}.params-menu-liste .btn{min-height:44px}}
+/* listes et crus repliables */
+.liste-tete{display:flex;align-items:center;gap:.5rem;width:100%;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer}
+.liste-tete .chip{font-size:12px;font-weight:500}
+.liste-fleche{display:inline-block;width:1em;color:var(--accent)}
+.crus-tete{padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-weight:600;min-height:40px}
+/* visite guidée : sommaire dans l'écran (pied collant), voile qui ferme, feuille basse au téléphone */
+.visite[data-visite-sommaire] .visite-voile{pointer-events:auto;cursor:pointer}
+.visite-bulle.visite-sommaire{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.visite-sommaire .visite-corps{overflow-y:auto;min-height:0;flex:1 1 auto;padding:.8rem 1rem .4rem}
+.visite-sommaire .visite-pied{position:sticky;bottom:0;flex:0 0 auto;padding:.6rem 1rem;border-top:1px solid var(--line);background:var(--card)}
+.visite-bulle.visite-feuille{left:0;right:0;bottom:0;top:auto;width:auto;border-radius:14px 14px 0 0;max-height:45vh;overflow-y:auto;padding-bottom:calc(.8rem + env(safe-area-inset-bottom,0px))}
+@media print{.visite{display:none}}
 /* (fin du bloc paramètres) */
 /* impression : seul le rapport est imprimé */
 @page{size:A4;margin:12mm}

@@ -84,7 +84,7 @@ ok('KPI « Déclassements à valider » → sous-onglet Déclassements', (await 
 await page.click('#tab-pressoir'); await page.waitForTimeout(250); await page.click('#tab-ops'); await page.waitForTimeout(300);
 
 // 6. Hygiène › Listes
-await page.click('#tab-hygiene'); await page.waitForTimeout(400); await sous('⚙ Listes');
+await page.click('#tab-hygiene'); await page.waitForTimeout(400); await sous('⚙ Réglages');
 ok('Hygiène › Listes : onze listes de l’hygiène + actions et locaux', (await page.locator('[data-hyg-liste]').count()) === 11 && /Contrôles après rinçage/.test(await txt(page.locator('[data-hyg-listes]'))) && /Types d’intervention de maintenance/.test(await txt(page.locator('[data-hyg-listes]'))));
 const carte = (k) => page.locator(`[data-hyg-liste="${k}"]`);
 await carte('hygControles').locator('input[aria-label="Ajouter à Contrôles après rinçage"]').fill('Bandelette ATP');
@@ -125,7 +125,7 @@ await f.locator('[data-hyg-controle] button', { hasText: 'Conforme' }).first().c
 await f.locator('.sheet-f .btn-primary', { hasText: 'Enregistrer' }).click(); await page.waitForTimeout(450);
 d = await db(); const hc = d.hygiene.find((h) => h.controle && h.controle.type === 'conductimetre');
 ok('… entrée enregistrée avec le contrôle ajouté (conforme, 32 µS/cm)', !!hc && hc.controle.resultat === 'conforme' && hc.controle.valeur === '32 µS/cm' && (await page.locator('.overlay').count()) === 0, hc || (await toasts()));
-await sous('⚙ Listes');
+await sous('⚙ Réglages');
 ok('Listes : utilisation comptée, suppression bloquée', /1×/.test(await txt(carte('hygControles').locator('[data-hyg-item="conductimetre"]'))) && await carte('hygControles').locator('[data-hyg-item="conductimetre"] button', { hasText: 'Supprimer' }).isDisabled());
 // maintenance : type ajouté proposé et accepté
 await sous('Maintenance');
@@ -183,7 +183,7 @@ await page.locator('main [data-bon-pressoir-btn]:visible').first().click(); awai
 b = await txt(ov().locator('[data-bon-pressoir]'));
 ok('anglais : bon de pressoir (« Pressing slip — press load no. », « Grapes loaded », « Musts obtained »)', /Pressing slip — press load no\. \d/.test(b) && /Grapes loaded/.test(b) && /Total loaded/i.test(b) && /Pressing of \d\d\/\d\d\/2026/.test(b) && /Cru scale: Grand Cru = 100,0 %|Cru scale: (Other cru|Premier Cru) = /.test(b) && !/Bon de pressoir|Raisins chargés|Pressurage du/.test(b), b.slice(0, 900));
 await fermer();
-await page.click('#tab-hygiene'); await page.waitForTimeout(400); await sous('⚙ Lists');
+await page.click('#tab-hygiene'); await page.waitForTimeout(400); await sous('⚙ Settings');
 t = await txt(page.locator('[data-hyg-listes]'));
 ok('anglais : Hygiène › Listes (« Hygiene lists », « Post-rinse checks », « expected: < 150 RLU », « hidden »)', /Hygiene lists/.test(t) && /Post-rinse checks/.test(t) && /expected: < 150 RLU/.test(t) && /hidden/.test(t) && /Maintenance intervention types/.test(t) && !/Contrôles après rinçage|Listes de l’hygiène/.test(t), t.slice(0, 700));
 await page.click('#tab-ops'); await page.waitForTimeout(400); t = await txt(page.locator('main'));

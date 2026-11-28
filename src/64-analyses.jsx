@@ -47,14 +47,14 @@ function ModeleForm({ id, onClose }) {
 
 function TabAnalyses() {
   const { db, R, act, confirm, camp, openOp } = useApp();
-  const [sub, setSub] = useState('saisies'); const [form, setForm] = useState(null); const [vueDoc, setVueDoc] = useState(null); const [lotF, setLotF] = useState(''); const [modF, setModF] = useState(''); const [contF, setContF] = useState('');
+  const [sub, setSub] = useSousOnglet([{ id: 'saisies' }, { id: 'modeles' }], 'saisies'); const [form, setForm] = useState(null); const [vueDoc, setVueDoc] = useState(null); const [lotF, setLotF] = useState(''); const [modF, setModF] = useState(''); const [contF, setContF] = useState('');
   const rows = db.analyses.filter((a) => (!lotF || a.lotId === lotF) && (!modF || a.modeleId === modF) && (!contF || a.contenantId === contF)).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   const pivotIds = lotF ? uniq(rows.flatMap((a) => Object.keys(a.valeurs))).filter((k) => db.analysesParams.some((p) => p.id === k)) : [];
   const delA = async (a) => { const ok = await confirm({ title: 'Supprimer cette analyse ?', body: `Analyse du ${fmtDate(a.date)} sur ${lotCode(db, R, a.lotId)}.`, ok: 'Supprimer', danger: true }); if (ok) act((d) => analyseDelete(d, a.id), 'Analyse supprimée.'); };
   const delX = async (title, fn, okMsg) => { const ok = await confirm({ title, body: 'Cette suppression est définitive.', ok: 'Supprimer', danger: true }); if (ok) act(fn, okMsg); };
   return (
     <div>
-      <SubNav value={sub} onChange={setSub} items={[{ id: 'saisies', label: 'Saisies d’analyses' }, { id: 'modeles', label: 'Paramètres & modèles de fiches' }]} />
+      <SubNav value={sub} onChange={setSub} items={[{ id: 'saisies', label: 'Saisies d’analyses' }, { id: 'modeles', label: '⚙ Réglages' }]} />
       {sub === 'saisies' ? (<>
         {camp.figee ? null : <BulletinsImport />}
         <Sec title={`Analyses (${rows.length})`} right={<><SI value={lotF} onChange={setLotF} placeholder="Tous les lots" style={{ width: 'auto', maxWidth: 220 }} options={Object.values(R.lots).sort((a, b) => a.code.localeCompare(b.code, 'fr', { numeric: true })).map((l) => ({ value: l.id, label: l.code }))} aria-label="Lot" />

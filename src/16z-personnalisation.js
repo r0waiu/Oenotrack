@@ -167,7 +167,8 @@ function persoMemoriser(db, mode, reponses, uid) {
    Un chapitre par module (seuls les modules affichés et autorisés sont proposés) ; chaque étape ouvre l'onglet du chapitre (setTab,
    avec son sous-onglet `sub` quand le module le lit), ou clique le sous-onglet de rang `clic` (modules qui gardent leur sous-onglet),
    puis met en avant la cible : sélecteur CSS, ou « @onglets » (barre des sous-onglets du module). Une cible absente (module vide,
-   droits en lecture) est sautée. */
+   droits en lecture) est sautée. 0.48.0-alpha.1 : « A || B » = cibles de repli, la première affichée l'emporte (un titre de section
+   plutôt que toute la section, pour que la bulle ne recouvre pas ce qu'elle montre). */
 const VISITE_CHAPITRES = [
   { id: 'prise', titre: 'Prise en main', module: null, etapes: [
     { cible: '[data-brand-presentation]', titre: 'Œnotrack', texte: 'Le logo ramène à la page de présentation de l’application.' },
@@ -189,26 +190,26 @@ const VISITE_CHAPITRES = [
     { cible: '@onglets', titre: 'Pressurages et carnet', texte: 'Marcs et carnet de pressoir (cuvée, tailles, rebêches), relevés par partenaire, bilan, journal et réglages.' },
   ] },
   { id: 'ops', titre: 'Opérations & assemblages', module: 'ops', etapes: [
-    { cible: '[data-groupe]', titre: 'Saisir une opération', texte: 'Par famille : vendange et moûts, vinification, assemblages, soutirages, intrants, analyses, sorties…', sub: 'journal' },
-    { cible: 'select[aria-label="Type d’opération"]', titre: 'Journal des opérations', texte: 'Toutes les opérations de la campagne, filtrables, modifiables avec un motif tracé.' },
-    { cible: '[data-vg="declass"]', titre: 'Déclassements', texte: 'Un intrant non autorisé propose un déclassement : rien n’est appliqué sans votre validation.', sub: 'declass' },
-    { cible: '[data-ops-catalogue]', titre: 'Catalogue des opérations', texte: 'Vos opérations, leurs champs, le changement de stade et la fiche imprimée.', sub: 'catalogue' },
+    { cible: '[data-nouvelle-op] || [data-groupe]', titre: 'Saisir une opération', texte: 'Bouton « ＋ Nouvelle opération » : recherche, favoris, dernières opérations utilisées et familles d’opérations.', sub: 'journal' },
+    { cible: 'select[aria-label="Type d’opération"]', titre: 'Journal des opérations', texte: 'Sous-onglet « Journal » : toutes les opérations de la campagne, filtrables, modifiables avec un motif tracé.' },
+    { cible: '[data-vg="declass"] .sec-t || [data-vg="declass"]', titre: 'Déclassements', texte: 'Un intrant non autorisé propose un déclassement : rien n’est appliqué sans votre validation.', sub: 'declass' },
+    { cible: '[data-vg="ops-catalogue"] || [data-ops-catalogue]', titre: 'Catalogue des opérations', texte: 'Vos opérations, leurs champs, le changement de stade et la fiche imprimée.', sub: 'catalogue' },
   ] },
   { id: 'previsions', titre: 'À réaliser & fiches', module: 'previsions', etapes: [
     { cible: 'input[aria-label="Rechercher une opération à réaliser"]', titre: 'Opérations à réaliser', texte: 'Les opérations prévues (dont les étapes du plan de vinification), validées une fois faites.' },
     { cible: '[data-vg="fiche-jour"]', titre: 'Fiches de travail', texte: 'Fiche du jour par type d’opération, fiches d’une sélection, modèles de fiches.' },
   ] },
   { id: 'plan', titre: 'Plan de vinification', module: 'plan', etapes: [
-    { cible: '[data-planv-edit], [data-planv-tableau]', titre: 'Le plan', texte: 'Étapes, produits et doses par groupe de cépages, revendication et fraction ; chaque case se modifie sur place.', sub: 'plan' },
+    { cible: '[data-planv-edit] thead || [data-planv-tableau] thead || [data-planv-edit], [data-planv-tableau]', titre: 'Le plan', texte: 'Étapes, produits et doses par groupe de cépages, revendication et fraction ; chaque case se modifie sur place.', sub: 'plan' },
     { cible: '[data-planv-variante]', titre: 'Variantes', texte: 'Un plan adapté à des partenaires, crus, échelles, revendications ou cépages ; la variante la plus précise s’applique.' },
     { cible: '[data-planv-importer]', titre: 'Import d’un tableur', texte: 'Reprenez votre plan Excel tel quel.' },
     { cible: '[data-planv-proposer]', titre: 'À la création d’un lot', texte: 'Les étapes du plan sont proposées, dans l’ordre, comme opérations à réaliser.' },
   ] },
   { id: 'tirage', titre: 'Tirages', module: 'tirage', etapes: [
-    { cible: '[data-tirage-calcul]', titre: 'Préparer', texte: 'Calculateur de tirage dans les deux sens, fonte de liqueur, VRTP prévisionnel.', clic: 0 },
+    { cible: '[data-tirage-calcul] > :first-child || [data-tirage-calcul]', titre: 'Préparer', texte: 'Calculateur de tirage dans les deux sens, fonte de liqueur, VRTP prévisionnel.', clic: 0 },
     { cible: '[data-vg="levains"]', titre: 'Levains', texte: 'Plan de propagation, alimentations, recalibrage et suivi jour par jour.' },
     { cible: '[data-vg="chantiers"]', titre: 'Tirer', texte: 'Chantiers de tirage : cuvées prévues, cuve de mixtion ou pompe doseuse, formats, casse, bilan.', clic: 1 },
-    { cible: '[data-tirage-fournitures]', titre: 'Fournitures', texte: 'Bouteilles, obturateurs, capsules : ce sont vos intrants, sans stock en double ; retours au fournisseur.', clic: 2 },
+    { cible: '[data-tirage-fournitures] > :first-child || [data-tirage-fournitures]', titre: 'Fournitures', texte: 'Bouteilles, obturateurs, capsules : ce sont vos intrants, sans stock en double ; retours au fournisseur.', clic: 2 },
     { cible: '[data-tirage-declarations]', titre: 'Déclarations', texte: 'Déclaration préalable (AIDAC) et de fin de tirage (Innov OI), VRTP distinct, dépôt figé.', clic: 3 },
   ] },
   { id: 'cave', titre: 'Cave', module: 'cave', etapes: [
@@ -229,14 +230,14 @@ const VISITE_CHAPITRES = [
     { cible: '[data-recap-ouvrir]', titre: 'Stocks et arrivages', texte: 'Chaque lot fournisseur, son restant et ses utilisations ; fiche récapitulative imprimable.', clic: 0 },
     { cible: '[data-regul-ouvrir]', titre: 'Régularisations', texte: 'Inventaire, casse, perte, péremption : tracées avec leur motif.' },
     { cible: '@onglets', titre: 'Produits, fiches et catalogues', texte: 'Règles par revendication, FT et FDS, catalogues des fournisseurs, labels et cahiers des charges, fournisseurs.' },
-    { cible: '[data-labels]', titre: 'Labels & cahiers des charges', texte: 'Plafonds de SO₂, substances autorisées par label, textes de référence : les alertes de conformité en découlent.', clic: 4 },
+    { cible: '[data-labels] [role=tablist] || [data-labels]', titre: 'Labels & cahiers des charges', texte: 'Plafonds de SO₂, substances autorisées par label, textes de référence : les alertes de conformité en découlent.', clic: 4 },
   ] },
   { id: 'hygiene', titre: 'Hygiène', module: 'hygiene', etapes: [
     { cible: '[data-vg="hygiene-nouvelle"]', titre: 'Journal d’hygiène', texte: 'Nettoyage, désinfection et rinçage des cuves, équipements et locaux.', sub: 'journal' },
     { cible: '@onglets', titre: 'Plan de nettoyage', texte: 'Tâches à faire, plan de nettoyage, produits d’hygiène et leurs FDS.' },
   ] },
   { id: 'equipements', titre: 'Équipements', module: 'equipements', etapes: [
-    { cible: '[data-equip-parc]', titre: 'Parc', texte: 'Pressoirs, pompes, filtres, tireuses : fiche, documents et état.', sub: 'parc' },
+    { cible: '[data-equip-parc] .lbl || [data-equip-parc]', titre: 'Parc', texte: 'Pressoirs, pompes, filtres, tireuses : fiche, documents et état.', sub: 'parc' },
     { cible: '@onglets', titre: 'Maintenance et vérifications', texte: 'À faire, maintenance, produits de maintenance et vérifications périodiques.' },
   ] },
   { id: 'trace', titre: 'Traçabilité', module: 'trace', etapes: [
@@ -245,20 +246,34 @@ const VISITE_CHAPITRES = [
   ] },
   { id: 'registres', titre: 'Registres & DRM', module: 'registres', etapes: [
     { cible: '[data-vg="registres-export"]', titre: 'Registres', texte: 'Tous les registres en CSV ou Excel.', sub: 'registres' },
-    { cible: '[data-drm]', titre: 'DRM', texte: 'Déclaration récapitulative mensuelle : XML pour CIEL et pour le CIVC.', sub: 'drm' },
+    { cible: '[data-drm] > :first-child || [data-drm]', titre: 'DRM', texte: 'Déclaration récapitulative mensuelle : XML pour CIEL et pour le CIVC.', sub: 'drm' },
   ] },
   { id: 'params', titre: 'Paramètres', module: 'params', etapes: [
-    { cible: '[data-params-menu]', titre: 'Rubriques', texte: 'Exploitation, vin et cuverie, équipe et sécurité, données et application.', sub: 'entreprise' },
-    { cible: '[data-region-societe]', titre: 'Région et types de vins', texte: 'Votre région et vos types de vins règlent les opérations, cépages, appellations et fractions proposés.' },
+    { cible: '[data-params-menu]', titre: 'Rubriques', texte: 'Exploitation, vin et cuverie, équipe et sécurité, données et application.' },
     { cible: '[data-params-item="listes"]', titre: 'Revendications', texte: 'Revendications et leur rang ; pour le bio, le code d’agrément de l’organisme certificateur.' },
     { cible: '[data-params-item="crus"]', titre: 'Crus et parcelles', texte: 'Chaque parcelle porte son appellation et son niveau dans la hiérarchie de cette appellation.' },
     { cible: '[data-params-item="codification"]', titre: 'Codification des lots', texte: 'Vos règles de codes de lots, stade par stade.' },
     { cible: '[data-params-item="utilisateurs"]', titre: 'Utilisateurs & droits', texte: 'Comptes, profils de droits, clés d’accès et verrouillage.' },
     { cible: '[data-params-item="sauvegarde"]', titre: 'Sauvegardes et synchronisation', texte: 'Drive, dossier partagé ou réseau, chiffrement de l’équipe.' },
+    { cible: '[data-region-societe]', titre: 'Région et types de vins', texte: 'Votre région et vos types de vins règlent les opérations, cépages, appellations et fractions proposés.', sub: 'entreprise' },
     { cible: '[data-config-guidee]', titre: 'Configuration guidée', texte: 'Relancez le questionnaire ou cette visite.', sub: 'base' },
   ] },
 ];
 // chapitres proposés : modules affichés et autorisés ; `voir(module)` = niveau d'accès (aucun → masqué)
 function visiteChapitres(db, voir) {
   return VISITE_CHAPITRES.filter((c) => !c.module || (moduleActif(db, c.module) && (!voir || voir(c.module))));
+}
+/* 0.48.0-alpha.1 : parcours « Essentiel » (une étape choisie par grand module, dans l'ordre) et durée annoncée de la visite.
+   Chaque étape garde le sous-onglet (ou le rang de sous-onglet) des étapes qui la précèdent dans son chapitre. */
+const VISITE_ESSENTIEL = [['prise', 2], ['cuverie', 1], ['pressoir', 1], ['ops', 0], ['previsions', 0], ['tirage', 0], ['intrants', 0], ['trace', 0], ['params', 0], ['prise', 4]];
+const VISITE_SECONDES_ETAPE = 8;
+const visiteDuree = (n) => Math.max(1, Math.ceil(((n || 0) * VISITE_SECONDES_ETAPE) / 60));
+function visiteEssentiel(db, voir) {
+  const C = visiteChapitres(db, voir);
+  return VISITE_ESSENTIEL.map(([cid, i]) => {
+    const c = C.find((x) => x.id === cid); const e = c && c.etapes[i]; if (!e) return null;
+    let sub; let clic; c.etapes.slice(0, i + 1).forEach((x) => { if (x.sub) { sub = x.sub; clic = undefined; } if (x.clic != null) clic = x.clic; });
+    const et = { ...e }; if (sub) et.sub = sub; else delete et.sub; if (clic != null) et.clic = clic; else delete et.clic;
+    return { id: c.id, titre: c.titre, module: c.module, etapes: [et] };
+  }).filter(Boolean);
 }

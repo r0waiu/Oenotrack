@@ -85,24 +85,33 @@ function CrusView() {
   const rows = db.crus.filter((c) => (f === 'all' || (f === 'custom' ? c.custom : f === 'masques' ? c.masque : f === 'visibles' ? !c.masque : f === '' ? !eDef(c.echelle) : c.echelle === f)) && cruMatch(c, q));
   const nMask = db.crus.filter((c) => c.masque).length; const vis = rows.filter((c) => !c.masque).length;
   const n = (e) => db.crus.filter((c) => (e ? c.echelle === e : !eDef(c.echelle))).length;
+  const colsCrus = [
+        { h: 'Cru (village)', r: (c) => <b>{c.nom}</b> }, { h: 'Classement', r: (c) => <EChip id={c.echelle} /> }, { h: 'Département', cls: 'hm', r: (c) => c.dep || '' },
+        { h: 'Autres noms', cls: 'hm', r: (c) => c.alias || '' }, { h: 'Origine', r: (c) => (c.custom ? <Chip tone="info">personnalisé</Chip> : <span className="text-xs text-ink2">fichier</span>) },
+        { h: 'Utilisé', cls: 'r', r: (c) => cruUsage(db, c.id) || '' },
+        { h: 'Listes de saisie', r: (c) => <button type="button" className={cx('chip', c.masque ? '' : 'chip-ok')} aria-pressed={!c.masque} title={c.masque ? 'Masqué : cliquez pour le proposer à nouveau' : 'Proposé à la saisie : cliquez pour le masquer'} onClick={(e) => { e.stopPropagation(); act((d) => cruMask(d, [c.id], !c.masque)); }}>{c.masque ? '◌ masqué' : '● visible'}</button> },
+        { h: '', r: (c) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => cruDelete(d, c.id), 'Cru supprimé.'); }}>Suppr.</Btn> }];
+  /* 0.48.0-alpha.1 : crus regroupés par département, repliés quand la liste est longue (plus de 60 crus sans recherche) ; une recherche les déplie */
+  const groupes = useMemo(() => { const G = new Map(); rows.forEach((c) => { const k = String(c.dep || '').trim(); if (!G.has(k)) G.set(k, []); G.get(k).push(c); }); return [...G.entries()].sort((x, y) => (!x[0] ? 1 : !y[0] ? -1 : x[0].localeCompare(y[0], 'fr'))); }, [rows]);
+  const [ouv, setOuv] = useState({}); useEffect(() => setOuv({}), [q, f]); const auto = !!q.trim() || rows.length <= 60;
+  const ouvert = (k) => (ouv[k] !== undefined ? ouv[k] : auto); const tousOuv = (v) => setOuv(Object.fromEntries(groupes.map(([k]) => [k, v])));
   const restore = async () => { if (await confirm({ title: 'Rétablir la liste d’origine ?', body: 'Les villages du fichier « Échelle des crus » manquants sont réajoutés et leur échelle d’origine est rétablie. Vos crus personnalisés sont conservés.', ok: 'Rétablir' })) act((d) => cruRestore(d), 'Liste des crus rétablie.'); };
   return (
     <div>
       <details className="card mb-4 p-4" open={db.settings.echellePreset && db.settings.echellePreset !== 'champagne' ? true : undefined}><summary className="cursor-pointer text-lg font-semibold">{ECH.nom} : {[...ECHELLES].map((e) => e.un).join(' < ')} <span className="text-sm font-normal text-ink2">— personnaliser pour une autre région viticole</span></summary><div className="mt-3"><EchellesEditor /></div></details>
       <div className="mb-3 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>{[...ECHELLES].reverse().map((e) => <Kpi key={e.id} label={e.label} value={n(e.id)} />)}{n('') ? <Kpi label="Non classés" value={n('')} /> : null}<Kpi label="Masqués des listes" value={nMask} sub={`${db.crus.length - nMask} visibles à la saisie`} /></div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <input className="inp" style={{ width: 'auto', flex: '1 1 220px' }} placeholder="Rechercher un village…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="inp" style={{ width: 'auto', flex: '1 1 220px' }} placeholder="Rechercher un village…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un village" data-crus-recherche="" />
         {[['all', 'Tous'], ...[...ECHELLES].reverse().map((e) => [e.id, e.label]), ...(n('') ? [['', 'Non classés']] : []), ['custom', 'Personnalisés'], ['visibles', 'Visibles'], ['masques', 'Masqués']].map(([k, l]) => <Btn key={k} size="sm" kind={f === k ? 'primary' : undefined} onClick={() => setF(k)}>{l}</Btn>)}
         <Btn kind="primary" onClick={() => setForm({})}>+ Cru personnalisé</Btn><Btn onClick={restore}>Rétablir la liste d’origine</Btn>
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm"><span className="text-ink2">Pour ne garder dans les listes de saisie que vos villages : filtrez, puis</span><Btn size="sm" disabled={!vis} onClick={() => act((d) => cruMask(d, rows.map((c) => c.id), true), `${vis} cru(s) masqué(s) des listes.`)}>Masquer les {vis} crus affichés</Btn><Btn size="sm" disabled={vis === rows.length} onClick={() => act((d) => cruMask(d, rows.map((c) => c.id), false), 'Crus de nouveau proposés à la saisie.')}>Réafficher les {rows.length - vis} crus masqués affichés</Btn></div>
       <p className="mb-2 text-xs text-ink2">Liste de départ issue du fichier « Échelle des crus en Champagne » (sans les pourcentages) : pour une autre région, masquez ces villages et ajoutez les vôtres (« + Cru personnalisé »). Le classement d’un lot est celui du cru de rang le plus bas qui le compose.</p>
-      <Tbl rows={rows} onRow={(c) => setForm({ id: c.id })} empty="Aucun cru ne correspond." cols={[
-        { h: 'Cru (village)', r: (c) => <b>{c.nom}</b> }, { h: 'Classement', r: (c) => <EChip id={c.echelle} /> }, { h: 'Département', cls: 'hm', r: (c) => c.dep || '' },
-        { h: 'Autres noms', cls: 'hm', r: (c) => c.alias || '' }, { h: 'Origine', r: (c) => (c.custom ? <Chip tone="info">personnalisé</Chip> : <span className="text-xs text-ink2">fichier</span>) },
-        { h: 'Utilisé', cls: 'r', r: (c) => cruUsage(db, c.id) || '' },
-        { h: 'Listes de saisie', r: (c) => <button type="button" className={cx('chip', c.masque ? '' : 'chip-ok')} aria-pressed={!c.masque} title={c.masque ? 'Masqué : cliquez pour le proposer à nouveau' : 'Proposé à la saisie : cliquez pour le masquer'} onClick={(e) => { e.stopPropagation(); act((d) => cruMask(d, [c.id], !c.masque)); }}>{c.masque ? '◌ masqué' : '● visible'}</button> },
-        { h: '', r: (c) => <Btn size="sm" kind="danger" onClick={(e) => { e.stopPropagation(); act((d) => cruDelete(d, c.id), 'Cru supprimé.'); }}>Suppr.</Btn> }]} />
+      {groupes.length > 1 ? <div className="mb-2 flex flex-wrap items-center gap-2 text-sm" data-crus-replis=""><span className="text-ink2">{`${groupes.length} départements`}</span><Btn size="sm" onClick={() => tousOuv(true)} data-crus-deplier="">Tout déplier</Btn><Btn size="sm" onClick={() => tousOuv(false)} data-crus-replier="">Tout replier</Btn></div> : null}
+      {groupes.length > 1 ? groupes.map(([k, L]) => (<div key={k || '-'} className="mb-2" data-crus-groupe={k || '-'}>
+        <button type="button" className="liste-tete crus-tete" aria-expanded={ouvert(k)} onClick={() => setOuv((o) => ({ ...o, [k]: !ouvert(k) }))} data-crus-basculer={k || '-'}><span className="liste-fleche" aria-hidden="true">{ouvert(k) ? '▾' : '▸'}</span><span translate="no">{k || 'Sans département'}</span><span className="chip">{L.length}</span></button>
+        {ouvert(k) ? <div className="mt-1"><Tbl rows={L} onRow={(c) => setForm({ id: c.id })} cols={colsCrus} /></div> : null}</div>))
+        : <Tbl rows={rows} onRow={(c) => setForm({ id: c.id })} empty="Aucun cru ne correspond." cols={colsCrus} />}
       {form ? <CruForm id={form.id} onClose={() => setForm(null)} /> : null}
     </div>
   );

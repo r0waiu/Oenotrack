@@ -195,17 +195,15 @@ function resizeLogo(file, maxW = 600, maxH = 240) {
 }
 const CompanyLogo = ({ maxH = 48, maxW = 170 }) => { const { db } = useApp(); const e = db.entreprise || {}; return e.logo ? <img src={e.logo} alt={e.nom || 'Logo'} style={{ maxHeight: maxH, maxWidth: maxW, objectFit: 'contain', display: 'block' }} /> : null; };
 
+// 0.48.0-alpha.1 : la langue de l'interface va dans Affichage & application, les documents joints dans Sauvegarde & Drive (DocumentsJointsSec, 68d)
 function EntrepriseView() {
-  const { db, act, toast, confirm } = useApp(); const e = db.entreprise || {}; const ref = useRef(null);
-  const [nom, setNom] = useState(e.nom || ''); const [adr, setAdr] = useState(e.adresse || ''); const [ids, setIds] = useState(e.identifiants || ''); const [orph, setOrph] = useState(null);
+  const { db, act, toast } = useApp(); const e = db.entreprise || {}; const ref = useRef(null);
+  const [nom, setNom] = useState(e.nom || ''); const [adr, setAdr] = useState(e.adresse || ''); const [ids, setIds] = useState(e.identifiants || '');
   useEffect(() => { setNom(e.nom || ''); setAdr(e.adresse || ''); }, [e.nom, e.adresse]);
-  const docs = db.docs || []; const total = sum(docs, (d) => d.taille);
   const logoDe = async (f) => { if (!f) return; try { const r = await resizeLogo(f); act((d) => entrepriseSet(d, { logo: r.url, logoW: r.w, logoH: r.h }), `Logo enregistré (${r.w} × ${r.h} px).`); } catch (er) { toast(er.message, 'bad'); } };
   const verifier = useGarde(); // logo vérifié (type réel, taille, SVG redessiné en PNG)
   const onLogo = async (ev) => { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return; const ok = await verifier([f], 'logo'); if (ok[0]) logoDe(ok[0]); };
   const depLogo = useDepot((fs) => logoDe(fs[0]), { multiple: false, accept: 'image/*,.svg', refus: 'Le logo doit être une image (PNG, JPG ou SVG).', garde: 'logo' });
-  const scan = async () => { try { const keys = await docKeys(); const ids = new Set(docs.map((d) => d.id)); setOrph(keys.filter((k) => !ids.has(k))); } catch (er) { toast('Stockage des documents indisponible.', 'bad'); } };
-  const clean = async () => { if (!orph || !orph.length) return; if (!(await confirm({ title: `Supprimer ${orph.length} fichier(s) orphelin(s) ?`, body: 'Ces fichiers ne sont plus rattachés à aucune opération ni aucun arrivage.', ok: 'Supprimer', danger: true }))) return; for (const k of orph) { try { await docDel(k); } catch (er) { /* ignoré */ } } setOrph([]); toast('Fichiers orphelins supprimés.'); };
   return (
     <div className="space-y-6">
       <Sec title="Identité de la société (en-tête des fiches et rapports)">
@@ -224,16 +222,8 @@ function EntrepriseView() {
           </div>
         </div>
       </Sec>
-      <Sec title="Langue de l’interface"><div className="card p-4" data-langue-societe=""><LangueChoix /><p className="help mt-2">Réglage de cet appareil (chaque personne choisit la sienne). Français, English, Español, Italiano, Deutsch, Português : la traduction se fait par étapes ; ce qui n’est pas encore traduit reste en français. Les données saisies et les registres exportés ne sont pas traduits.</p></div></Sec>
       <Sec title="Région et types de vins"><div className="card p-4" data-region-societe=""><ProfilResume /></div></Sec>
       <OperateursSection />
-      <Sec title="Documents joints">
-        <div className="card space-y-3 p-4">
-          <dl className="kv"><dt>Documents</dt><dd>{docs.length} ({fmtSize(total)}) — {docs.filter((d) => d.cible.type === 'op').length} sur des opérations{docs.some((d) => d.cible.type === 'prev') ? `, ${docs.filter((d) => d.cible.type === 'prev').length} sur des opérations à réaliser` : ''}, {docs.filter((d) => d.cible.type === 'arrivage').length} sur des arrivages d’intrants{docs.some((d) => d.cible.type === 'produitHygiene') ? `, ${docs.filter((d) => d.cible.type === 'produitHygiene').length} sur des produits d’hygiène` : ''}{docs.some((d) => d.cible.type === 'produit') ? `, ${docs.filter((d) => d.cible.type === 'produit').length} sur des produits œnologiques (FT, FDS…)` : ''}{docs.some((d) => d.archive) ? ` (dont ${docs.filter((d) => d.archive).length} version(s) archivée(s))` : ''}{docs.some((d) => d.cible.type === 'bareme') ? `, ${docs.filter((d) => d.cible.type === 'bareme').length} de barèmes de jaugeage` : ''}</dd></dl>
-          <p className="help">Les fichiers sont conservés dans ce navigateur et sont inclus dans la <b>sauvegarde complète</b> (Paramètres › 💾 Sauvegarde & Drive), avec la base et le logo.</p>
-          <div className="flex flex-wrap gap-2"><Btn onClick={scan}>Rechercher les fichiers orphelins</Btn>{orph && orph.length ? <Btn kind="danger" onClick={clean}>Supprimer {orph.length} fichier(s) orphelin(s)</Btn> : orph ? <Chip tone="ok">aucun fichier orphelin</Chip> : null}</div>
-        </div>
-      </Sec>
     </div>
   );
 }
