@@ -767,6 +767,39 @@ button.chip{cursor:pointer}
 /* - */
 /* - */
 /* ===== 0.48.0-alpha.1 — formulaires et fiches ===== */
+/* textes indicatifs lisibles (contraste ≥ 4,5:1) */
+.inp::placeholder,input::placeholder,textarea::placeholder{color:var(--ink2);opacity:1}
+.topbar .inp::placeholder{color:var(--bandInk2)}
+/* erreur de validation : sous le champ (aria-invalid) et au-dessus du pied de la fiche (role=alert) ; le message en bas de page est alors masqué */
+.champ-erreur{display:block;margin-top:4px;font-size:12.5px;line-height:1.35;font-weight:600;color:var(--bad)}
+.inp[aria-invalid="true"],[aria-invalid="true"] .inp,.champ-en-erreur>.inp{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad)}
+.sheet-erreur{flex:1 1 100%;order:-1;background:var(--badSoft);color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 40%,transparent);border-radius:var(--r-btn,6px);padding:8px 12px;font-size:14px;font-weight:600;line-height:1.35}
+body:has(.sheet-erreur) .toast.bad:not(.login-voile .toast){display:none}
+.sheet-title:focus{outline:none}.sheet-title:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* en-têtes de colonnes au-dessus des lignes (portions, pertes, préparations) */
+.lignes-tete .lbl{margin-bottom:0}
+/* téléphone : sous-titre replié, menu « ⋯ » du pied, sections facultatives repliées avec leur compteur */
+.sheet-sub-btn{display:none}
+.sheet-plus{position:relative}
+.sheet-plus-menu{position:absolute;bottom:calc(100% + 6px);left:0;min-width:230px;max-width:calc(100vw - 24px);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-card,8px);box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;gap:4px;z-index:5}
+.sheet-plus-menu .btn{width:100%;justify-content:flex-start;text-align:left;margin:0}
+.sheet-plus-btn{min-width:44px;font-size:18px;line-height:1}
+.cf-tel-replie{border:1px solid var(--line);border-radius:var(--r-btn,6px);padding:4px 10px}
+.cf-tel-replie>summary{cursor:pointer;font-weight:600;font-size:14px;min-height:36px;display:flex;align-items:center;gap:2px}
+.cf-tel-replie>summary .cf-tel-n{color:var(--ink2);font-weight:400}
+.cf-tel-replie>.mt-2{margin-bottom:6px}
+.cf-tel-replie>.mt-2>[data-champ]>.lbl:first-child,.cf-tel-replie>.mt-2>.cf-bare>div>.lbl:first-child{display:none}
+@media (max-width:760px){
+  .sheet-h{padding:8px 12px;gap:8px}
+  .sheet-h .sheet-title{font-size:18px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sheet-h .sheet-sub{display:none}
+  .sheet-h.sub-vu .sheet-sub{display:block}
+  .sheet-h.sub-vu .sheet-title{white-space:normal}
+  .sheet-sub-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);font-size:16px}
+  .sheet-sub-btn[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}
+  .sheet-f-tel{padding:8px 12px;gap:6px}
+  .sheet-f-tel:has(>.sheet-plus)>.btn-primary{flex:1}
+}
 /* (fin du bloc formulaires) */
 /* - */
 /* - */

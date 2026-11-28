@@ -45,12 +45,14 @@ function SourcesEditor({ db, Rd, sources, onChange, label = 'Portions sources' }
   const upd = (i, patch) => onChange(sources.map((s, k) => (k === i ? { ...s, ...patch } : s)));
   const chosen = sources.map((s) => s.portionId);
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-champ="sources">
+      {/* 0.48.0-alpha.1 : en-têtes de colonnes au-dessus des lignes ; chaque champ a son libellé (lecteurs d'écran) */}
+      {sources.length ? <LignesTete cols={[label, 'Volume (hL)', '']} gabarit="minmax(0,2fr) minmax(0,1fr) auto" /> : <span className="lbl">{label}</span>}
       {sources.map((s, i) => (
-        <div key={i} className="grid items-end gap-2" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr) auto' }}>
-          <Group label={i === 0 ? label : ' '}><SI value={s.portionId} onChange={(v) => upd(i, { portionId: v, volL: s.volL || (Rd.portions[v] ? String(r2(Rd.portions[v].vol)) : '') })} placeholder="Cuve · lot · volume…" options={portionOptions(db, Rd, (p) => p.id === s.portionId || !chosen.includes(p.id))} /></Group>
-          <Group label={i === 0 ? 'Volume (hL)' : ' '}><div className="flex gap-1"><VI value={s.volL} onChange={(v) => upd(i, { volL: v })} placeholder="0" /><Btn size="sm" title="Prendre toute la portion" onClick={() => Rd.portions[s.portionId] && upd(i, { volL: String(r2(Rd.portions[s.portionId].vol)) })}>Tout</Btn></div></Group>
-          <Btn kind="danger" size="sm" aria-label="Retirer" onClick={() => onChange(sources.filter((_, k) => k !== i))}>✕</Btn>
+        <div key={i} className="grid items-end gap-2" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr) auto' }} data-source={i + 1}>
+          <div className="min-w-0"><SI value={s.portionId} onChange={(v) => upd(i, { portionId: v, volL: s.volL || (Rd.portions[v] ? String(r2(Rd.portions[v].vol)) : '') })} placeholder="Cuve · lot · volume…" options={portionOptions(db, Rd, (p) => p.id === s.portionId || !chosen.includes(p.id))} aria-label={`Portion source ${i + 1}`} /></div>
+          <div className="min-w-0"><div className="flex gap-1"><VI value={s.volL} onChange={(v) => upd(i, { volL: v })} placeholder="0" aria-label={`Volume (hL), portion ${i + 1}`} /><Btn size="sm" title="Prendre toute la portion" onClick={() => Rd.portions[s.portionId] && upd(i, { volL: String(r2(Rd.portions[s.portionId].vol)) })}>Tout</Btn></div></div>
+          <Btn kind="danger" size="sm" aria-label={`Retirer la portion ${i + 1}`} onClick={() => onChange(sources.filter((_, k) => k !== i))}>✕</Btn>
         </div>
       ))}
       <div className="flex flex-wrap items-center gap-3"><Btn size="sm" onClick={() => onChange([...sources, { portionId: '', volL: '' }])}>+ Ajouter une portion</Btn><span className="text-sm text-ink2">Total repris : <b className="num">{fmtL(sum(sources, (s) => s.volL))}</b></span></div>
@@ -70,7 +72,8 @@ function OpForm(props) {
   return <OpFormSaisie {...props} />;
 }
 function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, fromPrev }) {
-  const { db, R, act, toast, confirm, defaultDate, openFiche, moi, uid, secu, openSchema } = useApp();
+  const { db, R, toast, confirm, defaultDate, openFiche, moi, uid, secu, openSchema } = useApp();
+  const act = useActFiche(); const erreur = useErreurFiche(); // 0.48.0-alpha.1 : erreurs affichées sous le champ de la fiche
   const prevId = prevId0 || fromPrev || null; const plan0 = prevId ? (db.previsions || []).find((p) => p.id === prevId) : null;
   const old = editId ? db.ops.find((o) => o.id === editId) : null;
   // t0 peut être une variante du catalogue (collage, levurage…) : le formulaire et le moteur suivent son comportement (base)
@@ -125,7 +128,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   const portionPick = (pid) => { const p = pOf(pid); upd({ portionId: pid, ...(isTransfer && !f.volL && p ? { volL: String(r2(p.vol)) } : {}) }); };
   // « Planifier » : enregistrée même incomplète, sans effet sur les stocks, dans la liste « À réaliser »
   const planifier = () => {
-    if (!isoOK(f.date)) { toast('Choisissez la date prévue.', 'bad'); return; }
+    if (!isoOK(f.date)) { erreur('Choisissez la date prévue.', 'date'); return; }
     let resume = ''; try { resume = built.spec ? opSummary(db, Rd, built.spec) : ''; } catch (e) { resume = ''; }
     const r = act((d) => { const r1 = previsionSave(d, { type, date: f.date, f, resume: resume || `${cat.label || OP_LABELS[type]} (à compléter : ${built.error || ''})` }, prevId); if (r1 && r1.ok && !prevId) docsJoindre(d, piecesRef.current, { type: 'prev', id: r1.id }); return r1; },
       prevId ? 'Opération à réaliser mise à jour.' : `Opération planifiée pour le ${fmtDate(f.date)} : elle attend dans « À réaliser ».${nDocs()}`);
@@ -133,13 +136,13 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
   };
   // « Valider » : l'opération est réalisée, les stocks sont mis à jour
   const valider = async () => {
-    if (built.error) { toast(built.error, 'bad'); return; }
+    if (built.error) { erreur(built.error, built.champ); return; }
     // revendication du levain ou de la liqueur plus basse que celle du vin tiré : accepté (alerte de déclassement), après confirmation (0.42.0-alpha.1)
     if (!old && (type === 'tirage' || (type === 'preparation' && f.ptype === 'levain'))) { const qs = uniq((f.sources || []).map((s) => lotQ(s.portionId)).filter(Boolean)); const q = type === 'tirage' ? (qs.length ? minQualif(qs) : 'conv') : (f.qualifId || 'conv');
       const al = tirageRevendicationAlertes(db, Rd, q, (f.prepUses || []).map((u) => u.prepId)); if (al.length && !(await confirm({ title: 'Revendication incompatible', body: al.join(' '), ok: 'Valider quand même', danger: true }))) return; }
-    if (!old && champEffectif(fcfg, type, 'docs').obligatoire && !piecesRef.current.length && !(prevId && docsOf(db, 'prev', prevId).length)) { toast(`Joignez au moins un document : « ${champEffectif(fcfg, type, 'docs').libelle || 'Documents joints'} » est obligatoire pour cette opération.`, 'bad'); return; }
+    if (!old && champEffectif(fcfg, type, 'docs').obligatoire && !piecesRef.current.length && !(prevId && docsOf(db, 'prev', prevId).length)) { erreur(`Joignez au moins un document : « ${champEffectif(fcfg, type, 'docs').libelle || 'Documents joints'} » est obligatoire pour cette opération.`, 'docs'); return; }
     const pvV = pvAJour(); const depsV = (pvV && pvV.ok && pvV.depassements) || []; if (pvV !== pv) setBuiltPv(built);
-    if (depsV.length && !String(motifDep || '').trim()) { toast('Dépassement d’un plafond : indiquez le motif (il est tracé avec l’opération).', 'bad'); return; }
+    if (depsV.length && !String(motifDep || '').trim()) { erreur('Dépassement d’un plafond : indiquez le motif (il est tracé avec l’opération).', 'depassement'); return; }
     const spec00 = plan0 && plan0.groupe && !old ? { ...built.spec, groupe: plan0.groupe } : built.spec; // validée seule, une opération d'un groupe planifié y reste (0.29.0-alpha.1)
     const spec0 = plan0 && plan0.schema && !old ? { ...spec00, schema: plan0.schema } : spec00; // étape d'un schéma de vinification (0.31.0-alpha.1)
     const spec = depsV.length ? { ...spec0, depassement: depassementSpec(depsV, motifDep, uid) } : old && old.depassement ? { ...spec0, depassement: null } : spec0;
@@ -340,8 +343,8 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="portionId" label="Portion source"><PortionSelect db={db} Rd={Rd} value={f.portionId} onChange={portionPick} /></CF></G>
         <G><CF k="volL" label="Volume repris (hL)" help={p ? <>Stock de la portion : {fmtL(p.vol)}{hasNum(f.volL) ? <> <NiveauAttendu contId={p.contenantId} volL={volDans(p.contenantId) - num(f.volL)} label={`Niveau attendu ensuite en ${(db.contenants.find((c) => c.id === p.contenantId) || {}).nom}`} /></> : null}</> : ''}><VolJauge value={f.volL} onChange={(v) => upd({ volL: v })} contIds={[p && p.contenantId, f.destId]} sortieDe={p && p.contenantId} onJauge={jauger('volL')} /></CF><CF k="destId" label="Contenant de destination" help={f.destId && hasNum(f.volL) ? <NiveauAttendu contId={f.destId} volL={volDans(f.destId) + Math.max(0, num(f.volL) - loss)} /> : ''}><SI value={f.destId} onChange={(v) => upd({ destId: v })} placeholder="Destination…" options={contOptions(db)} /></CF></G>
         <CF k="pertes" group label={type === 'debourbage' ? 'Pertes (bourbes)' : type === 'soutirage' ? 'Pertes (lies)' : 'Pertes éventuelles'} help={`Volume reçu en destination : ${fmtL(Math.max(0, num(f.volL) - loss))}`}><PertesEditor db={db} pertes={f.pertes} onChange={(v) => upd({ pertes: v })} defaultType={type === 'debourbage' ? 'bourbes' : type === 'soutirage' ? 'lies' : undefined} /></CF>
-        <CF k="lignes" group label="Intrants ajoutés (facultatif)"><LignesEditor {...lignesProps} qualif={lotQ(f.portionId)} vol={Math.max(0, num(f.volL) - loss)} cats={['oeno', 'aux']} /></CF>
-        <CF k="equipementIds" label="Équipements utilisés" bare><Eq db={db} value={f.equipementIds} onChange={(v) => upd({ equipementIds: v })} /></CF>
+        <CF k="lignes" group label="Intrants ajoutés (facultatif)" replieTel={(f.lignes || []).filter((l) => l.produitId).length}><LignesEditor {...lignesProps} qualif={lotQ(f.portionId)} vol={Math.max(0, num(f.volL) - loss)} cats={['oeno', 'aux']} /></CF>
+        <CF k="equipementIds" label="Équipements utilisés" bare replieTel={(f.equipementIds || []).length}><Eq db={db} value={f.equipementIds} onChange={(v) => upd({ equipementIds: v })} /></CF>
       </>); }
       case 'intrant': { const p = pOf(f.portionId); return (<>
         <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="portionId" label="Portion concernée"><PortionSelect db={db} Rd={Rd} value={f.portionId} onChange={(v) => upd({ portionId: v })} /></CF></G>
@@ -352,7 +355,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       case 'suivi': { const p = pOf(f.portionId); return (<>
         <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="portionId" label="Portion (cuve)"><PortionSelect db={db} Rd={Rd} value={f.portionId} onChange={(v) => upd({ portionId: v })} /></CF></G>
         <G n={3}><CF k="motif" label="Objet"><TI value={f.motif} onChange={(v) => upd({ motif: v })} placeholder="Remontage, bâtonnage, contrôle…" /></CF><CF k="densite" label="Densité (facultatif)"><NI value={f.densite} onChange={(v) => upd({ densite: v })} placeholder="ex. 1,012" /></CF><CF k="tempC" label="Température (°C, facultatif)"><NI value={f.tempC} onChange={(v) => upd({ tempC: v })} placeholder="ex. 18" /></CF></G>
-        <CF k="lignes" group label="Intrants (facultatif : activateur, nutriments…)"><LignesEditor {...lignesProps} qualif={lotQ(f.portionId)} vol={p ? p.vol : 0} cats={['oeno', 'aux']} /></CF>
+        <CF k="lignes" group label="Intrants (facultatif : activateur, nutriments…)" replieTel={(f.lignes || []).filter((l) => l.produitId).length}><LignesEditor {...lignesProps} qualif={lotQ(f.portionId)} vol={p ? p.vol : 0} cats={['oeno', 'aux']} /></CF>
       </>); }
       case 'sortie': { const p = pOf(f.portionId); return (<>
         <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="portionId" label="Portion (cuve · lot)"><PortionSelect db={db} Rd={Rd} value={f.portionId} onChange={(v) => upd({ portionId: v, volL: f.volL || (pOf(v) ? String(r2(pOf(v).vol)) : '') })} /></CF></G>
@@ -363,14 +366,14 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       case 'froid': { const p = pOf(f.portionId); return (<>
         <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="portionId" label="Portion (cuve)"><PortionSelect db={db} Rd={Rd} value={f.portionId} onChange={(v) => upd({ portionId: v })} /></CF></G>
         <G><CF k="tempC" label="Température (°C)"><NI value={f.tempC} onChange={(v) => upd({ tempC: v })} placeholder={/chauff/i.test(cat.label || '') ? 'ex. 20' : 'ex. -2'} /></CF><CF k="jours" label="Durée (jours)"><NI value={f.jours} onChange={(v) => upd({ jours: v })} placeholder="facultatif" /></CF></G>
-        <CF k="lignes" group label={cat.id === 'froid' ? 'Intrants (collage, tartre…)' : 'Intrants (facultatif)'}><LignesEditor {...lignesProps} qualif={lotQ(f.portionId)} vol={p ? p.vol : 0} cats={['oeno', 'aux']} /></CF>
+        <CF k="lignes" group label={cat.id === 'froid' ? 'Intrants (collage, tartre…)' : 'Intrants (facultatif)'} replieTel={(f.lignes || []).filter((l) => l.produitId).length}><LignesEditor {...lignesProps} qualif={lotQ(f.portionId)} vol={p ? p.vol : 0} cats={['oeno', 'aux']} /></CF>
       </>); }
       case 'filtration': { const p = pOf(f.portionId); return (<>
         <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="portionId" label="Portion filtrée"><PortionSelect db={db} Rd={Rd} value={f.portionId} onChange={(v) => upd({ portionId: v })} /></CF></G>
         <CF k="methodeId" label="Méthode de filtration" help="Liste modifiable dans Paramètres › Listes."><SI value={f.methodeId} onChange={(v) => upd({ methodeId: v })} options={opts(db, 'methodesFiltration')} /></CF>
-        <CF k="lignes" group label="Auxiliaires et intrants (avec n° de lot fournisseur)"><LignesEditor {...lignesProps} qualif={lotQ(f.portionId)} vol={p ? p.vol : 0} cats={['aux', 'oeno']} /></CF>
-        <CF k="pertes" group label="Pertes de filtration (facultatif)"><PertesEditor db={db} pertes={f.pertes} onChange={(v) => upd({ pertes: v })} /></CF>
-        <CF k="equipementIds" label="Équipements utilisés" bare><Eq db={db} value={f.equipementIds} onChange={(v) => upd({ equipementIds: v })} /></CF>
+        <CF k="lignes" group label="Auxiliaires et intrants (avec n° de lot fournisseur)" replieTel={(f.lignes || []).filter((l) => l.produitId).length}><LignesEditor {...lignesProps} qualif={lotQ(f.portionId)} vol={p ? p.vol : 0} cats={['aux', 'oeno']} /></CF>
+        <CF k="pertes" group label="Pertes de filtration (facultatif)" replieTel={(f.pertes || []).filter((x) => num(x.volL) > 0).length}><PertesEditor db={db} pertes={f.pertes} onChange={(v) => upd({ pertes: v })} /></CF>
+        <CF k="equipementIds" label="Équipements utilisés" bare replieTel={(f.equipementIds || []).length}><Eq db={db} value={f.equipementIds} onChange={(v) => upd({ equipementIds: v })} /></CF>
       </>); }
       case 'jaugeage': { const p = pOf(f.portionId); const bj = p ? baremeDe(db, p.contenantId) : null; const autres = p ? volDans(p.contenantId) - p.vol : 0; return (<>
         <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="portionId" label="Portion jaugée"><PortionSelect db={db} Rd={Rd} value={f.portionId} onChange={(v) => upd({ portionId: v })} /></CF></G>
@@ -389,8 +392,8 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         <G><CF k="destId" label="Contenant de destination" help={f.destId && tot > 0 ? <NiveauAttendu contId={f.destId} volL={volDans(f.destId) + tot} /> : ''}><SI value={f.destId} onChange={(v) => upd({ destId: v })} placeholder="Destination…" options={contOptions(db)} /></CF><CF k="ltype" label="Nature du lot résultant" help="« Vin de réserve » pour un vin conservé pour les assemblages futurs."><SI plain value={f.ltype} onChange={(v) => upd({ ltype: v })} options={['assemblage', 'vin_reserve', 'vin_clair'].map((k) => ({ value: k, label: LOT_TYPES[k] }))} /></CF></G>
         <G n={3}><CF k="code" label="Code du nouveau lot"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation"><TI value={f.designation} onChange={(v) => upd({ designation: v })} /></CF><CF k="millesime" label="Millésime"><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder="2026 ou non millésimé" /></CF></G>
         <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
-        <CF k="pertes" group label="Pertes à l’assemblage (facultatif)" help={`Volume obtenu : ${fmtL(Math.max(0, tot))}`}><PertesEditor db={db} pertes={f.pertes} onChange={(v) => upd({ pertes: v })} /></CF>
-        <CF k="lignes" group label="Intrants ajoutés (facultatif)"><LignesEditor {...lignesProps} qualif={q} vol={Math.max(0, tot)} cats={['oeno', 'aux']} /></CF>
+        <CF k="pertes" group label="Pertes à l’assemblage (facultatif)" replieTel={(f.pertes || []).filter((x) => num(x.volL) > 0).length} help={`Volume obtenu : ${fmtL(Math.max(0, tot))}`}><PertesEditor db={db} pertes={f.pertes} onChange={(v) => upd({ pertes: v })} /></CF>
+        <CF k="lignes" group label="Intrants ajoutés (facultatif)" replieTel={(f.lignes || []).filter((l) => l.produitId).length}><LignesEditor {...lignesProps} qualif={q} vol={Math.max(0, tot)} cats={['oeno', 'aux']} /></CF>
       </>); }
       case 'etape': { const lot = Rd.lots[f.lotId]; const nx = lot ? stadeNext(db, lot.stade) : null; return (<>
         <G><CF k="date" label="Date"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="lotId" label="Lot"><SI value={f.lotId} onChange={(v) => { const l = Rd.lots[v]; const auto = cat.stadeAuto && cat.stadeAuto.actif && stadeDef(db, cat.stadeAuto.stade) ? cat.stadeAuto.stade : ''; upd({ lotId: v, newStade: l ? (auto || (stadeNext(db, l.stade) || {}).id || l.stade) : auto }); }} placeholder="Lot…" options={Object.values(Rd.lots).filter((l) => (Rd.lotVol[l.id] || 0) > 0 || (Rd.tir[l.id] && Rd.tir[l.id].nb > 0)).sort((a, b) => a.code.localeCompare(b.code, 'fr', { numeric: true })).map((l) => ({ value: l.id, label: `${l.code} · ${stadeCourt(db, l.stade)} · ${couleurLabel(db, l.couleur)}${(Rd.lotVol[l.id] || 0) > 0 ? ` · ${fmtL(Rd.lotVol[l.id])}` : ''}` }))} /></CF></G>
@@ -436,11 +439,11 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         {f.mode !== 'mixtion' ? <CF k="prepUses" group label={pompe ? 'Liqueur de tirage et levain dosés en ligne' : 'Liqueur de tirage et levain consommés'}><PrepUsesEditor db={db} Rd={Rd} uses={f.prepUses} onChange={(v) => upd({ prepUses: v })} types={['liqueur_tirage', 'levain']} /></CF> : null}
         {mx ? <Notice title="Déclassement automatique">Revendications mélangées ({mx.map(qLabel).join(' + ')}) : la cuvée de tirage sera <b>{qLabel(q)}</b>.</Notice> : null}
         {pompe ? <TiragePompeBox db={db} Rd={Rd} f={f} upd={upd} /> : null}
-        <FormatsEditor formats={f.formats} onChange={(v) => upd({ formats: v })} />
+        <div data-champ="formats"><FormatsEditor formats={f.formats} onChange={(v) => upd({ formats: v })} /></div>
         <G n={3}><Field label="Casse (cols)"><NI value={f.casse} onChange={(v) => upd({ casse: v })} aria-label="Casse" /></Field><Field label="Point de tirage de la cuvée (g/L)"><NI value={f.pointGL} onChange={(v) => upd({ pointGL: v })} placeholder="ex. 24" aria-label="Point de tirage du lot" /></Field>
           {bil ? <Group label="Volume tiré, VRTP"><div className={cx('num pt-2', bil.depasse && 'text-bad')} data-tirage-vrtp="">{`${fmtL(bil.tireL)} · VRTP ${fmt(bil.vrtpL, 1)} L (${fmt(bil.vrtpPct, 2)} %)`}</div><div className="help">{`Volume tiré − liqueur − vin (levain + mixtion) ; au plus ${TIRAGE_VRTP_MAX_PCT} % des volumes mis en œuvre (vins et liqueurs).`}</div></Group> : <div />}</G>
         <FournituresTirageBox db={db} Rd={Rd} f={f} upd={upd} F0={F0} />
-        <CF k="lignes" group label="Autres intrants (adjuvants, matières sèches non suivies comme fournitures) avec n° de lot"><LignesEditor {...lignesProps} qualif={q} vol={tirageVolFormats(F0)} /></CF>
+        <CF k="lignes" group label="Autres intrants (adjuvants, matières sèches non suivies comme fournitures) avec n° de lot" replieTel={(f.lignes || []).filter((l) => l.produitId).length}><LignesEditor {...lignesProps} qualif={q} vol={tirageVolFormats(F0)} /></CF>
         <CF k="densites" label="Densités et sucre de la mixtion" bare><G n={3}><Field label="Densité vin de base seul"><NI value={f.densBase} onChange={(v) => upd({ densBase: v })} placeholder="ex. 0,9918" /></Field><Field label="Densité mixtion"><NI value={f.densMix} onChange={(v) => upd({ densMix: v })} placeholder="ex. 1,0010" /></Field><Group label="Sucre de la mixtion"><div className="num pt-2 text-lg font-semibold">{sucre != null ? `${fmt(sucre, 1)} g/L` : '—'}</div><div className="help"><span>{`(mixtion − base) × 1000 × ${fmt(coefSucre(db), 2)} g/L par point de densité.`}</span>{hasNum(f.pointGL) && sucre != null ? <span>{` Point de tirage ${fmt(num(f.pointGL), 1)} g/L (écart ${fmt(sucre - num(f.pointGL), 1)}).`}</span> : null}</div></Group></G></CF>
         <G n={3}><CF k="code" label="Code du lot de tirage"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation"><TI value={f.designation} onChange={(v) => upd({ designation: v })} /></CF><CF k="millesime" label="Millésime"><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder={String(yearOf(f.date))} /></CF></G>
         <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
@@ -449,7 +452,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         <G><CF k="date" label="Date du dégorgement"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="sourceLotId" label="Lot de tirage (bouteilles en stock)"><SI value={f.sourceLotId} onChange={(v) => upd({ sourceLotId: v, nb: f.nb || (Rd.tir[v] ? String(Rd.tir[v].nb) : '') })} placeholder="Lot de tirage…" options={Object.values(Rd.tir).filter((t) => t.nb > 0).map((t) => ({ value: t.lotId, label: `${lotCode(db, Rd, t.lotId)} · ${fmt(t.nb)} bouteilles en stock` }))} /></CF></G>
         <CF k="nb" label="Bouteilles dégorgées" help={Rd.tir[f.sourceLotId] ? `Stock : ${fmt(Rd.tir[f.sourceLotId].nb)} bouteilles — elles sortent du stock mais restent tracées.` : ''}><NI value={f.nb} onChange={(v) => upd({ nb: v })} /></CF>
         <CF k="prepUses" group label="Liqueur d’expédition utilisée"><PrepUsesEditor db={db} Rd={Rd} uses={f.prepUses} onChange={(v) => upd({ prepUses: v })} types={['liqueur_exp']} /></CF>
-        <CF k="lignes" group label="Bouchon, muselet… (avec n° de lot fournisseur)"><LignesEditor {...lignesProps} qualif={null} vol={0} hideDose cats={['sec', 'oeno', 'aux']} /></CF>
+        <CF k="lignes" group label="Bouchon, muselet… (avec n° de lot fournisseur)" replieTel={(f.lignes || []).filter((l) => l.produitId).length}><LignesEditor {...lignesProps} qualif={null} vol={0} hideDose cats={['sec', 'oeno', 'aux']} /></CF>
         <G n={3}><CF k="code" label="Code du lot fini"><TI value={f.code} onChange={(v) => upd({ code: v })} /></CF><CF k="designation" label="Désignation"><TI value={f.designation} onChange={(v) => upd({ designation: v })} placeholder="Brut – dégorgé…" /></CF><CF k="dosageGL" label="Dosage (g/L)"><NI value={f.dosageGL} onChange={(v) => upd({ dosageGL: v })} placeholder="facultatif" /></CF></G>
         <CodifCode db={db} Rd={Rd} type={type} f={f} upd={upd} old={old} />
       </>);
@@ -478,13 +481,13 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       </div> : null}
       <ChampsPerso defs={persoD} tous={fcfg.perso} f={f} upd={upd} type={type} />
       {body()}
-      {regValide && !lecture ? <Field label={`Motif de la correction (${old.type === 'apport' ? 'registre des pesées' : 'carnet de pressoir'})`} help="Obligatoire si vous changez ce qui est inscrit au registre ; gardé au journal du pressoir."><TI value={f.motifRegistre || ''} onChange={(v) => upd({ motifRegistre: v })} placeholder="ex. erreur de saisie du poids" data-motif-registre="" /></Field> : null}
+      {regValide && !lecture ? <Field champ="motif" label={`Motif de la correction (${old.type === 'apport' ? 'registre des pesées' : 'carnet de pressoir'})`} help="Obligatoire si vous changez ce qui est inscrit au registre ; gardé au journal du pressoir."><TI value={f.motifRegistre || ''} onChange={(v) => upd({ motifRegistre: v })} placeholder="ex. erreur de saisie du poids" data-motif-registre="" /></Field> : null}
       <ChampsPerso defs={persoF} tous={fcfg.perso} f={f} upd={upd} type={type} />
       {VIN_CREE.includes(type) || VIN_APRES.includes(type) ? <CF k="vin" label="Stade et couleur du vin" bare><VinFields type={type} f={f} upd={upd} Rd={Rd} /></CF> : null}
       <CF k="operateurs" label="Opérateur(s)" bare><OperateursPicker value={f.operateurs} onChange={(v) => upd({ operateurs: v })} label={<>{champEffectif(fcfg, type, 'operateurs').libelle || 'Opérateur(s)'}{champEffectif(fcfg, type, 'operateurs').obligatoire ? <CfReq /> : null}</>}
         help={champEffectif(fcfg, type, 'operateurs').aide || `${prevId ? 'Qui réalise l’opération' : 'Qui a fait l’opération (ou, si vous la planifiez, qui doit la faire)'} : une ou plusieurs personnes${(db.settings.operateurObligatoire || champEffectif(fcfg, type, 'operateurs').obligatoire) && !old ? ' — obligatoire pour valider' : ''}. Liste : Paramètres › Société & opérateurs.`} /></CF>
       <CF k="notes" label="Notes"><TA value={f.notes} onChange={(v) => upd({ notes: v })} placeholder="Observations (facultatif)" /></CF>
-      <CF k="docs" group label="Documents joints (fiche remplie, bon, bulletin d’analyse, photo…)"
+      <CF k="docs" group label="Documents joints (fiche remplie, bon, bulletin d’analyse, photo…)" replieTel={old ? docsOf(db, 'op', old.id).length : prevId && plan0 ? docsOf(db, 'prev', prevId).length : pieces.length}
         help={old ? null : prevId && plan0 ? 'Joints à l’opération à réaliser : ils passent sur l’opération dès sa validation.' : `Rattachés à l’opération dès « ✓ Valider »${moduleActif(db, 'previsions') ? ' (ou à l’opération à réaliser avec « 📋 Planifier »)' : ''} ; formulaire fermé sans enregistrer : ils sont retirés.`}>
         {(() => { const ids = type === 'entree_mout' ? moutOnglets(f).map((p) => p.id) : []; const gen = ids.length ? (d) => !d.partId || !ids.includes(d.partId) : undefined; // entrée de moûts : documents des partenaires dans leur onglet (0.34.0-alpha.1)
           return old ? <DocsPanel cible={{ type: 'op', id: old.id }} kind="op" locked={isLocked(db, old.date)} filtre={gen} /> : prevId && plan0 ? <DocsPanel cible={{ type: 'prev', id: prevId }} kind="op" filtre={gen} /> : <DocsAttente items={pieces} onChange={setPieces} filtre={gen} />; })()}
@@ -493,7 +496,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       {cfgEd ? <FormulaireEditor catId={cat.id} onClose={() => setCfgEd(false)} /> : null}
       {old ? null : <div className="help">« ✓ Valider » enregistre l’opération réalisée (stocks mis à jour){moduleActif(db, 'previsions') ? ' ; « 📋 Planifier » la met dans la liste « À réaliser » sans toucher aux stocks' : ''}.</div>}
       {built.error ? <div className="text-sm text-ink2">{old ? 'Pour enregistrer : ' : 'Pour valider : '}{built.error}{old || !moduleActif(db, 'previsions') ? '' : ' — vous pouvez déjà la planifier.'}</div> : <PreviewBox pv={pv} />}
-      {!built.error && !lecture ? <DepassementBox deps={deps} R={pv && pv.R} motif={motifDep} setMotif={setMotifDep} /> : null}
+      {!built.error && !lecture ? <div data-champ="depassement"><DepassementBox deps={deps} R={pv && pv.R} motif={motifDep} setMotif={setMotifDep} /></div> : null}
       {!built.error && built.spec && !lecture && moduleActif(db, 'hygiene') ? <HygControlesNotices spec={built.spec} editId={editId} pv={pv} /> : null}
     </FormSheet>
   );

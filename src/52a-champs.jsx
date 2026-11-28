@@ -3,17 +3,25 @@
 const FormCfgCtx = React.createContext(null); // { cfg, type, tout }
 const CfReq = () => <span className="cf-req" title="Obligatoire" aria-label="obligatoire"> *</span>;
 // champ standard : affiché, replié (cliquer pour l'ouvrir) ou masqué ; libellé, aide et caractère obligatoire réglables
-function CF({ k, label, help, children, group, bare, className }) {
-  const c = useContext(FormCfgCtx);
+// 0.48.0-alpha.1 : data-champ = k (erreur de validation affichée sous le champ) ; replieTel = nombre d'éléments d'une section facultative
+// (intrants, équipements, documents) : au téléphone, elle est repliée tant qu'elle est vide, avec ce compteur
+function CF({ k, label, help, children, group, bare, className, replieTel }) {
+  const c = useContext(FormCfgCtx); const tel = useTel();
   const e = c ? champEffectif(c.cfg, c.type, k) : { vis: 'visible' };
   if (e.vis === 'masque' && !(c && c.tout)) return null;
   const lab = <>{e.libelle || label}{e.obligatoire ? <CfReq /> : null}{e.vis === 'masque' ? <span className="cf-masque"> · masqué</span> : null}</>;
   const h = e.aide || help;
   // bloc dont le libellé est intérieur (équipements, intrants…) : la mention « obligatoire » et l'aide réglée s'affichent dessous
-  const inner = bare ? (e.obligatoire && k !== 'operateurs') || (e.aide && k !== 'operateurs') ? <div className="min-w-0">{children}<div className="help">{e.obligatoire && k !== 'operateurs' ? <span className="cf-req">* obligatoire</span> : null}{e.obligatoire && e.aide ? ' · ' : ''}{e.aide || ''}</div></div> : children
-    : group ? <Group label={lab} help={h} className={className}>{children}</Group> : <Field label={lab} help={h} className={className}>{children}</Field>;
+  const inner = bare ? <div className="min-w-0 cf-bare" data-champ={k}>{(e.obligatoire && k !== 'operateurs') || (e.aide && k !== 'operateurs') ? <div className="min-w-0">{children}<div className="help">{e.obligatoire && k !== 'operateurs' ? <span className="cf-req">* obligatoire</span> : null}{e.obligatoire && e.aide ? ' · ' : ''}{e.aide || ''}</div></div> : children}</div>
+    : group ? <Group label={lab} help={h} className={className} champ={k}>{children}</Group> : <Field label={lab} help={h} className={className} champ={k}>{children}</Field>;
   if (e.vis === 'replie' && !(c && c.tout)) return <details className={cx('cf-replie', className)} data-champ={k}><summary>{e.libelle || label}{e.obligatoire ? ' *' : ''}</summary><div className="mt-2">{inner}</div></details>;
+  if (tel && replieTel != null && !e.obligatoire) return <CfTelReplie k={k} label={e.libelle || label} n={replieTel}>{inner}</CfTelReplie>;
   return inner;
+}
+// section facultative au téléphone : repliée si elle est vide, son compteur dans le titre (« Équipements utilisés (0) »)
+function CfTelReplie({ k, label, n, children }) {
+  const [o, setO] = useState(n > 0);
+  return <details className="cf-tel-replie" open={o} onToggle={(ev) => setO(ev.currentTarget.open)} data-cf-tel={k}><summary><span>{label}</span><span className="cf-tel-n"> ({n})</span></summary><div className="mt-2">{children}</div></details>;
 }
 const cfVisible = (c, k) => !c || champEffectif(c.cfg, c.type, k).vis !== 'masque' || c.tout;
 

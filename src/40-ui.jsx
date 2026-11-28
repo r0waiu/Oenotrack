@@ -20,8 +20,9 @@ const EChip = ({ info, id, compact }) => {
 const StadeChip = ({ id, compact }) => { const { db } = useApp(); if (!id) return null; return <span className="chip chip-c" style={{ '--c': stadeColor(db, id) }} title={`Stade : ${stadeLabel(db, id)}`}>{compact ? stadeCourt(db, id) : stadeLabel(db, id)}</span>; };
 const CouleurChip = ({ id }) => { const { db } = useApp(); if (!id) return null; return <span className="chip" title={`Couleur du vin : ${couleurLabel(db, id)}`}><i className="swatch" style={{ background: couleurColor(db, id), width: 10, height: 10, borderRadius: 999, marginRight: 4 }} />{couleurLabel(db, id)}</span>; };
 const Btn = ({ kind, size, className, children, ...p }) => <button type="button" className={cx('btn', kind && `btn-${kind}`, size === 'sm' && 'btn-sm', className)} {...p}>{children}</button>;
-const Field = ({ label, help, children, className }) => (<label className={cx('block min-w-0', className)}><span className="lbl">{label}</span>{children}{help ? <span className="help block">{help}</span> : null}</label>);
-const Group = ({ label, help, children, className }) => (<div className={cx('min-w-0', className)}><span className="lbl">{label}</span>{children}{help ? <span className="help block">{help}</span> : null}</div>);
+// champ (0.48.0-alpha.1) : nom du champ du formulaire (data-champ) — une erreur renvoyée par le moteur (fail(msg, { champ })) s'affiche dessous
+const Field = ({ label, help, children, className, champ }) => (<label className={cx('block min-w-0', className)} data-champ={champ || undefined}><span className="lbl">{label}</span>{children}{help ? <span className="help block">{help}</span> : null}</label>);
+const Group = ({ label, help, children, className, champ }) => (<div className={cx('min-w-0', className)} data-champ={champ || undefined}><span className="lbl">{label}</span>{children}{help ? <span className="help block">{help}</span> : null}</div>);
 const TI = ({ value, onChange, ...p }) => <input className="inp" value={value ?? ''} onChange={(e) => onChange(e.target.value)} {...p} />;
 const NI = ({ value, onChange, ...p }) => <input className="inp num" inputMode="decimal" value={value ?? ''} onChange={(e) => onChange(e.target.value)} {...p} />;
 // Volume saisi en hectolitres ; la valeur transmise reste en litres (texte), comme dans le reste du moteur
@@ -65,23 +66,129 @@ const SubNav = ({ value, onChange, items }) => (
   </div></BandeDefilante>
 );
 
+/* ---------- fiches (Sheet) : focus, clavier, page inerte, erreurs de validation, téléphone (0.48.0-alpha.1) ---------- */
 const SHEET_DEFIL = { avant: '' }; // défilement de la page avant la première fiche
-const SHEETS = []; // feuilles ouvertes (la dernière est au premier plan : seule elle réagit à Échap)
+const SHEETS = []; // feuilles ouvertes (la dernière est au premier plan : seule elle réagit à Échap, retient le focus et affiche les erreurs)
+const FOCUS_DOUX = { actif: false }; // focus posé par la fiche (ouverture, erreur) : une liste de choix (Combo) ne s'ouvre pas pour autant
+const SHEET_INERTES = []; // éléments rendus inertes par la fiche au premier plan (rendus actifs quand elle change ou se ferme)
+const TEL_MQ = '(max-width: 760px)'; // téléphone : même seuil que les styles
+function useTel() {
+  const mq = () => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(TEL_MQ) : null);
+  const [tel, setTel] = useState(() => { const m = mq(); return !!(m && m.matches); });
+  useEffect(() => { const m = mq(); if (!m) return undefined; const f = () => setTel(m.matches); f(); if (m.addEventListener) m.addEventListener('change', f); else m.addListener(f); return () => { if (m.removeEventListener) m.removeEventListener('change', f); else m.removeListener(f); }; }, []);
+  return tel;
+}
+const focusDoux = (el, opts) => { if (!el || !el.focus) return; FOCUS_DOUX.actif = true; try { el.focus(opts); } finally { FOCUS_DOUX.actif = false; } };
+const SHEET_FOCUSABLES = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),summary,[tabindex]:not([tabindex="-1"])';
+const visibleEl = (el) => !!(el && el.getClientRects && el.getClientRects().length) && !el.closest('[hidden],[inert]');
+const sheetFocusables = (root) => (root ? [...root.querySelectorAll(SHEET_FOCUSABLES)].filter((el) => visibleEl(el) && el.tabIndex >= 0) : []);
+const CHAMP_CTRL = 'input:not([type="hidden"]):not([type="file"]),select,textarea,[role="combobox"],button';
+// élément du champ nommé par une erreur : data-champ, champ personnalisé (perso:<id>), moût d'une entrée (entrees.<i>.<clé>)
+function ficheChampTrouver(root, champ) {
+  if (!root || !champ) return null; const q = (sel, r) => { try { return (r || root).querySelector(sel); } catch (e) { return null; } };
+  const c = String(champ); const esc = (x) => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(x) : String(x).replace(/["\\]/g, '\\$&'));
+  if (c.startsWith('perso:')) return q(`[data-champ-perso="${esc(c.slice(6))}"]`);
+  const m = /^entrees\.(\d+)(?:\.(.+))?$/.exec(c);
+  if (m) { const bloc = q(`[data-mout="${Number(m[1]) + 1}"]`); if (!bloc) return null; return (m[2] && q(`[data-champ="e.${esc(m[2])}"]`, bloc)) || bloc; }
+  return q(`[data-champ="${esc(c)}"]`);
+}
+// erreur de validation affichée dans la fiche au premier plan (r = fail(msg, { champ }) ; r réussi : erreur effacée) ; renvoie r
+function ficheErreur(r) { const s = SHEETS[SHEETS.length - 1]; if (s && s.erreur && r && typeof r === 'object') s.erreur(r.ok === false ? r : null); return r; }
+// act de l'application, avec l'erreur affichée sous le champ de la fiche ouverte (le message habituel reste)
+function useActFiche() { const { act } = useApp(); return useCallback((fn, msg, opts) => ficheErreur(act(fn, msg, opts)), [act]); }
+// erreur vue par le formulaire lui-même (avant le moteur) : message habituel + affichage dans la fiche
+function useErreurFiche() { const { toast } = useApp(); return useCallback((msg, champ) => { toast(msg, 'bad'); ficheErreur(fail(msg, champ ? { champ } : undefined)); }, [toast]); }
+// page inerte (clavier, lecteurs d'écran) sauf la fiche au premier plan ; verrou, fenêtres de confirmation, menus et messages exclus
+function sheetInerteMaj() {
+  while (SHEET_INERTES.length) SHEET_INERTES.pop().removeAttribute('inert');
+  const top = SHEETS[SHEETS.length - 1]; const ov = top && top.el; if (!ov || !ov.isConnected || typeof document === 'undefined') return;
+  for (let n = ov; n && n.parentElement && n !== document.body; n = n.parentElement) {
+    [...n.parentElement.children].forEach((x) => {
+      if (x === n || x.hasAttribute('inert') || ['SCRIPT', 'STYLE', 'TEMPLATE', 'LINK'].includes(x.tagName)) return;
+      if (x.matches('[data-verrou],.toast,.ctxmenu,[role="alertdialog"],[role="menu"]') || x.querySelector('[data-verrou],[role="alertdialog"]')) return;
+      x.setAttribute('inert', ''); SHEET_INERTES.push(x);
+    });
+  }
+}
+// pied au téléphone : l'action principale + menu « ⋯ » (autres boutons, « Annuler » en dernier) ; inchangé s'il n'y a qu'un bouton de plus
+const filsPlats = (x) => React.Children.toArray(x).flatMap((c) => (c && c.type === React.Fragment ? filsPlats(c.props.children) : [c]));
+function SheetPiedTel({ footer, onClose }) {
+  const [ouvert, setOuvert] = useState(false); const box = useRef(null);
+  useEffect(() => { if (!ouvert) return undefined; const k = (e) => { if (box.current && !box.current.contains(e.target)) setOuvert(false); }; document.addEventListener('pointerdown', k, true); return () => document.removeEventListener('pointerdown', k, true); }, [ouvert]);
+  const L = filsPlats(footer); const estBtn = (c) => !!c && (c.type === Btn || c.type === 'button');
+  const prim = L.filter((c) => estBtn(c) && c.props.kind === 'primary'); const autres = L.filter((c) => !prim.includes(c));
+  if (!prim.length || autres.length < 2 || !autres.every(estBtn)) return footer;
+  const fin = autres.filter((c) => c.props.onClick === onClose); const menu = [...autres.filter((c) => !fin.includes(c)).reverse(), ...fin];
+  return (<>
+    <div className="sheet-plus mr-auto" ref={box} onKeyDown={(e) => { if (e.key === 'Escape' && ouvert) { e.preventDefault(); e.stopPropagation(); setOuvert(false); } }}>
+      <Btn className="sheet-plus-btn" aria-haspopup="menu" aria-expanded={ouvert} aria-label="Autres actions" title="Autres actions" onClick={() => setOuvert(!ouvert)} data-sheet-plus="">⋯</Btn>
+      {ouvert ? <div className="sheet-plus-menu" role="menu" data-sheet-plus-menu="">{menu.map((c, i) => React.cloneElement(c, { key: c.key || `m${i}`, role: 'menuitem', className: cx(String(c.props.className || '').replace(/\bmr-auto\b/g, '').trim(), 'sheet-plus-item'), onClick: (e) => { setOuvert(false); if (c.props.onClick) c.props.onClick(e); } }))}</div> : null}
+    </div>
+    {prim}
+  </>);
+}
 function Sheet({ title, sub, onClose, onBack, backLabel, onCloseAll, children, footer, wide }) {
-  const me = useRef({}); const cb = useRef(onClose); cb.current = onClose;
+  const me = useRef({}); const cb = useRef(onClose); cb.current = onClose; const ov = useRef(null); const titre = useRef(null); const marque = useRef(null);
+  const [err, setErr] = useState(null); const [subVu, setSubVu] = useState(false); const tel = useTel(); const errId = `fe${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  me.current.erreur = (r) => setErr(r ? { msg: r.msg, champ: r.champ || '', n: Date.now() } : null);
+  // déclencheur : élément actif au premier rendu (avant qu'un champ autoFocus de la fiche ne prenne le focus)
+  const decl = useRef(undefined); if (decl.current === undefined) decl.current = typeof document !== 'undefined' ? document.activeElement : null;
   useEffect(() => {
-    SHEETS.push(me.current);
-    const k = (e) => { if (e.key === 'Escape' && SHEETS[SHEETS.length - 1] === me.current) cb.current(); };
+    const declencheur = decl.current;
+    me.current.el = ov.current; SHEETS.push(me.current); sheetInerteMaj();
+    const k = (e) => {
+      if (SHEETS[SHEETS.length - 1] !== me.current) return;
+      if (e.key === 'Escape') { cb.current(); return; }
+      if (e.key !== 'Tab' || !ov.current) return; // focus retenu dans la fiche (Tab, Maj+Tab)
+      const a = document.activeElement; const dans = ov.current.contains(a);
+      if (!dans && a && a !== document.body && a.closest && a.closest('[role="alertdialog"],[role="dialog"],[role="menu"],[data-verrou]')) return; // autre fenêtre au-dessus
+      const F = sheetFocusables(ov.current); if (!F.length) return; const i = F.indexOf(a);
+      if (!dans || i < 0) { if (!dans) { e.preventDefault(); (e.shiftKey ? F[F.length - 1] : F[0]).focus(); } }
+      else if (e.shiftKey && i === 0) { e.preventDefault(); F[F.length - 1].focus(); }
+      else if (!e.shiftKey && i === F.length - 1) { e.preventDefault(); F[0].focus(); }
+    };
     window.addEventListener('keydown', k); if (SHEETS.length === 1) SHEET_DEFIL.avant = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    // focus initial, une seule fois : premier champ (bureau) ou titre (téléphone : pas de clavier ouvert d'office) ; un champ autoFocus est respecté
+    if (ov.current && !ov.current.contains(document.activeElement)) {
+      const bureau = !(window.matchMedia && window.matchMedia(TEL_MQ).matches);
+      const champ = bureau ? [...ov.current.querySelectorAll('.sheet-b input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]),.sheet-b select,.sheet-b textarea')].find((x) => visibleEl(x) && !x.disabled && !x.readOnly) : null;
+      focusDoux(champ || titre.current, { preventScroll: true });
+    }
     // 0.38.0-alpha.3 : défilement rendu à la fermeture de la DERNIÈRE fiche (plusieurs fiches fermées ensemble le laissaient bloqué)
-    return () => { window.removeEventListener('keydown', k); const i = SHEETS.indexOf(me.current); if (i >= 0) SHEETS.splice(i, 1); if (!SHEETS.length) document.body.style.overflow = SHEET_DEFIL.avant || ''; };
+    return () => {
+      window.removeEventListener('keydown', k); const i = SHEETS.indexOf(me.current); if (i >= 0) SHEETS.splice(i, 1); if (!SHEETS.length) document.body.style.overflow = SHEET_DEFIL.avant || '';
+      sheetInerteMaj();
+      // focus rendu au déclencheur (encore affiché), si le focus était dans la fiche ou perdu
+      const a = document.activeElement; const perdu = !a || a === document.body || !a.isConnected || (me.current.el && me.current.el.contains(a));
+      if (perdu && declencheur && declencheur !== document.body && declencheur.isConnected && !declencheur.closest('[inert]')) { try { focusDoux(declencheur, { preventScroll: true }); } catch (e) { /* ignoré */ } }
+    };
   }, []);
+  // erreur de validation : message sous le champ, aria-invalid, focus sur le champ (sinon message seul au-dessus du pied)
+  useEffect(() => {
+    const m0 = marque.current;
+    if (m0) { if (m0.noeud.parentNode) m0.noeud.parentNode.removeChild(m0.noeud); m0.el.classList.remove('champ-en-erreur'); if (m0.ctl) { m0.ctl.removeAttribute('aria-invalid'); if (m0.desc) m0.ctl.setAttribute('aria-describedby', m0.desc); else m0.ctl.removeAttribute('aria-describedby'); } marque.current = null; }
+    if (!err || !err.champ || !ov.current) return;
+    const el = ficheChampTrouver(ov.current, err.champ); if (!el) return;
+    for (let d = el; d && d !== ov.current; d = d.parentElement) if (d.tagName === 'DETAILS' && !d.open) d.open = true; // champ replié : ouvert
+    const ctl = (el.matches(CHAMP_CTRL) ? el : null) || [...el.querySelectorAll(CHAMP_CTRL)].find((x) => visibleEl(x) && !x.disabled) || null;
+    const noeud = document.createElement('span'); noeud.className = 'champ-erreur'; noeud.id = `${errId}c`; noeud.setAttribute('data-champ-erreur', ''); noeud.textContent = err.msg;
+    if (el.matches(CHAMP_CTRL)) el.insertAdjacentElement('afterend', noeud); else el.appendChild(noeud);
+    el.classList.add('champ-en-erreur'); const m = { el, noeud, ctl, desc: ctl ? ctl.getAttribute('aria-describedby') : null }; marque.current = m;
+    if (ctl) { ctl.setAttribute('aria-invalid', 'true'); if (!(el.tagName === 'LABEL' && el.contains(ctl))) ctl.setAttribute('aria-describedby', [m.desc, noeud.id].filter(Boolean).join(' ')); focusDoux(ctl, { preventScroll: true }); }
+    try { (ctl || el).scrollIntoView({ block: 'center' }); } catch (e) { /* ignoré */ }
+  }, [err]);
+  // le champ en erreur est modifié : son message disparaît
+  const saisie = (e) => { const m = marque.current; if (err && m && m.el.contains(e.target)) setErr(null); };
+  const alerte = err ? <div className="sheet-erreur" role="alert" data-sheet-erreur="">{err.msg}</div> : null;
+  const pied = footer ? (tel ? <SheetPiedTel footer={footer} onClose={onClose} /> : footer) : null;
   return (
-    <div className="overlay" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : 'Fiche'}>
-      <div className={cx('sheet', wide && 'wide')}>
-        <div className="sheet-h"><div className="min-w-0">{onBack ? <button type="button" className="linkish mb-0.5 text-xs" onClick={onBack}>← Retour{backLabel ? ` : ${backLabel}` : ''}</button> : null}<h2 className="sheet-title break-words text-2xl font-semibold leading-tight">{title}</h2>{sub ? <div className="text-sm text-ink2">{sub}</div> : null}</div><Btn size="sm" kind="ghost" className="shrink-0" onClick={onCloseAll || onClose} aria-label="Fermer">✕ Fermer</Btn></div>
+    <div className="overlay" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : 'Fiche'} ref={ov}>
+      <div className={cx('sheet', wide && 'wide')} onInput={saisie} onChange={saisie}>
+        <div className={cx('sheet-h', subVu && 'sub-vu')}><div className="min-w-0">{onBack ? <button type="button" className="linkish mb-0.5 text-xs" onClick={onBack}>← Retour{backLabel ? ` : ${backLabel}` : ''}</button> : null}<h2 className="sheet-title break-words text-2xl font-semibold leading-tight" tabIndex={-1} ref={titre}>{title}</h2>{sub ? <div className="sheet-sub text-sm text-ink2">{sub}</div> : null}</div>
+          {sub && tel ? <button type="button" className="sheet-sub-btn" aria-expanded={subVu} aria-label="Détails" title="Détails" onClick={() => setSubVu(!subVu)} data-sheet-sub="">ⓘ</button> : null}
+          <Btn size="sm" kind="ghost" className="shrink-0" onClick={onCloseAll || onClose} aria-label="Fermer">✕ Fermer</Btn></div>
         <div className="sheet-b">{children}</div>
-        {footer ? <div className="sheet-f">{footer}</div> : null}
+        {pied || alerte ? <div className={cx('sheet-f', tel && 'sheet-f-tel')}>{alerte}{pied}</div> : null}
       </div>
     </div>
   );

@@ -42,7 +42,7 @@ function Combo({ value, onChange, options, placeholder, className, disabled, aut
     <div ref={box} className={cx('combo', className)} onBlur={(e) => { if (box.current && !box.current.contains(e.relatedTarget)) reset(); }}>
       <input ref={inp} className="inp" role="combobox" aria-expanded={open} aria-controls={`cb${uid}`} aria-autocomplete="list" aria-label={ariaLabel} autoComplete="off" spellCheck={false}
         aria-activedescendant={open && shown[hi] ? `cb${uid}-${hi}` : undefined} value={text} placeholder={placeholder || 'Commencez à écrire…'} disabled={disabled} autoFocus={autoFocus} title={sel ? `${lb(sel)}${sel.sub ? ' · ' + sel.sub : ''}` : undefined}
-        onFocus={(e) => { setOpen(true); setHi(Math.max(0, options.findIndex((o) => o.value === value))); e.target.select(); }}
+        onFocus={(e) => { if (typeof FOCUS_DOUX !== 'undefined' && FOCUS_DOUX.actif) return; /* focus posé par la fiche (0.48.0-alpha.1) : liste fermée */ setOpen(true); setHi(Math.max(0, options.findIndex((o) => o.value === value))); e.target.select(); }}
         onMouseDown={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setTyped(true); setOpen(true); setHi(0); }} onKeyDown={key} />
       {value && !disabled && !required ? <button type="button" tabIndex={-1} className="combo-x" aria-label="Effacer la saisie" onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange(''); reset(); }}>×</button> : null}
       {open && !disabled ? (

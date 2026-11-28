@@ -3,7 +3,7 @@ const sugarOf = (db, v) => (v && v.dbase != null && v.dmix != null ? r2((v.dmix 
 const valText = (db, pid, v) => { const p = db.analysesParams.find((x) => x.id === pid); return p ? `${p.nom} ${fmt(v, p.dec)}${p.unite ? ' ' + p.unite : ''}` : `${pid} ${v}`; };
 
 function AnalyseForm({ id, preset, onClose }) {
-  const { db, act, defaultDate } = useApp();
+  const { db, defaultDate } = useApp(); const act = useActFiche(); // 0.48.0-alpha.1 : erreur sous le champ
   const a = id ? db.analyses.find((x) => x.id === id) : null;
   const [f, set, setF] = useDraft({ date: a ? a.date : defaultDate, lotId: a ? a.lotId : (preset && preset.lotId) || '', contenantId: a ? a.contenantId : (preset && preset.contenantId) || '', modeleId: a ? a.modeleId : (db.analysesModeles[0] || {}).id || '', valeurs: a ? Object.fromEntries(Object.entries(a.valeurs).map(([k, v]) => [k, String(v)])) : {}, notes: a ? a.notes : '' });
   const Rd = useMemo(() => getR(db, isoOK(f.date) ? f.date : undefined), [db, f.date]);
@@ -17,11 +17,11 @@ function AnalyseForm({ id, preset, onClose }) {
   const save = () => { const r = act((d) => analyseSave(d, { ...f, valeurs: f.valeurs }, id), 'Analyse enregistrée.'); if (r.ok) onClose(); };
   return (
     <FormSheet title={id ? 'Modifier l’analyse' : 'Nouvelle analyse'} sub="Rattachée à un lot et au contenant prélevé" onClose={onClose} onSave={save} wide>
-      <G n={3}><Field label="Date du prélèvement"><DI value={f.date} onChange={(v) => set('date', v)} /></Field>
+      <G n={3}><Field label="Date du prélèvement" champ="date"><DI value={f.date} onChange={(v) => set('date', v)} /></Field>
         <Field label="Modèle de fiche"><SI value={f.modeleId} onChange={(v) => set('modeleId', v)} placeholder="Libre (tous les paramètres)" options={db.analysesModeles.map((m) => ({ value: m.id, label: `${m.nom}${m.etape ? ' · ' + m.etape : ''}` }))} /></Field><div /></G>
-      <G><Field label="Lot analysé"><SI value={f.lotId} onChange={pickLot} placeholder="Lot…" options={lots.map((l) => ({ value: l.id, label: `${l.code} · ${l.designation || LOT_TYPES[l.type]}${(Rd.lotVol[l.id] || 0) > 0 ? ' · ' + fmtL(Rd.lotVol[l.id]) : ''}` }))} /></Field>
+      <G><Field label="Lot analysé" champ="lotId"><SI value={f.lotId} onChange={pickLot} placeholder="Lot…" options={lots.map((l) => ({ value: l.id, label: `${l.code} · ${l.designation || LOT_TYPES[l.type]}${(Rd.lotVol[l.id] || 0) > 0 ? ' · ' + fmtL(Rd.lotVol[l.id]) : ''}` }))} /></Field>
         <Field label="Contenant prélevé" help="Une analyse est liée à la cuve précise d’où vient l’échantillon."><SI value={f.contenantId} onChange={(v) => set('contenantId', v)} placeholder="Contenant (facultatif)" options={contOpts} /></Field></G>
-      <Group label="Résultats"><div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))' }}>{shown.map((p) => <Field key={p.id} label={`${p.nom}${p.unite ? ' (' + p.unite + ')' : ''}`}><NI value={f.valeurs[p.id] ?? ''} onChange={(v) => setF((x) => ({ ...x, valeurs: { ...x.valeurs, [p.id]: v } }))} placeholder={p.dec ? '0,' + '0'.repeat(p.dec) : '0'} /></Field>)}</div></Group>
+      <Group label="Résultats" champ="valeurs"><div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))' }}>{shown.map((p) => <Field key={p.id} label={`${p.nom}${p.unite ? ' (' + p.unite + ')' : ''}`}><NI value={f.valeurs[p.id] ?? ''} onChange={(v) => setF((x) => ({ ...x, valeurs: { ...x.valeurs, [p.id]: v } }))} placeholder={p.dec ? '0,' + '0'.repeat(p.dec) : '0'} /></Field>)}</div></Group>
       {sucre != null ? <Notice tone="info" title={`Sucre de la mixtion ≈ ${fmt(sucre, 1)} g/L`}>(densité mixtion − densité vin de base) × 1000 × {fmt(coefSucre(db), 2)} g/L par point de densité (objectif {fmt(db.settings.objectifTirageGL)} g/L).</Notice> : null}
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
     </FormSheet>

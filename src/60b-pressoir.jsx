@@ -44,7 +44,7 @@ function MotifSheet({ title, body, ok = 'Confirmer', danger, onClose }) {
 /* ---------- pesée : saisie (formulaire personnalisable : Pressoir › Réglages ou « ⚙ Personnaliser ce formulaire », 0.25.0-alpha.1) ---------- */
 const nSaisie = (x) => (hasNum(x) ? String(x).replace('.', ',') : '');
 function PeseeForm({ id, onClose, onTicket }) {
-  const { db, act, defaultDate, moi, uid } = useApp(); const o = id ? db.ops.find((x) => x.id === id) : null; const p0 = (o && o.pesee) || {};
+  const { db, defaultDate, moi, uid } = useApp(); const act = useActFiche(); /* 0.48.0-alpha.1 : erreur sous le champ */ const o = id ? db.ops.find((x) => x.id === id) : null; const p0 = (o && o.pesee) || {};
   const droits = usePressoirDroits(); const P = pressoirParams(db); const bal = balancesDe(db);
   const valide = !!p0.valide; const lecture = !droits.ecrit || (valide && !droits.corriger) || (o && isLocked(db, o.date));
   const fcfg = formulaireDe(db, 'pesee'); const persoD = fcfg.perso.filter((x) => x.position === 'debut'); const persoF = fcfg.perso.filter((x) => x.position !== 'debut');
@@ -71,8 +71,8 @@ function PeseeForm({ id, onClose, onTicket }) {
     if (r && r.ok) { onClose(); if (!id && onTicket) onTicket(r.op.id); }
   };
   const num0 = p0.num || numeroSuivant(db, 'pesee', yearOf(f.date));
-  const btChamps = <><Field label="Poids brut (kg)"><NI value={f.brutKg} onChange={(v) => set('brutKg', v)} placeholder="ex. 4 300" aria-label="Poids brut" data-brut="" /></Field>
-    <Field label="Tare (kg)"><NI value={f.tareKg} onChange={(v) => set('tareKg', v)} placeholder="caisses, palettes" aria-label="Tare" data-tare="" /></Field></>;
+  const btChamps = <><Field label="Poids brut (kg)" champ="brutKg"><NI value={f.brutKg} onChange={(v) => set('brutKg', v)} placeholder="ex. 4 300" aria-label="Poids brut" data-brut="" /></Field>
+    <Field label="Tare (kg)" champ="tareKg"><NI value={f.tareKg} onChange={(v) => set('tareKg', v)} placeholder="caisses, palettes" aria-label="Tare" data-tare="" /></Field></>;
   return (
     <FormSheet readOnly={lecture} title={o ? `Pesée n° ${p0.num || '—'}` : 'Nouvelle pesée'} sub={o ? `${fmtDate(o.date)}${p0.heure ? ` · ${p0.heure}` : ''} — registre des pesées ${yearOf(o.date)}` : `Registre des pesées ${yearOf(f.date)} : n° ${num0}`} onClose={onClose} onSave={save} saveLabel={o ? 'Enregistrer' : f.valider ? 'Peser et valider' : 'Enregistrer'} wide>
       {valide ? <Notice tone="info" title={`Pesée validée le ${fmtDateHeure(p0.valide.le)}`}>Une correction reste possible : elle est gardée au journal du pressoir avec son motif (valeurs d’avant et d’après).{pris > 0 ? ` ${kgTxt(pris)} de cette pesée sont déjà chargés dans un marc.` : ''}</Notice> : null}
@@ -111,7 +111,7 @@ function PeseeForm({ id, onClose, onTicket }) {
       </FormCfgCtx.Provider>
       {o ? <DocsPanel cible={{ type: 'op', id: o.id }} kind="op" locked={isLocked(db, o.date)} /> : null}
       {!valide && !lecture ? <Check checked={f.valider} onChange={(v) => set('valider', v)} label="Valider la pesée (inscrite au registre ; ensuite, toute correction demande un motif)" /> : null}
-      {valide && !lecture ? <Field label="Motif de la correction (obligatoire si vous changez la pesée)"><TI value={f.motif} onChange={(v) => set('motif', v)} placeholder="ex. erreur de lecture de la bascule" data-motif-correction="" /></Field> : null}
+      {valide && !lecture ? <Field label="Motif de la correction (obligatoire si vous changez la pesée)" champ="motif"><TI value={f.motif} onChange={(v) => set('motif', v)} placeholder="ex. erreur de lecture de la bascule" data-motif-correction="" /></Field> : null}
       {cfgEd ? <FormulaireEditor catId="pesee" onClose={() => setCfgEd(false)} /> : null}
     </FormSheet>
   );

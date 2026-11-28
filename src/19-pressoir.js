@@ -179,7 +179,7 @@ function registreAvantEnregistrer(db, old, op, opts) {
     x.valide = old[objet].valide; // la validation ne se retire pas
     const a = resumeRegistre(old); const b = resumeRegistre(op);
     if (JSON.stringify(a) !== JSON.stringify(b) && !opts.apercu) {
-      if (!String(opts.motif || '').trim()) return fail(`${objet === 'pesee' ? 'Pesée' : 'Marc'} n° ${old[objet].num} validé${objet === 'pesee' ? 'e' : ''} : indiquez le motif de la correction (elle est gardée au journal du pressoir).`);
+      if (!String(opts.motif || '').trim()) return fail(`${objet === 'pesee' ? 'Pesée' : 'Marc'} n° ${old[objet].num} validé${objet === 'pesee' ? 'e' : ''} : indiquez le motif de la correction (elle est gardée au journal du pressoir).`, { champ: 'motif' });
       journalAjouter(db, { quand: opts.maintenant, objet, opId: op.id, num: x.num, annee, action: 'correction', motif: opts.motif, par: opts.par, avant: a, apres: b });
     }
   }
@@ -205,34 +205,34 @@ const PESEE_SAISIE = ['heure', 'brutKg', 'tareKg', 'caisses', 'etat', 'mention',
 const tapOK = (x) => hasNum(x) && num(x) > 0 && num(x) <= 20;
 const pourritureOK = (x) => hasNum(x) && num(x) >= 0 && num(x) <= 100;
 function peseeSpec(db, f) {
-  if (!isoOK(f.date)) return fail('Date de la pesée invalide.');
-  if (!heureOK(f.heure)) return fail('Indiquez l’heure de la pesée (hh:mm).');
+  if (!isoOK(f.date)) return fail('Date de la pesée invalide.', { champ: 'date' });
+  if (!heureOK(f.heure)) return fail('Indiquez l’heure de la pesée (hh:mm).', { champ: 'heure' });
   const brut = hasNum(f.brutKg) ? num(f.brutKg) : null; const tare = hasNum(f.tareKg) ? num(f.tareKg) : null;
   let net = hasNum(f.kg) ? num(f.kg) : null;
-  if (brut !== null && tare !== null) { if (tare >= brut) return fail('La tare doit être inférieure au poids brut.'); net = r2(brut - tare); }
-  if (!(net > 0)) return fail('Indiquez le poids net de raisin (kg), ou le poids brut et la tare.');
-  if (!f.cepageId) return fail('Choisissez le cépage.');
-  if (f.heureCueillette && !heureOK(f.heureCueillette)) return fail('Heure de cueillette invalide (hh:mm).');
-  if (f.etat && !ETATS_SANITAIRES.some((e) => e.id === f.etat)) return fail('État sanitaire inconnu.');
+  if (brut !== null && tare !== null) { if (tare >= brut) return fail('La tare doit être inférieure au poids brut.', { champ: 'tareKg' }); net = r2(brut - tare); }
+  if (!(net > 0)) return fail('Indiquez le poids net de raisin (kg), ou le poids brut et la tare.', { champ: 'kg' });
+  if (!f.cepageId) return fail('Choisissez le cépage.', { champ: 'cepageId' });
+  if (f.heureCueillette && !heureOK(f.heureCueillette)) return fail('Heure de cueillette invalide (hh:mm).', { champ: 'heureCueillette' });
+  if (f.etat && !ETATS_SANITAIRES.some((e) => e.id === f.etat)) return fail('État sanitaire inconnu.', { champ: 'etat' });
   const rempli = (x) => x !== undefined && x !== null && String(x).trim() !== '';
   // état « Sain » : la pourriture acide est sans objet (champ masqué, valeur non gardée), sauf si le formulaire la propose toujours
   const pa = rempli(f.pourritureAcide) && !(etatSain(f) && champSiAltere(formulaireDe(db, 'pesee'), 'pourritureAcide'));
-  if (rempli(f.tap) && !tapOK(f.tap)) return fail('TAP invalide : titre alcoométrique volumique en puissance entre 0 et 20 % vol.');
-  if (pa && !pourritureOK(f.pourritureAcide)) return fail('Pourriture acide : pourcentage entre 0 et 100.');
+  if (rempli(f.tap) && !tapOK(f.tap)) return fail('TAP invalide : titre alcoométrique volumique en puissance entre 0 et 20 % vol.', { champ: 'tap' });
+  if (pa && !pourritureOK(f.pourritureAcide)) return fail('Pourriture acide : pourcentage entre 0 et 100.', { champ: 'pourritureAcide' });
   const pesee = { heure: f.heure };
   if (rempli(f.tap)) pesee.tap = Math.round(num(f.tap) * 100) / 100; if (pa) pesee.pourritureAcide = Math.round(num(f.pourritureAcide) * 10) / 10;
   if (brut !== null) pesee.brutKg = brut; if (tare !== null) pesee.tareKg = tare;
   if (hasNum(f.caisses) && num(f.caisses) > 0) pesee.caisses = Math.round(num(f.caisses));
   if (f.etat) pesee.etat = f.etat; if (String(f.mention || '').trim()) pesee.mention = String(f.mention).trim();
   if (f.heureCueillette) pesee.heureCueillette = f.heureCueillette; if (f.balanceId) pesee.balanceId = f.balanceId;
-  const q = quiSaisit(db, f.operateurs, !f.id); if (q.msg) return fail(q.msg);
+  const q = quiSaisit(db, f.operateurs, !f.id); if (q.msg) return fail(q.msg, { champ: 'operateurs' });
   return okr({ spec: { type: 'apport', date: f.date, notes: String(f.notes || ''), ...(q.qui.length ? { operateurs: q.qui } : {}), cepageId: f.cepageId, kg: net, qualifId: f.qualifId || 'conv', apporteurId: f.apporteurId || '', cruId: f.cruId || '', parcelleId: f.parcelleId || '', ref: String(f.ref || '').trim(), pesee } });
 }
 function peseeSave(db, f, id, ctx) {
   ctx = ctx || {}; const r = peseeSpec(db, f); if (!r.ok) return r;
   const old = id ? db.ops.find((o) => o.id === id) : null; if (id && !old) return fail('Pesée introuvable.');
   // formulaire de pesée personnalisé : champs rendus obligatoires (nouvelle pesée), champs personnalisés
-  const pb = champsErreurs(db, 'pesee', 'pesee', { ...f, kg: r.spec.kg }, { nouveau: !old }); if (pb) return fail(pb);
+  const pb = champsErreurDetail(db, 'pesee', 'pesee', { ...f, kg: r.spec.kg }, { nouveau: !old }); if (pb) return fail(pb.msg, { champ: pb.champ }); // champ en cause (0.48.0-alpha.1)
   const spec = r.spec;
   // n°, saisie, validation (et ce qu'une version plus récente aurait ajouté) gardés ; ce que le formulaire saisit suit le formulaire
   if (old && old.pesee) { const garde = {}; Object.keys(old.pesee).forEach((k) => { if (!PESEE_SAISIE.includes(k)) garde[k] = old.pesee[k]; }); spec.pesee = { ...garde, ...spec.pesee }; }

@@ -1,6 +1,7 @@
 /* ============ OPÉRATIONS : état initial des formulaires et construction des spécifications ============ */
 const S_ = (x) => (x === null || x === undefined ? '' : String(x));
-const err = (error) => ({ error });
+// 0.48.0-alpha.1 : champ du formulaire en cause (data-champ), affiché sous le champ par la fiche
+const err = (error, champ) => (champ ? { error, champ } : { error });
 // unicité (0.41.0-alpha.1) : refusée sauf si la règle du stade autorise les doublons
 const codePris = (db, stade, date, code, own) => codifUnicite(db, stade, date) === 'refus' && takenCode(db, code, own);
 const takenCode = (db, code, exceptIds) => db.lots.some((l) => norm(l.code).trim() === norm(code).trim() && !(exceptIds || []).includes(l.id));
@@ -130,9 +131,9 @@ function buildSpec(type, f, db, Rd, old) {
   const r = buildSpec0(type, f, db, Rd, old); if (!r.spec) return r;
   if (VIN_CREE.includes(type) || VIN_APRES.includes(type)) { const v = vinChoix(type, f, db, Rd); if (v.stade) r.spec.stade = v.stade; if (v.couleur) r.spec.couleur = v.couleur; }
   if (f.sousType && f.sousType !== type) r.spec.sousType = f.sousType;
-  const cx = codifAttacher(type, f, db, Rd, old, r.spec); if (cx) return err(cx); // codification des lots (0.41.0-alpha.1)
+  const cx = codifAttacher(type, f, db, Rd, old, r.spec); if (cx) return err(cx, 'code'); // codification des lots (0.41.0-alpha.1)
   // formulaire personnalisé (0.16.0-alpha.1) : champs rendus obligatoires, valeurs des champs personnalisés (calculs compris)
-  const catId = f.sousType || type; const pb = champsErreurs(db, catId, type, f, { nouveau: !old }); if (pb) return err(pb);
+  const catId = f.sousType || type; const pb = champsErreurDetail(db, catId, type, f, { nouveau: !old }); if (pb) return err(pb.msg, pb.champ);
   const ch = champsValeurs(formulaireDe(db, catId).perso, f.champs, formuleVarsStd(type, f), old && old.champs); if (ch.length) r.spec.champs = ch;
   // mesures de jaugeage (📏, 0.17.0-alpha.1) : gardées à part (op.jauges) — une version antérieure les conserve telles quelles
   if (type === 'entree_mout') {
@@ -150,18 +151,18 @@ function buildSpec(type, f, db, Rd, old) {
   // qui a réalisé l'opération (liste des opérateurs de la société) ; obligatoire si le réglage est activé (nouvelles opérations)
   const qui = operateursValides(db, f.operateurs);
   if (qui.length) r.spec.operateurs = qui;
-  else if (!old && (db.settings || {}).operateurObligatoire) return err('Indiquez qui a réalisé l’opération (opérateur).');
+  else if (!old && (db.settings || {}).operateurObligatoire) return err('Indiquez qui a réalisé l’opération (opérateur).', 'operateurs');
   return r;
 }
 function buildSpec0(type, f, db, Rd, old) {
-  if (!isoOK(f.date)) return err('Choisissez une date.');
+  if (!isoOK(f.date)) return err('Choisissez une date.', 'date');
   const base = { type, date: f.date, notes: f.notes || '' };
   const own = old ? opCreates(old).lots : [];
   const needPortion = () => (!f.portionId ? 'Choisissez la portion concernée.' : null);
   switch (type) {
     case 'apport':
-      if (!f.cepageId) return err('Choisissez le cépage.'); if (!(num(f.kg) > 0)) return err('Indiquez le poids de raisin (kg).');
-      if (f.heurePesee && !heureOK(f.heurePesee)) return err('Heure de la pesée invalide (hh:mm).');
+      if (!f.cepageId) return err('Choisissez le cépage.', 'cepageId'); if (!(num(f.kg) > 0)) return err('Indiquez le poids de raisin (kg).', 'kg');
+      if (f.heurePesee && !heureOK(f.heurePesee)) return err('Heure de la pesée invalide (hh:mm).', 'heurePesee');
       // registre des pesées (0.24.0-alpha.1) : n°, heure et validation gardés (l'onglet Pressoir les gère)
       return { spec: { ...base, cepageId: f.cepageId, kg: num(f.kg), qualifId: f.qualifId, apporteurId: f.apporteurId || '', cruId: f.cruId || '', parcelleId: f.parcelleId || '', ref: String(f.ref || '').trim(),
         ...(f.heurePesee || (old && old.pesee) ? { pesee: { ...((old && old.pesee) || {}), ...(f.heurePesee ? { heure: f.heurePesee } : {}) } } : {}) } };
@@ -170,15 +171,15 @@ function buildSpec0(type, f, db, Rd, old) {
       for (let i = 0; i < (f.entrees || []).length; i += 1) {
         const e = f.entrees[i]; const n = i + 1; const ds = (e.dests || []).filter((d) => num(d.volL) > 0);
         if (!ds.length) continue; // ligne sans volume : ignorée
-        if (ds.some((d) => !d.contenantId)) return err(`Moût ${n} : choisissez la cuve de destination de chaque volume.`);
-        if (!e.cepageId) return err(`Moût ${n} : choisissez le cépage.`);
-        if (!e.fractionId) return err(`Moût ${n} : choisissez la fraction (cuvée, taille, rebêche…).`);
+        if (ds.some((d) => !d.contenantId)) return err(`Moût ${n} : choisissez la cuve de destination de chaque volume.`, `entrees.${i}`);
+        if (!e.cepageId) return err(`Moût ${n} : choisissez le cépage.`, `entrees.${i}.cepageId`);
+        if (!e.fractionId) return err(`Moût ${n} : choisissez la fraction (cuvée, taille, rebêche…).`, `entrees.${i}.fractionId`);
         const m = {}; ds.forEach((d) => { m[d.contenantId] = (m[d.contenantId] || 0) + num(d.volL); });
         const dests = Object.keys(m).map((k) => ({ contenantId: k, volL: r2(m[k]) }));
         // partenaires du compartiment (plusieurs possibles) : parts en % toutes renseignées (total 100) ou aucune (parts égales)
         const aps = (e.apporteurs || []).filter((a) => a && a.id && (db.apporteurs || []).some((x) => x.id === a.id)).filter((a, k, t) => t.findIndex((y) => y.id === a.id) === k);
         const pcts = aps.map((a) => (hasNum(a.pct) ? num(a.pct) : null));
-        if (pcts.some((p) => p != null) && (pcts.some((p) => p == null || p <= 0) || Math.abs(sum(pcts) - 100) > 0.5)) return err(`Moût ${n} : les parts des partenaires doivent être toutes renseignées et totaliser 100 % (ou laissez-les vides : parts égales).`);
+        if (pcts.some((p) => p != null) && (pcts.some((p) => p == null || p <= 0) || Math.abs(sum(pcts) - 100) > 0.5)) return err(`Moût ${n} : les parts des partenaires doivent être toutes renseignées et totaliser 100 % (ou laissez-les vides : parts égales).`, `entrees.${i}.apporteurs`);
         const an = {}; Object.keys(e.analyses || {}).forEach((k) => { if (hasNum(e.analyses[k])) an[k] = num(e.analyses[k]); });
         const numLot = String(e.numLot || '').trim(); const tab = PF.find((p) => p.id === moutOngletDe(PF, e)) || PF[0];
         if (!aps.length && tab.apporteurId && multi) aps.push({ id: tab.apporteurId, pct: '' }); // partenaire de l'onglet, écrit dans le moût (lu aussi par les versions antérieures)
@@ -208,7 +209,7 @@ function buildSpec0(type, f, db, Rd, old) {
     case 'pressurage': {
       const charges = f.charges.filter((c) => c.apportId && num(c.kg) > 0).map((c) => ({ apportId: c.apportId, kg: num(c.kg) }));
       const code = String(f.code).trim();
-      if (!charges.length) return err('Sélectionnez au moins un apport de vendange pressé.');
+      if (!charges.length) return err('Sélectionnez au moins un apport de vendange pressé.', 'charges');
       if (!code) return err('Le code du lot parent (pressée) est obligatoire.');
       const fractions = Object.keys(f.frac).map((fid) => fracDef(db, fid) || { id: fid, suffix: fid }).map((fr) => ({ fractionId: fr.id, volL: num(f.frac[fr.id].volL), contenantId: f.frac[fr.id].contenantId, code: (f.frac[fr.id].code || '').trim() || pressFractionAuto(db, f, fr, code, Rd) })).filter((x) => x.volL > 0);
       if (!fractions.length) return err('Indiquez le volume d’au moins une fraction (cuvée, taille, rebêche).');
@@ -216,82 +217,82 @@ function buildSpec0(type, f, db, Rd, old) {
       const codes = [code, ...fractions.map((x) => x.code)];
       if (new Set(codes.map(norm)).size !== codes.length) return err('Les codes de lots de cette pressée doivent être différents.');
       const t = codes.find((c, k) => codePris(db, k ? 'fraction' : 'marc', f.date, c, own)); if (t) return err(`Le code de lot « ${t} » existe déjà.`);
-      if (f.heureDebut && !heureOK(f.heureDebut)) return err('Heure du début du pressurage invalide (hh:mm).');
+      if (f.heureDebut && !heureOK(f.heureDebut)) return err('Heure du début du pressurage invalide (hh:mm).', 'heureDebut');
       return { spec: { ...base, equipementId: f.equipementId, charges, parentSpec: { code, designation: f.designation.trim() || code, millesime: f.millesime || String(yearOf(f.date)), qualifId: f.qualifId }, fractions,
         ...(f.heureDebut || (old && old.marc) ? { marc: { ...((old && old.marc) || {}), ...(f.heureDebut ? { heureDebut: f.heureDebut } : {}) } } : {}) } }; // carnet de pressoir (0.24.0-alpha.1)
     }
     case 'debourbage': case 'soutirage': case 'transfert': {
-      const e = needPortion(); if (e) return err(e);
-      if (!f.destId) return err('Choisissez le contenant de destination.'); if (!(num(f.volL) > 0)) return err('Indiquez le volume transféré (hL).');
+      const e = needPortion(); if (e) return err(e, 'portionId');
+      if (!f.destId) return err('Choisissez le contenant de destination.', 'destId'); if (!(num(f.volL) > 0)) return err('Indiquez le volume transféré (hL).', 'volL');
       return { spec: { ...base, portionId: f.portionId, volL: num(f.volL), destId: f.destId, pertes: cleanPertes(f.pertes), lignes: cleanLignes(f.lignes), equipementIds: f.equipementIds } };
     }
     case 'intrant': {
-      const e = needPortion(); if (e) return err(e);
+      const e = needPortion(); if (e) return err(e, 'portionId');
       const lignes = cleanLignes(f.lignes), prepUses = cleanPrepUses(f.prepUses);
-      if (!lignes.length && !prepUses.length) return err('Ajoutez au moins un intrant (produit + quantité) ou une préparation.');
+      if (!lignes.length && !prepUses.length) return err('Ajoutez au moins un intrant (produit + quantité) ou une préparation.', 'lignes');
       return { spec: { ...base, portionId: f.portionId, lignes, prepUses, motif: f.motif } };
     }
-    case 'suivi': { const e = needPortion(); if (e) return err(e); return { spec: { ...base, portionId: f.portionId, lignes: cleanLignes(f.lignes), prepUses: cleanPrepUses(f.prepUses), motif: String(f.motif || '').trim(), tempC: hasNum(f.tempC) ? num(f.tempC) : null, densite: hasNum(f.densite) ? num(f.densite) : null } }; }
-    case 'sortie': { const e = needPortion(); if (e) return err(e); if (!(num(f.volL) > 0)) return err('Indiquez le volume sorti (hL).'); const p = Rd.portions[f.portionId]; if (p && num(f.volL) > p.vol + 0.5) return err(`Volume supérieur au stock de la cuve (${fmtL(p.vol)}).`);
+    case 'suivi': { const e = needPortion(); if (e) return err(e, 'portionId'); return { spec: { ...base, portionId: f.portionId, lignes: cleanLignes(f.lignes), prepUses: cleanPrepUses(f.prepUses), motif: String(f.motif || '').trim(), tempC: hasNum(f.tempC) ? num(f.tempC) : null, densite: hasNum(f.densite) ? num(f.densite) : null } }; }
+    case 'sortie': { const e = needPortion(); if (e) return err(e, 'portionId'); if (!(num(f.volL) > 0)) return err('Indiquez le volume sorti (hL).', 'volL'); const p = Rd.portions[f.portionId]; if (p && num(f.volL) > p.vol + 0.5) return err(`Volume supérieur au stock de la cuve (${fmtL(p.vol)}).`, 'volL');
       return { spec: { ...base, portionId: f.portionId, volL: num(f.volL), motif: String(f.motif || '').trim(), destinataire: String(f.destinataire || '').trim(), ref: String(f.ref || '').trim() } }; }
-    case 'froid': { const e = needPortion(); if (e) return err(e); return { spec: { ...base, portionId: f.portionId, tempC: hasNum(f.tempC) ? num(f.tempC) : null, jours: hasNum(f.jours) ? num(f.jours) : null, lignes: cleanLignes(f.lignes) } }; }
-    case 'filtration': { const e = needPortion(); if (e) return err(e); return { spec: { ...base, portionId: f.portionId, methodeId: f.methodeId, equipementIds: f.equipementIds, lignes: cleanLignes(f.lignes), pertes: cleanPertes(f.pertes) } }; }
-    case 'jaugeage': { const e = needPortion(); if (e) return err(e); if (!hasNum(f.volMesure) || num(f.volMesure) < 0) return err('Indiquez le volume mesuré (hL).'); return { spec: { ...base, portionId: f.portionId, volMesure: num(f.volMesure), typeId: f.typeId, ...(hasNum(f.hauteurMesure) ? { hauteurMesure: num(f.hauteurMesure), baremeId: f.baremeId || '', mesureJauge: f.mesureJauge || 'hauteur' } : {}) } }; }
+    case 'froid': { const e = needPortion(); if (e) return err(e, 'portionId'); return { spec: { ...base, portionId: f.portionId, tempC: hasNum(f.tempC) ? num(f.tempC) : null, jours: hasNum(f.jours) ? num(f.jours) : null, lignes: cleanLignes(f.lignes) } }; }
+    case 'filtration': { const e = needPortion(); if (e) return err(e, 'portionId'); return { spec: { ...base, portionId: f.portionId, methodeId: f.methodeId, equipementIds: f.equipementIds, lignes: cleanLignes(f.lignes), pertes: cleanPertes(f.pertes) } }; }
+    case 'jaugeage': { const e = needPortion(); if (e) return err(e, 'portionId'); if (!hasNum(f.volMesure) || num(f.volMesure) < 0) return err('Indiquez le volume mesuré (hL).', 'volMesure'); return { spec: { ...base, portionId: f.portionId, volMesure: num(f.volMesure), typeId: f.typeId, ...(hasNum(f.hauteurMesure) ? { hauteurMesure: num(f.hauteurMesure), baremeId: f.baremeId || '', mesureJauge: f.mesureJauge || 'hauteur' } : {}) } }; }
     case 'assemblage': {
       const sources = f.sources.filter((s) => s.portionId && num(s.volL) > 0).map((s) => ({ portionId: s.portionId, lotId: (Rd.portions[s.portionId] || {}).lotId, volL: num(s.volL) }));
-      if (sources.length < 1) return err('Sélectionnez au moins une portion source avec un volume.');
-      if (sources.some((s) => !s.lotId)) return err('Une portion source n’existe plus à cette date.');
-      if (!f.destId) return err('Choisissez le contenant de destination.'); const code = String(f.code).trim(); if (!code) return err('Le code du lot résultant est obligatoire.');
-      if (codePris(db, 'assemblage', f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
+      if (sources.length < 1) return err('Sélectionnez au moins une portion source avec un volume.', 'sources');
+      if (sources.some((s) => !s.lotId)) return err('Une portion source n’existe plus à cette date.', 'sources');
+      if (!f.destId) return err('Choisissez le contenant de destination.', 'destId'); const code = String(f.code).trim(); if (!code) return err('Le code du lot résultant est obligatoire.', 'code');
+      if (codePris(db, 'assemblage', f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`, 'code');
       const mx = f.mixtion ? { mixtion: true, ...(f.cuveeId ? { cuveeId: f.cuveeId } : {}), ...(f.chantierId ? { chantierId: f.chantierId } : {}), prepUses: cleanPrepUses(f.prepUses), ...(hasNum(f.densBase) ? { densBase: num(f.densBase) } : {}), ...(hasNum(f.densMix) ? { densMix: num(f.densMix) } : {}), ...(hasNum(f.pointGL) ? { pointGL: num(f.pointGL) } : {}) } : {}; // cuve de mixtion (0.42.0-alpha.2)
-      if (f.mixtion && !mx.prepUses.length) return err('Cuve de mixtion : indiquez la liqueur et le levain versés.');
+      if (f.mixtion && !mx.prepUses.length) return err('Cuve de mixtion : indiquez la liqueur et le levain versés.', 'prepUses');
       return { spec: { ...base, sources, destId: f.destId, pertes: cleanPertes(f.pertes), lignes: cleanLignes(f.lignes), ...mx, lotSpec: { code, designation: f.designation.trim() || code, millesime: millesimeSaisi(f.millesime) || String(yearOf(f.date)), type: f.ltype } } };
     }
     case 'etape': {
-      if (!f.lotId) return err('Choisissez le lot.'); const lot = Rd.lots[f.lotId] || {};
+      if (!f.lotId) return err('Choisissez le lot.', 'lotId'); const lot = Rd.lots[f.lotId] || {};
       const ns = f.newStade && f.newStade !== lot.stade ? f.newStade : ''; const nc = f.couleur && f.couleur !== lot.couleur ? f.couleur : ''; const nt = f.newType && f.newType !== lot.type ? f.newType : '';
-      if (!ns && !nc && !nt) return err('Choisissez un nouveau stade (ou une autre couleur, une autre nature).');
+      if (!ns && !nc && !nt) return err('Choisissez un nouveau stade (ou une autre couleur, une autre nature).', 'vin');
       return { spec: { ...base, lotId: f.lotId, ...(ns ? { newStade: ns } : {}), ...(nc ? { couleur: nc } : {}), ...(nt ? { newType: nt } : {}) } };
     }
     case 'reprise': {
-      const code = String(f.code).trim(); if (!code) return err('Le code du lot repris est obligatoire.');
-      if (codePris(db, codifStadePourOp(db, 'reprise', f), f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
+      const code = String(f.code).trim(); if (!code) return err('Le code du lot repris est obligatoire.', 'code');
+      if (codePris(db, codifStadePourOp(db, 'reprise', f), f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`, 'code');
       const cepages = {}; Object.keys(f.cepages || {}).forEach((k) => { if (num(f.cepages[k]) > 0) cepages[k] = num(f.cepages[k]); });
       const crus = {}; (f.crus || []).forEach((x) => { if (x.cruId) crus[x.cruId] = (crus[x.cruId] || 0) + (num(x.pct) > 0 ? num(x.pct) : 1); });
       const lotSpec = { code, designation: f.designation.trim() || code, millesime: millesimeSaisi(f.millesime) || 'NV', type: f.kind === 'bouteilles' ? 'cuvee_tirage' : f.ltype, qualifId: f.qualifId, cepages, crus, echelle: Object.keys(crus).length ? '' : (f.echelle || '') };
       const vendeur = f.apporteurId && (db.apporteurs || []).some((a) => a.id === f.apporteurId) ? { apporteurId: f.apporteurId } : {};
-      if (f.sousType === 'entree_vin' && !vendeur.apporteurId) return err('Choisissez le partenaire qui vend ou livre le vin.');
-      if (f.kind === 'bouteilles') { if (!(num(f.nbBouteilles) > 0)) return err('Indiquez le nombre de bouteilles.'); return { spec: { ...base, nbBouteilles: num(f.nbBouteilles), volL: 0, lotSpec, ...vendeur } }; }
-      if (!f.contenantId) return err('Choisissez le contenant.'); if (!(num(f.volL) > 0)) return err('Indiquez le volume (hL).');
+      if (f.sousType === 'entree_vin' && !vendeur.apporteurId) return err('Choisissez le partenaire qui vend ou livre le vin.', 'apporteurId');
+      if (f.kind === 'bouteilles') { if (!(num(f.nbBouteilles) > 0)) return err('Indiquez le nombre de bouteilles.', 'nbBouteilles'); return { spec: { ...base, nbBouteilles: num(f.nbBouteilles), volL: 0, lotSpec, ...vendeur } }; }
+      if (!f.contenantId) return err('Choisissez le contenant.', 'contenantId'); if (!(num(f.volL) > 0)) return err('Indiquez le volume (hL).', 'volL');
       return { spec: { ...base, contenantId: f.contenantId, volL: num(f.volL), lotSpec, ...vendeur } };
     }
     case 'preparation': {
-      const code = String(f.code).trim(); if (!code) return err('Le code de la préparation est obligatoire.'); if (!(num(f.volL) > 0)) return err('Indiquez le volume préparé (hL).');
-      if (f.sourcePortionId && !(num(f.sourceVolL) > 0)) return err('Indiquez le volume de vin prélevé (ou retirez la portion source).');
-      const pu = cleanPrepUses(f.prepUses || []); const eau = hasNum(f.eauL) ? num(f.eauL) : 0; if (eau < 0) return err('Volume d’eau invalide.');
-      if (num(f.sourceVolL) * (f.sourcePortionId ? 1 : 0) + eau + sum(pu, (u) => u.volL) > num(f.volL) + 0.5) return err('Le vin, l’eau et la liqueur ajoutés dépassent le volume préparé.');
+      const code = String(f.code).trim(); if (!code) return err('Le code de la préparation est obligatoire.', 'code'); if (!(num(f.volL) > 0)) return err('Indiquez le volume préparé (hL).', 'volL');
+      if (f.sourcePortionId && !(num(f.sourceVolL) > 0)) return err('Indiquez le volume de vin prélevé (ou retirez la portion source).', 'source');
+      const pu = cleanPrepUses(f.prepUses || []); const eau = hasNum(f.eauL) ? num(f.eauL) : 0; if (eau < 0) return err('Volume d’eau invalide.', 'eauL');
+      if (num(f.sourceVolL) * (f.sourcePortionId ? 1 : 0) + eau + sum(pu, (u) => u.volL) > num(f.volL) + 0.5) return err('Le vin, l’eau et la liqueur ajoutés dépassent le volume préparé.', 'volL');
       const fo = f.ptype === 'liqueur_tirage' && f.fonte ? liqueurFonteSpec(f.fonte) : null;
       return { spec: { ...base, ptype: f.ptype, qualifId: f.qualifId, code, volL: num(f.volL), sourcePortionId: f.sourcePortionId || '', sourceVolL: f.sourcePortionId ? num(f.sourceVolL) : 0, lignes: cleanLignes(f.lignes),
         ...(eau > 0 ? { eauL: eau } : {}), ...(pu.length ? { prepUses: pu } : {}), ...(fo ? { fonte: fo } : {}), ...(f.levainPlan || (old && old.levainPlan) ? { levainPlan: f.levainPlan || old.levainPlan } : {}) } };
     }
     case 'tirage': {
       const sources = f.sources.filter((s) => s.portionId && num(s.volL) > 0).map((s) => ({ portionId: s.portionId, lotId: (Rd.portions[s.portionId] || {}).lotId, volL: num(s.volL) }));
-      if (!sources.length) return err('Sélectionnez le vin de base (portion + volume).'); if (sources.some((s) => !s.lotId)) return err('Une portion source n’existe plus à cette date.');
+      if (!sources.length) return err('Sélectionnez le vin de base (portion + volume).', 'sources'); if (sources.some((s) => !s.lotId)) return err('Une portion source n’existe plus à cette date.', 'sources');
       const formats = (f.formats || []).filter((x) => num(x.nb) > 0).map((x) => ({ format: x.format || 'bouteille', nb: Math.round(num(x.nb)), L: (tirageFormat(x.format) || {}).L || num(f.volBouteilleL) || 0.75 })); // 0.42.0-alpha.2
       const compat = formats.length ? tirageFormatsCompat(formats) : { nbBouteilles: num(f.nbBouteilles), volBouteilleL: num(f.volBouteilleL) || 0.75 };
-      if (!(compat.nbBouteilles > 0)) return err('Indiquez le nombre de bouteilles tirées.'); const code = String(f.code).trim(); if (!code) return err('Le code du lot de tirage est obligatoire.');
-      if (f.chantierId && !chantierTirage(db, f.chantierId)) return err('Chantier introuvable.'); if (hasNum(f.casse) && num(f.casse) < 0) return err('Casse invalide.');
+      if (!(compat.nbBouteilles > 0)) return err('Indiquez le nombre de bouteilles tirées.', 'formats'); const code = String(f.code).trim(); if (!code) return err('Le code du lot de tirage est obligatoire.', 'code');
+      if (f.chantierId && !chantierTirage(db, f.chantierId)) return err('Chantier introuvable.', 'chantierId'); if (hasNum(f.casse) && num(f.casse) < 0) return err('Casse invalide.', 'casse');
       { const ctl = tirageModeControle(db, Rd, { mode: f.mode, sources, prepUses: cleanPrepUses(f.prepUses) }); if (ctl) return err(ctl); }
-      if (codePris(db, 'tirage', f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
+      if (codePris(db, 'tirage', f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`, 'code');
       const sucre = hasNum(f.densBase) && hasNum(f.densMix) ? r2((num(f.densMix) - num(f.densBase)) * 1000 * coefSucre(db)) : null;
       const pompe = f.mode === 'pompe' && f.pompe ? tiragePompeSpec(f.pompe) : null;
       const fo = tirageFournituresSpec(db, f.fournitures, { formats, casse: num(f.casse) }); // 0.42.0-alpha.3 : fournitures (trace) et quantités décomptées
       return { spec: { ...base, sources, prepUses: cleanPrepUses(f.prepUses), lignes: [...cleanLignes(f.lignes), ...fo.lignes], ...(fo.fournitures.length ? { fournitures: fo.fournitures } : {}), nbBouteilles: compat.nbBouteilles, volBouteilleL: compat.volBouteilleL, ...(formats.length ? { formats } : {}), ...(f.mode ? { mode: f.mode } : {}), ...(f.chantierId ? { chantierId: f.chantierId } : {}), ...(f.cuveeId && f.chantierId ? { cuveeId: f.cuveeId } : {}), ...(num(f.casse) > 0 ? { casse: Math.round(num(f.casse)) } : {}), ...(hasNum(f.pointGL) ? { pointGL: num(f.pointGL) } : {}), ...(pompe ? { pompe } : {}), densBase: hasNum(f.densBase) ? num(f.densBase) : null, densMix: hasNum(f.densMix) ? num(f.densMix) : null, sucreGL: sucre, lotSpec: { code, designation: f.designation.trim() || code, millesime: millesimeSaisi(f.millesime) || String(yearOf(f.date)) } } };
     }
     case 'degorgement': {
-      if (!f.sourceLotId) return err('Choisissez le lot de tirage à dégorger.'); if (!(num(f.nb) > 0)) return err('Indiquez le nombre de bouteilles dégorgées.');
-      const code = String(f.code).trim(); if (!code) return err('Le code du lot fini est obligatoire.');
-      if (codifUnicite(db, 'degorgement', f.date) === 'refus' && (db.lotsFinis || []).some((x) => norm(x.code) === norm(code) && !(old && x.id === old.lotFiniId))) return err(`Le code de lot fini « ${code} » existe déjà.`);
+      if (!f.sourceLotId) return err('Choisissez le lot de tirage à dégorger.', 'sourceLotId'); if (!(num(f.nb) > 0)) return err('Indiquez le nombre de bouteilles dégorgées.', 'nb');
+      const code = String(f.code).trim(); if (!code) return err('Le code du lot fini est obligatoire.', 'code');
+      if (codifUnicite(db, 'degorgement', f.date) === 'refus' && (db.lotsFinis || []).some((x) => norm(x.code) === norm(code) && !(old && x.id === old.lotFiniId))) return err(`Le code de lot fini « ${code} » existe déjà.`, 'code');
       return { spec: { ...base, sourceLotId: f.sourceLotId, nb: num(f.nb), prepUses: cleanPrepUses(f.prepUses), lignes: cleanLignes(f.lignes), lotFiniSpec: { code, designation: f.designation.trim() || code, dosageGL: hasNum(f.dosageGL) ? num(f.dosageGL) : null } } };
     }
     default: return err('Type d’opération inconnu.');
