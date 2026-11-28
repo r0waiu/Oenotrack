@@ -55,11 +55,14 @@ const Check = ({ checked, onChange, label, disabled }) => (<label className="inl
 const Empty = ({ children }) => <div className="rounded-md border border-dashed border-line p-6 text-center text-sm text-ink2">{children}</div>;
 const Notice = ({ tone = 'warn', title, children }) => (<div className={cx('rounded-md px-3 py-2 text-sm', tone === 'bad' ? 'bg-badSoft text-bad' : tone === 'ok' ? 'bg-okSoft text-ok' : tone === 'info' ? 'bg-accentSoft text-accent' : 'bg-warnSoft text-warn')} role={tone === 'bad' ? 'alert' : undefined}>{title ? <div className="font-semibold">{title}</div> : null}{children}</div>);
 const Sec = ({ title, right, children, className, ...p }) => (<section className={cx('mb-6', className)} {...p}><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="sec-t text-xl font-semibold">{title}</h3>{right ? <div className="flex flex-wrap items-center gap-2">{right}</div> : null}</div>{children}</section>);
-const Kpi = ({ label, value, sub, tone }) => (<div className="card px-3 py-2 min-w-0"><div className="lbl mb-0">{label}</div><div className={cx('disp text-2xl leading-tight', tone === 'bad' && 'text-bad', tone === 'warn' && 'text-warn', tone === 'ok' && 'text-ok')}>{value}</div>{sub ? <div className="text-xs text-ink2">{sub}</div> : null}</div>);
+// 0.48.0-alpha.1 : une tuile qui signale quelque chose à traiter s'ouvre au clic (onClick : onglet et filtre voulus ; va : « Voir … »)
+const Kpi = ({ label, value, sub, tone, onClick, va }) => { const corps = <><div className="lbl mb-0">{label}</div><div className={cx('disp text-2xl leading-tight', tone === 'bad' && 'text-bad', tone === 'warn' && 'text-warn', tone === 'ok' && 'text-ok')}>{value}</div>{sub ? <div className="text-xs text-ink2">{sub}</div> : null}{onClick && va ? <div className="kpi-va">{va} →</div> : null}</>;
+  return onClick ? <button type="button" className="card kpi-clic px-3 py-2 min-w-0" onClick={onClick} data-kpi-clic="">{corps}</button> : <div className="card px-3 py-2 min-w-0">{corps}</div>; };
+// sous-onglets (0.48.0-alpha.1) : style propre (.subtab, soulignement) distinct des actions (.btn-primary), bande défilante au téléphone
 const SubNav = ({ value, onChange, items }) => (
-  <div className="mb-4 flex gap-1 overflow-x-auto pb-1" role="tablist">
-    {items.map((it) => (<button key={it.id} type="button" role="tab" aria-selected={value === it.id} onClick={() => onChange(it.id)} className={cx('btn shrink-0', value === it.id && 'btn-primary')}>{it.label}{it.badge ? <span className={cx('chip', value === it.id ? '' : 'chip-warn')}>{it.badge}</span> : null}</button>))}
-  </div>
+  <BandeDefilante dep={value} className="mb-4"><div className="subtabs" role="tablist" data-bande="">
+    {items.map((it) => (<button key={it.id} type="button" role="tab" aria-selected={value === it.id} onClick={() => onChange(it.id)} className="subtab">{it.label}{it.badge ? <span className={cx('chip', 'chip-warn')}>{it.badge}</span> : null}</button>))}
+  </div></BandeDefilante>
 );
 
 const SHEET_DEFIL = { avant: '' }; // défilement de la page avant la première fiche

@@ -660,6 +660,83 @@ details>summary{cursor:pointer;font-weight:600}
 @media (prefers-reduced-motion:no-preference){.tankliq{transition:y .5s ease,height .5s ease}}
 #fatal{display:none;position:fixed;left:0;right:0;bottom:0;z-index:999;background:#7a1f19;color:#fff;font:12px/1.4 ui-monospace,monospace;padding:10px 14px;white-space:pre-wrap;max-height:40vh;overflow:auto}
 /* ===== 0.48.0-alpha.1 — interface : en-tête, navigation, contrastes, cibles tactiles ===== */
+.bande-defil{position:relative;min-width:0}
+.bande-defil>.bande-btn{position:absolute;top:0;bottom:0;z-index:2;display:none;align-items:center;justify-content:center;width:30px;border:0;cursor:pointer;color:var(--ink);font:700 16px var(--font-body)}
+.bande-defil>.bande-btn.g{left:0;background:linear-gradient(90deg,var(--bandeFond,var(--bg)) 55%,transparent)}
+.bande-defil>.bande-btn.d{right:0;background:linear-gradient(270deg,var(--bandeFond,var(--bg)) 55%,transparent)}
+.bande-defil[data-avant]>.bande-btn.g,.bande-defil[data-apres]>.bande-btn.d{display:flex}
+.navbar .bande-defil{--bandeFond:var(--surface)}
+.subtabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px;border-bottom:1px solid var(--line)}
+.subtab{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;background:none;color:var(--ink2);font:600 13px var(--font-body);cursor:pointer;white-space:nowrap;border-radius:var(--r-btn,5px) var(--r-btn,5px) 0 0}
+.subtab:hover{color:var(--ink);background:var(--surface2)}
+.subtab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);background:var(--surface)}
+.subtab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.kpi-clic{cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit}
+.kpi-clic:hover{border-color:var(--accent)}
+.kpi-clic:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.kpi-va{font-size:11px;color:var(--accent);font-weight:600}
+.saut-contenu{position:absolute;left:8px;top:-60px;z-index:300;background:var(--surface);color:var(--ink);border:2px solid var(--accent);padding:8px 12px;border-radius:6px;font-weight:600}
+.saut-contenu:focus{top:8px}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.fil-ariane{font-size:12px;color:var(--ink2);margin:-8px 0 10px}
+.fil-ariane b{color:var(--ink);font-weight:600}
+.camp-menu{position:relative}
+.camp-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:230px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px;display:flex;flex-direction:column;gap:2px}
+.camp-pop button{text-align:left;background:none;border:0;padding:9px 10px;border-radius:6px;color:var(--ink);font:600 13px var(--font-body);cursor:pointer}
+.camp-pop button:hover,.camp-pop button:focus-visible{background:var(--surface2)}
+button.chip{cursor:pointer}
+.hdr-plus{display:none}
+.camp-menu .camp-ic{display:none}
+@media (max-width:759px){.camp-menu .camp-ic{display:inline}}
+.recherche-g{position:relative;min-width:0}
+.recherche-g input{width:clamp(160px,22vw,280px)}
+.recherche-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:70;width:min(420px,calc(100vw - 24px));max-height:60vh;overflow:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px}
+.recherche-pop [role=option]{display:flex;gap:8px;align-items:baseline;padding:8px 10px;border-radius:6px;cursor:pointer}
+.recherche-pop [role=option][aria-selected="true"],.recherche-pop [role=option]:hover{background:var(--surface2)}
+.recherche-pop .rg-type{font-size:11px;color:var(--ink2);min-width:72px}
+.annuler-toast{margin-left:10px;background:none;border:1px solid currentColor;color:inherit;border-radius:5px;padding:2px 8px;font:600 12px var(--font-body);cursor:pointer}
+/* contrastes des pastilles et bandeaux doux en mode clair (≥ 4,5:1 dans toutes les chartes) */
+:root:not([data-mode="dark"]) .chip-info,:root:not([data-mode="dark"]) .bg-accentSoft.text-accent{color:color-mix(in srgb,var(--accent) 70%,var(--ink))}
+:root:not([data-mode="dark"]) .chip-warn,:root:not([data-mode="dark"]) .bg-warnSoft.text-warn{color:color-mix(in srgb,var(--warn) 70%,var(--ink))}
+:root:not([data-mode="dark"]) .chip-ok,:root:not([data-mode="dark"]) .bg-okSoft.text-ok{color:color-mix(in srgb,var(--ok) 70%,var(--ink))}
+:root:not([data-mode="dark"]) .chip-bad,:root:not([data-mode="dark"]) .bg-badSoft.text-bad{color:color-mix(in srgb,var(--bad) 70%,var(--ink))}
+.bg-badSoft .linkish,.bg-warnSoft .linkish,.bg-accentSoft .linkish,.bg-okSoft .linkish{color:inherit;text-decoration:underline}
+/* champs : jamais plus larges que leur conteneur (téléphone) */
+.inp,select.inp,select{max-width:100%}
+.inp{min-width:0}
+/* cibles tactiles */
+@media (pointer:coarse){
+  .btn{min-height:44px}
+  .btn-sm{min-height:40px;padding-left:11px;padding-right:11px}
+  button.chip,.chip[role=button]{padding:8px 10px}
+  .tab{padding-top:14px;padding-bottom:11px}
+  .subtab{min-height:44px}
+  .appfoot select,.langue-compacte select.inp{min-height:36px}
+  .flex.gap-1>.btn+.btn,.flex.gap-1>.btn-sm+.btn-sm{margin-left:4px}
+}
+/* en-tête compact au téléphone */
+@media (max-width:759px){
+  .topbar .wrap{padding-top:6px;padding-bottom:6px;row-gap:6px}
+  .topbar .brand-sub{display:none}
+  .topbar .brand-lien svg,.topbar .brand-lien img{width:34px;height:34px}
+  .hdr-camp .lbl{display:none}
+  .topbar>.wrap:first-of-type{flex-wrap:nowrap;column-gap:10px}
+  .topbar .brand{display:none}
+  .hdr-camp{flex:1 1 auto;min-width:0;margin-left:0;flex-wrap:nowrap;gap:6px}
+  .hdr-camp>label{flex:0 1 auto;min-width:0}
+  .hdr-camp select.inp{min-width:0!important;width:136px!important;flex:0 0 auto;padding-left:8px;padding-right:24px}
+  .camp-menu .camp-txt{display:none}
+  .hdr-camp>label{flex:0 0 auto}
+  .hdr-camp .recherche-g{flex:1 1 auto}
+  .hdr-camp .recherche-g input{width:100%}
+  .hdr-plus{display:inline-flex;flex:0 0 auto}
+  .hdr-actions{padding-bottom:6px}
+  .hdr-actions:not(.ouvert){display:none}
+  .hdr-actions .hdr-status{justify-content:flex-end}
+  .topbar .notice-exemple .font-semibold{display:none}
+  .topbar .notice-exemple{padding:4px 10px;font-size:13px}
+  .fil-ariane{display:none}
+}
 /* (fin du bloc en-tête et navigation) */
 /* - */
 /* - */

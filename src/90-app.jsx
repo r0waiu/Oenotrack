@@ -26,13 +26,24 @@ const SOUS_PARAMS = ['entreprise', 'utilisateurs', 'modules', 'sauvegarde', 'cam
 const THEME_KEY = 'oenotrack-theme';
 const Placeholder = ({ name }) => <Empty>Onglet « {name} » indisponible.</Empty>;
 
+// 0.48.0-alpha.1 : action dangereuse → le focus va sur « Annuler » (Entrée n'efface plus rien) ; focus retenu dans la fenêtre et rendu au
+// déclencheur à la fermeture
 function ConfirmDialog({ cfm, onClose }) {
-  useEffect(() => { const k = (e) => { if (e.key === 'Escape') onClose(false); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, []);
+  const ref = useRef(null);
+  useEffect(() => {
+    const avant = document.activeElement;
+    const k = (e) => {
+      if (e.key === 'Escape') onClose(false);
+      if (e.key === 'Tab' && ref.current) { const F = [...ref.current.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter((x) => !x.disabled); if (!F.length) return; const i = F.indexOf(document.activeElement);
+        if (e.shiftKey && (i <= 0)) { e.preventDefault(); F[F.length - 1].focus(); } else if (!e.shiftKey && i === F.length - 1) { e.preventDefault(); F[0].focus(); } }
+    };
+    window.addEventListener('keydown', k); return () => { window.removeEventListener('keydown', k); try { if (avant && avant.focus && document.contains(avant)) avant.focus(); } catch (e) { /* ignoré */ } };
+  }, []);
   return (
-    <div className="overlay" style={{ alignItems: 'center', zIndex: 150 }} role="alertdialog" aria-modal="true" aria-label={cfm.title}>
+    <div className="overlay" style={{ alignItems: 'center', zIndex: 150 }} role="alertdialog" aria-modal="true" aria-label={cfm.title} ref={ref}>
       <div className="sheet" style={{ maxWidth: 480 }}>
         <div className="sheet-b space-y-3"><h2 className="sheet-title text-2xl font-semibold">{cfm.title}</h2><div className="text-sm text-ink2">{cfm.body}</div></div>
-        <div className="sheet-f"><Btn onClick={() => onClose(false)}>{cfm.cancel || 'Annuler'}</Btn><Btn kind={cfm.danger ? 'danger' : 'primary'} onClick={() => onClose(true)} autoFocus>{cfm.ok || 'Confirmer'}</Btn></div>
+        <div className="sheet-f"><Btn onClick={() => onClose(false)} autoFocus={!!cfm.danger} data-cfm-annuler="">{cfm.cancel || 'Annuler'}</Btn><Btn kind={cfm.danger ? 'danger' : 'primary'} onClick={() => onClose(true)} autoFocus={!cfm.danger} data-cfm-ok="">{cfm.ok || 'Confirmer'}</Btn></div>
       </div>
     </div>
   );
@@ -47,6 +58,7 @@ function App() {
   // onglet d'ouverture au démarrage (réglage, dernière page visitée par la personne de la session gardée, ou premier onglet) — 0.47.0-alpha.3
   const [nav, setNav] = useState(() => { const d0 = first.current.db; const s0 = securiteActive(d0) ? sessionLire() : null; const u0 = s0 && utilisateurDe(d0, s0.uid) ? s0.uid : '';
     const L0 = modulesVisibles(d0).filter((m) => moduleAutorise(d0, u0, m)); const n = ongletOuvertureNav(d0, L0.length ? L0 : modulesVisibles(d0), 'demarrage', dernierePageLire(u0)); return { tab: n.tab, sub: n.sub }; });
+  const [hdrPlus, setHdrPlus] = useState(false); // en-tête compact au téléphone : statuts, thème et visite derrière « ⋯ » (0.48.0-alpha.1)
   const groupeMemo = useRef({}); // dernier sous-onglet ouvert de chaque onglet regroupé (Vinification)
   const [toastMsg, setToastMsg] = useState(null);
   const [cfm, setCfm] = useState(null);
@@ -100,12 +112,13 @@ function App() {
     const st = document.documentElement.style; const ap = db.apparence;
     QUALIFS.forEach((q) => st.setProperty(`--q${q.id}`, qColor(db, q.id))); ECHELLES.forEach((e) => st.setProperty(`--e${e.id}`, eColor(db, e.id)));
   }, [db.apparence, db.lists.qualifs, db.lists.echelles]);
-  useEffect(() => { if (!toastMsg) return undefined; const t = setTimeout(() => setToastMsg(null), toastMsg.kind === 'bad' ? 8000 : 4500); return () => clearTimeout(t); }, [toastMsg]);
+  useEffect(() => { if (!toastMsg) return undefined; const t = setTimeout(() => setToastMsg(null), toastMsg.action ? 10000 : toastMsg.kind === 'bad' ? 8000 : 4500); return () => clearTimeout(t); }, [toastMsg]);
 
-  const toast = useCallback((msg, kind) => setToastMsg({ msg, kind, id: Date.now() }), []);
+  const toast = useCallback((msg, kind, action) => setToastMsg({ msg, kind, action, id: Date.now() }), []);
   // mot de passe de chiffrement demandé au besoin (sauvegarde, restauration, Drive chiffré) : (en-tête, raison) → clé ou null (0.29.0-alpha.1)
   useEffect(() => { CHIFFRE_DEMANDER = (entete, raison) => new Promise((res) => setMdpDlg({ mode: 'saisir', entete: entete || {}, raison, res })); return () => { CHIFFRE_DEMANDER = null; }; }, []);
-  const confirm = useCallback((o) => new Promise((res) => setCfm({ ...o, res })), []);
+  const dangerRef = useRef(0); // 0.48.0-alpha.1 : action dangereuse confirmée → la modification qui suit peut être annulée pendant 10 s
+  const confirm = useCallback((o) => new Promise((res) => setCfm({ ...o, res: (v) => { if (v && o && o.danger) dangerRef.current = Date.now(); res(v); } })), []);
   const act = useCallback((fn, okMsg, opts) => {
     const avant = dbRef.current; const d = clone(avant); let r;
     try { r = fn(d); } catch (e) { console.error(e); r = fail('Erreur interne : ' + e.message); }
@@ -117,8 +130,14 @@ function App() {
       gardeAppliquer(d, g, sessionRef.current);
     }
     d.meta.modifLe = new Date().toISOString(); // départage les conflits de synchronisation (la modification la plus récente gagne)
-    dbRef.current = d; setDb(d); if (okMsg) toast(okMsg); return r || okr();
+    const annulable = dangerRef.current && Date.now() - dangerRef.current < 15000 && !(opts && opts.systeme); dangerRef.current = 0;
+    dbRef.current = d; setDb(d);
+    if (annulable) { // « Annuler » : rétablit la base d'avant, seulement si rien n'a changé depuis (contrôlée et tracée comme toute modification)
+      toast(okMsg || 'Modification enregistrée.', null, { label: 'Annuler', fn: () => { if (dbRef.current !== d) { toast('Impossible d’annuler : la base a changé depuis.', 'bad'); return; } actRef.current((x) => { Object.keys(x).forEach((k) => { delete x[k]; }); Object.assign(x, clone(avant)); return okr(); }, 'Suppression annulée.'); } });
+    } else if (okMsg) toast(okMsg);
+    return r || okr();
   }, [toast]);
+  const actRef = useRef(null); actRef.current = act;
   const applyDb = useCallback((nd) => { dbRef.current = nd; setDb(nd); }, []); // remplacement en douceur (synchronisation) : les fiches ouvertes restent
   const sync = useDriveSync({ db, dbRef, applyDb, toast });
   const cloud = useCloud({ db, dbRef, applyDb, toast }); // stockage dans un dossier Google Drive / OneDrive / Dropbox / de l'ordinateur
@@ -142,6 +161,7 @@ function App() {
   // module ouvert désactivé (ici ou sur un autre appareil) : retour au premier module actif
   const visibles = modulesVisibles(db).filter((m) => moduleAutorise(db, uid, m));
   useEffect(() => { if (!visibles.includes(nav.tab)) setNav({ tab: ongletOuverture(db, visibles), sub: null }); }, [visibles.join(), nav.tab]);
+  useEffect(() => { try { const g = ongletDe(nav.tab); document.title = `${g !== nav.tab ? `${traduire(moduleNom(nav.tab))} · ` : ''}${traduire(moduleNom(g))} · Œnotrack`; } catch (e) { /* ignoré */ } }, [nav.tab, LANGUE]); // titre de l'onglet du navigateur (0.48.0-alpha.1)
   useEffect(() => { const g = ongletDe(nav.tab); if (ONGLETS_GROUPES[g]) groupeMemo.current[g] = nav.tab; }, [nav.tab]);
   useEffect(() => { if (!accueil && !verrouille && (!secu || uid)) dernierePageEcrire(uid, nav); }, [nav.tab, nav.sub, uid, verrouille, accueil, secu]); // dernière page visitée (0.47.0-alpha.3)
   const onglets = ongletsBarre(visibles);
@@ -255,6 +275,8 @@ function App() {
   const Cmp = TABS_REG[nav.tab];
   const groupe = ONGLETS_GROUPES[ongletDe(nav.tab)] ? ongletDe(nav.tab) : null; const sousOnglets = groupe ? ongletMembres(groupe, visibles) : [];
   const badgeDe = (o) => { const B = ongletMembres(o, visibles).map((m) => badge[m]).filter(Boolean); return !B.length ? null : { n: sum(B, (b) => b.n), tone: B.some((b) => b.tone === 'bad') ? 'bad' : 'warn' }; };
+  const BADGE_SENS = { hygiene: 'tâche(s) d’hygiène ou de maintenance à faire, en retard ou non conformes', previsions: 'opération(s) prévue(s) en retard', ops: pendingAlerts ? 'déclassement(s) à valider' : 'opération(s) à vérifier', intrants: 'lot(s) d’intrants périmé(s) ou bientôt périmé(s)', equipements: 'tâche(s) de maintenance à faire' };
+  const badgeTexte = (o, b) => { const M = ongletMembres(o, visibles).filter((m) => badge[m]); return M.map((m) => `${badge[m].n} ${BADGE_SENS[m] || ''}`.trim()).join(' · ') || String(b.n); };
   const sheetLabel = (sh) => (sh.k === 'cont' ? contName(db, sh.id) : sh.k === 'lot' ? lotCode(db, R, sh.id) : sh.k === 'opr' ? operateurNom(db, sh.id) || 'opérateur' : ((db.lotsFinis || []).find((f) => f.id === sh.id) || {}).code || 'lot fini');
 
   if (accueil) {
@@ -262,7 +284,7 @@ function App() {
       <Ctx.Provider value={ctx}>
         <AccueilPage revoir={accueil === 'revoir'} onOuvrir={entrer} onLegal={setLegal} />
         {legal ? <LegalSheet onglet={legal} onClose={fermerLegal} /> : null}
-        {toastMsg ? <div className={`toast ${toastMsg.kind === 'bad' ? 'bad' : ''}`} role="status" aria-live="polite">{toastMsg.msg}</div> : null}
+        {toastMsg ? <ToastVue t={toastMsg} onFin={() => setToastMsg(null)} /> : null}
       </Ctx.Provider>
     );
   }
@@ -275,26 +297,28 @@ function App() {
         {legal ? <LegalSheet onglet={legal} onClose={fermerLegal} /> : null}
         <SyncSheet />
         {cfm ? <ConfirmDialog cfm={cfm} onClose={(v) => { const r = cfm.res; setCfm(null); r(v); }} /> : null}
-        {toastMsg ? <div className={`toast ${toastMsg.kind === 'bad' ? 'bad' : ''}`} role="status" aria-live="polite">{toastMsg.msg}</div> : null}
+        {toastMsg ? <ToastVue t={toastMsg} onFin={() => setToastMsg(null)} /> : null}
       </Ctx.Provider>
     );
   }
   return (
     <Ctx.Provider value={ctx}>
-      {verrouille ? ReactDOM.createPortal(<div className="login-voile" data-verrou=""><EcranConnexion key={`verrou-${session.uid}`} verrou={session} onConnecte={connecter} onChanger={deconnecter} onPresentation={revoirAccueil} />{toastMsg ? <div className={`toast ${toastMsg.kind === 'bad' ? 'bad' : ''}`} role="status" aria-live="polite">{toastMsg.msg}</div> : null}</div>, document.body) : null}
+      {verrouille ? ReactDOM.createPortal(<div className="login-voile" data-verrou=""><EcranConnexion key={`verrou-${session.uid}`} verrou={session} onConnecte={connecter} onChanger={deconnecter} onPresentation={revoirAccueil} />{toastMsg ? <ToastVue t={toastMsg} onFin={() => setToastMsg(null)} /> : null}</div>, document.body) : null}
       {uid && uSession.doitChanger ? <ChangerMdpSheet force onClose={() => {}} /> : null}
+      <a className="saut-contenu" href="#contenu" onClick={(e) => { e.preventDefault(); const m = document.getElementById('contenu'); if (m) m.focus(); }}>Aller au contenu</a>
       <header className="topbar">
         <div className="wrap flex flex-wrap items-center gap-x-6 gap-y-3 py-3">
           <Brand size={50} onClick={revoirAccueil} />
           <div className="hdr-camp ml-auto flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2"><span className="lbl mb-0">Campagne</span>
               <select className="inp" style={{ width: 'auto', minWidth: 130 }} value={camp.id} onChange={(e) => act((d) => { d.settings.campagneActive = e.target.value; return okr(); })}>{db.campagnes.map((c) => <option key={c.id} value={c.id}>{c.nom}{c.figee ? ' 🔒' : ''}</option>)}</select></label>
-            <Chip tone={camp.figee ? 'bad' : 'ok'}>{camp.figee ? '🔒 Figée' : 'Ouverte'}</Chip>
-            {!secu || peut(db, uid, 'campagnes') ? <Btn onClick={toggleFreeze} title="Figer / Rouvrir la campagne">{camp.figee ? 'Rouvrir la campagne' : 'Figer la campagne'}</Btn> : null}
+            <CampagneMenu camp={camp} peutFiger={!secu || peut(db, uid, 'campagnes')} onFiger={toggleFreeze} onGerer={() => setTab('params', 'campagnes')} />
+            <RechercheGlobale />
+            <button type="button" className="btn btn-sm hdr-plus" aria-expanded={hdrPlus} aria-controls="hdr-status" onClick={() => setHdrPlus(!hdrPlus)} title="Sauvegarde, opérateur, thème, visite guidée" data-hdr-plus="">⋯</button>
           </div>
         </div>
-        <div className="wrap hdr-actions pb-3">
-          <span className="hdr-status ml-auto flex flex-wrap items-center gap-2 text-xs">
+        <div className={cx('wrap hdr-actions pb-3', hdrPlus && 'ouvert')}>
+          <span className="hdr-status ml-auto flex flex-wrap items-center gap-2 text-xs" id="hdr-status">
             {secu ? <UtilisateurChip /> : <OperateurChip />}
             <CloudChip />
             <DriveChip />
@@ -308,15 +332,16 @@ function App() {
         {!storeOK && !loadDbIllisible() ? <div className="wrap pb-3"><Notice tone="bad" title="Les données ne sont pas conservées entre deux visites">Le stockage local du navigateur est indisponible (navigation privée ou blocage). Exportez régulièrement la base complète (Paramètres › Sauvegarde & Drive) pour ne rien perdre.</Notice></div> : null}
         <RappelSauvegarde />
         {showMig ? <div className="wrap pb-3"><Notice tone="ok" title="Bienvenue dans Œnotrack">Vos données de « Cuverie champenoise » ont été reprises automatiquement (revendications, sites, liste des crus et apporteurs ajoutés). <button type="button" className="linkish" onClick={() => setShowMig(false)}>Masquer</button></Notice></div> : null}
-        {db.meta.exemple ? <div className="wrap pb-3"><Notice tone="info" title="Jeu de données d’exemple chargé"><span className="hidden sm:inline">Vous pouvez tout tester librement (plan de cave, clic droit, entrée de moûts, traçabilité, rapports…). Quand vous voulez repartir de zéro : </span><span className="sm:hidden">Testez librement, puis repartez de zéro : </span><button type="button" className="linkish" onClick={resetEmpty}>Réinitialiser à vide</button>.</Notice></div> : null}
+        {db.meta.exemple ? <div className="wrap pb-3 notice-exemple-wrap"><div className="notice-exemple"><Notice tone="info" title="Jeu de données d’exemple chargé"><span className="hidden sm:inline">Vous pouvez tout tester librement (plan de cave, clic droit, entrée de moûts, traçabilité, rapports…). Quand vous voulez repartir de zéro : </span><span className="sm:hidden">Testez librement, puis repartez de zéro : </span><button type="button" className="linkish" onClick={resetEmpty}>Réinitialiser à vide</button>.</Notice></div></div> : null}
       </header>
-      <nav className="navbar" aria-label="Onglets principaux"><div className="wrap"><div className="navtabs" role="tablist">
-        {onglets.map((id) => { const b = badgeDe(id); return (<button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={ongletDe(nav.tab) === id} className="tab" onClick={() => ouvrirOnglet(id)}>{moduleNom(id)}{b ? <span className={`chip chip-${b.tone}`}>{b.n}</span> : null}</button>); })}
-      </div></div></nav>
-      <main className="wrap py-5" role="tabpanel" aria-labelledby={`tab-${nav.tab}`} data-onglet={ongletDe(nav.tab)}>
+      <nav className="navbar" aria-label="Onglets principaux"><div className="wrap"><BandeDefilante dep={ongletDe(nav.tab)}><div className="navtabs" role="tablist" data-bande="">
+        {onglets.map((id) => { const b = badgeDe(id); return (<button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={ongletDe(nav.tab) === id} className="tab" onClick={() => ouvrirOnglet(id)}>{moduleNom(id)}{b ? <span className={`chip chip-${b.tone}`} title={badgeTexte(id, b)} aria-label={badgeTexte(id, b)}>{b.n}</span> : null}</button>); })}
+      </div></BandeDefilante></div></nav>
+      <main className="wrap py-5" id="contenu" tabIndex={-1} role="tabpanel" aria-labelledby={`tab-${nav.tab}`} data-onglet={ongletDe(nav.tab)}>
+        <h1 className="sr-only" data-titre-module="">{groupe ? `${moduleNom(groupe)} — ${moduleNom(nav.tab)}` : moduleNom(nav.tab)}</h1>
         {camp.figee ? <div className="mb-4"><Notice tone="warn" title={`Campagne ${camp.nom} figée`}>Les opérations du {fmtDate(camp.debut)} au {fmtDate(camp.fin)} sont verrouillées. Rouvrez la campagne pour les modifier.</Notice></div> : null}
         {secu && uid && !visibles.length ? <Notice tone="warn" title="Aucun module accessible">Votre profil « {profilNom(db, uid)} » ne donne accès à aucun module : adressez-vous à un administrateur.</Notice> : <>
-          {groupe ? <div className="sous-onglets mb-4 flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label={moduleNom(groupe)} data-onglet-groupe={groupe}>{sousOnglets.map((m) => <button key={m} type="button" role="tab" id={`tab-${m}`} aria-selected={nav.tab === m} className={cx('btn shrink-0', nav.tab === m && 'btn-primary')} onClick={() => setTab(m)}><span aria-hidden="true">{(MODULE_DEFS[m] || {}).icone} </span>{moduleNom(m)}{badge[m] ? <span className={`chip chip-${badge[m].tone}`}>{badge[m].n}</span> : null}</button>)}</div> : null}
+          {groupe ? <BandeDefilante dep={nav.tab} className="mb-4"><div className="sous-onglets subtabs" role="tablist" aria-label={moduleNom(groupe)} data-onglet-groupe={groupe} data-bande="">{sousOnglets.map((m) => <button key={m} type="button" role="tab" id={`tab-${m}`} aria-selected={nav.tab === m} className="subtab" onClick={() => setTab(m)}><span aria-hidden="true">{(MODULE_DEFS[m] || {}).icone} </span>{moduleNom(m)}{badge[m] ? <span className={`chip chip-${badge[m].tone}`} title={badgeTexte(m, badge[m])} aria-label={badgeTexte(m, badge[m])}>{badge[m].n}</span> : null}</button>)}</div></BandeDefilante> : null}
           {nav.tab !== 'params' ? <LectureSeuleBandeau mod={nav.tab} /> : null}
           {Cmp ? <Cmp key={nav.tab} /> : <Placeholder name={nav.tab} />}</>}
       </main>
@@ -356,7 +381,7 @@ function App() {
       <DossierChoix />
       <SyncDepot />
       {cfm ? <ConfirmDialog cfm={cfm} onClose={(v) => { const r = cfm.res; setCfm(null); r(v); }} /> : null}
-      {toastMsg ? <div className={`toast ${toastMsg.kind === 'bad' ? 'bad' : ''}`} role="status" aria-live="polite">{toastMsg.msg}</div> : null}
+      {toastMsg ? <ToastVue t={toastMsg} onFin={() => setToastMsg(null)} /> : null}
     </Ctx.Provider>
   );
 }
