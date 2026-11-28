@@ -73,6 +73,7 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   await page.reload(); await page.waitForTimeout(1300); await page.click('#tab-plan'); await page.waitForTimeout(400);
   ok('… repliée à la visite suivante', (await page.locator('[data-aide="plan-vinif"]').getAttribute('open')) === null);
   // ---- visite : sommaire, durée, essentiel, bulle à côté d'une cible haute
+  if (!(await page.locator('[data-visite-bouton]').isVisible()) && await page.locator('[data-hdr-plus]').isVisible()) { await page.locator('[data-hdr-plus]').click(); await page.waitForTimeout(150); } // 0.48 : au téléphone, derrière « ⋯ »
   await page.locator('[data-visite-bouton]').click(); await page.waitForTimeout(500);
   const tout = await txt(page.locator('[data-visite-tout]')); const ess = await txt(page.locator('[data-visite-essentiel]'));
   ok('visite : « Tout voir » annonce le nombre d’étapes et la durée ; « L’essentiel » aussi', /Tout voir · \d+ étapes · ~\d+ min/.test(tout) && /L’essentiel/.test(ess) && /\d+ étapes · ~\d+ min/.test(ess), [tout, ess]);
@@ -116,6 +117,7 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   await page.locator('[data-params-retour]').click(); await page.waitForTimeout(300);
   ok('… « ‹ Rubriques » : retour à la liste', await page.locator('[data-params-item="listes"]').isVisible());
   await page.screenshot({ path: SC + '/shots/t96-tel-menu.png', fullPage: true });
+  if (!(await page.locator('[data-visite-bouton]').isVisible()) && await page.locator('[data-hdr-plus]').isVisible()) { await page.locator('[data-hdr-plus]').click(); await page.waitForTimeout(150); } // 0.48 : au téléphone, derrière « ⋯ »
   await page.locator('[data-visite-bouton]').click(); await page.waitForTimeout(600);
   const vh = 844; const s = await page.locator('[data-visite-sommaire] .visite-bulle').boundingBox();
   const bt = await page.locator('[data-visite-tout]').boundingBox(); const bf = await page.locator('[data-visite-sommaire] [data-visite-passer]').boundingBox();
@@ -126,6 +128,7 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   await page.locator('[data-visite-retour]').click(); await page.waitForTimeout(300);
   await page.locator('[data-visite-sommaire] [data-visite-passer]').click(); await page.waitForTimeout(300);
   ok('… « Fermer » cliquable', (await page.locator('.visite').count()) === 0);
+  if (!(await page.locator('[data-visite-bouton]').isVisible()) && await page.locator('[data-hdr-plus]').isVisible()) { await page.locator('[data-hdr-plus]').click(); await page.waitForTimeout(150); } // 0.48 : au téléphone, derrière « ⋯ »
   await page.locator('[data-visite-bouton]').click(); await page.waitForTimeout(500);
   await page.locator('[data-visite-chapitre="tirage"]').click(); await page.waitForTimeout(1500);
   const b = await page.locator('.visite-bulle').boundingBox();
@@ -166,6 +169,7 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   ok('… « ⚙ Settings » dans Pressoir', /⚙ Settings/.test(await txt(page.locator('[data-pressoir] [role=tablist]').first())));
   await page.click('#tab-plan'); await page.waitForTimeout(300);
   ok('… « Plan table »', /Plan table/.test(await txt(page.locator('main [role=tablist]').filter({ hasText: /Apply to a lot/ }).first())));
+  if (!(await page.locator('[data-visite-bouton]').isVisible()) && await page.locator('[data-hdr-plus]').isVisible()) { await page.locator('[data-hdr-plus]').click(); await page.waitForTimeout(150); } // 0.48 : au téléphone, derrière « ⋯ »
   await page.locator('[data-visite-bouton]').click(); await page.waitForTimeout(500);
   const v = await txt(page.locator('[data-visite-sommaire]'));
   ok('… visite : « The essentials », « See everything · n steps · ~m min »', /The essentials/.test(v) && /See everything · \d+ steps · ~\d+ min/.test(v), v.slice(0, 400));

@@ -25,9 +25,9 @@ const init = () => {
   const ov = () => page.locator('.overlay').last();
   const etat = () => page.evaluate(() => ({ imp: window.__imp, saved: window.__saved, zone: !!document.getElementById('zone-impression'), classe: document.documentElement.className, titre: document.title }));
   const toasts = async () => page.locator('.toast').allInnerTexts();
-  const titre0 = await page.title();
   // 1. bon de pesée : impression directe
   await page.click('#tab-pressoir'); await page.waitForTimeout(400);
+  const titre0 = await page.title(); // 0.48.0-alpha.1 : le titre suit l'onglet ouvert
   await page.locator('[aria-label="Année des vendanges"]').selectOption('2026'); await page.waitForTimeout(250);
   await page.locator('main [data-bon-pesee-btn]:visible').first().click(); await page.waitForTimeout(400);
   const pied = await txt(ov().locator('.sheet-f'));
