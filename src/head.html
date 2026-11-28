@@ -659,6 +659,31 @@ details>summary{cursor:pointer;font-weight:600}
 }
 @media (prefers-reduced-motion:no-preference){.tankliq{transition:y .5s ease,height .5s ease}}
 #fatal{display:none;position:fixed;left:0;right:0;bottom:0;z-index:999;background:#7a1f19;color:#fff;font:12px/1.4 ui-monospace,monospace;padding:10px 14px;white-space:pre-wrap;max-height:40vh;overflow:auto}
+/* ===== 0.48.0-alpha.1 — interface : en-tête, navigation, contrastes, cibles tactiles ===== */
+/* (fin du bloc en-tête et navigation) */
+/* - */
+/* - */
+/* ===== 0.48.0-alpha.1 — opérations, cuverie, fiche du lot ===== */
+/* (fin du bloc opérations) */
+/* - */
+/* - */
+/* ===== 0.48.0-alpha.1 — formulaires et fiches ===== */
+/* (fin du bloc formulaires) */
+/* - */
+/* - */
+/* ===== 0.48.0-alpha.1 — modules (tirage, traçabilité, cave, hygiène, analyses, registres) ===== */
+/* (fin du bloc modules) */
+/* - */
+/* - */
+/* ===== 0.48.0-alpha.1 — paramètres, visite guidée, aides repliables ===== */
+.aide{border:1px solid var(--line);border-radius:var(--r-sheet,8px);background:var(--surface);font-size:14px}
+.aide>summary{cursor:pointer;list-style:none;padding:8px 12px;display:flex;gap:8px;align-items:baseline;color:var(--ink2)}
+.aide>summary::-webkit-details-marker{display:none}
+.aide>summary .aide-t{color:var(--accent);font-weight:600;white-space:nowrap}
+.aide[open]>summary{border-bottom:1px solid var(--line)}
+.aide>.aide-c{padding:8px 12px}
+@media print{.aide{display:none}}
+/* (fin du bloc paramètres) */
 /* impression : seul le rapport est imprimé */
 @page{size:A4;margin:12mm}
 /* couleurs à l'impression (0.38.0-alpha.1) : fonds, bordures et mises en évidence imprimés tels qu'à l'écran (cases « relevé » à
