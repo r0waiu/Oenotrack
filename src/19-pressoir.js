@@ -234,6 +234,7 @@ function peseeSave(db, f, id, ctx) {
   // formulaire de pesée personnalisé : champs rendus obligatoires (nouvelle pesée), champs personnalisés
   const pb = champsErreurDetail(db, 'pesee', 'pesee', { ...f, kg: r.spec.kg }, { nouveau: !old }); if (pb) return fail(pb.msg, { champ: pb.champ }); // champ en cause (0.48.0-alpha.1)
   const spec = r.spec;
+  if (f.ia) spec.ia = f.ia; // 0.49.0-alpha.1 : pesée proposée par l'IA (ticket, bon de livraison), relue et validée
   // n°, saisie, validation (et ce qu'une version plus récente aurait ajouté) gardés ; ce que le formulaire saisit suit le formulaire
   if (old && old.pesee) { const garde = {}; Object.keys(old.pesee).forEach((k) => { if (!PESEE_SAISIE.includes(k)) garde[k] = old.pesee[k]; }); spec.pesee = { ...garde, ...spec.pesee }; }
   // relevés personnalisés ; pesée « Sain » : ceux de pourriture (condition « si altéré ») sont retirés, même déjà enregistrés

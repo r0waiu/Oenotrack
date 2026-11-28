@@ -8,6 +8,8 @@
    lu (ou reconnu sur un scan, une photo) et le nom du produit ; réglage « completer » (activé par défaut).
    (d) 0.27.0-alpha.1 : lire les bulletins d'analyses (onglet Analyses) : envoyé, le texte du bulletin et la liste des paramètres d'analyse
    de la cave (noms et unités) ; jamais les codes des lots ni les noms des cuves (rapprochés sur l'appareil) ; réglage « bulletins » (activé par défaut).
+   0.49.0-alpha.1 : usages, niveaux de données, consentement, journal, images (vision), réponses au format imposé et trace des
+   propositions dans 17a-ia-usages.js ; iaRequete accepte o.images et o.format.
    0.38.0-alpha.1 :
    - les clés personnelles ne sont plus en clair dans le navigateur : elles vont dans le coffre de l'appareil (33d-coffre.js, secret
      « iaCles », chiffré) ; « oenotrack-ia » ne garde que les choix (service, modèles, options) ; option « memoire » : clé gardée le
@@ -51,7 +53,7 @@ const IA_PERSO = ['tous', 'aucun', 'choisis'];
 function iaEspaceReglage(db) {
   const s = db && db.settings && db.settings.ia; if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
   return { fournisseur: iaFournisseur(s.fournisseur).id, modele: String(s.modele || '').trim(), url: String(s.url || '').trim(), cle: typeof s.cle === 'string' ? s.cle : '', cleId: String(s.cleId || ''), masque: String(s.masque || ''),
-    perso: IA_PERSO.includes(s.perso) ? s.perso : 'tous', persoUtilisateurs: Array.isArray(s.persoUtilisateurs) ? s.persoUtilisateurs.filter((x) => typeof x === 'string') : [], par: s.par || '', le: s.le || '' };
+    perso: IA_PERSO.includes(s.perso) ? s.perso : 'tous', niveau2: s.niveau2 === 'local' ? 'local' : 'tous', persoUtilisateurs: Array.isArray(s.persoUtilisateurs) ? s.persoUtilisateurs.filter((x) => typeof x === 'string') : [], par: s.par || '', le: s.le || '' };
 }
 // l'utilisateur peut-il utiliser ses propres clés et modèles ? (sans identifiants : oui ; administrateurs : toujours)
 function iaPersoAutorise(db, uid) {
@@ -88,7 +90,7 @@ function iaActivePerso(c) {
   const f = iaFournisseur(c.fournisseur);
   const cle = String((c.cles || {})[f.id] || '').trim(); const modele = String((c.modeles || {})[f.id] || f.modele || '').trim();
   const url = f.id === 'perso' ? String(c.url || '').trim().replace(/\/+$/, '').replace(/\/chat\/completions$/, '') : '';
-  return { fournisseur: f.id, nom: f.court, cle, modele, url, web: f.web, pret: !!modele && (f.id === 'perso' ? /^https?:\/\/\S+$/.test(url) : !!cle), auto: !!c.auto, completer: c.completer !== false, bulletins: c.bulletins !== false, source: 'perso', autoJours: Math.max(7, Math.min(365, Number(c.autoJours) || 30)) };
+  return { fournisseur: f.id, nom: f.court, cle, modele, url, web: f.web, pret: !!modele && (f.id === 'perso' ? /^https?:\/\/\S+$/.test(url) : !!cle), auto: !!c.auto, completer: c.completer !== false, bulletins: c.bulletins !== false, usages: c.usages && typeof c.usages === 'object' ? c.usages : {}, consentements: c.consentements && typeof c.consentements === 'object' ? c.consentements : {}, source: 'perso', autoJours: Math.max(7, Math.min(365, Number(c.autoJours) || 30)) };
 }
 const iaMasque = (k) => { const s = String(k || ''); return s.length <= 10 ? '•'.repeat(s.length) : `${s.slice(0, 6)}…${s.slice(-4)}`; };
 
@@ -96,22 +98,25 @@ const iaMasque = (k) => { const s = String(k || ''); return s.length <= 10 ? '�
 function iaRequete(c, o) {
   const system = o.system || ''; const texte = o.texte || ''; const web = !!o.web && c.web !== false; const M = o.max || 1600;
   const json = { 'content-type': 'application/json' };
-  const msgs = [{ role: 'system', content: system }, { role: 'user', content: texte }];
+  // 0.49.0-alpha.1 : images (o.images, vision) et format de réponse demandé (o.format : schéma JSON) — 17a-ia-usages.js
+  const fid0 = c.fournisseur === 'mistral' || c.fournisseur === 'openrouter' || c.fournisseur === 'anthropic' || c.fournisseur === 'openai' || c.fournisseur === 'gemini' ? c.fournisseur : 'perso';
+  const contenu = typeof iaContenuImages === 'function' ? iaContenuImages(fid0, texte, o.images) : null; const F = o.format || {};
+  const msgs = [{ role: 'system', content: system }, { role: 'user', content: contenu || texte }];
   if (c.fournisseur === 'anthropic') {
     const tools = web ? [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }, ...(o.sansFetch ? [] : [{ type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 3, max_content_tokens: 20000 }])] : null;
     return { url: 'https://api.anthropic.com/v1/messages', headers: { ...json, 'x-api-key': c.cle, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: { model: c.modele, max_tokens: M, system, messages: [{ role: 'user', content: texte }], ...(tools ? { tools } : {}) } };
+      body: { model: c.modele, max_tokens: M, system, messages: [{ role: 'user', content: contenu || texte }], ...(tools ? { tools } : {}) } };
   }
   if (c.fournisseur === 'openai') return { url: 'https://api.openai.com/v1/responses', headers: { ...json, authorization: `Bearer ${c.cle}` },
-    body: { model: c.modele, instructions: system, input: texte, max_output_tokens: Math.max(8000, M * 4), ...(web ? { tools: [{ type: 'web_search' }], include: ['web_search_call.action.sources'] } : {}) } };
+    body: { model: c.modele, instructions: system, input: contenu ? [{ role: 'user', content: contenu }] : texte, max_output_tokens: Math.max(8000, M * 4), ...(web ? { tools: [{ type: 'web_search' }], include: ['web_search_call.action.sources'] } : {}), ...(web ? {} : F) } };
   if (c.fournisseur === 'gemini') return { url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(c.modele.replace(/^models\//, ''))}:generateContent`, headers: { ...json, 'x-goog-api-key': c.cle },
-    body: { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: texte }] }], ...(web ? { tools: [{ google_search: {} }] } : {}), generationConfig: { maxOutputTokens: Math.max(8000, M * 4) } } };
+    body: { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: contenu || [{ text: texte }] }], ...(web ? { tools: [{ google_search: {} }] } : {}), generationConfig: { maxOutputTokens: Math.max(8000, M * 4), ...(!web && F.generationConfig ? F.generationConfig : {}) } } };
   if (c.fournisseur === 'mistral' && web) return { url: 'https://api.mistral.ai/v1/conversations', headers: { ...json, authorization: `Bearer ${c.cle}` },
     body: { model: c.modele, instructions: system, inputs: texte, tools: [{ type: 'web_search' }], completion_args: { max_tokens: M } } };
-  if (c.fournisseur === 'mistral') return { url: 'https://api.mistral.ai/v1/chat/completions', headers: { ...json, authorization: `Bearer ${c.cle}` }, body: { model: c.modele, messages: msgs, max_tokens: M } };
+  if (c.fournisseur === 'mistral') return { url: 'https://api.mistral.ai/v1/chat/completions', headers: { ...json, authorization: `Bearer ${c.cle}` }, body: { model: c.modele, messages: msgs, max_tokens: M, ...(F.response_format ? { response_format: F.response_format } : {}) } };
   if (c.fournisseur === 'openrouter') return { url: 'https://openrouter.ai/api/v1/chat/completions', headers: { ...json, authorization: `Bearer ${c.cle}` },
-    body: { model: c.modele, messages: msgs, max_tokens: Math.max(4000, M * 2), ...(web ? { plugins: [{ id: 'web', max_results: 5 }] } : {}) } };
-  return { url: `${c.url}/chat/completions`, headers: { ...json, ...(c.cle ? { authorization: `Bearer ${c.cle}` } : {}) }, body: { model: c.modele, messages: msgs, max_tokens: Math.max(4000, M * 2) } };
+    body: { model: c.modele, messages: msgs, max_tokens: Math.max(4000, M * 2), ...(web ? { plugins: [{ id: 'web', max_results: 5 }] } : {}), ...(F.response_format && !web ? { response_format: F.response_format } : {}) } };
+  return { url: `${c.url}/chat/completions`, headers: { ...json, ...(c.cle ? { authorization: `Bearer ${c.cle}` } : {}) }, body: { model: c.modele, messages: msgs, max_tokens: Math.max(4000, M * 2), ...(F.response_format ? { response_format: F.response_format } : {}) } };
 }
 // réponse → texte et sources (adresses consultées ou citées)
 function iaReponse(fid, j) {

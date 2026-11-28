@@ -346,6 +346,7 @@ function App() {
           {Cmp ? <Cmp key={nav.tab} /> : <Placeholder name={nav.tab} />}</>}
       </main>
       <footer className="appfoot"><div className="wrap"><span>Œnotrack — traçabilité de cuverie &amp; de chai{(db.entreprise || {}).nom ? ` · ${db.entreprise.nom}` : ''}</span><span>Données enregistrées dans ce navigateur</span><span className="appfoot-n">Campagne {camp.nom}</span><InstallerBouton /><LangueChoix compact /><button type="button" className="appfoot-presentation" onClick={revoirAccueil}>Présentation</button><LegalLiens onOuvrir={setLegal} /><button type="button" className="appfoot-v" onClick={() => setVersionOpen(true)} title="Nouveautés et compatibilité des données">Œnotrack {APP_VERSION}</button></div></footer>
+      <IaApercuHote />
       {versionOpen ? <VersionSheet onClose={() => setVersionOpen(false)} /> : null}
       {legal ? <LegalSheet onglet={legal} onClose={fermerLegal} /> : null}
       {stack.map((sh, i) => {
