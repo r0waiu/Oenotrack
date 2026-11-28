@@ -2,7 +2,7 @@ import { open } from './ui.mjs';
 const { browser, page, errors } = await open();
 page.on('console', (m) => console.log('console', m.type(), m.text().slice(0, 200)));
 await page.click('#tab-ops'); await page.waitForTimeout(300);
-await page.locator('main tbody tr').first().locator('button[aria-label^="Documents"]').click(); await page.waitForTimeout(300);
+await page.locator('main tbody tr').first().locator('[data-op-menu]').click(); await page.waitForTimeout(150); await page.locator('main tbody tr').first().locator('button[aria-label^="Documents"]').first().click(); await page.waitForTimeout(300);
 const top = page.locator('.overlay').last();
 console.log('input count', await top.locator('input[type=file]').count());
 const idbOK = await page.evaluate(() => new Promise((res) => { try { const r = indexedDB.open('t', 1); r.onsuccess = () => res('ok'); r.onerror = () => res('err ' + r.error); } catch (e) { res('throw ' + e.message); } }));

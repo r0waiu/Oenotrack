@@ -59,7 +59,11 @@ export function vinification(page) {
   if (page.__vinif) return page; page.__vinif = true; const c0 = page.click.bind(page);
   page.click = async (sel, o) => {
     if (typeof sel === 'string' && /^#tab-(cuverie|ops|previsions|plan)$/.test(sel) && !(await page.locator(sel).isVisible().catch(() => false)) && (await page.locator('#tab-vinification').count())) { await c0('#tab-vinification'); await page.waitForTimeout(150); }
-    return c0(sel, o);
+    const r = await c0(sel, o);
+    // 0.48.0-alpha.1 : les familles d'opérations sont dans le sélecteur « ＋ Nouvelle opération » ; un clic sur #tab-ops l'ouvre (les tests
+    // écrits avant, qui cliquent directement un bouton d'opération, restent valables ; t93 teste la page fermée avec locator().click())
+    if (sel === '#tab-ops') { await page.waitForTimeout(150); const b = page.locator('main [data-nouvelle-op][aria-expanded="false"]'); if (await b.count().catch(() => 0)) await b.first().click().catch(() => {}); }
+    return r;
   };
   return page;
 }

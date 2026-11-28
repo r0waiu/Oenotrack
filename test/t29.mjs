@@ -86,7 +86,7 @@ const etatCarte = async (page) => page.locator('main [data-cloud]').getAttribute
   ok('Dropbox : base écrite dans /Cave', !!S.dbx.f['/cave/oenotrack-base.json'] && Object.keys(S.dbx.f).some((k) => k.startsWith('/cave/historique/')), Object.keys(S.dbx.f).filter((k) => k.startsWith('/cave')).join(', '));
   // un document joint part dans documents/
   await page.click('#tab-ops'); await page.waitForTimeout(300);
-  await page.locator('main tbody tr').first().locator('button[aria-label*="ocument"], button:has-text("📎")').first().click(); await page.waitForTimeout(500);
+  await page.locator('main tbody tr').first().locator('[data-op-menu]').click(); await page.waitForTimeout(150); await page.locator('main tbody tr').first().locator('button[aria-label*="ocument"], button:has-text("📎")').first().click(); await page.waitForTimeout(500);
   const inp = top().locator('input[type=file]').first();
   await inp.setInputFiles({ name: 'bon de livraison.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test') }); await page.waitForTimeout(800);
   await page.keyboard.press('Escape'); await page.waitForTimeout(4500);

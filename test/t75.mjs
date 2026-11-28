@@ -47,7 +47,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('[data-params-item="schemas"]').click(); await page.waitForTimeout(400);
   ok('« 🗂 Plan de vinification » (ancien « Schémas de vinification ») → Vinification › Plan de vinification', (await page.locator('[data-planv]').count()) === 1);
   // ---- Opérations & Assemblages : plus de saisie de tirage, cave, dégorgement ; journal complet
-  await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: /^Opérations$/ }).click(); await page.waitForTimeout(300);
+  await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: /^Journal$/ }).click(); await page.waitForTimeout(300);
   const nouv = page.locator('main section', { hasText: 'Nouvelle opération' }).first(); const bt = await nouv.locator('button').allInnerTexts();
   ok('Opérations : préparation, tirage, remuage, dégorgement plus proposés à la saisie', !bt.some((x) => /^(⚗|🍾|↯)?\s*(Préparation|Tirage \(mixtion\)|Remuage|Dégorgement)$/.test(x.trim())) && bt.some((x) => /Soutirage/.test(x)), bt);
   ok('… carte « Tirage & bouteilles » : liens vers Tirages, Cave, Dégorgement', (await page.locator('[data-vers-bouteilles] [data-vers-module]').count()) === 3);

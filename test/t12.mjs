@@ -45,7 +45,7 @@ log('journal des fiches :', (await page.locator('main tbody tr').allInnerTexts()
 // 4. document joint sur l'opération réalisée
 await page.click('#tab-ops'); await page.waitForTimeout(300);
 fs.writeFileSync((process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + '/fiche-remplie.pdf', '%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF');
-await page.locator('main tbody tr').first().locator('button[aria-label^="Documents"]').click(); await page.waitForTimeout(300);
+await page.locator('main tbody tr').first().locator('[data-op-menu]').click(); await page.waitForTimeout(150); await page.locator('main tbody tr').first().locator('button[aria-label^="Documents"]').first().click(); await page.waitForTimeout(300);
 await top().locator('input[aria-label="Fichiers à joindre"]').setInputFiles((process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + '/fiche-remplie.pdf'); await page.waitForTimeout(700);
 log('documents :', (await top().locator('.sheet-b').innerText()).replace(/\s+/g, ' ').slice(0, 200));
 await page.screenshot({ path: SH + '/docs.png' });
