@@ -672,6 +672,34 @@ details>summary{cursor:pointer;font-weight:600}
 /* - */
 /* - */
 /* ===== 0.48.0-alpha.1 — modules (tirage, traçabilité, cave, hygiène, analyses, registres) ===== */
+/* U08 : filtres en pastilles de la recherche de Traçabilité */
+.trace-filtres{display:flex;flex-wrap:wrap;gap:6px}
+.trf{min-height:36px;padding:4px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:500 14px var(--font-body);cursor:pointer}
+.trf:hover{border-color:var(--ink2)}.trf:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.trf.on{background:var(--accentSoft);border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
+/* U28 : cartes du journal d'hygiène — nom complet sur deux lignes, pastille de type en dessous */
+.hyg-carte{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hyg-nom{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;line-height:1.25}
+.hyg-type{display:flex;gap:4px}
+/* U33 : tableaux en cartes au téléphone (Cave, Tirages, Analyses) ; libellés des cellules masqués sur grand écran */
+.tbl-cartes .tc-l{display:none}
+@media (max-width:767px){
+  .tblwrap.tbl-cartes{border:0;background:none;overflow:visible;border-radius:0}
+  .tbl-cartes .tbl,.tbl-cartes .tbl tbody{display:block}
+  .tbl-cartes .tbl thead{display:none}
+  .tbl-cartes .tbl tr{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:8px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-card,6px);background:var(--surface)}
+  .tbl-cartes .tbl tr.clk:hover td{background:none}
+  .tbl-cartes .tbl td{display:block;flex:1 1 calc(50% - 14px);min-width:0;padding:0;border:0;text-align:left;overflow-wrap:anywhere}
+  .tbl-cartes .tbl td.tc-titre{flex:1 1 100%;font-size:15px}
+  .tbl-cartes .tbl td.tc-actions{flex:1 1 100%}
+  .tbl-cartes .tbl td.tc-actions:empty{display:none}
+  .tbl-cartes .tbl td .whitespace-nowrap{white-space:normal}
+  .tbl-cartes .tc-l{display:block;font:600 10.5px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
+  /* ailleurs (DRM, maintenance, plans d'hygiène, registres) : première colonne figée pendant le défilement horizontal */
+  [data-drm] .tbl td:first-child,[data-drm] .tbl th:first-child,[data-equipements] .tbl td:first-child,[data-equipements] .tbl th:first-child,[data-col-figee] .tbl td:first-child,[data-col-figee] .tbl th:first-child{position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:1px 0 0 var(--line)}
+  [data-drm] .tbl th:first-child,[data-equipements] .tbl th:first-child,[data-col-figee] .tbl th:first-child{z-index:2;background:var(--surface2)}
+}
+@media print{.tbl-cartes .tc-l{display:none!important}}
 /* (fin du bloc modules) */
 /* - */
 /* - */

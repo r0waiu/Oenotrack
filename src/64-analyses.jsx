@@ -46,8 +46,8 @@ function ModeleForm({ id, onClose }) {
 }
 
 function TabAnalyses() {
-  const { db, R, act, confirm, camp, openOp } = useApp();
-  const [sub, setSub] = useState('saisies'); const [form, setForm] = useState(null); const [vueDoc, setVueDoc] = useState(null); const [lotF, setLotF] = useState(''); const [modF, setModF] = useState(''); const [contF, setContF] = useState('');
+  const { db, R, act, confirm, camp, openOp, nav } = useApp();
+  const [sub, setSub] = useState(() => (nav && ['saisies', 'modeles'].includes(nav.sub) ? nav.sub : 'saisies')); useEffect(() => { if (nav && ['saisies', 'modeles'].includes(nav.sub)) setSub(nav.sub); }, [nav]); const [form, setForm] = useState(null); const [vueDoc, setVueDoc] = useState(null); const [lotF, setLotF] = useState(''); const [modF, setModF] = useState(''); const [contF, setContF] = useState('');
   const rows = db.analyses.filter((a) => (!lotF || a.lotId === lotF) && (!modF || a.modeleId === modF) && (!contF || a.contenantId === contF)).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   const pivotIds = lotF ? uniq(rows.flatMap((a) => Object.keys(a.valeurs))).filter((k) => db.analysesParams.some((p) => p.id === k)) : [];
   const delA = async (a) => { const ok = await confirm({ title: 'Supprimer cette analyse ?', body: `Analyse du ${fmtDate(a.date)} sur ${lotCode(db, R, a.lotId)}.`, ok: 'Supprimer', danger: true }); if (ok) act((d) => analyseDelete(d, a.id), 'Analyse supprimée.'); };
@@ -61,7 +61,7 @@ function TabAnalyses() {
           <SI value={modF} onChange={setModF} placeholder="Tous les modèles" style={{ width: 'auto' }} options={db.analysesModeles.map((m) => ({ value: m.id, label: m.nom }))} aria-label="Modèle" />
           <SI value={contF} onChange={setContF} placeholder="Tous les contenants" style={{ width: 'auto' }} options={contOptions(db, true)} aria-label="Contenant" />
           <Btn kind="primary" onClick={() => setForm({})} data-vg="analyse-nouvelle">+ Nouvelle analyse</Btn></>}>
-          <Tbl rows={rows} empty="Aucune analyse pour ces critères." cols={[
+          <TblCartes rows={rows} empty="Aucune analyse pour ces critères." data-analyses-liste="" cols={[
             { h: 'Date', r: (a) => <span className="num">{fmtDate(a.date)}</span> }, { h: 'Lot', r: (a) => <LotLink id={a.lotId} /> }, { h: 'Contenant prélevé', r: (a) => (a.contenantId ? <ContLink id={a.contenantId} /> : '—') },
             { h: 'Modèle', r: (a) => { const b = analyseBulletin(db, a); return <span className="inline-flex flex-wrap items-center gap-1">{(db.analysesModeles.find((m) => m.id === a.modeleId) || {}).nom || 'Libre'}{b ? <button type="button" className="chip" style={{ cursor: 'pointer' }} onClick={() => setVueDoc(b)} title={`Bulletin d’analyses : ${b.nom}`} data-bulletin-doc="">📄 bulletin</button> : null}</span>; } },
             { h: 'Résultats', r: (a) => <div className="flex flex-wrap gap-1">{Object.keys(a.valeurs).map((k) => <Chip key={k}>{valText(db, k, a.valeurs[k])}</Chip>)}{sugarOf(db, a.valeurs) != null ? <Chip tone="info">Sucre mixtion {fmt(sugarOf(db, a.valeurs), 1)} g/L</Chip> : null}{(() => { const sg = camp.figee ? null : stadeSuggestion(db, R, a); return sg ? <button type="button" className="chip chip-c" style={{ '--c': stadeColor(db, sg.stade), cursor: 'pointer' }} title={`${sg.why} : enregistrer le passage en « ${stadeLabel(db, sg.stade)} »`} onClick={() => openOp(opEtapePour(db, sg.stade), { lotId: sg.lotId, newStade: sg.stade, date: a.date, notes: `D’après l’analyse du ${fmtDate(a.date)} : ${sg.why}.` })}>→ {stadeCourt(db, sg.stade)} ?</button> : null; })()}</div> },

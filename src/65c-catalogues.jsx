@@ -51,10 +51,10 @@ function CataloguesView() {
   const masquer = (cle, m) => act((d) => catalogueMasquer(d, cle, m), m ? 'Masqué dans la saisie des intrants.' : 'Affiché dans la saisie des intrants.');
   return (
     <>
-      <Notice tone="info" title="Catalogues des fournisseurs">
+      <Aide id="intrants-catalogues" titre="ℹ Catalogues des fournisseurs" resume="Données relevées dans les catalogues, à vérifier sur la fiche technique avant usage.">
         <span>Données relevées dans les catalogues (nom, famille, dose conseillée, conditionnements, mentions bio et vegan, source : catalogue et page). Vérifiez-les sur la fiche technique du produit avant usage.</span>{' '}
         <span>À la saisie d’un intrant, choisissez le fournisseur (ou « En stock ») puis le produit : un produit du catalogue rejoint vos produits, avec des règles d’exemple à vérifier.</span>
-      </Notice>
+      </Aide>
       <Sec title="Catalogues affichés" right={lect ? null : <Btn onClick={() => setImp(true)}>📥 Importer un catalogue…</Btn>}>
         <div className="space-y-3" data-catalogues>
           {fos.map((f) => { const cs = liste.filter((c) => c.fournisseur === f); const foMasque = reg.masques.includes(`fo:${catCle(f)}`);

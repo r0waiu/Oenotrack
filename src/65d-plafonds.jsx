@@ -16,12 +16,12 @@ function PlafondsView({ partie }) {
   const actions = (p) => (lect ? null : <div className="flex flex-wrap gap-1">{p.aVerifier ? <Btn size="sm" kind="primary" onClick={() => act((d) => plafondValider(d, p.id, uid), 'Plafond vérifié.')}>✓ Vérifié</Btn> : null}<Btn size="sm" onClick={() => setForm({ id: p.id, objet: p.objet })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => ask('Retirer ce plafond ?', (d) => plafondSupprimer(d, p.id), 'Plafond retiré.')}>Retirer</Btn></div>);
   return (
     <>
-      {partie === 'substances' ? null : <Notice tone={nv ? 'warn' : 'info'} title="Plafonds des revendications">
+      {partie === 'substances' || !nv ? null : <div className="mb-3"><Notice tone="warn"><span translate="no">{fmt(nv)}</span> <span>plafond(s) à vérifier.</span></Notice></div>}
+      {partie === 'substances' ? null : <Aide id="labels-plafonds" titre="ℹ Plafonds des revendications" resume="Exemples non officiels, à vérifier ; un dépassement demande un motif, jamais bloqué.">
         <span>Les valeurs proposées sont des exemples non officiels, à vérifier dans la réglementation et dans vos cahiers des charges avant usage.</span>{' '}
-        {nv ? <><span translate="no">{fmt(nv)}</span> <span>plafond(s) à vérifier.</span></> : null}{' '}
         <span>Un dépassement n’est jamais bloqué : l’opération demande un motif, tracé avec elle (journal, registre des intrants).</span>{' '}
         <span>Les plafonds des labels et cahiers des charges s’ajoutent à ceux-ci : le plus bas s’applique, sauf plafond vérifié ici pour la revendication.</span>
-      </Notice>}
+      </Aide>}
       {partie === 'substances' ? null : <Sec title="SO₂ total maximal de l’exploitation (mg/L)" right={lect ? null : <div className="flex flex-wrap gap-2"><Btn onClick={() => setCahier(true)}>📥 Importer un cahier des charges…</Btn><Btn kind="primary" onClick={() => setForm({ objet: 'so2t' })}>+ Plafond de SO₂</Btn></div>}>
         <div data-plafonds-so2><Tbl rows={so2} empty="Aucun plafond de SO₂ total." cols={[
           { h: 'Revendication', r: (p) => <QChip id={p.qualifId} /> }, { h: 'Vins', r: (p) => vinTypeLabel(p.vin) },

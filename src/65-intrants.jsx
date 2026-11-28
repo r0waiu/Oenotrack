@@ -104,8 +104,9 @@ function RefAvisCellule({ pr, qid, r }) {
   return <span className="flex flex-wrap items-center gap-1"><RefAvisChip avis={{ ...ref, du: doseUnit(pr.unite) }} />{ecart && !lect ? <Btn size="sm" onClick={() => act((d) => regleDepuisReferentiel(d, pr.id, qid, uid), 'Règle alignée sur le référentiel (à vérifier).')} data-ref-aligner={`${pr.id}|${qid}`}>Aligner</Btn> : null}</span>;
 }
 function TabIntrants() {
-  const { db, R, act, confirm, camp, setTab } = useApp();
-  const [sub, setSub] = useState('stocks'); const [form, setForm] = useState(null); const [recap, setRecap] = useState(false); const [view, setView] = useState('lots'); const [onlyStock, setOnlyStock] = useState(true); const [cat, setCat] = useState(''); const [q, setQ] = useState('');
+  const { db, R, act, confirm, camp, setTab, nav } = useApp(); const SOUS_I = ['stocks', // setTab('intrants', sous-onglet) (0.48.0-alpha.1)
+    'regles', 'fiches', 'catalogues', 'labels', 'plafonds', 'referentiel', 'fourn'];
+  const [sub, setSub] = useState(() => (nav && SOUS_I.includes(nav.sub) ? nav.sub : 'stocks')); useEffect(() => { if (nav && SOUS_I.includes(nav.sub)) setSub(nav.sub); }, [nav]); const [form, setForm] = useState(null); const [recap, setRecap] = useState(false); const [view, setView] = useState('lots'); const [onlyStock, setOnlyStock] = useState(true); const [cat, setCat] = useState(''); const [q, setQ] = useState('');
   const arrs = db.arrivages.map((a) => ({ id: a.id, a, pr: prodOf(db, a.produitId), rest: arrivalRest(R, a), used: R.arrUsed[a.id] || 0 })).sort((x, y) => (x.a.date < y.a.date ? 1 : -1))
     .filter((r) => (!onlyStock || r.rest > 0.0001) && (!cat || r.pr.categorie === cat) && (!q || norm(`${r.pr.nom} ${r.a.numLot}`).includes(norm(q))));
   const live = db.arrivages.map((a) => ({ a, rest: arrivalRest(R, a), st: dluoState(a.dluo) })).filter((x) => x.rest > 0.0001);
