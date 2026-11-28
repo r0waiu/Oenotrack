@@ -133,7 +133,7 @@ function VignobleAppellationsEtape() {
             <Fragment key={a.id}><VignobleRefLigne a={a} deja={dejaDe(a)} lect={lect} onAjouter={ajouter} />{dgc.filter((x) => !nq || filtre(x) || filtre(a)).map((x) => <VignobleRefLigne key={x.id} a={x} sous deja={dejaDe(x)} lect={lect} onAjouter={ajouter} />)}</Fragment>))}</ul>)}
         {!nq && region.length > 40 && !tout ? <Btn size="sm" className="mt-2" onClick={() => setTout(true)} data-vignoble-tout="">{`Voir les ${region.length} appellations`}</Btn> : null}
         {autres.length ? <div className="mt-3"><div className="lbl mb-1">Autres régions</div><ul className="space-y-1">{autres.map((a) => <VignobleRefLigne key={a.id} a={a} deja={dejaDe(a)} lect={lect} onAjouter={ajouter} />)}</ul></div> : null}
-        <p className="help mt-2">Référentiel officiel (INAO, registre de l’UE) complété des dénominations rattachées et de quelques ajouts marqués « à vérifier ».</p>
+        <p className="help mt-2">Référentiel officiel (INAO, registre de l’UE) complété des dénominations, mentions, couleurs et contenu technique lus dans les cahiers des charges en vigueur.</p>
       </Sec>
       {cdcOuv ? <CdcSheet refId={cdcOuv.refId} appId={cdcOuv.appId} onClose={() => setCdcOuv(null)} /> : null}
     </div>

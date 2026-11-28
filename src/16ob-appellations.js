@@ -9,7 +9,7 @@
      référentiel ({ id, label, ref: { region, pays, signe, eu } }) ; rien n'est retiré ni renommé */
 const APP_CATS = { t: 'tranquille', e: 'effervescent', p: 'petillant', a: 'ancestrale', d: 'doux', v: 'vdn', s: 'sous_voile' };
 const APP_COUL = { b: 'blanc', o: 'rose', r: 'rouge' };
-const APP_ETATS = { absente_inao: 'enregistrée dans l’UE, absente de la liste de l’INAO', annulee: 'annulée dans l’UE', demande: 'demande d’enregistrement en cours' };
+const APP_ETATS = { absente_inao: 'enregistrée dans l’UE, absente de la liste de l’INAO', annulee: 'annulée dans l’UE', demande: 'demande d’enregistrement en cours', abrogee: 'abrogée ou remplacée (cahier des charges en vigueur)' };
 let _appRef = null;
 // relevé seul, sans les compléments ni les corrections des cahiers des charges (tests, comptes du relevé)
 const appRefReleve = () => String(typeof APP_REF_TXT === 'string' ? APP_REF_TXT : '').split('\n').filter(Boolean).map((l) => { const [nom, region, pays, signe, eu, sousRegion, c, k, v, etat] = l.split('\t'); return { id: `${region}:${norm(nom)}`, nom, region, pays, signe, eu, sousRegion, libre: c === '*', cats: c === '*' ? [] : c.split('').map((x) => APP_CATS[x]).filter(Boolean), couleurs: (k || '').split('').map((x) => APP_COUL[x]).filter(Boolean), verifie: v === '1', etat: etat || '', source: '' }; });
@@ -27,7 +27,7 @@ function appRef() {
   return _appRef;
 }
 const appRefDef = (id) => appRef().find((a) => a.id === id) || null;
-const appEnVigueur = (a) => a.etat !== 'annulee' && a.etat !== 'demande';
+const appEnVigueur = (a) => a.etat !== 'annulee' && a.etat !== 'demande' && a.etat !== 'abrogee'; // 0.50.0-alpha.3 : abrogée d'après le cahier des charges
 const appRefRegion = (region) => appRef().filter((a) => a.region === region);
 // types de vins (ids de PROFIL_TYPES) qu'une appellation autorise ; couleurs non précisées = blanc, rosé et rouge
 function appTypes(a) {

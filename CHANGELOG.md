@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.50.0-alpha.3 — 28/11/2026
+
+- Cahiers des charges des appellations françaises relevés dans les textes homologués en vigueur (Bulletin officiel, fiches de l’INAO) : 447 appellations, avec nom officiel, catégories, couleurs, dénominations et mentions (premiers crus, Villages, vendanges tardives, vins doux naturels…), cépages, rendements, richesse en sucre, titres alcoométriques, enrichissement, sucres, élevage, mise en marché, pratiques imposées ou interdites ; chaque fiche cite son texte et sa date, 26 restent « à vérifier » (texte récent inaccessible).
+- Paramètres › Vignoble › Appellations : fiche « 📜 Cahier des charges » de chaque appellation et ajout proposé de ses cépages ; alertes non bloquantes sur la fiche d’un lot (cépage hors cahier des charges, enrichissement interdit, TAV total dépassé) et sur une parcelle (cépage, rendement en kg/ha) ; référentiel corrigé (Bordeaux et Bordeaux supérieur dans leur région, Laudun et Grès de Montpellier homologuées, Côtes de Blaye et Cabernet de Saumur abrogées, Blaye devenue Blavia…).
+
 ## 0.50.0-alpha.2 — 28/11/2026
 
 - Mise en bouteille des vins tranquilles et doux : nouvel onglet « Mise en bouteille » (Mettre · Fournitures · Habillage & cartons), affiché selon le réglage Vignoble ; une mise prend le vin dans une ou plusieurs cuves et crée aussitôt le lot fini — n° de lot, DDM, cols par format, casse, bouchage (liège, technique, synthétique, vis, verre…), capsule CRD ou non, filtration et inertage, contrôles en ligne (niveau, SO₂ libre, oxygène dissous…), rappel des dernières analyses, fournitures décomptées.

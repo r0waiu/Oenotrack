@@ -23,7 +23,8 @@ const CDC_CODES_COUL = { b: 'blanc', o: 'rose', r: 'rouge' };
 const CDC_COUL_DE = { blanc: 'b', rose: 'o', rouge: 'r' };
 // niveau 1 : corrections du référentiel (appelé par appRef sur la liste en construction)
 function cdcAppliquerRef(L) {
-  const C = cdcListe(); const ids = new Set(L.map((a) => a.id)); const parNom = {}; L.forEach((a) => { parNom[`${a.region}|${norm(a.nom).trim()}`] = a; });
+  const C = cdcListe(); const ids = new Set(L.map((a) => a.id)); const parNom = {}; const cle = (r, n) => `${r}|${norm(n).replace(/[’']/g, "'").replace(/\s+/g, ' ').trim()}`;
+  const indexer = (a) => { [a.nom, ...(a.alias || [])].forEach((n) => { parNom[cle(a.region, n)] = a; }); };
   const cats = (s) => String(s || '').split('').map((x) => CDC_CODES_CAT[x]).filter(Boolean); const couls = (s) => String(s || '').split('').map((x) => CDC_CODES_COUL[x]).filter(Boolean);
   // 1. corrections des appellations du relevé (catégories, couleurs, nom officiel, région, état)
   Object.values(C).forEach((c) => {
@@ -37,18 +38,20 @@ function cdcAppliquerRef(L) {
     if (c.statut === 'inexistante' && a.etat !== 'annulee') a.etat = 'abrogee';
     if (c.verifie && (c.statut === 'confirmee' || c.statut === 'corrigee') && a.etat === 'demande') a.etat = ''; // homologuée depuis le relevé (Laudun, 21/11/2024)
   });
-  L.forEach((a) => { parNom[`${a.region}|${norm(a.nom).trim()}`] = a; });
+  L.forEach(indexer);
   // 2. appellations ajoutées (sans doublon : même nom dans la même région) ; 3. dénominations et mentions relevées
   Object.values(C).forEach((c) => {
-    if (c.statut === 'ajout' && c.nom && !ids.has(c.id) && !parNom[`${c.region}|${norm(c.nom).trim()}`]) {
+    if (c.statut === 'ajout' && c.nom && !ids.has(c.id) && !parNom[cle(c.region, c.nom)]) {
       ids.add(c.id); const x = { id: c.id, nom: c.nom, region: c.region, pays: 'france', signe: c.signe || 'AOP', eu: c.signe === 'IGP' ? 'IGP' : 'AOP', sousRegion: '', libre: c.cats === '*', cats: c.cats === '*' ? [] : cats(c.cats), couleurs: couls(c.coul), verifie: !!c.verifie, etat: '', source: c.source, version: c.version, complement: true, cdcAjout: true, genre: 'aop', parentId: '', alias: [], cdc: true };
-      L.push(x); parNom[`${c.region}|${norm(c.nom).trim()}`] = x;
+      L.push(x); indexer(x);
     }
-    const parent = L.find((x) => x.id === c.id) || (c.statut === 'ajout' ? parNom[`${c.region}|${norm(c.nom).trim()}`] : null); if (!parent) return;
+    const parent = L.find((x) => x.id === c.id) || (c.statut === 'ajout' ? parNom[cle(c.region, c.nom)] : null); if (!parent) return;
     c.denominations.forEach((dn) => {
-      const k = `${parent.region}|${norm(dn.nom).trim()}`; if (parNom[k] || norm(dn.nom).trim() === norm(parent.nom).trim()) return; const id = `${parent.region}:${norm(dn.nom)}`; if (ids.has(id)) return;
+      const k = cle(parent.region, dn.nom); if (k === cle(parent.region, parent.nom)) return;
+      const ex = parNom[k]; if (ex) { if (ex.complement && ex.parentId === parent.id && dn.coul && c.verifie) { ex.couleurs = couls(dn.coul); if (dn.cats) ex.cats = cats(dn.cats); ex.source = c.source; ex.version = c.version; } return; } // texte plus récent que le complément (Côtes du Couchois ouvert aux blancs)
+      const id = `${parent.region}:${norm(dn.nom)}`; if (ids.has(id)) return;
       ids.add(id); const x = { id, nom: dn.nom, region: parent.region, pays: 'france', signe: parent.signe, eu: parent.eu, sousRegion: parent.sousRegion, libre: false, cats: dn.cats ? cats(dn.cats) : parent.cats, couleurs: dn.coul ? couls(dn.coul) : parent.couleurs, verifie: !!c.verifie, etat: '', source: c.source, version: c.version, complement: true, cdcAjout: true, genre: 'dgc', parentId: parent.id, alias: [], mention: dn.type };
-      parNom[k] = x; L.push(x);
+      L.push(x); indexer(x);
     });
   });
   return L;
