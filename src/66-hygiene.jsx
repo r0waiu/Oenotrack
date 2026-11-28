@@ -7,7 +7,7 @@ function hygDerniereConc(db, pid, sauf) {
 }
 const hygTxtNb = (v) => (v == null || v === '' ? '' : String(v).replace('.', ','));
 function HygieneForm({ id, preset, onClose }) {
-  const { db, R, act, defaultDate, moi } = useApp(); const h = id ? db.hygiene.find((x) => x.id === id) : null; const p0 = preset || {};
+  const { db, R, defaultDate, moi } = useApp(); const act = useActFiche(); /* 0.48.0-alpha.1 : erreur sous le champ */ const h = id ? db.hygiene.find((x) => x.id === id) : null; const p0 = preset || {};
   // opérateurs : choisis dans la liste de la société ; un ancien nom écrit à la main (versions précédentes) est conservé tant qu'on ne choisit personne
   const ancien = h && !(Array.isArray(h.operateurs) && h.operateurs.length) && h.operateur ? h.operateur : '';
   // produits (0.18.0-alpha.1) : une entrée d'une version antérieure garde son texte comme méthode
@@ -34,12 +34,12 @@ function HygieneForm({ id, preset, onClose }) {
   const save = () => { const r = act((d) => hygieneSave(d, f, id), id ? 'Entrée modifiée.' : 'Entrée ajoutée au journal d’hygiène.'); if (r.ok) onClose(); };
   return (
     <FormSheet title={id ? 'Modifier l’entrée d’hygiène' : 'Nouvelle entrée d’hygiène'} onClose={onClose} onSave={save}>
-      <G><Field label="Date"><DI value={f.date} onChange={(v) => set('date', v)} /></Field><Field label="Action"><SI value={f.actionId} onChange={(v) => set('actionId', v)} options={opts(db, 'actionsHygiene')} /></Field></G>
+      <G><Field label="Date" champ="date"><DI value={f.date} onChange={(v) => set('date', v)} /></Field><Field label="Action"><SI value={f.actionId} onChange={(v) => set('actionId', v)} options={opts(db, 'actionsHygiene')} /></Field></G>
       <G><Field label="Cible"><SI value={f.cibleType} onChange={(v) => setF((x) => ({ ...x, cibleType: v, cibleId: '', planId: '' }))} options={[{ value: 'contenant', label: 'Contenant (cuve, fût…)' }, { value: 'equipement', label: 'Équipement (pressoir, filtre…)' }, { value: 'local', label: 'Local ou matériel (sol, caisses, tuyaux…)' }]} /></Field>
-        <Field label={f.cibleType === 'contenant' ? 'Contenant' : f.cibleType === 'local' ? 'Local ou matériel' : 'Équipement'}><SI value={f.cibleId} onChange={(v) => setF((x) => ({ ...x, cibleId: v, planId: x.planId && planNettoyage(db).some((e) => e.id === x.planId && hygCibles(db, e.cible).some((c) => c.type === x.cibleType && c.id === v)) ? x.planId : '' }))} placeholder="Choisir…" options={f.cibleType === 'contenant' ? contOptions(db, true) : f.cibleType === 'local' ? opts(db, 'locaux') : opts(db, 'equipements')} /></Field></G>
+        <Field label={f.cibleType === 'contenant' ? 'Contenant' : f.cibleType === 'local' ? 'Local ou matériel' : 'Équipement'} champ="cibleId"><SI value={f.cibleId} onChange={(v) => setF((x) => ({ ...x, cibleId: v, planId: x.planId && planNettoyage(db).some((e) => e.id === x.planId && hygCibles(db, e.cible).some((c) => c.type === x.cibleType && c.id === v)) ? x.planId : '' }))} placeholder="Choisir…" options={f.cibleType === 'contenant' ? contOptions(db, true) : f.cibleType === 'local' ? opts(db, 'locaux') : opts(db, 'equipements')} /></Field></G>
       {planL.length ? <Field label="Selon le plan de nettoyage" help={planE ? <>{planE.mode ? <span>{planE.mode}</span> : null}{planE.contact ? <span>{` Temps de contact : ${planE.contact}.`}</span> : null}{planE.attendu ? <span>{` Contrôle attendu : ${planE.attendu}.`}</span> : null}</> : 'Ligne du plan que cette entrée applique (consignes, contrôle attendu).'}><SI plain value={f.planId} onChange={choisirPlan} options={[{ value: '', label: '— aucune —' }, ...planL.map((e) => ({ value: e.id, label: `${e.libelle} — ${lbl(db, 'actionsHygiene', e.actionId)}` }))]} aria-label="Ligne du plan de nettoyage" data-hyg-plan="" /></Field> : null}
       {modifie ? <Notice tone="warn" title="Entrée modifiée avec une version antérieure d’Œnotrack">Texte enregistré : « {h.produit} ». Vérifiez les produits et la méthode ci-dessous avant d’enregistrer.</Notice> : null}
-      <Group label="Produits utilisés">
+      <Group label="Produits utilisés" champ="produits">
         <div className="space-y-2" data-hyg-produits="">
           {f.produits.map((l, i) => { const p = hygDef(db, l.produitId); const e = p ? hygFdsEtat(db, p) : null; return (
             <div key={i} className="rounded-md border border-line p-2" data-hyg-ligne={i}>
@@ -73,7 +73,7 @@ function HygieneForm({ id, preset, onClose }) {
       </Group>
       <div className="flex flex-wrap items-center gap-2" data-hyg-revendication=""><Check checked={!!f.changementRevendication} onChange={(v) => set('changementRevendication', v ? (f.changementRevendication || { de: 'conv', vers: 'bio' }) : null)} label="Pour un changement de revendication" />
         {f.changementRevendication ? <><SI plain value={f.changementRevendication.de || ''} onChange={(v) => set('changementRevendication', { ...f.changementRevendication, de: v })} options={qualifOptions(db, f.changementRevendication.de)} aria-label="Revendication précédente" style={{ width: 'auto' }} /><span>→</span><SI plain value={f.changementRevendication.vers || ''} onChange={(v) => set('changementRevendication', { ...f.changementRevendication, vers: v })} options={qualifOptions(db, f.changementRevendication.vers)} aria-label="Revendication suivante" style={{ width: 'auto' }} /></> : null}</div>
-      <OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label="Opérateur(s)" help={ancien ? `Saisi auparavant : « ${ancien} » (gardé tant que personne n’est choisi).` : (db.settings.operateurObligatoire ? 'Obligatoire (réglage de la société).' : '')} />
+      <div data-champ="operateurs"><OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label="Opérateur(s)" help={ancien ? `Saisi auparavant : « ${ancien} » (gardé tant que personne n’est choisi).` : (db.settings.operateurObligatoire ? 'Obligatoire (réglage de la société).' : '')} /></div>
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
       {cree ? <HygProduitForm onClose={() => setCree(false)} onSaved={(pid) => ajouter(pid)} /> : null}
       {voir ? <HygProduitSheet id={voir} onClose={() => setVoir(null)} /> : null}

@@ -374,11 +374,11 @@ function regleSet(db, produitId, qualifId, patch) {
 }
 
 function arrivageSave(db, s, id) {
-  if (!s.produitId) return fail('Choisissez un produit.');
-  if (!isoOK(s.date)) return fail('Date d’arrivage invalide.');
-  if (!(num(s.qty) > 0)) return fail('Quantité reçue : valeur supérieure à 0 requise.');
-  if (!String(s.numLot || '').trim()) return fail('Le numéro de lot fournisseur est obligatoire pour la traçabilité.');
-  if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.');
+  if (!s.produitId) return fail('Choisissez un produit.', { champ: 'produitId' });
+  if (!isoOK(s.date)) return fail('Date d’arrivage invalide.', { champ: 'date' });
+  if (!(num(s.qty) > 0)) return fail('Quantité reçue : valeur supérieure à 0 requise.', { champ: 'qty' });
+  if (!String(s.numLot || '').trim()) return fail('Le numéro de lot fournisseur est obligatoire pour la traçabilité.', { champ: 'numLot' });
+  if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.', { champ: 'date' });
   const pr = db.produits.find((p) => p.id === s.produitId);
   const item = { produitId: s.produitId, fournisseurId: s.fournisseurId || (pr && pr.fournisseurId) || '', numLot: String(s.numLot).trim(), dluo: s.dluo || '', date: s.date, qty: num(s.qty), notes: s.notes || '' };
   if (id) { const a = db.arrivages.find((x) => x.id === id); if (!a) return fail('Arrivage introuvable.'); if (isLocked(db, a.date)) return fail('Arrivage verrouillé (campagne figée).'); Object.assign(a, item); }
@@ -585,11 +585,11 @@ function listRemove(db, key, id) {
 
 /* ---------- analyses ---------- */
 function analyseSave(db, s, id) {
-  if (!s.lotId) return fail('Rattachez l’analyse à un lot.');
-  if (!isoOK(s.date)) return fail('Date invalide.');
-  if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.');
+  if (!s.lotId) return fail('Rattachez l’analyse à un lot.', { champ: 'lotId' });
+  if (!isoOK(s.date)) return fail('Date invalide.', { champ: 'date' });
+  if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.', { champ: 'date' });
   const valeurs = {}; Object.keys(s.valeurs || {}).forEach((k) => { if (hasNum(s.valeurs[k])) valeurs[k] = num(s.valeurs[k]); });
-  if (!Object.keys(valeurs).length) return fail('Saisissez au moins une valeur.');
+  if (!Object.keys(valeurs).length) return fail('Saisissez au moins une valeur.', { champ: 'valeurs' });
   const item = { date: s.date, lotId: s.lotId, contenantId: s.contenantId || '', modeleId: s.modeleId || '', valeurs, notes: s.notes || '' };
   if (id) { const a = db.analyses.find((x) => x.id === id); if (isLocked(db, a.date)) return fail('Analyse verrouillée (campagne figée).'); Object.assign(a, item); } else db.analyses.push({ id: nid(db, 'an'), ...item });
   return okr();
@@ -617,15 +617,15 @@ function modeleDelete(db, id) { db.analysesModeles = db.analysesModeles.filter((
 
 /* ---------- hygiène ---------- */
 function hygieneSave(db, s, id) {
-  if (!isoOK(s.date)) return fail('Date invalide.');
-  if (!s.cibleId) return fail('Choisissez un contenant, un équipement ou un local.');
-  if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.');
+  if (!isoOK(s.date)) return fail('Date invalide.', { champ: 'date' });
+  if (!s.cibleId) return fail('Choisissez un contenant, un équipement ou un local.', { champ: 'cibleId' });
+  if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.', { champ: 'date' });
   // opérateurs choisis dans la liste (ids) ; le nom en clair reste dans « operateur » (lu par les versions antérieures)
   const ids = Array.isArray(s.operateurs) ? operateursValides(db, s.operateurs) : null;
-  if (ids && !ids.length && (db.settings || {}).operateurObligatoire && !String(s.operateur || '').trim()) return fail('Indiquez qui a fait l’action (opérateur).');
+  if (ids && !ids.length && (db.settings || {}).operateurObligatoire && !String(s.operateur || '').trim()) return fail('Indiquez qui a fait l’action (opérateur).', { champ: 'operateurs' });
   // produits d'hygiène choisis (0.18.0-alpha.1) : lignes { produitId, nom, conc, quantite } et méthode ; « produit » garde le résumé lisible (versions antérieures)
   const v19 = Array.isArray(s.produits) || s.methode != null; const lignes = v19 ? hygLignes(db, s.produits) : null;
-  if (lignes && lignes.some((l) => (l.conc != null && l.conc < 0) || (l.quantite != null && l.quantite < 0))) return fail('Produits : concentration et quantité positives attendues.');
+  if (lignes && lignes.some((l) => (l.conc != null && l.conc < 0) || (l.quantite != null && l.quantite < 0))) return fail('Produits : concentration et quantité positives attendues.', { champ: 'produits' });
   const methode = v19 ? String(s.methode == null ? '' : s.methode).trim().slice(0, 500) : '';
   const texte = v19 ? hygResume(db, { produits: lignes, methode }, true) : (s.produit || '');
   const item = { date: s.date, cibleType: s.cibleType, cibleId: s.cibleId, actionId: s.actionId, produit: texte, operateur: ids && ids.length ? operateursNoms(db, ids) : (s.operateur || ''), notes: s.notes || '', ...(ids && ids.length ? { operateurs: ids } : {}), ...(v19 ? { produits: lignes, methode } : {}) };
