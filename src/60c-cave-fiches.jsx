@@ -1,4 +1,5 @@
-/* ============ FICHES PERSONNALISABLES, FERMENTATION, SO₂ ET ENRICHISSEMENT (0.29.0-alpha.1) ============ */
+/* ============ FICHES PERSONNALISABLES, FERMENTATION, SO₂ ET ENRICHISSEMENT (0.29.0-alpha.1) ============
+   0.49.0-alpha.1 : « 🤖 Pourquoi ? » sur une alerte de fermentation (IA08). */
 
 // ajustement personnel sans identifiants : gardé sur cet appareil
 const fichePersoLocal = () => { try { const x = JSON.parse(window.localStorage.getItem(FICHE_PERSO_KEY) || 'null'); return x && typeof x === 'object' ? x : {}; } catch (e) { return {}; } };
@@ -111,11 +112,39 @@ function FermentationSection({ contId, lotId }) {
   const portion = Object.values(R.portions).find((p) => (lotId ? p.lotId === lotId : p.contenantId === contId && fa.includes(p.lotId)) && p.vol > 0);
   return (
     <Sec title="Fermentation" className="mb-5" right={!camp.figee ? <Btn size="sm" onClick={() => openOp('suivi', portion ? { portionId: portion.id } : {})}>＋ Relevé densité / T°</Btn> : null}>
-      {al ? <div className="mb-2" data-alerte-ferm={al.etat}><Notice tone={al.etat === 'arretee' ? 'bad' : 'warn'} title={al.etat === 'arretee' ? 'Fermentation arrêtée ?' : 'Fermentation lente'}><span>Baisse de densité : </span><b className="num">{pts1000(al.vitesse)}</b><span> point(s) par jour sur les </span><span className="num">{al.jours}</span><span> dernier(s) jour(s) ; seuil d’alerte : </span><span className="num">{pts1000(al.etat === 'arretee' ? reg.arret : reg.lente)}</span><span>. Vérifiez la température, l’azote assimilable et l’aération ; voyez avec votre œnologue.</span></Notice></div> : null}
+      {al ? <div className="mb-2" data-alerte-ferm={al.etat}><Notice tone={al.etat === 'arretee' ? 'bad' : 'warn'} title={al.etat === 'arretee' ? 'Fermentation arrêtée ?' : 'Fermentation lente'}><span>Baisse de densité : </span><b className="num">{pts1000(al.vitesse)}</b><span> point(s) par jour sur les </span><span className="num">{al.jours}</span><span> dernier(s) jour(s) ; seuil d’alerte : </span><span className="num">{pts1000(al.etat === 'arretee' ? reg.arret : reg.lente)}</span><span>. Vérifiez la température, l’azote assimilable et l’aération ; voyez avec votre œnologue.</span><div className="mt-2"><IaFermentationBouton contId={contId} lotId={lotId} /></div></Notice></div> : null}
       {etat && !al && fa.length ? <div className="mb-2 flex flex-wrap items-center gap-2 text-sm"><Chip tone={etat.etat === 'active' ? 'ok' : etat.etat === 'finie' ? 'info' : ''}>{ETAT_FERM[etat.etat]}</Chip>{etat.vitesse != null ? <span className="text-ink2"><span>baisse de </span><span className="num">{pts1000(etat.vitesse)}</span><span> point(s) de densité par jour</span></span> : null}</div> : null}
       {etat && etat.ancien && fa.length ? <div className="mb-2"><Chip tone="warn">dernier relevé il y a {etat.age} jours</Chip></div> : null}
       {pts.length ? <CourbeFermentation points={pts} parCuve={!!lotId} /> : <Empty>Aucun relevé de densité ou de température pour l’instant : « + Relevé densité / T° », ou la saisie groupée depuis la cuverie.</Empty>}
     </Sec>
+  );
+}
+
+/* 0.49.0-alpha.1 (IA08, usage « fermentation », niveau 2) — « 🤖 Pourquoi ? » sur une alerte de fermentation : courbe (jours relatifs,
+   densité, température), intrants du lot et seuils envoyés (iaFermentationDonnees : ni code de lot ni nom de cuve) ; réponse affichée
+   (causes possibles, vérifications, actions à envisager), « à vérifier avec votre œnologue », jamais enregistrée. */
+const IA_PROBABILITE = { forte: 'probabilité forte', moyenne: 'probabilité moyenne', faible: 'probabilité faible' };
+function IaFermentationBouton({ contId, lotId }) {
+  const { db, R } = useApp(); const ia = useIaUsage(); const [busy, setBusy] = useState(false); const [rep, setRep] = useState(null);
+  const demander = async () => {
+    const P = iaFermentationPrompt(iaFermentationDonnees(db, R, { contId, lotId }, todayISO()), { langue: LANGUE }); if (!P || busy) return;
+    setBusy(true); const r = await ia.demander('fermentation', P); setBusy(false); if (r) setRep({ v: r.valeur, trace: r.trace });
+  };
+  return <><IaBouton usage="fermentation" busy={busy} onClick={demander} data-ia-pourquoi="">Pourquoi ?</IaBouton>{rep ? <IaFermentationSheet rep={rep} onClose={() => setRep(null)} /> : null}</>;
+}
+function IaFermentationSheet({ rep, onClose }) {
+  const v = rep.v || {}; const liste = (L) => <ul className="list-disc space-y-1 pl-5 text-sm" translate="no">{L.map((x, i) => <li key={i}>{x}</li>)}</ul>;
+  return (
+    <Sheet title="Pourquoi cette alerte ?" sub="Explication proposée par l’IA" onClose={onClose} footer={<Btn kind="primary" onClick={onClose}>Fermer</Btn>}>
+      <div className="space-y-4" data-ia-fermentation="">
+        <Notice tone="warn" title="À vérifier avec votre œnologue">Pistes proposées par l’IA d’après la courbe et les intrants du lot : ce n’est pas un diagnostic. Rien n’est enregistré.</Notice>
+        {v.resume ? <p className="text-sm" translate="no">{v.resume}</p> : null}
+        {(v.causes || []).length ? <div><div className="lbl">Causes possibles</div><ul className="space-y-2">{v.causes.map((c, i) => <li key={i} className="rounded-md border border-line p-2 text-sm"><div className="flex flex-wrap items-center gap-2"><b translate="no">{c.cause}</b>{c.probabilite ? <Chip tone={c.probabilite === 'forte' ? 'warn' : ''}>{IA_PROBABILITE[c.probabilite]}</Chip> : null}</div>{c.explication ? <div className="mt-1 text-ink2" translate="no">{c.explication}</div> : null}</li>)}</ul></div> : null}
+        {(v.verifications || []).length ? <div><div className="lbl">Vérifications</div>{liste(v.verifications)}</div> : null}
+        {(v.actions || []).length ? <div><div className="lbl">Actions à envisager</div>{liste(v.actions)}</div> : null}
+        <div className="text-xs text-ink2"><span>Envoyé : les relevés (jours relatifs), les intrants du lot et vos seuils ; ni code de lot ni nom de cuve.</span></div>
+      </div>
+    </Sheet>
   );
 }
 

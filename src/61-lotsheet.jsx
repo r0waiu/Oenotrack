@@ -1,5 +1,6 @@
 /* ============ FICHE LOT (traçabilité) & FICHE LOT FINI ============
-   0.48.0-alpha.1 : barre sous le titre « Opération sur ce lot ▾ · Analyse · Rapport », volume et contenants avant le stade, un seul « Fermer » */
+   0.48.0-alpha.1 : barre sous le titre « Opération sur ce lot ▾ · Analyse · Rapport », volume et contenants avant le stade, un seul « Fermer »
+   0.49.0-alpha.1 : « 🤖 Histoire du lot » dans la barre (IA20) */
 
 // menu « Opération sur ce lot ▾ » : raccourcis du catalogue sur la portion choisie, autres opérations, assemblage, stade
 function LotOpsEntrees({ lotId, ps, fermer, onOp }) {
@@ -36,7 +37,32 @@ function LotBarre({ lotId, ps, onOp }) {
       {vivant ? <MenuDeroulant label="Opération sur ce lot ▾" kind="primary" size="" menuLabel="Opérations sur ce lot" data-lot-ops="">{(fermer) => <LotOpsEntrees lotId={lotId} ps={ps} fermer={fermer} onOp={onOp} />}</MenuDeroulant> : null}
       <Btn onClick={() => openAnalyse({ lotId, contenantId: ps[0] ? ps[0].contenantId : '' })} data-lot-analyse="">🔬 Analyse</Btn>
       <Btn onClick={() => openReport({ kind: 'lot', ids: [lotId] })} data-lot-rapport="">🖨 Rapport…</Btn>
+      <IaHistoireBouton lotId={lotId} />
     </div>
+  );
+}
+/* 0.49.0-alpha.1 (IA20, usage « histoireLot », niveau 2) — « 🤖 Histoire du lot » : la chaîne de traçabilité (traceChaine, composition)
+   part en texte compact, codes des lots remplacés par des repères (L1, F1…) que l'appareil remet ensuite (iaHistoireDonnees,
+   iaHistoireRendu) ; ni partenaire, ni cuve, ni destinataire. Texte affiché, à copier ou imprimer ; jamais enregistré dans la base. */
+function IaHistoireBouton({ lotId }) {
+  const { db, R } = useApp(); const ia = useIaUsage(); const [busy, setBusy] = useState(false); const [rep, setRep] = useState(null);
+  const demander = async () => {
+    if (busy) return; const D = iaHistoireDonnees(db, R, lotId); const P = iaHistoirePrompt(D, { langue: LANGUE });
+    setBusy(true); const r = await ia.demander('histoireLot', P); setBusy(false); if (r) setRep(iaHistoireRendu(r.valeur, D.reperes));
+  };
+  return <><IaBouton usage="histoireLot" busy={busy} onClick={demander} data-ia-histoire-btn="">Histoire du lot</IaBouton>{rep ? <IaHistoireSheet lotId={lotId} rep={rep} onClose={() => setRep(null)} /> : null}</>;
+}
+function IaHistoireSheet({ lotId, rep, onClose }) {
+  const { db, R, toast } = useApp(); const ref = useRef(null); const code = lotCode(db, R, lotId);
+  const texte = [rep.titre, ...rep.paragraphes].filter(Boolean).join('\n\n');
+  const copier = async () => { try { await navigator.clipboard.writeText(texte); toast('Histoire du lot copiée.'); } catch (e) { toast('Copie impossible : sélectionnez le texte pour le copier.', 'bad'); } };
+  const imprimer = () => { if (ref.current) imprimerZone(ref.current, { titre: rep.titre || code, orientation: 'portrait' }); };
+  return (
+    <Sheet title="Histoire du lot" sub={code} onClose={onClose} footer={<><Btn onClick={copier} data-ia-histoire-copier="">📋 Copier</Btn><Btn onClick={imprimer} data-ia-histoire-imprimer="">🖨 Imprimer</Btn><Btn kind="primary" onClick={onClose}>Fermer</Btn></>}>
+      <div className="no-print mb-3"><Notice tone="warn" title="Texte rédigé par l’IA : relisez-le">Rédigé d’après la chaîne de traçabilité du lot ; il n’est pas enregistré dans Œnotrack. Les codes des lots ont été remis sur cet appareil (l’IA ne les a pas reçus).</Notice></div>
+      <div ref={ref} className="report ia-histoire" data-ia-histoire=""><ReportHead title={rep.titre || 'Histoire du lot'} sub={code} />
+        <div className="rpt-item" translate="no">{rep.paragraphes.map((p, i) => <p key={i}>{p}</p>)}</div></div>
+    </Sheet>
   );
 }
 function LotEditForm({ id, onClose }) {

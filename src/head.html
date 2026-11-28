@@ -768,6 +768,12 @@ button.chip{cursor:pointer}
 .lot-barre{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .lot-resume{font-size:14px;line-height:1.5}
 @media print{.pitem .pdots,.lot-barre{display:none!important}}
+/* 0.49.0-alpha.1 : assistant IA au chai (saisie en langage courant, fiche relue, histoire du lot) */
+.ia-saisie{padding:8px;border:1px dashed var(--line);border-radius:8px;background:color-mix(in srgb,var(--accent) 4%,var(--surface))}
+.ia-saisie .inp{min-width:0}
+.ia-prerempli q,.ia-saisie q{font-style:italic}
+.ia-histoire .rpt-item p{margin:0 0 10px;line-height:1.55;font-size:14px}
+@media (max-width:640px){.ia-saisie .flex>.inp{flex-basis:100%}}
 /* (fin du bloc opérations) */
 /* - */
 /* - */
