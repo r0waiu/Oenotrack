@@ -168,7 +168,7 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   ok('… « Plan table »', /Plan table/.test(await txt(page.locator('main [role=tablist]').filter({ hasText: /Apply to a lot/ }).first())));
   await page.locator('[data-visite-bouton]').click(); await page.waitForTimeout(500);
   const v = await txt(page.locator('[data-visite-sommaire]'));
-  ok('… visite : « The essentials », « See all · n steps · ~m min »', /The essentials/.test(v) && /See all · \d+ steps · ~\d+ min/.test(v), v.slice(0, 400));
+  ok('… visite : « The essentials », « See everything · n steps · ~m min »', /The essentials/.test(v) && /See everything · \d+ steps · ~\d+ min/.test(v), v.slice(0, 400));
   ok('aucune erreur (anglais)', errors.length === 0, errors); await browser.close();
 }
 if (ko) { console.log(`✗ ${ko} échec(s)`); process.exitCode = 1; } else console.log('t96 : tout est bon');

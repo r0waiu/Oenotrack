@@ -183,7 +183,7 @@ await page.locator('main [data-bon-pressoir-btn]:visible').first().click(); awai
 b = await txt(ov().locator('[data-bon-pressoir]'));
 ok('anglais : bon de pressoir (« Pressing slip — press load no. », « Grapes loaded », « Musts obtained »)', /Pressing slip — press load no\. \d/.test(b) && /Grapes loaded/.test(b) && /Total loaded/i.test(b) && /Pressing of \d\d\/\d\d\/2026/.test(b) && /Cru scale: Grand Cru = 100,0 %|Cru scale: (Other cru|Premier Cru) = /.test(b) && !/Bon de pressoir|Raisins chargés|Pressurage du/.test(b), b.slice(0, 900));
 await fermer();
-await page.click('#tab-hygiene'); await page.waitForTimeout(400); await sous('⚙ Lists');
+await page.click('#tab-hygiene'); await page.waitForTimeout(400); await sous('⚙ Settings');
 t = await txt(page.locator('[data-hyg-listes]'));
 ok('anglais : Hygiène › Listes (« Hygiene lists », « Post-rinse checks », « expected: < 150 RLU », « hidden »)', /Hygiene lists/.test(t) && /Post-rinse checks/.test(t) && /expected: < 150 RLU/.test(t) && /hidden/.test(t) && /Maintenance intervention types/.test(t) && !/Contrôles après rinçage|Listes de l’hygiène/.test(t), t.slice(0, 700));
 await page.click('#tab-ops'); await page.waitForTimeout(400); t = await txt(page.locator('main'));

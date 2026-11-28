@@ -190,8 +190,8 @@ const VISITE_CHAPITRES = [
     { cible: '@onglets', titre: 'Pressurages et carnet', texte: 'Marcs et carnet de pressoir (cuvée, tailles, rebêches), relevés par partenaire, bilan, journal et réglages.' },
   ] },
   { id: 'ops', titre: 'Opérations & assemblages', module: 'ops', etapes: [
-    { cible: '[data-groupe]', titre: 'Saisir une opération', texte: 'Par famille : vendange et moûts, vinification, assemblages, soutirages, intrants, analyses, sorties…', sub: 'journal' },
-    { cible: 'select[aria-label="Type d’opération"]', titre: 'Journal des opérations', texte: 'Toutes les opérations de la campagne, filtrables, modifiables avec un motif tracé.' },
+    { cible: '[data-nouvelle-op] || [data-groupe]', titre: 'Saisir une opération', texte: 'Bouton « ＋ Nouvelle opération » : recherche, favoris, dernières opérations utilisées et familles d’opérations.', sub: 'journal' },
+    { cible: 'select[aria-label="Type d’opération"]', titre: 'Journal des opérations', texte: 'Sous-onglet « Journal » : toutes les opérations de la campagne, filtrables, modifiables avec un motif tracé.' },
     { cible: '[data-vg="declass"] .sec-t || [data-vg="declass"]', titre: 'Déclassements', texte: 'Un intrant non autorisé propose un déclassement : rien n’est appliqué sans votre validation.', sub: 'declass' },
     { cible: '[data-vg="ops-catalogue"] || [data-ops-catalogue]', titre: 'Catalogue des opérations', texte: 'Vos opérations, leurs champs, le changement de stade et la fiche imprimée.', sub: 'catalogue' },
   ] },
