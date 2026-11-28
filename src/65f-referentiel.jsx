@@ -126,3 +126,40 @@ function ComposesChoix({ auto, liste, onChange }) {
 }
 const composesDepuisChoix = (L) => (L ? L.map((x) => ({ id: x.id, ...(hasNum(x.part) && num(x.part) > 0 ? { part: Math.min(1, num(x.part) / 100) } : {}) })) : null);
 const composesVersChoix = (p) => (p && Array.isArray(p.composes) ? p.composes.map((x) => ({ id: x.id, part: hasNum(x.part) ? String(r2(num(x.part) * 100)) : '' })) : null);
+const composesAutoChoix = (auto) => (auto || []).map((x) => ({ id: x.id, part: x.supposee ? '' : String(r2(x.part * 100)) }));
+
+/* ---------- 0.49.0-alpha.1 (IA13) : composés actifs d'un produit inconnu proposés par l'IA (usage « composes », niveau 1) ----------
+   Envoyé : le texte de la FT jointe au produit (lue sur l'appareil, comme au dépôt), à défaut la composition saisie, et la liste des
+   composés connus (identifiants et noms). La proposition « à vérifier » ne va dans la liste du produit qu'avec « Reprendre ces composés »,
+   et dans p.composes seulement quand le produit est enregistré (trace p.composesIa). */
+function ComposesIa({ p, f, trace, onProposition }) {
+  const { db, toast } = useApp(); const ia = useIaUsage(); const [busy, setBusy] = useState(false); const [prop, setProp] = useState(null);
+  const ft = p ? prodDocs(db, p.id, 'ft') : []; const compo = String(f.composition || '').trim();
+  if (!ft.length && !compo) return trace ? <div className="mt-1"><Chip tone="info" title={iaTraceTexte(trace)} data-composes-ia-trace="">🤖 proposés par l’IA, à vérifier</Chip></div> : null;
+  const proposer = async () => {
+    setBusy(true);
+    try {
+      let texte = '';
+      if (ft.length) { const d = ft[0]; const b = await docGet(d.id); if (b) { const lu = await lireFicheProduit(new File([b], d.nom || 'fiche-technique.pdf', { type: d.mime || b.type || '' })); texte = String(lu.texte || lu.extrait || ''); } }
+      if (compo) texte = `${texte}${texte ? '\n\n' : ''}Composition indiquée sur la fiche du produit : ${compo}`;
+      if (!texte.trim()) { toast('Texte de la fiche technique illisible : rien n’a été envoyé.', 'bad'); return; }
+      const P = iaComposesPrompt({ nom: f.nom, fabricant: f.fabricant }, texte);
+      const r = await ia.demander('composes', P); if (!r) return;
+      const x = iaComposesLire(r.valeur); if (!x.ok) { toast(x.msg, 'bad'); return; }
+      setProp({ ...x, trace: r.trace });
+    } catch (e) { toast(lectureEchec({ name: 'FT', type: 'application/pdf' }, e), 'bad'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="mt-2 space-y-2" data-composes-ia="">
+      <div className="flex flex-wrap items-center gap-2"><IaBouton usage="composes" busy={busy} onClick={proposer}>{ft.length ? 'Proposer d’après la fiche technique' : 'Proposer d’après la composition'}</IaBouton>
+        {trace ? <Chip tone="info" title={iaTraceTexte(trace)} data-composes-ia-trace="">🤖 proposés par l’IA, à vérifier</Chip> : null}</div>
+      {prop ? <div className="ia-lecture" data-composes-proposition="">
+        <div className="text-sm font-semibold">🤖 Composés proposés par l’IA (à vérifier)</div>
+        {prop.composes.length ? <ul className="mt-1 space-y-0.5 text-sm">{prop.composes.map((c) => <li key={c.id}><b translate="no">{(refCompose(c.id) || {}).label}</b>{c.part != null ? <span className="num">{` · ${iadSaisie(c.part * 100)} %`}</span> : null}{c.justification ? <span className="text-ink2"> — « <span translate="no">{c.justification}</span> »</span> : null}</li>)}</ul>
+          : <p className="text-sm">Aucun composé connu trouvé dans la fiche.</p>}
+        <div className="mt-2 flex flex-wrap gap-2">{prop.composes.length ? <Btn size="sm" kind="primary" onClick={() => { onProposition(prop.composes, prop.trace); setProp(null); }} data-composes-reprendre="">Reprendre ces composés</Btn> : null}<Btn size="sm" onClick={() => setProp(null)}>Ignorer</Btn></div>
+        <p className="help">Repris dans la liste ci-dessus ; enregistrés avec le produit seulement quand vous l’enregistrez.</p>
+      </div> : null}
+    </div>
+  );
+}

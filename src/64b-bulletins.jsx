@@ -42,6 +42,48 @@ async function bulletinLireAnalyser(db, R, f, { onEtape, candidats } = {}) {
   }
   return { res, ocr: L.ocr, ia };
 }
+/* ---------- 0.49.0-alpha.1 (IA18) : commentaire d'un bulletin d'analyses par l'IA (usage « bulletinCommentaire », niveau 2) ----------
+   Envoyé : les résultats (nom, valeur, unité), le stade, la couleur, le type de vin et la revendication du lot, le plafond de SO₂ total et
+   les alertes déjà calculées par le moteur (jamais le code du lot, la cuve, les produits ni les volumes) ; aperçu avant le premier envoi.
+   Le commentaire complète les règles du moteur, « à vérifier avec votre œnologue » : rien n'est enregistré. */
+// discret : bouton caché quand l'usage n'est pas possible (liste des analyses : pas de bouton grisé sur chaque ligne)
+function BulletinCommentaireBouton({ lotId, valeurs, nouveaux, date, size = 'sm', discret }) {
+  const [ouvert, setOuvert] = useState(false); const ia = useIaUsage();
+  if (discret && ia.refus('bulletinCommentaire')) return null;
+  return <>{lotId ? <IaBouton usage="bulletinCommentaire" size={size} onClick={() => setOuvert(true)}>Commenter</IaBouton> : null}
+    {ouvert ? <BulletinCommentaire lotId={lotId} valeurs={valeurs} nouveaux={nouveaux} date={date} onClose={() => setOuvert(false)} /> : null}</>;
+}
+function BulletinCommentaire({ lotId, valeurs, nouveaux, date, onClose }) {
+  const { db } = useApp(); const ia = useIaUsage(); const [res, setRes] = useState(null); const [busy, setBusy] = useState(true); const lance = useRef(false);
+  const Rd = useMemo(() => getR(db, isoOK(date) ? date : undefined), [db, date]);
+  const donnees = useMemo(() => iaCommentaireDonnees(db, Rd, { lotId, valeurs, nouveaux, date }), [db, Rd, lotId, valeurs, nouveaux, date]);
+  useEffect(() => { if (lance.current) return; lance.current = true; (async () => {
+    try { const P = iaCommentairePrompt(donnees); const r = await ia.demander('bulletinCommentaire', P); if (!r) { setRes({ annule: true }); return; } const x = iaCommentaireLire(r.valeur); setRes(x.ok ? { ...x, trace: r.trace } : { erreur: x.msg }); }
+    finally { setBusy(false); }
+  })(); }, []);
+  return (
+    <Sheet title="🤖 Commentaire du bulletin" sub={`${lotCode(db, Rd, lotId)}${date ? ` · ${fmtDate(date)}` : ''}`} onClose={onClose} footer={<Btn onClick={onClose}>Fermer</Btn>}>
+      <div className="space-y-3" data-bulletin-commentaire="">
+        <Notice tone="warn" title="À vérifier avec votre œnologue">L’IA complète les règles d’Œnotrack ; elle peut se tromper. Ce commentaire n’est pas enregistré.</Notice>
+        <Sec title="Règles d’Œnotrack">
+          <div className="space-y-1 text-sm" data-commentaire-moteur="">
+            {donnees.plafondSo2Total ? <div><span>Plafond de SO₂ total :</span> <b className="num">{`${fmt(donnees.plafondSo2Total.mgL)} mg/L`}</b>{donnees.plafondSo2Total.aVerifier ? <Chip tone="warn">à vérifier</Chip> : null}</div> : null}
+            {(donnees.alertesMoteur || []).length ? <ul className="list-disc pl-5">{donnees.alertesMoteur.map((a) => <li key={a}>{a}</li>)}</ul> : <div className="text-ink2">Aucune alerte de conformité pour ce lot.</div>}
+          </div>
+        </Sec>
+        {busy ? <div className="text-sm text-ink2" role="status">⏳ L’IA lit le bulletin…</div>
+          : res && res.annule ? <div className="text-sm text-ink2">Rien n’a été envoyé.</div>
+            : res && res.erreur ? <Notice tone="bad">{res.erreur}</Notice>
+              : res ? <Sec title="Commentaire de l’IA">
+                {res.synthese ? <p className="text-sm" data-commentaire-synthese="">{res.synthese}</p> : null}
+                {res.points.length ? <ul className="mt-2 space-y-1" data-commentaire-points="">{res.points.map((p, i) => { const N = IA_COMMENTAIRE_NIVEAUX[p.niveau]; return <li key={i} className="flex flex-wrap items-start gap-2 text-sm" data-commentaire-niveau={p.niveau}><Chip tone={N[0]}>{N[1]}</Chip>{p.parametre ? <b>{p.parametre}</b> : null}<span className="min-w-0 flex-1">{p.message}</span></li>; })}</ul>
+                  : <p className="text-sm text-ink2">Aucun résultat à surveiller selon l’IA.</p>}
+                {res.trace && res.trace.modele ? <div className="mt-2 text-xs text-ink2"><span>Modèle :</span> <span translate="no">{res.trace.modele}</span></div> : null}
+              </Sec> : null}
+      </div>
+    </Sheet>
+  );
+}
 const bulValTexte = (v, dec) => { const k = Math.pow(10, Math.min(5, (dec || 0) + 1)); return String(Math.round(v * k) / k).replace('.', ','); };
 
 function BulletinsImport() {
@@ -107,7 +149,8 @@ function BulletinRevue({ lus, onClose }) {
             {x.erreur ? <Notice tone="bad">{x.erreur}</Notice> : !rows.some((r) => r.fi === fi) ? <Notice tone="warn"><div>Aucun résultat reconnu dans ce bulletin.</div>{iaActive().pret ? null : <div>Configurez l’assistant IA (Paramètres › 🤖 Assistant IA) pour compléter la lecture.</div>}</Notice> : null}
             {rows.filter((r) => r.fi === fi).map((r) => (
               <div key={r.k} className={cx('card space-y-2 p-3', !r.on && 'opacity-70')} data-bulletin-ech={r.ref}>
-                <div className="flex flex-wrap items-center gap-2"><Check checked={r.on} onChange={(v) => maj(r.k, { on: v })} label={<b>{r.ref}</b>} />{r.numero && r.numero !== r.ref ? <Chip title="N° d’échantillon du laboratoire"><span translate="no">{`n° ${r.numero}`}</span></Chip> : null}{r.ia ? <Chip tone="info">🤖 trouvé par l’IA</Chip> : null}{r.doute ? <Chip tone="warn">{r.doute}</Chip> : null}</div>
+                <div className="flex flex-wrap items-center gap-2"><Check checked={r.on} onChange={(v) => maj(r.k, { on: v })} label={<b>{r.ref}</b>} />{r.numero && r.numero !== r.ref ? <Chip title="N° d’échantillon du laboratoire"><span translate="no">{`n° ${r.numero}`}</span></Chip> : null}{r.ia ? <Chip tone="info">🤖 trouvé par l’IA</Chip> : null}{r.doute ? <Chip tone="warn">{r.doute}</Chip> : null}
+                  <span className="ml-auto"><BulletinCommentaireBouton lotId={r.lotId} date={r.date} valeurs={Object.fromEntries(Object.keys(r.vals).filter((k) => r.vals[k].on && hasNum(r.vals[k].v)).map((k) => [k, num(r.vals[k].v)]))} nouveaux={Object.values(r.nouveaux).filter((n) => n.on && hasNum(n.v)).map((n) => ({ nom: n.nom, v: num(n.v), unite: n.unite }))} /></span></div>
                 <G n={4}><Field label="Date du prélèvement"><DI value={r.date} onChange={(v) => maj(r.k, { date: v })} /></Field>
                   <Field label="Lot analysé"><SI value={r.lotId} onChange={(v) => maj(r.k, (o) => { const Rd = getRd(o.date); const cs = uniq(Object.values(Rd.portions).filter((p) => p.lotId === v && p.vol > 0.0001).map((p) => p.contenantId)); return { lotId: v, on: !!v, doute: '', contenantId: cs.length === 1 ? cs[0] : o.contenantId }; })} placeholder="Lot…" options={lotOpts} aria-label={`Lot de ${r.ref}`} /></Field>
                   <Field label="Contenant prélevé"><SI value={r.contenantId} onChange={(v) => maj(r.k, { contenantId: v })} placeholder="Contenant (facultatif)" options={contOptions(db, true)} aria-label={`Contenant de ${r.ref}`} /></Field>
