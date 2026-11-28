@@ -29,8 +29,9 @@ function cdcAppliquerRef(L) {
     const a = L.find((x) => x.id === c.id);
     if (a) {
       a.cdc = true; if (c.verifie && c.source) { a.source = c.source; a.version = c.version; a.verifie = true; }
-      if (c.statut === 'corrigee') { if (c.cats) { a.libre = c.cats === '*'; a.cats = a.libre ? [] : cats(c.cats); } if (c.coul) a.couleurs = couls(c.coul); if (c.nom && norm(c.nom) !== norm(a.nom) && !(a.alias || []).includes(c.nom)) a.alias = [...(a.alias || []), c.nom]; }
+      if (c.statut === 'corrigee') { if (c.cats) { a.libre = c.cats === '*'; a.cats = a.libre ? [] : cats(c.cats); } if (c.coul) a.couleurs = couls(c.coul); if (c.nom && norm(c.nom) !== norm(a.nom)) { if (c.nom.length <= 60 && !/[(«»+]/.test(c.nom)) { a.alias = uniq([...(a.alias || []), a.nom]); a.nom = c.nom; } else if (!(a.alias || []).includes(c.nom)) a.alias = [...(a.alias || []), c.nom]; } } // nouveau nom officiel (Blaye → Blavia) : l'ancien reste cherchable ; identifiant inchangé
       if (c.statut === 'inexistante' && a.etat !== 'annulee') a.etat = 'abrogee';
+      if (c.verifie && (c.statut === 'confirmee' || c.statut === 'corrigee') && a.etat === 'demande') a.etat = ''; // homologuée depuis le relevé (Laudun, 21/11/2024)
     } else if (c.statut === 'ajout' && c.nom && !ids.has(c.id)) {
       ids.add(c.id); L.push({ id: c.id, nom: c.nom, region: c.region, pays: 'france', signe: c.signe || 'AOP', eu: c.signe === 'IGP' ? 'IGP' : 'AOP', sousRegion: '', libre: c.cats === '*', cats: c.cats === '*' ? [] : cats(c.cats), couleurs: couls(c.coul), verifie: !!c.verifie, etat: '', source: c.source, version: c.version, complement: true, genre: 'aop', parentId: '', alias: [], cdc: true });
     }
