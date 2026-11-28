@@ -29,7 +29,7 @@ const CAHIER = 'Article 4 — Sulfitage. La teneur maximale en SO2 total des vin
   ok('plafond corrigé (Conventionnel, vins rouges → 140 mg/L), vérifié', d.plafonds.find((p) => p.id === 'ex-conv-rouge').valeur === 140 && !d.plafonds.find((p) => p.id === 'ex-conv-rouge').aVerifier);
   // règle de substance : PVPP interdit en Demeter
   await page.locator('[data-labels-vue="substances"]').click(); await page.waitForTimeout(400);
-  await page.locator('main button', { hasText: '+ Règle de substance' }).click(); await page.waitForTimeout(300);
+  await page.locator('main button', { hasText: '＋ Règle de substance' }).click(); await page.waitForTimeout(300);
   await choisir(page, ov().locator('label', { hasText: 'Revendication' }).locator('select, input').first(), 'Demeter');
   await ov().locator('input[placeholder="ex. PVPP"]').fill('Charbon'); await ov().locator('input[placeholder="ex. pvpp, polyvinylpolypyrrolidone"]').fill('charbon');
   await ov().locator('label', { hasText: 'Autorisé' }).locator('input').uncheck(); await ov().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(400);
@@ -59,7 +59,7 @@ const CAHIER = 'Article 4 — Sulfitage. La teneur maximale en SO2 total des vin
   // dépassement : motif exigé dans le formulaire d'opération
   await page.locator('.tankcard', { hasText: 'Cuve D1' }).first().click(); await page.waitForTimeout(600);
   await ov().locator('[data-rubrique=lots] button', { hasText: 'Intrant' }).first().click(); await page.waitForTimeout(600);
-  if (!(await ov().locator('[data-ligne-intrant]').count())) { await ov().locator('button', { hasText: '+ Ajouter un intrant' }).first().click(); await page.waitForTimeout(250); }
+  if (!(await ov().locator('[data-ligne-intrant]').count())) { await ov().locator('button', { hasText: '＋ Ajouter un intrant' }).first().click(); await page.waitForTimeout(250); }
   const lg = ov().locator('[data-ligne-intrant="0"]');
   await choisir(page, lg.locator('[aria-label="Fournisseur"]'), 'En stock');
   await pick(page, lg.locator('input[aria-label="Produit"]'), 'Métabisulfite', 'Métabisulfite de potassium'); await page.waitForTimeout(400);
@@ -113,7 +113,7 @@ const CAHIER = 'Article 4 — Sulfitage. La teneur maximale en SO2 total des vin
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   await page.locator('.tankcard', { hasText: 'Cuve D1' }).first().click(); await page.waitForTimeout(600);
   await ov().locator('[data-rubrique=lots] button', { hasText: 'Additive' }).first().click(); await page.waitForTimeout(600);
-  if (!(await ov().locator('[data-ligne-intrant]').count())) { await ov().locator('button', { hasText: '+ Add an additive' }).first().click(); await page.waitForTimeout(250); }
+  if (!(await ov().locator('[data-ligne-intrant]').count())) { await ov().locator('button', { hasText: '＋ Add an additive' }).first().click(); await page.waitForTimeout(250); }
   const lg = ov().locator('[data-ligne-intrant="0"]');
   await choisir(page, lg.locator('[aria-label="Supplier"], [aria-label="Fournisseur"]'), 'In stock');
   await pick(page, lg.locator('input[aria-label="Product"], input[aria-label="Produit"]').first(), 'Métabisulfite', 'Métabisulfite de potassium'); await page.waitForTimeout(400);

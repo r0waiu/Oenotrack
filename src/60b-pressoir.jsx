@@ -44,7 +44,7 @@ function MotifSheet({ title, body, ok = 'Confirmer', danger, onClose }) {
 /* ---------- pesée : saisie (formulaire personnalisable : Pressoir › Réglages ou « ⚙ Personnaliser ce formulaire », 0.25.0-alpha.1) ---------- */
 const nSaisie = (x) => (hasNum(x) ? String(x).replace('.', ',') : '');
 function PeseeForm({ id, onClose, onTicket }) {
-  const { db, act, defaultDate, moi, uid } = useApp(); const o = id ? db.ops.find((x) => x.id === id) : null; const p0 = (o && o.pesee) || {};
+  const { db, defaultDate, moi, uid } = useApp(); const act = useActFiche(); /* 0.48.0-alpha.1 : erreur sous le champ */ const o = id ? db.ops.find((x) => x.id === id) : null; const p0 = (o && o.pesee) || {};
   const droits = usePressoirDroits(); const P = pressoirParams(db); const bal = balancesDe(db);
   const valide = !!p0.valide; const lecture = !droits.ecrit || (valide && !droits.corriger) || (o && isLocked(db, o.date));
   const fcfg = formulaireDe(db, 'pesee'); const persoD = fcfg.perso.filter((x) => x.position === 'debut'); const persoF = fcfg.perso.filter((x) => x.position !== 'debut');
@@ -71,8 +71,8 @@ function PeseeForm({ id, onClose, onTicket }) {
     if (r && r.ok) { onClose(); if (!id && onTicket) onTicket(r.op.id); }
   };
   const num0 = p0.num || numeroSuivant(db, 'pesee', yearOf(f.date));
-  const btChamps = <><Field label="Poids brut (kg)"><NI value={f.brutKg} onChange={(v) => set('brutKg', v)} placeholder="ex. 4 300" aria-label="Poids brut" data-brut="" /></Field>
-    <Field label="Tare (kg)"><NI value={f.tareKg} onChange={(v) => set('tareKg', v)} placeholder="caisses, palettes" aria-label="Tare" data-tare="" /></Field></>;
+  const btChamps = <><Field label="Poids brut (kg)" champ="brutKg"><NI value={f.brutKg} onChange={(v) => set('brutKg', v)} placeholder="ex. 4 300" aria-label="Poids brut" data-brut="" /></Field>
+    <Field label="Tare (kg)" champ="tareKg"><NI value={f.tareKg} onChange={(v) => set('tareKg', v)} placeholder="caisses, palettes" aria-label="Tare" data-tare="" /></Field></>;
   return (
     <FormSheet readOnly={lecture} title={o ? `Pesée n° ${p0.num || '—'}` : 'Nouvelle pesée'} sub={o ? `${fmtDate(o.date)}${p0.heure ? ` · ${p0.heure}` : ''} — registre des pesées ${yearOf(o.date)}` : `Registre des pesées ${yearOf(f.date)} : n° ${num0}`} onClose={onClose} onSave={save} saveLabel={o ? 'Enregistrer' : f.valider ? 'Peser et valider' : 'Enregistrer'} wide>
       {valide ? <Notice tone="info" title={`Pesée validée le ${fmtDateHeure(p0.valide.le)}`}>Une correction reste possible : elle est gardée au journal du pressoir avec son motif (valeurs d’avant et d’après).{pris > 0 ? ` ${kgTxt(pris)} de cette pesée sont déjà chargés dans un marc.` : ''}</Notice> : null}
@@ -111,7 +111,7 @@ function PeseeForm({ id, onClose, onTicket }) {
       </FormCfgCtx.Provider>
       {o ? <DocsPanel cible={{ type: 'op', id: o.id }} kind="op" locked={isLocked(db, o.date)} /> : null}
       {!valide && !lecture ? <Check checked={f.valider} onChange={(v) => set('valider', v)} label="Valider la pesée (inscrite au registre ; ensuite, toute correction demande un motif)" /> : null}
-      {valide && !lecture ? <Field label="Motif de la correction (obligatoire si vous changez la pesée)"><TI value={f.motif} onChange={(v) => set('motif', v)} placeholder="ex. erreur de lecture de la bascule" data-motif-correction="" /></Field> : null}
+      {valide && !lecture ? <Field label="Motif de la correction (obligatoire si vous changez la pesée)" champ="motif"><TI value={f.motif} onChange={(v) => set('motif', v)} placeholder="ex. erreur de lecture de la bascule" data-motif-correction="" /></Field> : null}
       {cfgEd ? <FormulaireEditor catId="pesee" onClose={() => setCfgEd(false)} /> : null}
     </FormSheet>
   );
@@ -238,6 +238,23 @@ function BonPressoir({ id, onClose }) {
   );
 }
 
+/* 0.48.0-alpha.1 : état vide de première utilisation (aucune pesée ou aucun marc dans l'année) — une phrase, l'action principale,
+   les pressoirs et balances à déclarer d'abord s'il n'y en a aucun */
+function PressoirVide({ titre, texte, action, onAction, data }) {
+  const { db, setTab } = useApp(); const sansEquip = !pressoirsDe(db).length;
+  return (
+    <div className="vide-accueil card" data-pressoir-vide={data}>
+      <div className="vide-ic" aria-hidden="true">🍇</div>
+      <h3 className="disp text-xl">{titre}</h3>
+      <p className="text-sm text-ink2">{texte}</p>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        {onAction ? <Btn kind="primary" onClick={onAction}>{action}</Btn> : null}
+        {sansEquip ? <Btn onClick={() => setTab('pressoir', 'reglages')} data-vide-reglages="">⚙ Déclarer pressoirs et balances</Btn> : null}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- registre des pesées ---------- */
 function PeseesView({ annee }) {
   const { db, act, camp, uid } = useApp(); const droits = usePressoirDroits();
@@ -262,8 +279,9 @@ function PeseesView({ annee }) {
       </div>
       <Sec title={`Registre des pesées ${annee}`} right={<><input className="inp" style={{ width: 200 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher…" aria-label="Rechercher une pesée" />
         <SI value={jour} onChange={setJour} placeholder="Tous les jours" style={{ width: 'auto' }} options={jours.map((j) => ({ value: j, label: fmtDate(j) }))} aria-label="Jour" />
-        {droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouvelle-pesee="">+ Nouvelle pesée</Btn> : null}</>}>
-        <Tbl rows={rows} empty={L.length ? 'Aucune pesée pour ces critères.' : 'Aucune pesée cette année : « + Nouvelle pesée » à l’arrivée de chaque chargement de raisins.'} cols={[
+        {droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouvelle-pesee="">＋ Nouvelle pesée</Btn> : null}</>}>
+        {!L.length ? <PressoirVide data="pesees" titre={`Aucune pesée en ${annee}`} texte="Enregistrez une pesée à l’arrivée de chaque chargement de raisins : elle alimente le registre des pesées, le ticket de pesée et le carnet de pressoir." action="＋ Enregistrer la première pesée" onAction={droits.ecrit && !camp.figee ? () => setForm({}) : null} /> : null}
+        {L.length ? <Tbl rows={rows} empty="Aucune pesée pour ces critères." cols={[
           { h: 'N°', r: (o) => <b className="num" data-num-pesee="">{(o.pesee || {}).num || '—'}</b> },
           { h: 'Date', r: (o) => <span className="num whitespace-nowrap">{fmtDate(o.date)} {(o.pesee || {}).heure || ''}</span> },
           { h: 'Apporteur', r: (o) => (o.apporteurId ? apporteurName(db, o.apporteurId) : <span className="text-ink2">exploitation</span>) },
@@ -275,7 +293,7 @@ function PeseesView({ annee }) {
           { h: 'Statut', r: (o) => statutChip(o.pesee, 'pesee') },
           { h: '', r: (o) => <div className="flex flex-wrap gap-1">{droits.ecrit && !camp.figee && reste(o) > 0.5 && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => setMarc({ date: o.date, charges: [{ apportId: o.id, kg: reste(o) }] })} title="Charger un marc avec le reste de cette pesée (pressurage)" data-presser={(o.pesee || {}).num || ''}>Presser</Btn> : null}<Btn size="sm" onClick={() => setTicket(o.id)} title="Ticket de pesée à remettre à l’apporteur" data-bon-pesee-btn="">Ticket de pesée</Btn><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? 'Modifier' : 'Voir'}</Btn>
             {droits.ecrit && !(o.pesee && o.pesee.valide) && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => valider(o)}>Valider</Btn> : null}
-            {droits.annuler && !isLocked(db, o.date) && reste(o) >= num(o.kg) - 0.5 ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} />
+            {droits.annuler && !isLocked(db, o.date) && reste(o) >= num(o.kg) - 0.5 ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} /> : null}
         <p className="help mt-2">Chaque pesée reçoit un n° continu dans l’année ; une pesée annulée garde son n° (journal). « Presser » charge un marc avec le reste de la pesée ; les pesées sont aussi proposées dans chaque pressurage (onglet Pressurages).</p>
       </Sec>
       {form ? <PeseeForm id={form.id} onClose={() => setForm(null)} onTicket={(id) => setTicket(id)} /> : null}
@@ -336,7 +354,7 @@ function MarcForm({ id, onClose, preset }) {
             <NI value={c.kg} onChange={(v) => setCh(f.charges.map((x, k) => (k === i ? { ...x, kg: v } : x)))} placeholder="kg" aria-label={`Poids chargé ${i + 1}`} />
             <Btn kind="danger" size="sm" aria-label="Retirer" onClick={() => setCh(f.charges.filter((_, k) => k !== i))}>✕</Btn>
           </div>))}
-          <div className="flex flex-wrap gap-2"><Btn size="sm" onClick={() => setCh([...f.charges, { apportId: '', kg: '' }])}>+ Ajouter une pesée</Btn><Btn size="sm" kind="ghost" onClick={remplir} data-remplir="">Charger les pesées du jour</Btn>
+          <div className="flex flex-wrap gap-2"><Btn size="sm" onClick={() => setCh([...f.charges, { apportId: '', kg: '' }])}>＋ Ajouter une pesée</Btn><Btn size="sm" kind="ghost" onClick={remplir} data-remplir="">Charger les pesées du jour</Btn>
             {!dispo.length ? <span className="help">Aucune pesée à presser à cette date : enregistrez d’abord les pesées (onglet Pesées).</span> : null}</div>
         </div>
       </Group>
@@ -384,8 +402,9 @@ function MarcsView({ annee }) {
         <Kpi label="Marcs" value={L.length} sub={`${fmt(sum(L, marcKg))} kg pressés`} /><Kpi label="Moûts" value={fmtL(sum(L, (o) => marcVolumes(db, o).total))} sub={`dont rebêches ${fmtL(sum(L, (o) => marcVolumes(db, o).rebeche))}`} />
         <Kpi label="En cours" value={enCours} tone={enCours ? 'warn' : undefined} sub="volumes à compléter" /><Kpi label="À valider" value={aValider} tone={aValider ? 'warn' : 'ok'} sub={aValider ? 'marcs non validés' : 'carnet à jour'} />
       </div>
-      <Sec title={`Carnet de pressoir ${annee}`} right={<><Btn onClick={() => setImp(true)} disabled={!L.length}>🖨 Imprimer le carnet</Btn>{droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouveau-marc="" title="Charger un marc : pesées pressées, cuves des moûts">+ Nouveau pressurage</Btn> : null}</>}>
-        <Tbl rows={L} empty="Aucun marc cette année : « + Nouveau pressurage » (ou « Presser » sur une pesée) au début de chaque pressurage." cols={[
+      <Sec title={`Carnet de pressoir ${annee}`} right={<><Btn onClick={() => setImp(true)} disabled={!L.length}>🖨 Imprimer le carnet</Btn>{droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouveau-marc="" title="Charger un marc : pesées pressées, cuves des moûts">＋ Nouveau pressurage</Btn> : null}</>}>
+        {!L.length ? <PressoirVide data="marcs" titre={`Aucun pressurage en ${annee}`} texte="Chargez un marc au début de chaque pressurage (ou « Presser » sur une pesée) : il est numéroté au carnet de pressoir et crée les lots de moûts dans leurs cuves." action="＋ Nouveau pressurage" onAction={droits.ecrit && !camp.figee ? () => setForm({}) : null} /> : null}
+        {L.length ? <Tbl rows={L} empty="Aucun marc cette année." cols={[
           { h: 'N°', r: (o) => <b className="num" data-num-marc="">{(o.marc || {}).num || '—'}</b> },
           { h: 'Date', r: (o) => <span className="num whitespace-nowrap">{fmtDate(o.date)} {(o.marc || {}).heureDebut || ''}{(o.marc || {}).heureFin ? `–${o.marc.heureFin}` : ''}</span> },
           { h: 'Pressoir', cls: 'hm', r: (o) => lbl(db, 'equipements', o.equipementId) },
@@ -397,7 +416,7 @@ function MarcsView({ annee }) {
           { h: 'Statut', r: (o) => statutChip(o.marc, 'marc') },
           { h: '', r: (o) => <div className="flex flex-wrap gap-1"><Btn size="sm" onClick={() => setBon(o.id)} title="Bon de pressoir de ce marc (à imprimer)" data-bon-pressoir-btn="">Bon de pressoir</Btn><Btn size="sm" onClick={() => setForm({ id: o.id })}>{droits.ecrit && !isLocked(db, o.date) ? (o.marc && o.marc.enCours ? 'Compléter' : 'Modifier') : 'Voir'}</Btn>
             {droits.ecrit && o.marc && !o.marc.valide && !o.marc.enCours && !isLocked(db, o.date) ? <Btn size="sm" kind="primary" onClick={() => valider(o)}>Valider</Btn> : null}
-            {droits.annuler && !isLocked(db, o.date) && !dependentsOf(db, o).length ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} />
+            {droits.annuler && !isLocked(db, o.date) && !dependentsOf(db, o).length ? <Btn size="sm" kind="danger" onClick={() => setAnnul(o)}>Annuler</Btn> : null}</div> }]} /> : null}
         <p className="help mt-2">{P.ratioKg ? `Plafond : ${P.ratioL} L de ${P.volume} pour ${P.ratioKg} kg (bloquant)${P.cadenceMax ? ` ; ${P.cadenceMax} marcs au plus par 24 h et par pressoir` : ''}${P.marcKg && P.cuveeL ? ` ; usage : ${fmtL(P.cuveeL)} de cuvée et ${fmtL(P.tailleL)} de taille pour ${fmt(P.marcKg)} kg (alerte)` : ''}.` : 'Profil sans plafond : aucun contrôle réglementaire de rendement au pressurage.'} Un marc validé crée ses lots dans les cuves (onglet Cuverie) ; il apparaît aussi dans l’onglet Opérations (pressurage).</p>
       </Sec>
       {form ? <MarcForm id={form.id} onClose={() => setForm(null)} /> : null}
@@ -543,7 +562,7 @@ function ReglagesPressoirView({ annee }) {
         <p className="help mt-2">Champs affichés, repliés ou masqués, obligatoires, valeurs proposées et relevés personnalisés (pourriture grise, acidité…). La date et l’heure, le poids, le cépage, l’apporteur et la revendication particulière, mentions du registre et du ticket de pesée, restent toujours affichés.</p>
       </Sec>
       {formEd ? <FormulaireEditor catId="pesee" onClose={() => setFormEd(false)} /> : null}
-      <Sec title="Pressoirs et balances" right={droits.params ? <><SI value={sorte} onChange={setSorte} style={{ width: 'auto' }} options={[{ value: 'pressoir', label: 'Pressoir' }, { value: 'balance', label: 'Balance / bascule' }]} aria-label="Type d’équipement" /><input className="inp" style={{ width: 220 }} value={nouv} onChange={(e) => setNouv(e.target.value)} placeholder={sorte === 'balance' ? 'ex. Bascule 3 t' : 'ex. Pressoir Coquard 8 000 kg'} aria-label="Nom du nouvel équipement" /><Btn onClick={() => { const r = act((d) => equipementAjouter(d, nouv, sorte), 'Équipement ajouté.'); if (r.ok) setNouv(''); }} disabled={!nouv.trim()}>+ Ajouter</Btn></> : null}>
+      <Sec title="Pressoirs et balances" right={droits.params ? <><SI value={sorte} onChange={setSorte} style={{ width: 'auto' }} options={[{ value: 'pressoir', label: 'Pressoir' }, { value: 'balance', label: 'Balance / bascule' }]} aria-label="Type d’équipement" /><input className="inp" style={{ width: 220 }} value={nouv} onChange={(e) => setNouv(e.target.value)} placeholder={sorte === 'balance' ? 'ex. Bascule 3 t' : 'ex. Pressoir Coquard 8 000 kg'} aria-label="Nom du nouvel équipement" /><Btn onClick={() => { const r = act((d) => equipementAjouter(d, nouv, sorte), 'Équipement ajouté.'); if (r.ok) setNouv(''); }} disabled={!nouv.trim()}>＋ Ajouter</Btn></> : null}>
         <Tbl rows={PR} empty="Aucun pressoir : ajoutez-en un (capacité agréée)." cols={[{ h: 'Pressoir', r: (x) => <b>{x.nom}</b> },
           { h: 'Capacité agréée (kg)', r: (x) => <input className="inp num" style={{ width: 110 }} inputMode="decimal" defaultValue={x.capaciteKg || ''} key={`${x.id}-${x.capaciteKg}`} disabled={!droits.params} onBlur={(e) => { if (num(e.target.value) !== x.capaciteKg) act((d) => equipementPressoirSet(d, x.id, { pressoir: { capaciteKg: e.target.value } }), 'Capacité enregistrée.'); }} aria-label={`Capacité de ${x.nom}`} /> },
           { h: 'Agrément', r: (x) => <SI value={x.agrement} onChange={(v) => act((d) => equipementPressoirSet(d, x.id, { pressoir: { agrement: v } }))} options={[{ value: 'qualitatif', label: 'qualitatif (4 marcs / jour en moyenne)' }, { value: 'simple', label: 'simple (5 en moyenne)' }]} aria-label={`Agrément de ${x.nom}`} /> },
@@ -569,7 +588,7 @@ function TabPressoir() {
   const [annee, setAnnee] = useState(annees.includes(a0) ? a0 : annees[0]);
   const b = useMemo(() => bilanPressoir(db, annee), [db, annee]);
   const nP = P.registre ? b.nonValides.pesees : 0; const nB = b.alertes.filter((a) => a.niveau === 'bloquant').length;
-  const items = [{ id: 'pesees', label: 'Pesées', badge: nP || null }, { id: 'marcs', label: 'Pressurages', badge: b.nonValides.marcs || null }, { id: 'releves', label: 'Relevés par apporteur' }, { id: 'bilan', label: 'Bilan', badge: nB || null }, { id: 'journal', label: 'Journal' }, { id: 'reglages', label: 'Réglages' }];
+  const items = [{ id: 'pesees', label: 'Pesées', badge: nP || null }, { id: 'marcs', label: 'Pressurages', badge: b.nonValides.marcs || null }, { id: 'releves', label: 'Relevés par apporteur' }, { id: 'bilan', label: 'Bilan', badge: nB || null }, { id: 'journal', label: 'Journal' }, { id: 'reglages', label: '⚙ Réglages' }];
   const [sub, setSub] = useSousOnglet(items, 'pesees');
   const V = { pesees: PeseesView, marcs: MarcsView, releves: RelevesView, bilan: BilanPressoirView, journal: JournalPressoirView, reglages: ReglagesPressoirView }[sub] || PeseesView;
   return (

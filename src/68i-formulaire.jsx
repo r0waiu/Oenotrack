@@ -76,7 +76,7 @@ function FormulaireEditor({ catId, onClose }) {
               </div>
             </div>))}
           {!cfg.perso.length ? <div className="text-sm text-ink2">{pesee ? 'Aucun champ personnalisé : ex. « Pourriture grise (%) », « Acidité totale (g/L) », « Température des raisins (°C) », « Raisins triés »…' : 'Aucun champ personnalisé : ex. « Température en fin d’opération », « Contrôle visuel effectué », « Heure de début », « Pression (bar) »…'}</div> : null}
-          <Btn kind="primary" size="sm" onClick={() => setEd({ i: -1 })}>+ Ajouter un champ</Btn>
+          <Btn kind="primary" size="sm" onClick={() => setEd({ i: -1 })}>＋ Ajouter un champ</Btn>
         </div>
       </Group>
       {ed ? <ChampPersoForm pesee={pesee} init={ed.i >= 0 ? cfg.perso[ed.i] : null} autres={cfg.perso.filter((_, k) => k !== ed.i)} onClose={() => setEd(null)}

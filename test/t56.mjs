@@ -21,7 +21,7 @@ const onglets = await page.$$eval('.navtabs [role=tab]', (b) => b.map((x) => x.i
 ok('onglet « Équipements » juste après l’Hygiène', onglets.indexOf('equipements') === onglets.indexOf('hygiene') + 1 && /Équipements/.test(await txt(page.locator('#tab-equipements'))), onglets);
 await page.click('#tab-equipements'); await page.waitForTimeout(500);
 let t = await txt(page.locator('main'));
-ok('sous-onglets : Parc, À faire, Maintenance, Vérifications, Listes', /Parc À faire( \d+)? Maintenance Vérifications ⚙ Listes/.test(await txt(page.locator('main [role=tablist]').first())), await txt(page.locator('main [role=tablist]').first()));
+ok('sous-onglets : Parc, À faire, Maintenance, Vérifications, Réglages (0.48.0-alpha.1 : « ⚙ Listes » → « ⚙ Réglages »)', /Parc À faire( \d+)? Maintenance Vérifications ⚙ Réglages/.test(await txt(page.locator('main [role=tablist]').first())), await txt(page.locator('main [role=tablist]').first()));
 ok('indicateurs : matériel en service, en panne (1, jeu d’exemple), maintenance en retard, vérifications', /Matériel en service \d+ \d+ fiche\(s\)/i.test(t) && /En panne 1/i.test(t) && /Maintenance en retard/i.test(t) && /Vérifications/i.test(t), t.slice(0, 400));
 ok('parc par catégorie : Pressoirs, Pesage et instruments de mesure, Pompes…, Filtration (2)…', /Pressoirs \(1\)/i.test(t) && /Pesage et instruments de mesure \(1\)/i.test(t) && /Pompes, tuyaux et raccords \(1\)/i.test(t) && /Filtration \(2\)/i.test(t), t.slice(0, 900));
 ok('… la pompe du jeu d’exemple « en panne » (avec la panne), la bascule et sa vignette', (await page.locator('[data-equip="pompe"][data-equip-etat="panne"]').count()) === 1 && /⚠ panne/.test(await txt(page.locator('[data-equip="pompe"]'))) && /valide · 30\/06\/2027/.test(await txt(page.locator('[data-equip="bascule"]'))), await txt(page.locator('[data-equip="bascule"]')));
@@ -43,7 +43,7 @@ await f.locator('input[aria-label="Périodicité en mois"]').fill('12'); await c
 const vj = await champ(f, 'Valable jusqu’au').inputValue();
 ok('vérification : « Valable jusqu’au » calculé (dernière + 12 mois)', vj === '2026-12-01', vj);
 await f.locator('input[aria-label="Organisme de vérification"]').fill('Laboratoire fictif');
-await f.locator('[data-equip-champs] button', { hasText: '+ Ajouter une information' }).click(); await page.waitForTimeout(150);
+await f.locator('[data-equip-champs] button', { hasText: '＋ Ajouter une information' }).click(); await page.waitForTimeout(150);
 await f.locator('input[aria-label="Intitulé 1"]').fill('Plage de mesure'); await f.locator('input[aria-label="Valeur 1"]').fill('0–32 % Brix');
 await f.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(600);
 let d = await db(); const ref = d.lists.equipements.find((x) => x.label === 'Réfractomètre de poche');
@@ -79,7 +79,7 @@ ok('Maintenance : plan du matériel, « ⚠ Signaler une panne », « 🖨 Impri
 await sous('Vérifications'); t = await txt(page.locator('main'));
 ok('Vérifications : bascule (valide · 30/06/2027) et réfractomètre (valide · 20/11/2027), extincteurs à renseigner', /Matériel vérifié \(2\)/.test(t) && /Bascule du pressoir/.test(t) && /valide · 30\/06\/2027/.test(t) && /valide · 20\/11\/2027/.test(t), t.slice(0, 700));
 // 6. Listes : catégorie ajoutée, proposée avant « Autre matériel »
-await sous('⚙ Listes'); t = await txt(page.locator('main'));
+await sous('⚙ Réglages'); t = await txt(page.locator('main'));
 ok('Listes des équipements : catégories, types et résultats des interventions (3 listes)', /Listes des équipements/.test(t) && (await page.locator('[data-hyg-liste]').count()) === 3 && /Catégories d’équipements/.test(t) && /Types d’intervention de maintenance/.test(t), t.slice(0, 500));
 const carte = page.locator('[data-hyg-liste="equipCategories"]');
 await carte.locator('input[aria-label="Ajouter à Catégories d’équipements"]').fill('Matériel viticole'); await carte.locator('button', { hasText: 'Ajouter' }).click(); await page.waitForTimeout(400);
@@ -99,7 +99,7 @@ await fermer();
 await page.click('#tab-hygiene'); await page.waitForTimeout(400);
 let st = await txt(page.locator('main [role=tablist]').first());
 ok('Hygiène : sous-onglets sans « Maintenance »', !/Maintenance/.test(st) && /Plan de nettoyage/.test(st), st);
-await sous('⚙ Listes');
+await sous('⚙ Réglages');
 ok('Hygiène › Listes : listes de l’hygiène seules (9)', (await page.locator('[data-hyg-liste]').count()) === 9 && !(await page.locator('[data-hyg-liste="maintTypes"]').count()));
 // 9. onglet désactivé : la maintenance revient dans l'Hygiène
 await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('main button', { hasText: 'Modules' }).first().click(); await page.waitForTimeout(400);
@@ -117,7 +117,7 @@ ok('… réactivé', (await page.locator('#tab-equipements').count()) === 1);
 await page.evaluate(() => { localStorage.setItem('oenotrack-langue', 'en'); }); await page.reload(); await page.waitForTimeout(1500);
 await page.click('#tab-equipements'); await page.waitForTimeout(500);
 t = await txt(page.locator('main'));
-ok('anglais : « Equipment fleet », « Equipment in service », « Broken down », « Weighing and measuring instruments », « + New equipment »', /Equipment fleet/i.test(t) && /Equipment in service/i.test(t) && /Broken down/i.test(t) && /Weighing and measuring instruments/i.test(t) && /\+ New equipment/.test(t) && /Fleet To do/.test(await txt(page.locator('main [role=tablist]').first())), t.slice(0, 600));
+ok('anglais : « Equipment fleet », « Equipment in service », « Broken down », « Weighing and measuring instruments », « + New equipment »', /Equipment fleet/i.test(t) && /Equipment in service/i.test(t) && /Broken down/i.test(t) && /Weighing and measuring instruments/i.test(t) && /＋ New equipment/.test(t) && /Fleet To do/.test(await txt(page.locator('main [role=tablist]').first())), t.slice(0, 600));
 ok('… plus de français dans le parc', !/Matériel en service|En panne|Pompes, tuyaux|Rechercher|à prévoir|en ordre|Vérifications/.test(t), t.slice(0, 900));
 await page.locator(`[data-equip="${ref.id}"]`).click(); await page.waitForTimeout(400); t = await txt(ov());
 ok('… fiche : « Equipment record — », « Make, model », « Serial no. », « Periodic check », « every 12 months »', /Equipment record — Réfractomètre de poche/.test(t) && /Make, model/i.test(t) && /Serial no\./i.test(t) && /Periodic check/i.test(t) && /every 12 months/.test(t) && /Interventions \(1\)/.test(t) && /printed on 21\/11\/2026/.test(t) && /Laboratoire/.test(t) && !/Laboratory/.test(t) && !/édité le/.test(t), t.slice(0, 900));

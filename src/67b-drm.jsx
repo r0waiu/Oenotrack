@@ -91,7 +91,7 @@ function DrmView() {
                 <td><DrmObs valeur={s.obs || ''} disabled={dis} onCommit={(v) => saisir(x.produitId, 'obs', v)} /></td></tr>); })}</tbody></table></div>)}
       </Sec>
       <div className="mt-5 flex flex-wrap gap-2" data-drm-actions="">
-        <Btn onClick={() => setImp(true)}>🖨 Imprimer…</Btn><Btn onClick={csv}>⬇ CSV</Btn>
+        <Btn onClick={() => setImp(true)}>🖨 Imprimer…</Btn><Btn onClick={csv}>⬇ Exporter (CSV)</Btn>
         <Btn kind="primary" onClick={() => telecharger(false)} data-drm-xml="" title="Fichier DTI+ à importer dans CIEL (douane)">⬇ XML douane (CIEL)</Btn>
         <Btn onClick={() => telecharger(true)} data-drm-xml-civc="" title="Le même fichier, avec vos codes produits CIVC, pour la plateforme du CIVC">⬇ XML CIVC</Btn>
         <span className="ml-auto" />
@@ -156,7 +156,7 @@ function DrmReglagesSheet({ lect, onClose }) {
             <Field label="Déclaration par défaut"><SI value={r.periodicite} disabled={lect} onChange={(v) => act((d) => drmReglageSet(d, { periodicite: v }), 'Réglage de la DRM enregistré.')} plain options={[{ value: 'mensuelle', label: 'DRM mensuelle' }, { value: 'annuelle', label: 'DRA annuelle (petits producteurs)' }]} aria-label="Déclaration par défaut" /></Field>
           </div>
         </Sec>
-        <Sec title="Produits déclarés" right={lect ? null : <Btn kind="primary" onClick={() => setForm({})}>+ Nouveau produit</Btn>}>
+        <Sec title="Produits déclarés" right={lect ? null : <Btn kind="primary" onClick={() => setForm({})}>＋ Nouveau produit</Btn>}>
           <p className="help mb-2">Chaque produit reprend exactement le libellé personnalisé de votre compte CIEL et son code INAO (à défaut, le libellé fiscal). Les exemples sont à vérifier. Un lot va au premier produit dont la règle lui convient (la plus précise d’abord), sauf rattachement manuel ci-dessous.</p>
           <div data-drm-produits=""><Tbl rows={P} empty="Aucun produit." cols={[
             { h: 'Produit (libellé CIEL)', r: (p) => <b translate="no">{p.libelle}</b> }, { h: 'Code', r: (p) => <span translate="no">{drmCode(p) || '—'}</span> }, { h: 'Code CIVC', r: (p) => <span translate="no">{p.codeCivc || '—'}</span> },

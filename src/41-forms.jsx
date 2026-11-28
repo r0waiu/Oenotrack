@@ -21,7 +21,7 @@ function PortionSelect({ db, Rd, value, onChange, filter, placeholder = 'Choisir
 /* ---------- lignes d'intrants (fournisseur, produit + lot fournisseur + quantité) ---------- */
 // 0.30.0-alpha.1 : le fournisseur (ou « En stock ») se choisit à chaque ligne, puis ses produits (y compris ceux de ses catalogues) ;
 // un produit sans lot fournisseur se reçoit depuis la ligne (« ＋ Réception… »)
-function LignesEditor({ db, Rd, lignes, onChange, qualif, vol, cats, hideDose, addLabel = '+ Ajouter un intrant' }) {
+function LignesEditor({ db, Rd, lignes, onChange, qualif, vol, cats, hideDose, addLabel = '＋ Ajouter un intrant' }) {
   const [recep, setRecep] = useState(null);
   const arrivals = (pid) => db.arrivages.filter((a) => a.produitId === pid).map((a) => ({ a, rest: arrivalRest(Rd, a) })).sort((x, y) => (x.a.dluo || '9999') < (y.a.dluo || '9999') ? -1 : 1);
   const upd = (i, patch) => onChange(lignes.map((l, k) => (k === i ? { ...l, ...patch } : l)));
@@ -41,9 +41,9 @@ function LignesEditor({ db, Rd, lignes, onChange, qualif, vol, cats, hideDose, a
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }} data-ligne-intrant={i}>
               <Group label="Fournisseur"><FournisseurChoix value={fo} onChange={(v) => upd(i, { _fo: v, produitId: v === fo ? l.produitId : '', arrivageId: v === fo ? l.arrivageId : '' })} /></Group>
               <Group label="Produit"><ProduitFournisseurChoix fo={fo} value={l.produitId} cats={cats} Rd={Rd} onChange={(v) => setProd(i, v, fo)} /></Group>
-              <Group label="Lot fournisseur (arrivage)"><div className="flex gap-2"><SI value={l.arrivageId} onChange={(v) => upd(i, { arrivageId: v })} placeholder={l.produitId ? (arrs.length ? 'Lot fournisseur…' : 'Aucun arrivage') : '—'} options={arrs.map((x) => ({ value: x.a.id, label: `${x.a.numLot} · reste ${fmt(x.rest, 2)} ${pr.unite}${x.a.dluo ? ' · DDM ' + fmtDate(x.a.dluo) : ''}` }))} />
+              <Group label="Lot fournisseur (arrivage)"><div className="flex gap-2"><SI value={l.arrivageId} onChange={(v) => upd(i, { arrivageId: v })} placeholder={l.produitId ? (arrs.length ? 'Lot fournisseur…' : 'Aucun arrivage') : '—'} aria-label={`Lot fournisseur, intrant ${i + 1}`} options={arrs.map((x) => ({ value: x.a.id, label: `${x.a.numLot} · reste ${fmt(x.rest, 2)} ${pr.unite}${x.a.dluo ? ' · DDM ' + fmtDate(x.a.dluo) : ''}` }))} />
                 {l.produitId && !arrs.some((x) => x.rest > 1e-6) ? <Btn size="sm" onClick={() => setRecep({ i, produitId: l.produitId })} title="Enregistrer la réception d’un lot fournisseur de ce produit">＋ Réception…</Btn> : null}</div></Group>
-              <Group label={`Quantité${pr.unite ? ` (${pr.unite})` : ''}`}><div className="flex gap-2"><NI value={l.qty} onChange={(v) => upd(i, { qty: v })} placeholder="0" /><Btn kind="danger" size="sm" aria-label="Retirer la ligne" onClick={() => onChange(lignes.filter((_, k) => k !== i))}>✕</Btn></div></Group>
+              <Group label={`Quantité${pr.unite ? ` (${pr.unite})` : ''}`}><div className="flex gap-2"><NI value={l.qty} onChange={(v) => upd(i, { qty: v })} placeholder="0" aria-label={`Quantité, intrant ${i + 1}`} /><Btn kind="danger" size="sm" aria-label="Retirer la ligne" onClick={() => onChange(lignes.filter((_, k) => k !== i))}>✕</Btn></div></Group>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
               {dose != null && num(l.qty) > 0 ? <Chip tone={over ? 'bad' : ''}>{fmt(dose, 1)} {doseUnit(pr.unite)}{rule && rule.autorise && rule.doseMax != null && rule.doseMax !== '' ? ` / max ${fmt(rule.doseMax, 1)}` : ''}</Chip> : null}
@@ -62,18 +62,21 @@ function LignesEditor({ db, Rd, lignes, onChange, qualif, vol, cats, hideDose, a
 const cleanLignes = (l) => (l || []).filter((x) => x.produitId && num(x.qty) > 0).map((x) => ({ produitId: x.produitId, arrivageId: x.arrivageId || '', qty: num(x.qty) }));
 
 /* ---------- pertes typées (bourbes, lies, …) ---------- */
+// en-têtes de colonnes d'une liste de lignes (0.48.0-alpha.1) : affichés une fois au-dessus des lignes ; chaque champ garde son aria-label
+const LignesTete = ({ cols, gabarit }) => <div className="lignes-tete grid gap-2" style={{ gridTemplateColumns: gabarit }} aria-hidden="true" data-lignes-tete="">{cols.map((c, i) => <span key={i} className="lbl">{c}</span>)}</div>;
 function PertesEditor({ db, pertes, onChange, defaultType }) {
   const upd = (i, patch) => onChange(pertes.map((p, k) => (k === i ? { ...p, ...patch } : p)));
   return (
     <div className="space-y-2">
+      {pertes.length ? <LignesTete cols={['Type de perte', 'Volume (hL)', '']} gabarit="minmax(0,1fr) minmax(0,1fr) auto" /> : null}
       {pertes.map((p, i) => (
         <div key={i} className="grid items-end gap-2" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) auto' }}>
-          <Group label="Type de perte"><SI value={p.typeId} onChange={(v) => upd(i, { typeId: v })} options={opts(db, 'typesPerte')} /></Group>
-          <Group label="Volume (hL)"><VI value={p.volL} onChange={(v) => upd(i, { volL: v })} placeholder="0" /></Group>
+          <div className="min-w-0"><SI value={p.typeId} onChange={(v) => upd(i, { typeId: v })} options={opts(db, 'typesPerte')} aria-label={`Type de perte ${i + 1}`} /></div>
+          <div className="min-w-0"><VI value={p.volL} onChange={(v) => upd(i, { volL: v })} placeholder="0" aria-label={`Volume (hL), perte ${i + 1}`} /></div>
           <Btn kind="danger" size="sm" aria-label="Retirer la perte" onClick={() => onChange(pertes.filter((_, k) => k !== i))}>✕</Btn>
         </div>
       ))}
-      <Btn size="sm" onClick={() => onChange([...pertes, { typeId: defaultType || (db.lists.typesPerte[0] || {}).id, volL: '' }])}>+ Ajouter une perte</Btn>
+      <Btn size="sm" onClick={() => onChange([...pertes, { typeId: defaultType || (db.lists.typesPerte[0] || {}).id, volL: '' }])}>＋ Ajouter une perte</Btn>
     </div>
   );
 }
@@ -85,14 +88,15 @@ function PrepUsesEditor({ db, Rd, uses, onChange, types }) {
   const upd = (i, patch) => onChange(uses.map((u, k) => (k === i ? { ...u, ...patch } : u)));
   return (
     <div className="space-y-2">
+      {uses.length ? <LignesTete cols={['Préparation', 'Volume (hL)', '']} gabarit="minmax(0,2fr) minmax(0,1fr) auto" /> : null}
       {uses.map((u, i) => (
         <div key={i} className="grid items-end gap-2" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr) auto' }}>
-          <Group label="Préparation"><SI value={u.prepId} onChange={(v) => upd(i, { prepId: v })} placeholder="Préparation…" options={preps.map((p) => ({ value: p.id, label: `${p.code} · ${PREP_TYPES[p.ptype]} · ${qDef(p.qualif).court} · reste ${fmtL(p.remaining)}` }))} /></Group>
-          <Group label="Volume (hL)"><VI value={u.volL} onChange={(v) => upd(i, { volL: v })} placeholder="0" /></Group>
-          <Btn kind="danger" size="sm" aria-label="Retirer" onClick={() => onChange(uses.filter((_, k) => k !== i))}>✕</Btn>
+          <div className="min-w-0"><SI value={u.prepId} onChange={(v) => upd(i, { prepId: v })} placeholder="Préparation…" options={preps.map((p) => ({ value: p.id, label: `${p.code} · ${PREP_TYPES[p.ptype]} · ${qDef(p.qualif).court} · reste ${fmtL(p.remaining)}` }))} aria-label={`Préparation ${i + 1}`} /></div>
+          <div className="min-w-0"><VI value={u.volL} onChange={(v) => upd(i, { volL: v })} placeholder="0" aria-label={`Volume (hL), préparation ${i + 1}`} /></div>
+          <Btn kind="danger" size="sm" aria-label={`Retirer la préparation ${i + 1}`} onClick={() => onChange(uses.filter((_, k) => k !== i))}>✕</Btn>
         </div>
       ))}
-      <Btn size="sm" onClick={() => onChange([...uses, { prepId: '', volL: '' }])}>+ Ajouter une préparation</Btn>
+      <Btn size="sm" onClick={() => onChange([...uses, { prepId: '', volL: '' }])}>＋ Ajouter une préparation</Btn>
       {!preps.length ? <div className="help">Aucune préparation disponible à cette date : créez-en dans l’onglet Tirage & Dégorgement.</div> : null}
     </div>
   );
@@ -118,9 +122,11 @@ function PreviewBox({ pv }) {
 const FormDepth = createContext(0);
 function FormSheet({ title, sub, onClose, onSave, saveLabel = 'Enregistrer', saveTitle, children, wide, extraFooter, secondary, disabled, readOnly }) {
   const depth = useContext(FormDepth);
+  // 0.48.0-alpha.1 : un enregistrement refusé (fail(msg, { champ }) renvoyé par onSave) s'affiche dans la fiche, sous le champ
+  const enregistrer = (...a) => { const r = onSave(...a); if (r && typeof r === 'object' && r.ok === false) ficheErreur(r); return r; };
   const sheet = ( // readOnly : consultation (droits insuffisants) — pas d'enregistrement
-    <Sheet title={title} sub={sub} onClose={onClose} wide={wide} footer={readOnly ? <>{extraFooter}<Btn kind="primary" onClick={onClose}>Fermer</Btn></> : <>{extraFooter}<Btn onClick={onClose}>Annuler</Btn>{secondary}<Btn kind="primary" onClick={onSave} disabled={disabled} title={saveTitle}>{saveLabel}</Btn></>}>
-      <form onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); if (!readOnly) onSave(); }} className="space-y-4">{children}<button type="submit" hidden /></form>
+    <Sheet title={title} sub={sub} onClose={onClose} wide={wide} footer={readOnly ? <>{extraFooter}<Btn kind="primary" onClick={onClose}>Fermer</Btn></> : <>{extraFooter}<Btn onClick={onClose}>Annuler</Btn>{secondary}<Btn kind="primary" onClick={() => enregistrer()} disabled={disabled} title={saveTitle}>{saveLabel}</Btn></>}>
+      <form onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); if (!readOnly) enregistrer(); }} className="space-y-4">{children}<button type="submit" hidden /></form>
     </Sheet>
   );
   return <FormDepth.Provider value={depth + 1}>{depth && typeof ReactDOM !== 'undefined' && ReactDOM.createPortal ? ReactDOM.createPortal(sheet, document.body) : sheet}</FormDepth.Provider>;

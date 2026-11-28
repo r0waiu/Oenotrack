@@ -276,7 +276,7 @@ function HygProduitsView() {
         <TI value={q} onChange={setQ} placeholder="Rechercher un produit, un fabricant…" style={{ width: 240 }} aria-label="Rechercher un produit d’hygiène" />
         <SI value={type} onChange={setType} placeholder="Toutes natures" style={{ width: 'auto' }} options={hygOpts(HYG_TYPES, type)} aria-label="Nature" />
         <Check checked={arch} onChange={setArch} label="Afficher les archivés" />
-        <span className="ml-auto" /><Btn disabled={!actifs.length} onClick={() => setImp(rows.filter((p) => !p.archive).map((p) => p.id))}>🖨 Fiches de sécurité</Btn><Btn kind="primary" onClick={() => setForm({})}>+ Nouveau produit</Btn>
+        <span className="ml-auto" /><Btn disabled={!actifs.length} onClick={() => setImp(rows.filter((p) => !p.archive).map((p) => p.id))}>🖨 Fiches de sécurité</Btn><Btn kind="primary" onClick={() => setForm({})}>＋ Nouveau produit</Btn>
       </div>
       {!tous.length ? <Empty>Aucun produit d’hygiène : ajoutez vos produits de nettoyage et de désinfection (« + Nouveau produit »), ou déposez leur fiche de données de sécurité ci-dessus.</Empty> : (<>
         <div className="hidden md:block"><Tbl rows={rows} onRow={(p) => setVoir(p.id)} empty="Aucun produit ne correspond." cols={[

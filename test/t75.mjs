@@ -30,9 +30,9 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   await page.click('#tab-params'); await page.waitForTimeout(300);
   const groupes = await page.locator('[data-params-groupe]').evaluateAll((L) => L.map((x) => x.getAttribute('data-params-groupe')));
   const menu = await txt(page.locator('[data-params-menu]'));
-  ok('Paramètres : quatre rubriques (Exploitation, Vin & cuverie, Équipe & sécurité, Données & application), menu latéral', groupes.join() === 'exploitation,vin,equipe,donnees' && /Exploitation/i.test(menu) && /Vin & cuverie/i.test(menu) && /Équipe & sécurité/i.test(menu) && /Données & application/i.test(menu), [groupes, menu]);
+  ok('Paramètres : quatre rubriques (Exploitation, Vin & cuverie, Équipe & sécurité, Données & application) + « Réglages des modules » (0.48.0-alpha.1), menu latéral', groupes.join() === 'exploitation,vin,equipe,donnees,modules-reglages' && /Exploitation/i.test(menu) && /Vin & cuverie/i.test(menu) && /Équipe & sécurité/i.test(menu) && /Données & application/i.test(menu) && /Réglages des modules/i.test(menu), [groupes, menu]);
   const items = await page.locator('[data-params-item]').evaluateAll((L) => L.map((x) => x.getAttribute('data-params-item')));
-  ok('… toutes les rubriques d’avant présentes (aucun réglage perdu) + « 🧪 Calculs œnologiques »', ['entreprise', 'utilisateurs', 'modules', 'profil', 'sauvegarde', 'garde', 'campagnes', 'sites', 'contenants', 'jaugeage', 'crus', 'apporteurs', 'operations', 'schemas', 'listes', 'calculs', 'ia', 'base'].every((x) => items.includes(x)) && items.length === 19 && items.includes('codification'), items); // 0.41.0-alpha.1 : + « 🏷 Codification des lots »
+  ok('… toutes les rubriques d’avant présentes (aucun réglage perdu) + « 🧪 Calculs œnologiques »', ['entreprise', 'utilisateurs', 'modules', 'profil', 'sauvegarde', 'garde', 'campagnes', 'sites', 'contenants', 'jaugeage', 'crus', 'apporteurs', 'operations', 'schemas', 'listes', 'calculs', 'ia', 'base'].every((x) => items.includes(x)) && items.length === 23 && items.includes('codification') && ['reglages-pressoir', 'reglages-analyses', 'reglages-hygiene', 'reglages-equipements'].every((x) => items.includes(x)), items); // 0.41.0-alpha.1 : + « 🏷 Codification des lots » ; 0.48.0-alpha.1 : + réglages de 4 modules
   await page.locator('[data-params-item="calculs"]').click(); await page.waitForTimeout(300);
   let t = await txt(page.locator('main'));
   ok('« 🧪 Calculs œnologiques » : sucre par point de densité, objectif de tirage, enrichissement', (await page.locator('[data-params-calculs]').count()) === 1 && /g\/L par point de densité/i.test(t) && /Enrichissement des moûts/i.test(t));
@@ -41,13 +41,13 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   await page.screenshot({ path: SC + '/shots/t75-params.png' });
   // réglages rangés dans Vinification
   await page.locator('[data-params-item="operations"]').click(); await page.waitForTimeout(400);
-  ok('« ⚙ Opérations » → Vinification › Opérations & Assemblages › Catalogue des opérations', (await page.locator('[data-ops-catalogue]').count()) === 1 && (await page.locator('main button', { hasText: '+ Nouvelle opération' }).count()) >= 1);
+  ok('« ⚙ Opérations » → Vinification › Opérations & Assemblages › Catalogue des opérations', (await page.locator('[data-ops-catalogue]').count()) === 1 && (await page.locator('main button', { hasText: '＋ Nouvelle opération' }).count()) >= 1);
   await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('[data-params-item="jaugeage"]').click(); await page.waitForTimeout(400);
   ok('« 📏 Barèmes de jaugeage » → Vinification › Cuverie & Lots (sous-onglet Barèmes)', (await page.locator('[data-cuverie-baremes]').count()) === 1);
   await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('[data-params-item="schemas"]').click(); await page.waitForTimeout(400);
   ok('« 🗂 Plan de vinification » (ancien « Schémas de vinification ») → Vinification › Plan de vinification', (await page.locator('[data-planv]').count()) === 1);
   // ---- Opérations & Assemblages : plus de saisie de tirage, cave, dégorgement ; journal complet
-  await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: /^Opérations$/ }).click(); await page.waitForTimeout(300);
+  await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: /^Journal$/ }).click(); await page.waitForTimeout(300);
   const nouv = page.locator('main section', { hasText: 'Nouvelle opération' }).first(); const bt = await nouv.locator('button').allInnerTexts();
   ok('Opérations : préparation, tirage, remuage, dégorgement plus proposés à la saisie', !bt.some((x) => /^(⚗|🍾|↯)?\s*(Préparation|Tirage \(mixtion\)|Remuage|Dégorgement)$/.test(x.trim())) && bt.some((x) => /Soutirage/.test(x)), bt);
   ok('… carte « Tirage & bouteilles » : liens vers Tirages, Cave, Dégorgement', (await page.locator('[data-vers-bouteilles] [data-vers-module]').count()) === 3);
@@ -111,7 +111,7 @@ const routes = async (route, u) => { if (u.includes('xlsx')) { await route.fulfi
   await fa.locator('input[aria-label="Mot de passe"]').fill(MDP); await fa.locator('input[aria-label="Confirmer le mot de passe"]').fill(MDP);
   await fa.locator('button[type=submit]').click(); await page.waitForTimeout(1800);
   await ov().locator('label', { hasText: 'J’ai noté ce code' }).locator('input').check(); await ov().locator('button:text-is("Terminer")').click(); await page.waitForTimeout(400);
-  await page.locator('main button', { hasText: '+ Nouvel utilisateur' }).first().click(); await page.waitForTimeout(400);
+  await page.locator('main button', { hasText: '＋ Nouvel utilisateur' }).first().click(); await page.waitForTimeout(400);
   const f = ov(); await f.locator('input[aria-label="Identifiant"]').fill('chai'); await f.locator('label', { hasText: 'Nom affiché' }).locator('input').fill('Opérateur Essai');
   await f.locator('input[aria-label="Mot de passe provisoire"]').fill('Chai-2026!zz'); await f.locator('select[aria-label="Profil de droits"]').selectOption('pf_operateur');
   await f.locator('label', { hasText: 'À changer à la première connexion' }).locator('input').uncheck(); await f.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(1500);

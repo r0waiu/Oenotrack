@@ -6,7 +6,7 @@ await page.click('#tab-ops'); await page.waitForTimeout(300);
 await page.click('main button:text-is("Soutirage")'); await page.waitForTimeout(400);
 const c = top().locator('input[role=combobox]'); await pick(page, c.nth(0), 'Cuve 03', 'Cuve 03'); await top().locator('input[inputmode=decimal]').first().fill('8'); await pick(page, c.nth(1), 'Cuve 07', 'Cuve 07');
 await page.screenshot({ path: SH + '/m-prev-form.png' });
-await top().locator('button:has-text("Planifier (à réaliser)")').click(); await page.waitForTimeout(400);
+await top().locator('[data-sheet-plus]').click(); await page.waitForTimeout(150); /* 0.48.0-alpha.1 : au téléphone, « Planifier » est dans le menu « ⋯ » du pied */ await top().locator('button:has-text("Planifier (à réaliser)")').click(); await page.waitForTimeout(400);
 await page.click('#tab-previsions'); await page.waitForTimeout(300);
 await page.locator('main tbody tr').first().locator('button:has-text("Fiche")').click(); await page.waitForTimeout(500);
 const ov = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);

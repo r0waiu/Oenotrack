@@ -34,7 +34,7 @@ await echap();
 
 // 3. fiches pré-remplies depuis les opérations de l'exemple
 await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main select').first().selectOption({ label: 'Toutes les campagnes' }); await page.waitForTimeout(300);
-const ficheDe = async (re) => { await page.locator('main tbody tr', { hasText: re }).first().locator('button[aria-label="Fiche d’enregistrement"]').click(); await page.waitForTimeout(700); return top().locator('.fiche').first(); };
+const ficheDe = async (re) => { await page.locator('main tbody tr', { hasText: re }).first().locator('[data-op-menu]').click(); await page.waitForTimeout(150); await page.locator('main tbody tr', { hasText: re }).first().locator('button[aria-label="Fiche d’enregistrement"]').click(); await page.waitForTimeout(700); return top().locator('.fiche').first(); };
 let f = await ficheDe(/08\/11\/2026[^]*Transfert/);
 let t = (await f.innerText()).replace(/\s+/g, ' ');
 ok('transfert : modèle « Soutirages et transferts », n° MVT-261108-1', t.startsWith('Soutirages et transferts') && t.includes('MVT-261108-1'), t.slice(0, 120));

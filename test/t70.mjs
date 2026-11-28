@@ -63,8 +63,8 @@ await page.locator('[role=menuitem]', { hasText: /moût/i }).first().click(); aw
 s = ov();
 ok('entrée de moûts : zone « Glisser ici le bulletin d’analyses des moûts » dans l’opération', await s.locator('[data-bulletin-entree]').isVisible() && /Glisser ici le bulletin d’analyses des moûts/.test(await s.locator('[data-bulletin-entree]').innerText()));
 await s.locator('[aria-label="N° de lot du moût 1"]').fill('5002');
-await s.locator('button:has-text("+ Ajouter un moût")').click(); await page.waitForTimeout(150); await s.locator('[aria-label="N° de lot du moût 2"]').fill('M2-40004');
-await s.locator('button:has-text("+ Ajouter un moût")').click(); await page.waitForTimeout(150); await s.locator('[aria-label="N° de lot du moût 3"]').fill('EM-3');
+await s.locator('button:has-text("＋ Ajouter un moût")').click(); await page.waitForTimeout(150); await s.locator('[aria-label="N° de lot du moût 2"]').fill('M2-40004');
+await s.locator('button:has-text("＋ Ajouter un moût")').click(); await page.waitForTimeout(150); await s.locator('[aria-label="N° de lot du moût 3"]').fill('EM-3');
 await s.locator('input[type=file][aria-label="Bulletin d’analyses de l’entrée de moûts"]').setInputFiles([{ name: 'rapport-fictif.pdf', mimeType: 'application/pdf', buffer: PDF }]);
 await page.locator('[data-bulletin-guide]').waitFor({ timeout: 30000 }); await page.waitForTimeout(250);
 const G = page.locator('[data-bulletin-guide]'); t = await txt(G);

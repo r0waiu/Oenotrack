@@ -37,7 +37,7 @@ ok('Opérations : ni « Pesée de vendange » ni « Pressurage », renvoi vers l
 await page.click('#tab-pressoir'); await page.waitForTimeout(300); await sub('Pressurages');
 await page.locator('[data-nouveau-marc]').click(); await page.waitForTimeout(400);
 const optsP = (await ov().innerText()).replace(/\s+/g, ' ');
-await ov().locator('button', { hasText: '+ Ajouter une pesée' }).click(); await page.waitForTimeout(200);
+await ov().locator('button', { hasText: '＋ Ajouter une pesée' }).click(); await page.waitForTimeout(200);
 const labels = await page.evaluate(() => { const s = [...document.querySelectorAll('.overlay select')].find((x) => [...x.options].some((o) => /reste/.test(o.text))); return s ? [...s.options].map((o) => o.text) : []; });
 const lbl5 = labels.find((x) => /n° 5/.test(x));
 ok('Pressoir › Pressurages › « + Nouveau pressurage » : la pesée proposée avec son n° et son poids restant', /Charger un marc/.test(optsP) && (await ov().locator('[data-remplir]').count()) === 1 && !!lbl5 && /reste 4\s000\skg/.test(lbl5), [optsP.slice(0, 80), ...labels.slice(0, 4)]);

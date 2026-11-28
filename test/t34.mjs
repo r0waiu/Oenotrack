@@ -43,7 +43,7 @@ await page.screenshot({ path: SH + '/t34-admin.png' });
 
 // 2. comptes de l'équipe
 const creer = async (ident, nom, profil, opr) => {
-  await page.locator('main button', { hasText: '+ Nouvel utilisateur' }).click(); await page.waitForTimeout(300); const s = sheet();
+  await page.locator('main button', { hasText: '＋ Nouvel utilisateur' }).click(); await page.waitForTimeout(300); const s = sheet();
   await s.locator('input[aria-label="Identifiant"]').fill(ident); await s.locator('label', { hasText: 'Nom affiché' }).locator('input').fill(nom);
   await s.locator('select[aria-label="Profil de droits"]').selectOption({ label: profil }); if (opr) await s.locator('select[aria-label="Opérateur correspondant"]').selectOption({ label: opr });
   const mdp = await s.locator('input[aria-label="Mot de passe provisoire"]').inputValue(); await s.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(700); return mdp;
@@ -99,7 +99,7 @@ await ligne.locator('button:text-is("Modifier")').click(); await page.waitForTim
 const tc = await s.innerText();
 ok('opération validée ouverte en consultation (« Fermer » seulement), saisie par Thomas', tc.includes('Consultation') && tc.includes('Saisie par Thomas Girard') && (await s.locator('button:text-is("Enregistrer")').count()) === 0 && (await s.locator('button:text-is("Fermer")').count()) >= 1);
 await s.locator('.sheet-f button:text-is("Fermer")').click(); await page.waitForTimeout(200);
-await ligne.locator('button[class*="danger"]').first().click(); await page.waitForTimeout(250);
+await ligne.locator('[data-op-menu]').click(); await page.waitForTimeout(150); await ligne.locator('button[aria-label="Supprimer l’opération"]').first().click(); // 0.48.0-alpha.1 : « Supprimer » dans « ⋯ » await page.waitForTimeout(250);
 if (await page.locator('[role=alertdialog]').count()) { await page.locator('[role=alertdialog] button:text-is("Supprimer")').click(); await page.waitForTimeout(400); }
 ok('suppression refusée (droits insuffisants)', /Droits insuffisants/.test(await toast()) && /supprimer/.test(await toast()), await toast());
 ok('… l’opération est toujours là', (await dbLS()).ops.some((o) => o.id === opT.id));

@@ -1,4 +1,44 @@
-/* ============ FICHE LOT (traçabilité) & FICHE LOT FINI ============ */
+/* ============ FICHE LOT (traçabilité) & FICHE LOT FINI ============
+   0.48.0-alpha.1 : barre sous le titre « Opération sur ce lot ▾ · Analyse · Rapport », volume et contenants avant le stade, un seul « Fermer » */
+
+// menu « Opération sur ce lot ▾ » : raccourcis du catalogue sur la portion choisie, autres opérations, assemblage, stade
+function LotOpsEntrees({ lotId, ps, fermer, onOp }) {
+  const { db, R, camp } = useApp(); const lot = R.lots[lotId] || {};
+  const [sel, setSel] = useState(ps[0] ? ps[0].id : null); const [tout, setTout] = useState(false);
+  const p = ps.find((x) => x.id === sel) || ps[0] || null; const lock = camp.figee;
+  const vivant = (R.lotVol[lotId] || 0) > 0 || (R.tir[lotId] && R.tir[lotId].nb > 0);
+  const OPS = opMenu(db); const autres = opSurPortion(db).filter((x) => !OPS.includes(x));
+  const op = (type, preset) => () => { fermer(); onOp(type, preset); };
+  const nx = vivant ? stadeNext(db, lot.stade) : null;
+  return (<>
+    {ps.length > 1 ? (<><div className="ms">Portion concernée</div>
+      <div className="flex flex-wrap gap-1 px-2.5 pb-1">{ps.map((q) => <button key={q.id} type="button" aria-pressed={p && q.id === p.id} className={cx('btn btn-sm', p && q.id === p.id && 'btn-primary')} onClick={() => setSel(q.id)}><span translate="no">{contName(db, q.contenantId)}</span>{` · ${fmtL(q.vol)}`}</button>)}</div></>) : null}
+    {p ? (<>
+      <div className="ms">{ps.length > 1 ? 'Opérations' : <><span>Opérations · </span><span translate="no">{contName(db, p.contenantId)}</span><span>{` · ${fmtL(p.vol)}`}</span></>}{lock ? ' (campagne figée)' : ''}</div>
+      {OPS.map((x) => <MenuItem key={x.id} ic={opIcone(db, x.id)} disabled={lock} onClick={op(x.id, { portionId: p.id })}>{x.label}</MenuItem>)}
+      {autres.length ? (tout ? OP_GROUPES.concat(uniq(autres.map((x) => x.groupe)).filter((g) => !OP_GROUPES.includes(g))).map((g) => { const L = autres.filter((x) => x.groupe === g); return L.length ? <Fragment key={g}><div className="ms" style={{ fontSize: 11, opacity: 0.8 }}>{g}</div>{L.map((x) => <MenuItem key={x.id} ic={opIcone(db, x.id)} disabled={lock} onClick={op(x.id, { portionId: p.id })}>{x.label}</MenuItem>)}</Fragment> : null; })
+        : <MenuItem ic="⋯" onClick={() => setTout(true)}>{`Autres opérations (${autres.length})…`}</MenuItem>) : null}
+      <MenuItem ic={opIcone(db, 'assemblage')} disabled={lock} onClick={op('assemblage', { sources: [{ portionId: p.id, volL: String(r2(p.vol)) }, { portionId: '', volL: '' }] })}>Assemblage (ce lot comme source)</MenuItem>
+    </>) : null}
+    {vivant ? (<>
+      <div className="ms">Stade</div>
+      {nx ? <MenuItem ic="➜" disabled={lock} onClick={op(opEtapePour(db, nx.id), { lotId, newStade: nx.id })}>{`Passer en « ${nx.court || nx.label} »`}</MenuItem> : null}
+      <MenuItem ic={opIcone(db, 'etape')} disabled={lock} onClick={op('etape', { lotId, newStade: lot.stade || '' })}>Changer de stade / couleur…</MenuItem>
+    </>) : null}
+  </>);
+}
+
+function LotBarre({ lotId, ps, onOp }) {
+  const { db, R, openAnalyse, openReport } = useApp();
+  const vivant = (R.lotVol[lotId] || 0) > 0 || (R.tir[lotId] && R.tir[lotId].nb > 0);
+  return (
+    <div className="lot-barre no-print" data-lot-barre="">
+      {vivant ? <MenuDeroulant label="Opération sur ce lot ▾" kind="primary" size="" menuLabel="Opérations sur ce lot" data-lot-ops="">{(fermer) => <LotOpsEntrees lotId={lotId} ps={ps} fermer={fermer} onOp={onOp} />}</MenuDeroulant> : null}
+      <Btn onClick={() => openAnalyse({ lotId, contenantId: ps[0] ? ps[0].contenantId : '' })} data-lot-analyse="">🔬 Analyse</Btn>
+      <Btn onClick={() => openReport({ kind: 'lot', ids: [lotId] })} data-lot-rapport="">🖨 Rapport…</Btn>
+    </div>
+  );
+}
 function LotEditForm({ id, onClose }) {
   const { db, act, uid } = useApp(); const l = db.lots.find((x) => x.id === id);
   const [f, set] = useDraft({ code: l.code, designation: l.designation || '', millesime: l.millesime || '', motif: '' });
@@ -75,7 +115,7 @@ function LotBilan({ lotId }) {
   // 0.38.0-alpha.3 : deux rejeux par campagne, refaits seulement quand la base change (plus à chaque rendu : toasts, synchronisation)
   const cols = useMemo(() => (!lot ? [] : lotBilanCols(db, lot, lotId)), [db, lot, lotId]);
   if (!lot || !cols.length) return null;
-  const LINES = [['open', 'Stock à l’ouverture'], ['recu', '+ Reçu (pressurage, reprise, assemblage)'], ['ajout', '+ Préparations ajoutées'], ['perte', '− Pertes (bourbes, lies…)'], ['jau', '± Écart de jaugeage'], ['prel', '− Prélevé pour préparations'], ['tir', '− Mis en bouteilles (tirage)'], ['vente', '− Sorties de cave (vente, distillerie…)'], ['sorti', '− Sorti vers d’autres assemblages'], ['calc', '= Stock de clôture calculé'], ['close', 'Stock en cuve à la clôture'], ['ecart', 'Contrôle']].filter(([key]) => ['open', 'calc', 'close', 'ecart'].includes(key) || cols.some((v) => Math.abs(v[key]) > 0.004));
+  const LINES = [['open', 'Stock à l’ouverture'], ['recu', '+ Reçu (pressurage, reprise, assemblage)'], ['ajout', '＋ Préparations ajoutées'], ['perte', '− Pertes (bourbes, lies…)'], ['jau', '± Écart de jaugeage'], ['prel', '− Prélevé pour préparations'], ['tir', '− Mis en bouteilles (tirage)'], ['vente', '− Sorties de cave (vente, distillerie…)'], ['sorti', '− Sorti vers d’autres assemblages'], ['calc', '= Stock de clôture calculé'], ['close', 'Stock en cuve à la clôture'], ['ecart', 'Contrôle']].filter(([key]) => ['open', 'calc', 'close', 'ecart'].includes(key) || cols.some((v) => Math.abs(v[key]) > 0.004));
   const bold = (key) => ['open', 'calc', 'close'].includes(key);
   return (
     <Sec title="Bilan matière du lot par campagne" className="mb-5">
@@ -85,7 +125,7 @@ function LotBilan({ lotId }) {
 }
 
 function LotSheet({ id, onClose }) {
-  const { db, R, camp, openReport } = useApp(); const lot = R.lots[id];
+  const { db, R, camp } = useApp(); const lot = R.lots[id];
   const [edit, setEdit] = useState(false); const [opForm, setOpForm] = useState(null); const [perso, setPerso] = useState(false); const [calc, setCalc] = useState(null);
   const { dispo } = useFicheDispo('lot');
   if (!lot) return <Sheet title="Lot introuvable" onClose={onClose}><Empty>Ce lot n’existe plus.</Empty></Sheet>;
@@ -155,8 +195,10 @@ function LotSheet({ id, onClose }) {
   };
   return (
     <Sheet wide title={<span>{lot.code} <span className="font-normal text-ink2">— {lot.designation}</span></span>} sub={`${stadeLabel(db, lot.stade)} · ${couleurLabel(db, lot.couleur).toLowerCase()} · ${LOT_TYPES[lot.type].toLowerCase()} · millésime ${millesimeAffiche(lot.millesime) || '—'}`} onClose={onClose}
-      footer={<><Btn onClick={() => openReport({ kind: 'lot', ids: [id] })}>🖨 Rapport…</Btn><Btn onClick={() => setEdit(true)}>Modifier code / désignation</Btn><Btn onClick={onClose}>Fermer</Btn></>}>
-      <div className="mb-5 flex flex-wrap items-center gap-2"><StadeChip id={lot.stade} /><CouleurChip id={lot.couleur} /><QChip id={lot.qualif} /><EChip info={echelleInfo(comp)} />{lotAppellations(db, R, id).filter((x) => x.appId).map((x) => <Chip key={`${x.appId}|${x.niveau}`} tone="info" title="Appellation et niveau d’après les parcelles du lot" data-lot-appellation={x.appId}><span translate="no">{[x.label, x.niveauLabel].filter(Boolean).join(' · ')}</span>{x.part < 0.999 ? ` ${fmt(x.part * 100, 0)} %` : ''}</Chip>)}{lot.fractionId ? <Chip tone="info">{fracLabel(db, lot.fractionId)}</Chip> : null}<Chip title="Nature du lot">{LOT_TYPES[lot.type]}</Chip><Chip>{fmtL(vol)} en cuves</Chip>{tir ? <Chip tone="info">{fmt(tir.nb)} bouteilles sur lattes{tir.deg ? ` · ${fmt(tir.deg)} dégorgées` : ''}</Chip> : null}{(R.opsByLot[id] || []).some((oid) => (R.warn[oid] || []).length) ? <Chip tone="warn">⚠ opérations à vérifier</Chip> : null}<span className="ml-auto flex flex-wrap gap-1 no-print"><Btn size="sm" onClick={() => setCalc('so2')} title="SO₂ moléculaire, enrichissement">🧪 Calculs</Btn><Btn size="sm" onClick={() => setPerso(true)} title="Rubriques affichées et leur ordre">⚙ Personnaliser la fiche</Btn></span></div>
+      footer={<Btn onClick={() => setEdit(true)}>Modifier code / désignation</Btn>}>
+      <LotBarre lotId={id} ps={ps} onOp={(type, preset) => setOpForm({ type, preset })} />
+      {vol > 0 ? <div className="lot-resume mb-3" data-lot-resume=""><span className="num font-semibold">{`${fmtL(vol)} en cuves`}</span>{ps.length ? <span className="text-ink2"> : </span> : null}{ps.map((p, i) => <span key={p.id}>{i ? <span className="text-ink2"> · </span> : null}<ContLink id={p.contenantId} /> <span className="num text-sm text-ink2">{fmtL(p.vol)}</span></span>)}</div> : null}
+      <div className="mb-5 flex flex-wrap items-center gap-2"><StadeChip id={lot.stade} /><CouleurChip id={lot.couleur} /><QChip id={lot.qualif} /><EChip info={echelleInfo(comp)} />{lotAppellations(db, R, id).filter((x) => x.appId).map((x) => <Chip key={`${x.appId}|${x.niveau}`} tone="info" title="Appellation et niveau d’après les parcelles du lot" data-lot-appellation={x.appId}><span translate="no">{[x.label, x.niveauLabel].filter(Boolean).join(' · ')}</span>{x.part < 0.999 ? ` ${fmt(x.part * 100, 0)} %` : ''}</Chip>)}{lot.fractionId ? <Chip tone="info">{fracLabel(db, lot.fractionId)}</Chip> : null}<Chip title="Nature du lot">{LOT_TYPES[lot.type]}</Chip>{tir ? <Chip tone="info">{fmt(tir.nb)} bouteilles sur lattes{tir.deg ? ` · ${fmt(tir.deg)} dégorgées` : ''}</Chip> : null}{(R.opsByLot[id] || []).some((oid) => (R.warn[oid] || []).length) ? <Chip tone="warn">⚠ opérations à vérifier</Chip> : null}<span className="ml-auto flex flex-wrap gap-1 no-print"><Btn size="sm" onClick={() => setCalc('so2')} title="SO₂ moléculaire, enrichissement">🧪 Calculs</Btn><Btn size="sm" onClick={() => setPerso(true)} title="Rubriques affichées et leur ordre">⚙ Personnaliser la fiche</Btn></span></div>
 
 
       <CodesLot kind="lot" x={db.lots.find((y) => y.id === id) || lot} />

@@ -63,7 +63,7 @@ await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(
 // 8. Paramètres › Opérations : créer une opération (fiche associée), stade automatique
 await page.click('#tab-params'); await page.click('main button:has-text("⚙ Opérations")'); await page.waitForTimeout(300);
 await page.screenshot({ path: SH + '/t27-catalogue.png' });
-await page.click('main button:has-text("+ Nouvelle opération")'); await page.waitForTimeout(300);
+await page.click('main button:has-text("＋ Nouvelle opération")'); await page.waitForTimeout(300);
 await top().locator('input[aria-label="Nom de l’opération"]').fill('Tanisage');
 await top().locator('label', { hasText: 'Traitement sur une cuve avec intrants' }).click();
 await top().locator('select[aria-label="Groupe"]').selectOption('Élevage & stabilisation');
@@ -79,7 +79,8 @@ await page.locator('main [data-op="soutirage"] button', { hasText: 'Modifier' })
 await top().locator('label', { hasText: 'Le lot traité passe au stade' }).locator('input').uncheck(); await top().locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(300);
 ok('catalogue : soutirage sans stade auto', (await page.locator('main [data-op="soutirage"]').innerText()).includes('pas de changement de stade'));
 // 9. la nouvelle opération dans le panneau + son formulaire + sa fiche (0.39 : le catalogue est un sous-onglet d'Opérations & Assemblages)
-await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: /^Opérations$/ }).click(); await page.waitForTimeout(300);
+await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: /^Journal$/ }).click(); await page.waitForTimeout(300);
+await page.locator('main [data-nouvelle-op]').click(); await page.waitForTimeout(300); // 0.48.0-alpha.1 : sélecteur « ＋ Nouvelle opération »
 await page.locator('main [data-groupe] button', { hasText: 'Tanisage' }).click(); await page.waitForTimeout(400);
 ok('nouvelle opération : formulaire', (await top().locator('h2').innerText()).includes('Tanisage'));
 await pick(page, top().locator('input[role=combobox]').first(), 'Cuve 06', 'P25-02-T'); await page.waitForTimeout(200);

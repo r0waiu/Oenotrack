@@ -1,4 +1,6 @@
-/* ============ ONGLET TRAÇABILITÉ : rappel de lot d'intrant (HACCP), crus, apporteurs, échelle ; conformité réglementaire (0.40.0-alpha.1) ============ */
+/* ============ ONGLET TRAÇABILITÉ : rappel de lot d'intrant (HACCP), crus, apporteurs, échelle ; conformité réglementaire (0.40.0-alpha.1) ============
+   0.48.0-alpha.1 : une seule recherche filtrée par pastilles (Tout · Intrant · Cru · Parcelle · Partenaire ; anciens sous-onglets repris par
+   setTab('trace', id)), recherche reprise de l'en-tête (TRACE_RECHERCHE_DEMANDE), « Rapports imprimables » = sommaire de tous les documents. */
 // registre des alertes a posteriori : lots dont les intrants, les teneurs ou le SO₂ total ne respectent pas les référentiels de leur revendication et de leurs labels visés
 function ConformiteRegistre({ liste }) {
   const { db, R } = useApp();
@@ -29,27 +31,85 @@ function TraceLotsTable({ rows, showApps }) {
   ]} />;
 }
 
-// Rapports imprimables (lots, contenants, plan de cave) : regroupés dans la Traçabilité
-function RapportsPanel() {
-  const { db, R, openReport, setTab } = useApp();
+// Rapports imprimables (0.48.0-alpha.1, U32) : sommaire de tous les documents imprimables de l'application, avec un lien vers chacun ;
+// les rapports de lots et de contenants s'ouvrent ici, les autres dans leur onglet (module désactivé ou non autorisé : signalé)
+const DOCS_IMPRIMABLES = [
+  ['Traçabilité', [
+    { id: 'lots', titre: '🍷 Rapport de lots', txt: 'Un ou plusieurs lots : composition, origine (crus, partenaires, parcelles), intrants, opérations et analyses.', rapport: 'lot' },
+    { id: 'conts', titre: '🛢 Rapport de contenants', txt: 'Un ou plusieurs contenants : contenu, historique, hygiène.', rapport: 'cont' },
+    { id: 'trace', titre: '🔎 Rapport de traçabilité', txt: 'Rappel de lot d’intrant, recherche par cru, parcelle ou partenaire, chaîne complète d’un lot : « 🖨 Rapport imprimable » après la recherche.', recherche: true },
+  ]],
+  ['Vinification', [
+    { id: 'plan-cave', titre: '🗺 Plan de cave', txt: 'Plan imprimable avec les couleurs de contour, d’intérieur et les motifs : « 🖨 Imprimer le plan ».', tab: 'cuverie', sub: 'plan' },
+    { id: 'qr', titre: '🏷 Étiquettes QR des contenants', txt: 'Planches A4 ou A6 : sélectionnez les contenants de la liste, puis « 🏷 Étiquettes QR ».', tab: 'cuverie', sub: 'liste' },
+    { id: 'fiches', titre: '📋 Fiches d’enregistrement', txt: 'Fiches à remplir des opérations à réaliser, fiche du jour.', tab: 'previsions', sub: 'previsions' },
+    { id: 'modeles', titre: '📄 Modèles de fiches vierges', txt: 'Chaque modèle de fiche, imprimé vierge.', tab: 'previsions', sub: 'modeles' },
+    { id: 'plan-vinif', titre: '🗂 Plan de vinification', txt: 'Instruction de travail par cépage, revendication et fraction (A4 paysage).', tab: 'plan' },
+  ]],
+  ['Pressoir', [
+    { id: 'carnet', titre: '📒 Carnet de pressoir', txt: 'Marcs de l’année, fractions et rendements : « 🖨 Imprimer le carnet ».', tab: 'pressoir', sub: 'marcs' },
+    { id: 'releves', titre: '🧾 Relevés par apporteur', txt: 'Moûts de chaque marc au prorata du poids apporté : « 🖨 Imprimer les relevés ».', tab: 'pressoir', sub: 'releves' },
+    { id: 'pesees', titre: '🎫 Tickets de pesée et bons de pressoir', txt: 'Depuis chaque pesée ou chaque marc.', tab: 'pressoir', sub: 'pesees' },
+  ]],
+  ['Tirage, cave et dégorgement', [
+    { id: 'levain', titre: '🧫 Plan du levain', txt: 'Préparation et propagation d’un levain (fiche du levain).', tab: 'tirage', sub: 'preparer' },
+    { id: 'ordre', titre: '🍾 Ordre de tirage', txt: 'Lots, vin, liqueur, levain, formats et fournitures d’un chantier (fiche du chantier).', tab: 'tirage', sub: 'tirer' },
+    { id: 'declarations', titre: '📄 Déclarations de tirage', txt: 'Déclaration préalable et déclaration de fin de tirage.', tab: 'tirage', sub: 'declarations' },
+    { id: 'cave', titre: '🍾 Bouteilles en cave', txt: 'Lots de tirage sur lattes, âge et mouvements : « 🖨 Imprimer / PDF ».', tab: 'cave' },
+    { id: 'degorgement', titre: '🥂 Dégorgement et lots finis', txt: 'Lots à dégorger et lots finis : « 🖨 Imprimer / PDF ».', tab: 'degorgement' },
+  ]],
+  ['Intrants, hygiène et équipements', [
+    { id: 'recap', titre: '🧪 Fiche récapitulative des intrants', txt: 'Stocks, lots fournisseurs, allergènes et revendications, colonnes au choix.', tab: 'intrants', sub: 'stocks' },
+    { id: 'hygiene', titre: '🧽 Journal d’hygiène', txt: 'Nettoyages, désinfections et contrôles : « 🖨 Imprimer / PDF ».', tab: 'hygiene', sub: 'journal' },
+    { id: 'nettoyage', titre: '🧹 Plan de nettoyage', txt: 'Tâches, produits, fréquences et contrôles.', tab: 'hygiene', sub: 'plan' },
+    { id: 'securite', titre: '⚠ Fiches de sécurité des produits d’hygiène', txt: 'Pictogrammes, précautions et premiers secours.', tab: 'hygiene', sub: 'produits' },
+    { id: 'maintenance', titre: '🔧 Plan de maintenance', txt: 'Interventions prévues et réalisées, produits de maintenance.', maintenance: true },
+  ]],
+  ['Registres', [
+    { id: 'drm', titre: '📮 DRM', txt: 'Déclaration récapitulative mensuelle ou annuelle, à imprimer ou en XML.', tab: 'registres', sub: 'drm' },
+  ]],
+];
+function RapportsPanel({ onRecherche }) {
+  const { db, R, uid, openReport, setTab } = useApp();
   const nLots = Object.keys(R.lotVol).filter((l) => R.lotVol[l] > 0.5).length + Object.values(R.tir).filter((t) => t.nb > 0).length;
-  const Carte = ({ titre, children, actions }) => <div className="card flex flex-col gap-2 p-4"><div className="font-semibold">{titre}</div><div className="text-sm text-ink2">{children}</div><div className="mt-auto flex flex-wrap gap-2 pt-1">{actions}</div></div>;
+  const lien = (x) => {
+    if (x.rapport) return <Btn kind="primary" onClick={() => openReport({ kind: x.rapport, ids: [] })}>{x.rapport === 'lot' ? 'Choisir les lots…' : 'Choisir les contenants…'}</Btn>;
+    if (x.recherche) return <Btn onClick={onRecherche}>Ouvrir la recherche…</Btn>;
+    const eq = x.maintenance ? maintDansEquipements(db, uid) : false; const tab = x.maintenance ? (eq ? 'equipements' : 'hygiene') : x.tab; const sub = x.maintenance ? 'maintenance' : x.sub;
+    if (!moduleActif(db, tab)) return <span className="help">{`module ${moduleNom(tab)} désactivé`}</span>;
+    if (!moduleAutorise(db, uid, tab)) return <span className="help">accès non autorisé</span>;
+    return <Btn onClick={() => setTab(tab, sub)} data-sommaire-lien={`${tab}${sub ? `:${sub}` : ''}`}>{`Ouvrir → ${moduleNom(tab)}`}</Btn>;
+  };
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-ink2">Rapports complets à imprimer ou à enregistrer en PDF : choisissez les lots ou les contenants, puis les rubriques à inclure (identité, contenu, composition, origine, intrants, opérations, analyses…).</p>
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
-        <Carte titre="🍷 Rapport de lots" actions={<Btn kind="primary" onClick={() => openReport({ kind: 'lot', ids: [] })}>Choisir les lots…</Btn>}>Un ou plusieurs lots ({fmt(nLots)} en stock) : composition, origine (crus, partenaires, parcelles), intrants, opérations et analyses.</Carte>
-        <Carte titre="🛢 Rapport de contenants" actions={<Btn kind="primary" onClick={() => openReport({ kind: 'cont', ids: [] })}>Choisir les contenants…</Btn>}>Un ou plusieurs contenants ({fmt(db.contenants.filter((c) => !c.archive).length)}) : contenu, historique, hygiène.</Carte>
-        <Carte titre="🗺 Plan de cave" actions={moduleActif(db, 'cuverie') ? <Btn onClick={() => setTab('cuverie')}>Ouvrir le plan…</Btn> : <span className="help">module Cuverie désactivé</span>}>Plan imprimable avec les couleurs de contour, d’intérieur et les motifs : bouton « 🖨 Imprimer le plan » de l’onglet Cuverie.</Carte>
-        <Carte titre="🔎 Rapport de traçabilité" actions={<span className="help">Lancez une recherche (intrant, cru, parcelle, partenaire…) puis « 🖨 Rapport imprimable ».</span>}>Rappel de lot d’intrant, recherche par cru, parcelle, partenaire ou classement.</Carte>
-      </div>
+    <div className="space-y-5" data-sommaire-impression="">
+      <p className="text-sm text-ink2">Tous les documents à imprimer ou à enregistrer en PDF, et où les trouver. Les rapports de lots ({fmt(nLots)} en stock) et de contenants ({fmt(db.contenants.filter((c) => !c.archive).length)}) se composent ici, rubrique par rubrique.</p>
+      {DOCS_IMPRIMABLES.map(([g, L]) => (<section key={g}><h3 className="sec-t mb-2 text-lg font-semibold">{g}</h3>
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>{L.map((x) => (
+          <div key={x.id} className="card flex flex-col gap-2 p-4" data-document={x.id}><div className="font-semibold">{x.titre}</div><div className="text-sm text-ink2">{x.txt}</div><div className="mt-auto flex flex-wrap gap-2 pt-1">{lien(x)}</div></div>))}</div>
+      </section>))}
     </div>
   );
 }
 
+// 0.48.0-alpha.1 (U08) : une seule recherche, filtrée par des pastilles (Tout · Intrant · Cru · Parcelle · Partenaire) ; les anciens
+// identifiants de sous-onglet (`setTab('trace', 'intrant' | 'cru' | 'parcelle' | 'apporteur' | 'etapes')`) ouvrent la recherche avec ce filtre
+const TRACE_FILTRES = [{ id: 'tout', label: 'Tout', aide: 'Toutes les étapes, du raisin au dégorgé' }, { id: 'intrant', label: 'Intrant', aide: 'Rappel de lot d’un intrant' }, { id: 'cru', label: 'Cru', aide: 'Cru (village)' }, { id: 'parcelle', label: 'Parcelle', aide: 'Parcelle' }, { id: 'apporteur', label: 'Partenaire', aide: 'Partenaire (apporteur, vendeur de vins)' }];
+const TRACE_VUES = ['etapes', 'echelle', 'conformite', 'audit', 'rapports'];
+const traceNavDe = (sub) => (sub === 'etapes' || sub === 'recherche' ? { vue: 'etapes', filtre: 'tout' } : TRACE_FILTRES.some((x) => x.id === sub && x.id !== 'tout') ? { vue: 'etapes', filtre: sub } : TRACE_VUES.includes(sub) ? { vue: sub } : null);
 function TabTrace() {
-  const { db, R, toast } = useApp();
-  const [mode, setMode] = useState('etapes'); // « Toutes les étapes » d'abord (0.28.0-alpha.1)
+  const { db, R, toast, nav } = useApp();
+  // recherche demandée par l'en-tête (« Tout voir dans Traçabilité ») : texte repris une fois, filtre « Tout »
+  const demandeLire = () => { const q = typeof TRACE_RECHERCHE_DEMANDE !== 'undefined' && TRACE_RECHERCHE_DEMANDE.q ? String(TRACE_RECHERCHE_DEMANDE.q) : ''; if (q) TRACE_RECHERCHE_DEMANDE.q = ''; return q; };
+  const [demande, setDemande] = useState(() => ({ q: demandeLire(), n: 0 }));
+  const n0 = demande.q ? { vue: 'etapes', filtre: 'tout' } : traceNavDe(nav && nav.sub) || { vue: 'etapes', filtre: 'tout' }; // « Recherche » d'abord (0.28.0-alpha.1 : « Toutes les étapes »)
+  const [vue, setVue] = useState(n0.vue); const [filtre, setFiltre] = useState(n0.filtre || 'tout');
+  const premier = useRef(true);
+  useEffect(() => {
+    if (premier.current) { premier.current = false; return; } // montage : déjà lu ci-dessus
+    const q = demandeLire(); if (q) { setVue('etapes'); setFiltre('tout'); setDemande((d) => ({ q, n: d.n + 1 })); return; }
+    const x = traceNavDe(nav && nav.sub); if (x) { setVue(x.vue); if (x.filtre) setFiltre(x.filtre); }
+  }, [nav]);
+  const mode = vue === 'etapes' ? (filtre === 'tout' ? 'etapes' : filtre) : vue; // mode de recherche d'avant 0.48 (etapes, intrant, cru, parcelle, apporteur, echelle…)
   const [prod, setProd] = useState(''); const [arrs, setArrs] = useState([]);
   const [cru, setCru] = useState(''); const [app, setApp] = useState(''); const [parc, setParc] = useState(''); const [ech, setEch] = useState(() => echTop() || 'grand');
   const [printing, setPrinting] = useState(false); const ref = useRef(null);
@@ -60,7 +120,7 @@ function TabTrace() {
     if (mode === 'cru') return cru ? traceOrigin(db, R, 'cru', cru) : null;
     if (mode === 'apporteur') return app ? traceOrigin(db, R, 'apporteur', app) : null;
     if (mode === 'parcelle') return parc ? traceOrigin(db, R, 'parcelle', parc) : null;
-    if (mode === 'rapports' || mode === 'conformite') return null;
+    if (mode !== 'echelle') return null;
     return traceOrigin(db, R, 'echelle', ech);
   }, [db, R, mode, prod, arrs, cru, app, parc, ech]);
   const subject = mode === 'intrant' ? (prod ? `${prodOf(db, prod).nom}${arrs.length ? ` · lot(s) ${arrs.map((a) => arrOf(db, a).numLot).join(', ')}` : ' · tous lots fournisseurs'}` : '') : mode === 'cru' ? (cru ? `Cru ${cruName(db, cru)} (${eLabel(cruEchelle(db, cru))})` : '') : mode === 'apporteur' ? (app ? `Apporteur ${apporteurName(db, app)}` : '') : mode === 'parcelle' ? (parc ? `Parcelle ${parcelleName(db, parc)} (${cruName(db, ((db.parcelles || []).find((x) => x.id === parc) || {}).cruId)})` : '') : `${ECH.nom} : ${eLabel(ech)}`;
@@ -89,8 +149,9 @@ function TabTrace() {
   );
   return (
     <div>
-      <SubNav value={mode} onChange={setMode} items={[{ id: 'etapes', label: '🔎 Toutes les étapes' }, { id: 'intrant', label: 'Intrant (rappel de lot)' }, { id: 'cru', label: 'Cru (village)' }, { id: 'parcelle', label: 'Parcelle' }, { id: 'apporteur', label: 'Partenaire' }, { id: 'echelle', label: ECH.nom }, { id: 'conformite', label: '⚖ Conformité réglementaire', badge: nNonConf || null }, { id: 'audit', label: '🧾 Mode audit' }, { id: 'rapports', label: '🖨 Rapports imprimables' }]} />
-      {mode === 'etapes' ? <TraceEtapes /> : mode === 'conformite' ? <ConformiteRegistre liste={nonConf} /> : mode === 'audit' ? <AuditsView /> : mode === 'rapports' ? <RapportsPanel /> : <>
+      <SubNav value={vue} onChange={setVue} items={[{ id: 'etapes', label: '🔎 Recherche' }, { id: 'echelle', label: ECH.nom }, { id: 'conformite', label: '⚖ Conformité réglementaire', badge: nNonConf || null }, { id: 'audit', label: '🧾 Mode audit' }, { id: 'rapports', label: '🖨 Rapports imprimables' }]} />
+      {vue === 'etapes' ? <div className="trace-filtres mb-3" role="group" aria-label="Filtre de la recherche" data-trace-filtres="">{TRACE_FILTRES.map((x) => <button key={x.id} type="button" className={cx('trf', filtre === x.id && 'on')} aria-pressed={filtre === x.id} title={x.aide} onClick={() => setFiltre(x.id)} data-trace-filtre={x.id}>{x.label}</button>)}</div> : null}
+      {mode === 'etapes' ? <TraceEtapes key={demande.n} qInit={demande.q} /> : mode === 'conformite' ? <ConformiteRegistre liste={nonConf} /> : mode === 'audit' ? <AuditsView /> : mode === 'rapports' ? <RapportsPanel onRecherche={() => { setVue('etapes'); setFiltre('tout'); }} /> : <>
         <div className="panel mb-5">
         {mode === 'intrant' ? <div className="grid2">
           <Field label="Produit (intrant)"><SI value={prod} onChange={(v) => { setProd(v); setArrs([]); }} placeholder="Choisir le produit…" options={prods.map((p) => ({ value: p.id, label: `${p.nom} (${CATEGORIES[p.categorie]})` }))} /></Field>
@@ -101,7 +162,7 @@ function TabTrace() {
             : <div className="flex flex-wrap gap-2">{ECHELLES.slice().reverse().map((e) => <Btn key={e.id} kind={ech === e.id ? 'primary' : undefined} onClick={() => setEch(e.id)}>{e.label}</Btn>)}</div>}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="help mr-auto">{mode === 'intrant' ? 'Recherche descendante : ajouts directs, puis tous les assemblages, cuvées de tirage et lots finis issus de ces lots.' : 'Recherche à partir de la composition calculée de chaque lot (raisins et moûts → pressées → assemblages → tirage).'}</span>
-          <Btn disabled={!res} onClick={csv}>⬇ Export CSV</Btn><Btn disabled={!res} onClick={() => setPrinting(true)}>🖨 Rapport imprimable</Btn>
+          <Btn disabled={!res} onClick={csv}>⬇ Exporter (CSV)</Btn><Btn disabled={!res} onClick={() => setPrinting(true)}>🖨 Rapport imprimable</Btn>
         </div>
       </div>
       {Body() /* 0.38.0-alpha.3 : appelée, plus montée comme composant (recréé à chaque rendu) */}</>}

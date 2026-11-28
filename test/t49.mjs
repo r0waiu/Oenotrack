@@ -59,7 +59,7 @@ await page.locator('[data-plan-ligne="pn_cuves_rincage"] button', { hasText: 'Mo
 await f.locator('input[aria-label="Délai en jours"]').fill('2'); await enregistrer(f);
 d = await db();
 ok('ligne modifiée : rinçage des cuves en retard après 2 jours', d.planNettoyage.find((x) => x.id === 'pn_cuves_rincage').quand.find((q) => q.type === 'vidange').delai === 2);
-await page.locator('main button', { hasText: '+ Ajouter une ligne' }).click(); await page.waitForTimeout(350); f = ov();
+await page.locator('main button', { hasText: '＋ Ajouter une ligne' }).click(); await page.waitForTimeout(350); f = ov();
 await f.locator('input[aria-label="Équipement ou local nettoyé"]').fill('Laveuse de caisses');
 await f.locator('select[aria-label="Type de cible"]').selectOption('locaux'); await page.waitForTimeout(150);
 await f.locator('[aria-label="Cibles choisies"] button', { hasText: 'Laveuse de caisses' }).click();

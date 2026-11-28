@@ -37,7 +37,7 @@ function OperateursPicker({ value, onChange, label = 'Opérateur(s)', help, allo
   return (
     <Group label={label} help={help}>
       {!liste.length ? (
-        <div className="flex flex-wrap items-center gap-2 text-sm text-ink2"><span>Aucun opérateur dans la liste de la société.</span>{allowAdd ? <Btn size="sm" onClick={() => setAdd(true)}>+ Ajouter un opérateur</Btn> : null}</div>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-ink2"><span>Aucun opérateur dans la liste de la société.</span>{allowAdd ? <Btn size="sm" onClick={() => setAdd(true)}>＋ Ajouter un opérateur</Btn> : null}</div>
       ) : (
         <div className="opr-pick" role="group" aria-label={label}>
           {montres.map((o) => { const on = sel.includes(o.id); return (
@@ -45,7 +45,7 @@ function OperateursPicker({ value, onChange, label = 'Opérateur(s)', help, allo
               <span className="opr-av" aria-hidden="true">{on ? '✓' : operateurInitiales(o)}</span><span>{operateurPlein(o)}</span>{o.id === moi ? <span className="opr-sub">· cet appareil</span> : null}
             </button>); })}
           {grand ? <div style={{ flex: '1 1 220px', minWidth: 0 }}><Combo value="" onChange={(id) => { if (id && !sel.includes(id)) onChange([...sel, id]); }} options={actifs.filter((o) => !sel.includes(o.id)).map((o) => ({ value: o.id, label: operateurPlein(o), sub: o.fonction || '' }))} placeholder="Ajouter un opérateur : commencez à écrire…" aria-label="Ajouter un opérateur" /></div> : null}
-          {allowAdd ? <Btn size="sm" kind="ghost" onClick={() => setAdd(true)} title="Nouvel opérateur : il rejoint la liste de la société">+ Nouveau</Btn> : null}
+          {allowAdd ? <Btn size="sm" kind="ghost" onClick={() => setAdd(true)} title="Nouvel opérateur : il rejoint la liste de la société">＋ Nouveau</Btn> : null}
         </div>
       )}
       {add ? <OperateurForm onClose={() => setAdd(false)} onSaved={(id) => onChange([...sel, id])} /> : null}
@@ -103,7 +103,7 @@ function OperateurSheet({ id, onClose, onBack, backLabel, onCloseAll }) {
         {o.actif !== false ? (id === moi ? <Btn onClick={() => setMoi('')}>Ne plus le proposer sur cet appareil</Btn> : <Btn kind="primary" onClick={() => { setMoi(id); toast(`${operateurPlein(o)} sera proposé dans les nouvelles opérations saisies sur cet appareil.`); }}>C’est moi sur cet appareil</Btn>) : null}</>}>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <SI plain value={scope} onChange={setScope} options={[{ value: 'camp', label: `Campagne ${camp.nom}` }, { value: 'all', label: 'Toutes les campagnes' }]} style={{ width: 'auto' }} aria-label="Période" />
-        <span className="ml-auto flex flex-wrap gap-2"><Btn size="sm" onClick={() => exporter('csv')}>⬇ CSV</Btn><Btn size="sm" onClick={() => exporter('xlsx')}>⬇ Excel</Btn></span>
+        <span className="ml-auto flex flex-wrap gap-2"><Btn size="sm" onClick={() => exporter('csv')}>⬇ Exporter (CSV)</Btn><Btn size="sm" onClick={() => exporter('xlsx')}>⬇ Exporter (Excel)</Btn></span>
       </div>
       <div className="mb-5 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
         <Kpi label="Opérations" value={fmt(A.ops.length)} sub={C ? `campagne ${C.nom}` : 'toutes campagnes'} /><Kpi label="Hygiène" value={fmt(A.hygiene.length)} sub="nettoyages, rinçages…" />
@@ -133,7 +133,7 @@ function OperateursSection() {
   const del = async (o) => { if (await confirm({ title: `Supprimer ${operateurPlein(o)} ?`, body: 'Il disparaît de la liste des opérateurs.', ok: 'Supprimer', danger: true })) act((d) => operateurDelete(d, o.id), 'Opérateur supprimé.'); };
   const actifs = operateursTries(db, false);
   return (
-    <Sec title={`Opérateurs (${L.length - nArch}${nArch ? ` + ${nArch} archivé${nArch > 1 ? 's' : ''}` : ''})`} right={<Btn kind="primary" onClick={() => setForm({})}>+ Opérateur</Btn>}>
+    <Sec title={`Opérateurs (${L.length - nArch}${nArch ? ` + ${nArch} archivé${nArch > 1 ? 's' : ''}` : ''})`} right={<Btn kind="primary" onClick={() => setForm({})}>＋ Opérateur</Btn>}>
       <div className="card space-y-4 p-4" data-section="operateurs">
         <p className="text-sm text-ink2">Les personnes qui réalisent les opérations : salariés, saisonniers, apprentis, prestataires, œnologue… On les choisit dans chaque opération (<b>« Opérateur(s) »</b>), dans le journal d’hygiène et pour les décisions de déclassement. Cliquez sur une personne pour voir tout ce qu’elle a fait.</p>
         {L.length ? <Tbl rows={vis} onRow={(o) => showOperateur(o.id)} cols={[
@@ -145,7 +145,7 @@ function OperateursSection() {
           { h: '', r: (o) => <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
             <Btn size="sm" onClick={() => setForm({ id: o.id })}>Modifier</Btn>
             {o.actif === false ? <Btn size="sm" onClick={() => act((d) => operateurActif(d, o.id, true), `${operateurPlein(o)} réactivé.`)}>Réactiver</Btn> : <Btn size="sm" onClick={() => act((d) => operateurActif(d, o.id, false), `${operateurPlein(o)} archivé : son historique reste visible.`)} title="Ne plus le proposer dans les opérations (son historique est conservé)">Archiver</Btn>}
-            {!operateurUsage(db, o.id).total ? <Btn size="sm" kind="danger" onClick={() => del(o)} aria-label={`Supprimer ${operateurPlein(o)}`}>Suppr.</Btn> : null}
+            {!operateurUsage(db, o.id).total ? <Btn size="sm" kind="danger" onClick={() => del(o)} aria-label={`Supprimer ${operateurPlein(o)}`}>Supprimer</Btn> : null}
           </div> }]} /> : <Empty>Aucun opérateur pour l’instant. Ajoutez les personnes de l’équipe avec « + Opérateur ».</Empty>}
         {nArch ? <Check checked={arch} onChange={setArch} label={`Afficher les opérateurs archivés (${nArch})`} /> : null}
         <div className="grid gap-4 border-t border-line pt-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,280px),1fr))' }}>

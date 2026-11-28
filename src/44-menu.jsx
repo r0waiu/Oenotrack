@@ -1,17 +1,75 @@
-/* ============ MENU CONTEXTUEL DES CONTENANTS (clic droit / appui long / bouton ⋯) · SITES · ZONES DU PLAN ============ */
+/* ============ MENU CONTEXTUEL DES CONTENANTS (clic droit / appui long / bouton ⋯ / touche Menu) · MENUS DÉROULANTS · SITES · ZONES DU PLAN ============
+   0.48.0-alpha.1 : clavier (focus sur la première entrée, flèches, Début / Fin, Échap), MenuDeroulant (journal, fiche du lot), menu ouvert depuis un lot */
 const useLayoutEffect = React.useLayoutEffect;
 
-const MenuItem = ({ ic, children, onClick, disabled, hint, tone }) => (
-  <button type="button" role="menuitem" className="mi" disabled={disabled} onClick={onClick} style={tone === 'bad' ? { color: 'var(--bad)' } : undefined}><span className="ic" aria-hidden="true">{ic}</span><span className="min-w-0">{children}</span>{hint ? <small>{hint}</small> : null}</button>
+const MenuItem = ({ ic, children, onClick, disabled, hint, tone, ...p }) => (
+  <button type="button" role="menuitem" className="mi" disabled={disabled} onClick={onClick} style={tone === 'bad' ? { color: 'var(--bad)' } : undefined} {...p}><span className="ic" aria-hidden="true">{ic}</span><span className="min-w-0">{children}</span>{hint ? <small>{hint}</small> : null}</button>
 );
+
+/* 0.48.0-alpha.1 — menus au clavier : flèches haut / bas (en boucle), Début / Fin parmi les entrées actives ; focus sur la première entrée */
+const menuEntrees = (el) => (el ? [...el.querySelectorAll('[role=menuitem]')].filter((b) => !b.disabled && b.offsetParent !== null) : []);
+function menuClavier(e, el) {
+  const L = menuEntrees(el); if (!L.length) return false;
+  const i = L.indexOf(document.activeElement);
+  const k = e.key === 'ArrowDown' ? (i + 1) % L.length : e.key === 'ArrowUp' ? (i <= 0 ? L.length - 1 : i - 1) : e.key === 'Home' ? 0 : e.key === 'End' ? L.length - 1 : -1;
+  if (k < 0) return false;
+  e.preventDefault(); L[k].focus(); return true;
+}
+const menuFocusPremiere = (el) => { const L = menuEntrees(el); if (L[0]) { try { L[0].focus({ preventScroll: true }); } catch (er) { L[0].focus(); } } };
+// portion à présélectionner dans le menu d'un contenant ouvert depuis une ligne de lot (« ⋯ » de la liste des lots)
+const CTX_PORTION = { id: null, t: 0 };
+function ouvrirMenuLot(openMenu, R, lotId, x, y) {
+  const ps = Object.values(R.portions).filter((p) => p.lotId === lotId && p.vol > 0).sort((a, b) => b.vol - a.vol);
+  if (!ps.length) return false;
+  CTX_PORTION.id = ps[0].id; CTX_PORTION.t = Date.now(); openMenu(ps[0].contenantId, x, y, { portionId: ps[0].id }); return true;
+}
+
+/* Menu déroulant (bouton « ⋯ », « Opération sur ce lot ▾ ») : mêmes entrées et même clavier que le menu d'un contenant ; Échap le ferme
+   sans fermer la fiche qui le contient, le focus revient au bouton. children(fermer) rend les <MenuItem>. */
+function MenuDeroulant({ label, title, children, className, kind, size = 'sm', menuLabel, ...p }) {
+  const [ouvert, setOuvert] = useState(null); const btn = useRef(null); const ref = useRef(null);
+  const fermer = (rendre) => { setOuvert(null); if (rendre !== false && btn.current) btn.current.focus(); };
+  const ouvrir = () => { const r = btn.current.getBoundingClientRect(); setOuvert({ x: r.left, y: r.bottom + 4, r: r.right, h: r.top }); };
+  const [pos, setPos] = useState(null); const narrow = typeof window !== 'undefined' && window.innerWidth < 560;
+  useLayoutEffect(() => {
+    if (!ouvert) { setPos(null); return; }
+    const el = ref.current; if (!el || narrow) { setPos({}); return; }
+    const r = el.getBoundingClientRect(); const vw = window.innerWidth, vh = window.innerHeight;
+    const left = clamp(ouvert.r - r.width, 8, Math.max(8, vw - r.width - 8)); const top = ouvert.y + r.height > vh - 8 && ouvert.h - r.height - 4 > 8 ? ouvert.h - r.height - 4 : clamp(ouvert.y, 8, Math.max(8, vh - r.height - 8));
+    setPos({ left, top });
+  }, [ouvert]);
+  useEffect(() => { if (ouvert && pos) menuFocusPremiere(ref.current); }, [!!ouvert, !!pos]);
+  useEffect(() => {
+    if (!ouvert) return undefined;
+    const down = (e) => { if (ref.current && !ref.current.contains(e.target) && btn.current && !btn.current.contains(e.target)) fermer(false); };
+    const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); fermer(); } };
+    // défilement de la page ou redimensionnement : le menu suit son bouton (fermé si le bouton n'est plus affiché)
+    const suivre = (e) => { if (ref.current && e && e.target && e.target.nodeType === 1 && ref.current.contains(e.target)) return; const b = btn.current; if (!b || !b.isConnected || !b.offsetParent) { fermer(false); return; } const r = b.getBoundingClientRect(); setOuvert({ x: r.left, y: r.bottom + 4, r: r.right, h: r.top }); };
+    document.addEventListener('pointerdown', down, true); window.addEventListener('keydown', key, true); window.addEventListener('resize', suivre); window.addEventListener('scroll', suivre, true);
+    return () => { document.removeEventListener('pointerdown', down, true); window.removeEventListener('keydown', key, true); window.removeEventListener('resize', suivre); window.removeEventListener('scroll', suivre, true); };
+  }, [!!ouvert]);
+  const style = narrow ? { left: 8, right: 8, bottom: 8, top: 'auto', maxHeight: '80vh' } : (pos && pos.left != null ? pos : { left: ouvert ? ouvert.x : 0, top: ouvert ? ouvert.y : 0, visibility: 'hidden' });
+  return (
+    <>
+      <button ref={btn} type="button" className={cx('btn', size === 'sm' && 'btn-sm', kind && `btn-${kind}`, className)} aria-haspopup="menu" aria-expanded={!!ouvert} title={title} onClick={(e) => { e.stopPropagation(); if (ouvert) fermer(false); else ouvrir(); }}
+        onKeyDown={(e) => { if (!ouvert && (e.key === 'ArrowDown' || e.key === 'ContextMenu')) { e.preventDefault(); ouvrir(); } }} {...p}>{label}</button>
+      {ouvert ? <div ref={ref} className="ctxmenu menu-deroulant" role="menu" aria-label={menuLabel || (typeof label === 'string' ? label : title)} style={style} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => menuClavier(e, ref.current)} onContextMenu={(e) => e.preventDefault()}>{children(() => fermer(false))}</div> : null}
+    </>
+  );
+}
 
 function CtxMenu({ m, onClose }) {
   const { db, R, camp, act, showCont, showLot, openOp, openAnalyse, openHyg, openReport, editCont } = useApp();
   const c = db.contenants.find((x) => x.id === m.cid);
   const ps = c ? contParts(R, c.id).sort((a, b) => (a.since < b.since ? -1 : 1)) : [];
-  const [sel, setSel] = useState(ps[0] ? ps[0].portionId : null);
+  const [sel, setSel] = useState(() => { const voulu = m.portionId || (Date.now() - CTX_PORTION.t < 1500 ? CTX_PORTION.id : null); return ps.some((q) => q.portionId === voulu) ? voulu : ps[0] ? ps[0].portionId : null; });
   const ref = useRef(null); const [pos, setPos] = useState(null); const [tout, setTout] = useState(false);
+  // 0.48.0-alpha.1 : focus sur la première entrée à l'ouverture, flèches haut / bas, focus rendu à l'élément d'origine à la fermeture
+  const origine = useRef(typeof document !== 'undefined' ? document.activeElement : null);
   const narrow = typeof window !== 'undefined' && window.innerWidth < 560;
+  const vu = narrow || !!pos;
+  useEffect(() => { if (vu) menuFocusPremiere(ref.current); }, [vu]);
+  useEffect(() => () => { const o = origine.current; if (o && o.isConnected && typeof o.focus === 'function' && (!document.activeElement || document.activeElement === document.body)) { try { o.focus({ preventScroll: true }); } catch (e) { /* ignoré */ } } }, []);
   useLayoutEffect(() => {
     const el = ref.current; if (!el || narrow) return;
     const r = el.getBoundingClientRect(); const vw = window.innerWidth, vh = window.innerHeight;
@@ -35,7 +93,7 @@ function CtxMenu({ m, onClose }) {
   const fracPreset = () => ({ frac: Object.fromEntries(fracPress(db).map((fr) => [fr.id, { volL: '', contenantId: fr.id === 'cuvee' ? c.id : '', code: '' }])) });
   const style = narrow ? { left: 8, right: 8, bottom: 8, top: 'auto', maxHeight: '80vh' } : (pos || { left: m.x, top: m.y, visibility: 'hidden' });
   return (
-    <div ref={ref} className="ctxmenu" role="menu" aria-label={`Actions sur ${c.nom}`} style={style} onContextMenu={(e) => e.preventDefault()}>
+    <div ref={ref} className="ctxmenu" role="menu" aria-label={`Actions sur ${c.nom}`} style={style} onContextMenu={(e) => e.preventDefault()} onKeyDown={(e) => menuClavier(e, ref.current)} data-ctxmenu={c.id}>
       <div className="mh">
         <div className="flex items-center gap-2"><div className="disp min-w-0 flex-1 truncate text-lg leading-tight">{c.nom}</div><button type="button" className="btn btn-sm btn-ghost" onClick={onClose} aria-label="Fermer le menu">✕</button></div>
         <div className="text-xs text-ink2">{lbl(db, 'typesContenant', c.type)} · {lbl(db, 'matieres', c.matiere)}{db.sites.length > 1 ? ` · ${siteName(db, c.siteId)}` : ''} · <span className="num">{fmtHL(vol)} / {fmtL(c.volMax)}</span></div>

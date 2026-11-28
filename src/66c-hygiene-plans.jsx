@@ -54,7 +54,7 @@ function PlanNettoyageView() {
       <div className="my-3 flex flex-wrap items-center gap-2" data-plan-reglages="">
         <Check checked={actif} onChange={(v) => act((d) => planReglages(d, { actif: v }), v ? 'Plans d’hygiène actifs.' : 'Plans d’hygiène en pause.')} label="Plans actifs (tâches et alertes)" />
         <span className="inline-flex items-center gap-2 text-sm">mis en place le<DI value={planDepuis(db)} onChange={(v) => act((d) => planReglages(d, { depuis: v }))} aria-label="Date de mise en place du plan" /></span>
-        <span className="ml-auto flex flex-wrap gap-2"><Btn onClick={() => setImp(true)}>🖨 Imprimer le plan</Btn><Btn onClick={charger}>Rétablir l’origine</Btn><Btn kind="primary" onClick={() => setEd({})}>+ Ajouter une ligne</Btn></span>
+        <span className="ml-auto flex flex-wrap gap-2"><Btn onClick={() => setImp(true)}>🖨 Imprimer le plan</Btn><Btn onClick={charger}>Rétablir l’origine</Btn><Btn kind="primary" onClick={() => setEd({})}>＋ Ajouter une ligne</Btn></span>
       </div>
       {HYG_ZONES.map(([z, zl]) => { const L = P.filter((e) => (e.zone || 'autre') === z); if (!L.length) return null; return (
         <Sec key={z} title={`${zl} (${L.length})`}>
@@ -109,7 +109,7 @@ function PlanEntreeForm({ id, onClose }) {
             {q.type === 'texte' && !(q.momentId && HYG_MOMENTS.some((x) => x[0] === q.momentId)) ? <input className="inp min-w-0 flex-1" value={q.texte || ''} onChange={(e) => setQ(i, { texte: e.target.value })} placeholder="ex. en cas de salissure, après les soutirages de fin de FML" aria-label="Moment (texte)" style={{ minWidth: 220 }} /> : null}
             <Btn size="sm" kind="danger" onClick={() => set('quand', f.quand.filter((_, k) => k !== i))} aria-label={`Retirer le moment ${i + 1}`}>✕</Btn>
           </div>))}
-          <Btn size="sm" onClick={() => set('quand', [...f.quand, QUAND_VIDE('periodique')])}>+ Ajouter un moment</Btn></div>
+          <Btn size="sm" onClick={() => set('quand', [...f.quand, QUAND_VIDE('periodique')])}>＋ Ajouter un moment</Btn></div>
       </Group>
       <Group label="Produits">
         <div className="space-y-2">{f.produits.map((p, i) => (
@@ -117,7 +117,7 @@ function PlanEntreeForm({ id, onClose }) {
             <SI plain value={p.produitId ? `p:${p.produitId}` : `t:${p.type || ''}`} onChange={(v) => setP(i, v.startsWith('p:') ? { produitId: v.slice(2), type: undefined } : { type: v.slice(2), produitId: undefined })} options={[...hygOpts(HYG_TYPES, p.type).map((o) => ({ value: `t:${o.value}`, label: `Type : ${o.label}` })), ...hygListe(db).filter((x) => !x.archive).map((x) => ({ value: `p:${x.id}`, label: x.nom }))]} aria-label={`Produit ${i + 1}`} style={{ width: 'auto', maxWidth: 360 }} />
             <input className="inp num" style={{ width: 80 }} inputMode="decimal" value={p.conc ?? ''} onChange={(e) => setP(i, { conc: e.target.value })} placeholder="conc." aria-label={`Concentration ${i + 1}`} /><span className="text-sm">%</span>
             <Btn size="sm" kind="danger" onClick={() => set('produits', f.produits.filter((_, k) => k !== i))} aria-label={`Retirer le produit ${i + 1}`}>✕</Btn></div>))}
-          <Btn size="sm" onClick={() => set('produits', [...f.produits, { type: 'alcalin', conc: '' }])}>+ Ajouter un produit</Btn>
+          <Btn size="sm" onClick={() => set('produits', [...f.produits, { type: 'alcalin', conc: '' }])}>＋ Ajouter un produit</Btn>
           <div className="help">Un type de produit : à l’enregistrement, Œnotrack propose vos produits d’hygiène de ce type.</div></div>
       </Group>
       <Field label="Mode opératoire"><TA value={f.mode} onChange={(v) => set('mode', v)} rows={3} /></Field>
@@ -144,8 +144,8 @@ function PlanMaintenanceView() {
   return (
     <div>
       <Notice tone="info" title="Plan de maintenance du matériel">Préventive (planifiée pour éviter les pannes), réglementaire (imposée par la loi : vérifications, registre de sécurité) et curative (en cas de panne). Les échéances et les pannes signalées apparaissent dans l’onglet À faire.</Notice>
-      <div className="my-3 flex flex-wrap gap-2"><Btn kind="primary" onClick={() => setMt({ preset: { type: 'curative', statut: 'ouverte' } })} data-signaler-panne="">⚠ Signaler une panne</Btn><Btn onClick={() => setMt({ preset: { type: 'preventive' } })}>+ Enregistrer une intervention</Btn>
-        <span className="ml-auto flex flex-wrap gap-2"><Btn onClick={() => setImp(true)}>🖨 Imprimer le plan</Btn><Btn onClick={charger}>Rétablir l’origine</Btn><Btn onClick={() => setEd({})}>+ Ajouter du matériel</Btn></span></div>
+      <div className="my-3 flex flex-wrap gap-2"><Btn kind="primary" onClick={() => setMt({ preset: { type: 'curative', statut: 'ouverte' } })} data-signaler-panne="">⚠ Signaler une panne</Btn><Btn onClick={() => setMt({ preset: { type: 'preventive' } })}>＋ Enregistrer une intervention</Btn>
+        <span className="ml-auto flex flex-wrap gap-2"><Btn onClick={() => setImp(true)}>🖨 Imprimer le plan</Btn><Btn onClick={charger}>Rétablir l’origine</Btn><Btn onClick={() => setEd({})}>＋ Ajouter du matériel</Btn></span></div>
       <Sec title={`Matériel suivi (${P.length})`}>
         <Tbl rows={P} empty="Plan vide : « Rétablir l’origine » charge le modèle Œnotrack." cols={[
           { h: 'Matériel', r: (e) => <span className={cx(e.actif === false && 'opacity-60')}><b>{e.libelle}</b>{maintEquipements(db, e).length ? <span className="block text-xs text-ink2">{maintEquipements(db, e).map((x) => x.nom).join(', ')}</span> : null}</span> },

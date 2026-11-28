@@ -177,29 +177,33 @@ function champStdVide(db, type, k, f) {
   }
 }
 // opts.nouveau === false (correction d'une opération déjà enregistrée) : les champs devenus obligatoires depuis ne bloquent pas la correction
-function champsErreurs(db, catId, type, f, opts) {
+// 0.48.0-alpha.1 : champsErreurDetail → { msg, champ } (champ standard k, « entrees.<i>.<clé> » pour un moût, « perso:<id> ») ou null ;
+// champsErreurs (message seul) inchangé
+function champsErreurDetail(db, catId, type, f, opts) {
   const cfg = formulaireDe(db, catId); const nom = (c) => c.libelle || c.label; const oblig = !(opts && opts.nouveau === false);
   const sain = type === 'pesee' && etatSain(f); // pesée « Sain » : les relevés de pourriture sont sans objet (ni exigés ni contrôlés)
   for (const s of oblig ? champsStd(type) : []) {
     if (['docs', 'vin'].includes(s.k)) continue; const c = champEffectif(cfg, type, s.k); if (!c.obligatoire || (sain && c.siAltere)) continue;
     if (s.ligne) { const k = s.k.slice(2); const L = (f.entrees || []).map((e, i) => ({ e, i })).filter(({ e }) => sum(e.dests || [], (d) => d.volL) > 0); const manque = L.find(({ e }) => (k === 'analyses' ? !Object.keys(e.analyses || {}).some((x) => hasNum(e.analyses[x])) : k === 'apporteurs' ? !(e.apporteurs || []).some((a) => a.id) : vide(e[k])));
-      if (manque) return `Moût ${manque.i + 1} : « ${nom(c)} » est obligatoire.`; continue; }
-    if (champStdVide(db, type, s.k, f)) return `« ${nom(c)} » est obligatoire.`;
+      if (manque) return { msg: `Moût ${manque.i + 1} : « ${nom(c)} » est obligatoire.`, champ: `entrees.${manque.i}.${k}` }; continue; }
+    if (champStdVide(db, type, s.k, f)) return { msg: `« ${nom(c)} » est obligatoire.`, champ: s.k };
   }
-  return champsPersoErreurs(cfg.perso, type, f, oblig, sain ? persoSiAltere : null);
+  return champsPersoErreurDetail(cfg.perso, type, f, oblig, sain ? persoSiAltere : null);
 }
+function champsErreurs(db, catId, type, f, opts) { const d = champsErreurDetail(db, catId, type, f, opts); return d ? d.msg : ''; }
 // champs personnalisés seuls (aussi pour le carnet de pressoir : champs personnalisés du pressurage) ; sauf(d) : champ sans objet
-function champsPersoErreurs(perso, type, f, oblig, sauf) {
+function champsPersoErreurDetail(perso, type, f, oblig, sauf) {
   const fv = f.champs || {}; const calc = champsNumeriques(perso, fv, formuleVarsStd(type, f));
   for (const d of perso) {
     if (sauf && sauf(d)) continue;
-    const v = d.type === 'calcul' ? calc[d.id] : fv[d.id];
-    if (oblig && d.obligatoire && cpVide(d, v)) return d.type === 'ouinon' ? `« ${d.label} » doit être coché.` : `« ${d.label} » est obligatoire.`;
-    if (d.type === 'nombre' && v != null && String(v).trim() !== '') { if (!hasNum(v)) return `« ${d.label} » : nombre attendu.`; if (hasNum(d.min) && num(v) < num(d.min)) return `« ${d.label} » : au moins ${fmt(d.min)}${d.unite ? ` ${d.unite}` : ''}.`; if (hasNum(d.max) && num(v) > num(d.max)) return `« ${d.label} » : au plus ${fmt(d.max)}${d.unite ? ` ${d.unite}` : ''}.`; }
-    if (d.type === 'liste' && v && (d.options || []).length && !(d.options || []).includes(v)) return `« ${d.label} » : choisissez dans la liste.`;
+    const v = d.type === 'calcul' ? calc[d.id] : fv[d.id]; const E = (msg) => ({ msg, champ: `perso:${d.id}` });
+    if (oblig && d.obligatoire && cpVide(d, v)) return E(d.type === 'ouinon' ? `« ${d.label} » doit être coché.` : `« ${d.label} » est obligatoire.`);
+    if (d.type === 'nombre' && v != null && String(v).trim() !== '') { if (!hasNum(v)) return E(`« ${d.label} » : nombre attendu.`); if (hasNum(d.min) && num(v) < num(d.min)) return E(`« ${d.label} » : au moins ${fmt(d.min)}${d.unite ? ` ${d.unite}` : ''}.`); if (hasNum(d.max) && num(v) > num(d.max)) return E(`« ${d.label} » : au plus ${fmt(d.max)}${d.unite ? ` ${d.unite}` : ''}.`); }
+    if (d.type === 'liste' && v && (d.options || []).length && !(d.options || []).includes(v)) return E(`« ${d.label} » : choisissez dans la liste.`);
   }
-  return '';
+  return null;
 }
+function champsPersoErreurs(perso, type, f, oblig, sauf) { const d = champsPersoErreurDetail(perso, type, f, oblig, sauf); return d ? d.msg : ''; }
 // nouvelle opération : valeurs par défaut des champs (standard et personnalisés)
 function formulaireDefauts(db, catId, type, s, garder) {
   const cfg = formulaireDe(db, catId); const g = garder || {};

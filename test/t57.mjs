@@ -16,7 +16,8 @@ const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   // 1. Traçabilité s'ouvre sur « Toutes les étapes »
   await page.click('#tab-trace'); await page.waitForTimeout(500);
   const st = await txt(page.locator('main [role=tablist]').first());
-  ok('Traçabilité : « 🔎 Toutes les étapes » d’abord, « 🧾 Mode audit » avant les rapports', /^🔎 Toutes les étapes Intrant \(rappel de lot\)/.test(st) && /🧾 Mode audit 🖨 Rapports imprimables/.test(st) && (await page.locator('[data-trace-etapes]').count()) === 1, st);
+  // 0.48.0-alpha.1 : « 🔎 Recherche » (Toutes les étapes, Intrant, Cru, Parcelle, Partenaire réunis en pastilles), filtre « Tout » d'abord
+  ok('Traçabilité : « 🔎 Recherche » d’abord (filtre « Tout » : toutes les étapes), « 🧾 Mode audit » avant les rapports', /^🔎 Recherche /.test(st) && (await page.locator('[data-trace-filtre="tout"][aria-pressed="true"]').count()) === 1 && /🧾 Mode audit 🖨 Rapports imprimables/.test(st) && (await page.locator('[data-trace-etapes]').count()) === 1, st);
   await cherche('pesée 3'); let t = await txt(page.locator('[data-trace-resultats]'));
   ok('« pesée 3 » : la pesée n° 3 de chaque année, rangée sous « Raisins (pesées) »', /🍇 Raisins \(pesées\)/i.test(t) && (t.match(/Pesée n° 3/g) || []).length === 2, t);
   await cherche('zzz-introuvable'); ok('rien trouvé : message', /Rien trouvé : essayez un autre repère\./.test(await txt(page.locator('[data-trace-etapes]'))));
@@ -118,7 +119,7 @@ const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   await page.locator('input[aria-label="Search a stage"]').fill('pesée 1'); await page.waitForTimeout(400);
   await page.locator('[data-resultat]').first().click(); await page.waitForTimeout(500);
   t = await txt(page.locator('main'));
-  ok('anglais : « All stages », « Search at any stage… », « Traceability chain — », étapes', /🔎 All stages/.test(t) && /Search at any stage, from grapes to disgorged/i.test(t) && /Traceability chain — /i.test(t) && /Grapes \(weighings\)/i.test(t) && /Pressing \(press loads\)/i.test(t) && /Bottling \(on lees\)/i.test(t) && /center here/.test(t), t.slice(0, 800));
+  ok('anglais : « 🔎 Search » et ses filtres (All, Additive…), « Search at any stage… », « Traceability chain — », étapes', /🔎 Search/.test(t) && /\bAll Additive Cru Plot Partner\b/.test(t) && /Search at any stage, from grapes to disgorged/i.test(t) && /Traceability chain — /i.test(t) && /Grapes \(weighings\)/i.test(t) && /Pressing \(press loads\)/i.test(t) && /Bottling \(on lees\)/i.test(t) && /center here/.test(t), t.slice(0, 800));
   ok('… plus de français dans la chaîne', !/Raisins \(pesées\)|centrer ici|recherché|Chaîne de traçabilité|Expéditions et sorties/.test(t), t.slice(0, 900));
   await page.locator('main [role=tab]', { hasText: 'Audit mode' }).click(); await page.waitForTimeout(500);
   t = await txt(page.locator('[data-audits]'));

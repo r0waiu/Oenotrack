@@ -72,8 +72,8 @@ ok('… produit mousseux : code INAO, ventes France sous CRD (année courante) 9
 ok(`… conforme au schéma de la douane${xsd ? ' (xmllint)' : ' (schéma non fourni : contrôle de structure seulement)'}`, valide(x1.text, 'drm-2026-10.xml'));
 await vide(); await page.locator('[data-drm-xml-civc]').click(); await page.waitForTimeout(700); S = await saved(); const x2 = S.find((x) => /\.xml$/.test(x.filename)) || { text: '' };
 ok('« ⬇ XML CIVC » : drm-civc-2026-10.xml, code CIVC à la place du code INAO, le reste identique', x2.filename === 'drm-civc-2026-10.xml' && /<code-inao>CHMOUS01<\/code-inao>/.test(x2.text) && !/1S001M/.test(x2.text) && valide(x2.text, 'drm-civc-2026-10.xml'));
-await vide(); await page.locator('[data-drm-actions] button', { hasText: '⬇ CSV' }).click(); await page.waitForTimeout(700); S = await saved(); const c1 = S.find((x) => /\.csv$/.test(x.filename)) || { text: '' };
-ok('« ⬇ CSV » : identifiants, une ligne par produit (stocks et rubriques en hL)', c1.filename === 'drm-2026-10.csv' && /N° d’accise;FR012345E6789/.test(c1.text) && /2026-10;Champagne — vins mousseux \(bouteilles tirées\);1S001M;CHMOUS01;141,9;/.test(c1.text), c1.text.slice(0, 600));
+await vide(); await page.locator('[data-drm-actions] button', { hasText: '⬇ Exporter (CSV)' }).click(); await page.waitForTimeout(700); S = await saved(); const c1 = S.find((x) => /\.csv$/.test(x.filename)) || { text: '' };
+ok('« ⬇ Exporter (CSV) » : identifiants, une ligne par produit (stocks et rubriques en hL)', c1.filename === 'drm-2026-10.csv' && /N° d’accise;FR012345E6789/.test(c1.text) && /2026-10;Champagne — vins mousseux \(bouteilles tirées\);1S001M;CHMOUS01;141,9;/.test(c1.text), c1.text.slice(0, 600));
 await page.locator('[data-drm-actions] button', { hasText: '🖨 Imprimer…' }).click(); await page.waitForTimeout(500);
 t = await txt(ov().locator('[data-drm-impression]'));
 ok('impression : DRM — octobre 2026, identifiants, rubriques, produits, observations', /DRM — octobre 2026/i.test(t) && /N° d’accise FR012345E6789/.test(t) && /Stock de début/.test(t) && /Ventes France sous CRD/.test(t) && /Coteaux champenois/.test(t), t.slice(0, 400));
@@ -107,7 +107,7 @@ await page.click('#tab-registres'); await page.waitForTimeout(400); await sous('
 await page.locator('main button', { hasText: 'Registre d’enrichissement' }).first().click(); await page.waitForTimeout(400);
 t = await txt(page.locator('main'));
 ok('registre d’enrichissement : la chaptalisation de la cuve 08 (TAP 9,5 → 10,5 % vol, +1, saccharose, sucre de canne 34 kg)', /Registre d’enrichissement/.test(t) && /Cuve 08/.test(t) && /9,5/.test(t) && /10,5/.test(t) && /Saccharose/.test(t) && /Sucre de canne 34/.test(t), t.slice(t.indexOf('Registre d’enrichissement'), t.indexOf('Registre d’enrichissement') + 500));
-await vide(); await page.locator('main button', { hasText: 'Exporter CSV' }).click(); await page.waitForTimeout(700); S = await saved();
+await vide(); await page.locator('main button', { hasText: 'Exporter (CSV)' }).click(); await page.waitForTimeout(700); S = await saved();
 ok('… export CSV du registre d’enrichissement', S.some((x) => /registre-enrichissement-/.test(x.filename) && /TAP avant \(% vol\)/.test(x.text)), S.map((x) => x.filename));
 // 8. anglais
 await page.locator('footer [data-langue]').selectOption('en'); await page.waitForTimeout(400); await sous('DRM');

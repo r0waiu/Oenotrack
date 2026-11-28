@@ -659,6 +659,209 @@ details>summary{cursor:pointer;font-weight:600}
 }
 @media (prefers-reduced-motion:no-preference){.tankliq{transition:y .5s ease,height .5s ease}}
 #fatal{display:none;position:fixed;left:0;right:0;bottom:0;z-index:999;background:#7a1f19;color:#fff;font:12px/1.4 ui-monospace,monospace;padding:10px 14px;white-space:pre-wrap;max-height:40vh;overflow:auto}
+/* ===== 0.48.0-alpha.1 — interface : en-tête, navigation, contrastes, cibles tactiles ===== */
+.bande-defil{position:relative;min-width:0}
+.bande-defil>.bande-btn{position:absolute;top:0;bottom:0;z-index:2;display:none;align-items:center;justify-content:center;width:30px;border:0;cursor:pointer;color:var(--ink);font:700 16px var(--font-body)}
+.bande-defil>.bande-btn.g{left:0;background:linear-gradient(90deg,var(--bandeFond,var(--bg)) 55%,transparent)}
+.bande-defil>.bande-btn.d{right:0;background:linear-gradient(270deg,var(--bandeFond,var(--bg)) 55%,transparent)}
+.bande-defil[data-avant]>.bande-btn.g,.bande-defil[data-apres]>.bande-btn.d{display:flex}
+.navbar .bande-defil{--bandeFond:var(--surface)}
+.subtabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px;border-bottom:1px solid var(--line)}
+.subtab{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;background:none;color:var(--ink2);font:600 13px var(--font-body);cursor:pointer;white-space:nowrap;border-radius:var(--r-btn,5px) var(--r-btn,5px) 0 0}
+.subtab:hover{color:var(--ink);background:var(--surface2)}
+.subtab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);background:var(--surface)}
+.subtab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.kpi-clic{cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit}
+.kpi-clic:hover{border-color:var(--accent)}
+.kpi-clic:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.kpi-va{font-size:11px;color:var(--accent);font-weight:600}
+.saut-contenu{position:absolute;left:8px;top:-60px;z-index:300;background:var(--surface);color:var(--ink);border:2px solid var(--accent);padding:8px 12px;border-radius:6px;font-weight:600}
+.saut-contenu:focus{top:8px}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.fil-ariane{font-size:12px;color:var(--ink2);margin:-8px 0 10px}
+.fil-ariane b{color:var(--ink);font-weight:600}
+.camp-menu{position:relative}
+.camp-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:230px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px;display:flex;flex-direction:column;gap:2px}
+.camp-pop button{text-align:left;background:none;border:0;padding:9px 10px;border-radius:6px;color:var(--ink);font:600 13px var(--font-body);cursor:pointer}
+.camp-pop button:hover,.camp-pop button:focus-visible{background:var(--surface2)}
+button.chip{cursor:pointer}
+.hdr-plus{display:none}
+.camp-menu .camp-ic{display:none}
+@media (max-width:759px){.camp-menu .camp-ic{display:inline}}
+.recherche-g{position:relative;min-width:0}
+.recherche-g input{width:clamp(160px,22vw,280px)}
+.recherche-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:70;width:min(420px,calc(100vw - 24px));max-height:60vh;overflow:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px}
+.recherche-pop [role=option]{display:flex;gap:8px;align-items:baseline;padding:8px 10px;border-radius:6px;cursor:pointer}
+.recherche-pop [role=option][aria-selected="true"],.recherche-pop [role=option]:hover{background:var(--surface2)}
+.recherche-pop .rg-type{font-size:11px;color:var(--ink2);min-width:72px}
+.annuler-toast{margin-left:10px;background:none;border:1px solid currentColor;color:inherit;border-radius:5px;padding:2px 8px;font:600 12px var(--font-body);cursor:pointer}
+/* contrastes des pastilles et bandeaux doux en mode clair (≥ 4,5:1 dans toutes les chartes) */
+:root:not([data-mode="dark"]) .chip-info,:root:not([data-mode="dark"]) .bg-accentSoft.text-accent{color:color-mix(in srgb,var(--accent) 70%,var(--ink))}
+:root:not([data-mode="dark"]) .chip-warn,:root:not([data-mode="dark"]) .bg-warnSoft.text-warn{color:color-mix(in srgb,var(--warn) 70%,var(--ink))}
+:root:not([data-mode="dark"]) .chip-ok,:root:not([data-mode="dark"]) .bg-okSoft.text-ok{color:color-mix(in srgb,var(--ok) 70%,var(--ink))}
+:root:not([data-mode="dark"]) .chip-bad,:root:not([data-mode="dark"]) .bg-badSoft.text-bad{color:color-mix(in srgb,var(--bad) 70%,var(--ink))}
+.bg-badSoft .linkish,.bg-warnSoft .linkish,.bg-accentSoft .linkish,.bg-okSoft .linkish{color:inherit;text-decoration:underline}
+/* pastilles longues (résultats d'analyses…) : jamais plus larges que leur conteneur */
+.chip{max-width:100%}
+@media (max-width:767px){.tbl-cartes .chip,main td .chip{white-space:normal;text-align:left}}
+/* champs : jamais plus larges que leur conteneur (téléphone) */
+.inp,select.inp,select{max-width:100%}
+.inp{min-width:0}
+/* cibles tactiles */
+@media (pointer:coarse){
+  .btn{min-height:44px}
+  .btn-sm{min-height:40px;padding-left:11px;padding-right:11px}
+  button.chip,.chip[role=button]{padding:8px 10px}
+  .tab{padding-top:14px;padding-bottom:11px}
+  .subtab{min-height:44px}
+  .appfoot select,.langue-compacte select.inp{min-height:36px}
+  .flex.gap-1>.btn+.btn,.flex.gap-1>.btn-sm+.btn-sm{margin-left:4px}
+}
+/* en-tête compact au téléphone */
+@media (max-width:759px){
+  .topbar .wrap{padding-top:6px;padding-bottom:6px;row-gap:6px}
+  .topbar .brand-sub{display:none}
+  .topbar .brand-lien svg,.topbar .brand-lien img{width:34px;height:34px}
+  .hdr-camp .lbl{display:none}
+  .topbar>.wrap:first-of-type{flex-wrap:nowrap;column-gap:10px}
+  .topbar .brand{display:none}
+  .hdr-camp{flex:1 1 auto;min-width:0;margin-left:0;flex-wrap:nowrap;gap:6px}
+  .hdr-camp>label{flex:0 1 auto;min-width:0}
+  .hdr-camp select.inp{min-width:0!important;width:136px!important;flex:0 0 auto;padding-left:8px;padding-right:24px}
+  .camp-menu .camp-txt{display:none}
+  .hdr-camp>label{flex:0 0 auto}
+  .hdr-camp .recherche-g{flex:1 1 auto}
+  .hdr-camp .recherche-g input{width:100%}
+  .hdr-plus{display:inline-flex;flex:0 0 auto}
+  .hdr-actions{padding-bottom:6px}
+  .hdr-actions:not(.ouvert){display:none}
+  .hdr-actions .hdr-status{justify-content:flex-end}
+  .topbar .notice-exemple .font-semibold{display:none}
+  .topbar .notice-exemple{padding:4px 10px;font-size:13px}
+  .fil-ariane{display:none}
+}
+/* (fin du bloc en-tête et navigation) */
+/* - */
+/* - */
+/* ===== 0.48.0-alpha.1 — opérations, cuverie, fiche du lot ===== */
+/* sélecteur « Nouvelle opération » : familles en colonnes d'au moins 250 px, libellés longs sur plusieurs lignes (plus de débordement) */
+.nouvelle-op .ops-familles{grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))}
+.op-choix{display:inline-flex;align-items:stretch;max-width:100%;min-width:0}
+.op-choix>.btn{white-space:normal;text-align:left;justify-content:flex-start;line-height:1.25;min-width:0;max-width:100%;overflow-wrap:anywhere}
+.op-fav{flex:none;min-width:30px;min-height:36px;border:0;background:transparent;color:var(--ink2);cursor:pointer;font-size:16px;line-height:1;border-radius:5px}
+.op-fav:hover{background:var(--surface2);color:var(--ink)}
+.op-fav[aria-pressed="true"]{color:var(--warn)}
+.op-fav:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* journal : actions de ligne sur une seule ligne (« Modifier » + « ⋯ ») */
+.tbl td.op-acts-td .op-acts{flex-wrap:nowrap}
+.menu-deroulant{min-width:220px}
+/* plan de cave : bouton « ⋯ » de chaque contenant */
+.pitem .pdots{top:0;right:0;min-height:24px;min-width:24px;font-size:15px;background:color-mix(in srgb,var(--surface) 78%,transparent);border-color:var(--line);opacity:.8;z-index:2}
+.pitem:hover .pdots,.pitem:focus-within .pdots{opacity:1}
+/* états vides de première utilisation */
+.vide-accueil{max-width:680px;margin:8px auto 20px;padding:24px 20px;text-align:center}
+.vide-accueil .vide-ic{font-size:34px;line-height:1;margin-bottom:6px}
+.vide-accueil p{margin-top:6px}
+/* fiche du lot : barre d'actions sous le titre, volume et contenants avant le stade */
+.lot-barre{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.lot-resume{font-size:14px;line-height:1.5}
+@media print{.pitem .pdots,.lot-barre{display:none!important}}
+/* (fin du bloc opérations) */
+/* - */
+/* - */
+/* ===== 0.48.0-alpha.1 — formulaires et fiches ===== */
+/* textes indicatifs lisibles (contraste ≥ 4,5:1) */
+.inp::placeholder,input::placeholder,textarea::placeholder{color:var(--ink2);opacity:1}
+.topbar .inp::placeholder{color:var(--bandInk2)}
+/* erreur de validation : sous le champ (aria-invalid) et au-dessus du pied de la fiche (role=alert) ; le message en bas de page est alors masqué */
+.champ-erreur{display:block;margin-top:4px;font-size:12.5px;line-height:1.35;font-weight:600;color:var(--bad)}
+.inp[aria-invalid="true"],[aria-invalid="true"] .inp,.champ-en-erreur>.inp{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad)}
+.sheet-erreur{flex:1 1 100%;order:-1;background:var(--badSoft);color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 40%,transparent);border-radius:var(--r-btn,6px);padding:8px 12px;font-size:14px;font-weight:600;line-height:1.35}
+body:has(.sheet-erreur) .toast.bad:not(.login-voile .toast){display:none}
+.sheet-title:focus{outline:none}.sheet-title:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* en-têtes de colonnes au-dessus des lignes (portions, pertes, préparations) */
+.lignes-tete .lbl{margin-bottom:0}
+/* téléphone : sous-titre replié, menu « ⋯ » du pied, sections facultatives repliées avec leur compteur */
+.sheet-sub-btn{display:none}
+.sheet-plus{position:relative}
+.sheet-plus-menu{position:absolute;bottom:calc(100% + 6px);left:0;min-width:230px;max-width:calc(100vw - 24px);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-card,8px);box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;gap:4px;z-index:5}
+.sheet-plus-menu .btn{width:100%;justify-content:flex-start;text-align:left;margin:0}
+.sheet-plus-btn{min-width:44px;font-size:18px;line-height:1}
+.cf-tel-replie{border:1px solid var(--line);border-radius:var(--r-btn,6px);padding:4px 10px}
+.cf-tel-replie>summary{cursor:pointer;font-weight:600;font-size:14px;min-height:36px;display:flex;align-items:center;gap:2px}
+.cf-tel-replie>summary .cf-tel-n{color:var(--ink2);font-weight:400}
+.cf-tel-replie>.mt-2{margin-bottom:6px}
+.cf-tel-replie>.mt-2>[data-champ]>.lbl:first-child,.cf-tel-replie>.mt-2>.cf-bare>div>.lbl:first-child{display:none}
+@media (max-width:760px){
+  .sheet-h{padding:8px 12px;gap:8px}
+  .sheet-h .sheet-title{font-size:18px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sheet-h .sheet-sub{display:none}
+  .sheet-h.sub-vu .sheet-sub{display:block}
+  .sheet-h.sub-vu .sheet-title{white-space:normal}
+  .sheet-sub-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);font-size:16px}
+  .sheet-sub-btn[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}
+  .sheet-f-tel{padding:8px 12px;gap:6px}
+  .sheet-f-tel:has(>.sheet-plus)>.btn-primary{flex:1}
+}
+/* (fin du bloc formulaires) */
+/* - */
+/* - */
+/* ===== 0.48.0-alpha.1 — modules (tirage, traçabilité, cave, hygiène, analyses, registres) ===== */
+/* U08 : filtres en pastilles de la recherche de Traçabilité */
+.trace-filtres{display:flex;flex-wrap:wrap;gap:6px}
+.trf{min-height:36px;padding:4px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:500 14px var(--font-body);cursor:pointer}
+.trf:hover{border-color:var(--ink2)}.trf:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.trf.on{background:var(--accentSoft);border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
+/* U28 : cartes du journal d'hygiène — nom complet sur deux lignes, pastille de type en dessous */
+.hyg-carte{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hyg-nom{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;line-height:1.25}
+.hyg-type{display:flex;gap:4px}
+/* U33 : tableaux en cartes au téléphone (Cave, Tirages, Analyses) ; libellés des cellules masqués sur grand écran */
+.tbl-cartes .tc-l{display:none}
+@media (max-width:767px){
+  .tblwrap.tbl-cartes{border:0;background:none;overflow:visible;border-radius:0}
+  .tbl-cartes .tbl,.tbl-cartes .tbl tbody{display:block}
+  .tbl-cartes .tbl thead{display:none}
+  .tbl-cartes .tbl tr{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:8px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-card,6px);background:var(--surface)}
+  .tbl-cartes .tbl tr.clk:hover td{background:none}
+  .tbl-cartes .tbl td{display:block;flex:1 1 calc(50% - 14px);min-width:0;padding:0;border:0;text-align:left;overflow-wrap:anywhere}
+  .tbl-cartes .tbl td.tc-titre{flex:1 1 100%;font-size:15px}
+  .tbl-cartes .tbl td.tc-actions{flex:1 1 100%}
+  .tbl-cartes .tbl td.tc-actions:empty{display:none}
+  .tbl-cartes .tbl td .whitespace-nowrap{white-space:normal}
+  .tbl-cartes .tc-l{display:block;font:600 10.5px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
+  /* ailleurs (DRM, maintenance, plans d'hygiène, registres) : première colonne figée pendant le défilement horizontal */
+  [data-drm] .tbl td:first-child,[data-drm] .tbl th:first-child,[data-equipements] .tbl td:first-child,[data-equipements] .tbl th:first-child,[data-col-figee] .tbl td:first-child,[data-col-figee] .tbl th:first-child{position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:1px 0 0 var(--line)}
+  [data-drm] .tbl th:first-child,[data-equipements] .tbl th:first-child,[data-col-figee] .tbl th:first-child{z-index:2;background:var(--surface2)}
+}
+@media print{.tbl-cartes .tc-l{display:none!important}}
+/* (fin du bloc modules) */
+/* - */
+/* - */
+/* ===== 0.48.0-alpha.1 — paramètres, visite guidée, aides repliables ===== */
+.aide{border:1px solid var(--line);border-radius:var(--r-sheet,8px);background:var(--surface);font-size:14px}
+.aide>summary{cursor:pointer;list-style:none;padding:8px 12px;display:flex;gap:8px;align-items:baseline;color:var(--ink2)}
+.aide>summary::-webkit-details-marker{display:none}
+.aide>summary .aide-t{color:var(--accent);font-weight:600;white-space:nowrap}
+.aide[open]>summary{border-bottom:1px solid var(--line)}
+.aide>.aide-c{padding:8px 12px}
+@media print{.aide{display:none}}
+/* Paramètres : menu des rubriques en liste simple ; au téléphone, la liste puis la rubrique choisie (« ‹ Rubriques » pour revenir) */
+.params-menu-liste .btn{white-space:normal}
+@media (max-width:767.98px){.params-tel-rubrique .params-menu{display:none}.params-tel-liste .params-contenu{display:none}.params-menu-liste .btn{min-height:44px}}
+/* listes et crus repliables */
+.liste-tete{display:flex;align-items:center;gap:.5rem;width:100%;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer}
+.liste-tete .chip{font-size:12px;font-weight:500}
+.liste-fleche{display:inline-block;width:1em;color:var(--accent)}
+.crus-tete{padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-weight:600;min-height:40px}
+/* visite guidée : sommaire dans l'écran (pied collant), voile qui ferme, feuille basse au téléphone */
+.visite[data-visite-sommaire] .visite-voile{pointer-events:auto;cursor:pointer}
+.visite-bulle.visite-sommaire{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.visite-sommaire .visite-corps{overflow-y:auto;min-height:0;flex:1 1 auto;padding:.8rem 1rem .4rem}
+.visite-sommaire .visite-pied{position:sticky;bottom:0;flex:0 0 auto;padding:.6rem 1rem;border-top:1px solid var(--line);background:var(--card)}
+.visite-bulle.visite-feuille{left:0;right:0;bottom:0;top:auto;width:auto;border-radius:14px 14px 0 0;max-height:45vh;overflow-y:auto;padding-bottom:calc(.8rem + env(safe-area-inset-bottom,0px))}
+@media print{.visite{display:none}}
+/* (fin du bloc paramètres) */
 /* impression : seul le rapport est imprimé */
 @page{size:A4;margin:12mm}
 /* couleurs à l'impression (0.38.0-alpha.1) : fonds, bordures et mises en évidence imprimés tels qu'à l'écran (cases « relevé » à

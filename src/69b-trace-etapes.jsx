@@ -27,8 +27,9 @@ function TraceEtapeCarte({ x, onChoisir }) {
       {!x.cible ? <button type="button" className="linkish mt-1 text-xs" onClick={() => onChoisir({ type: 'op', id: o.id })}>centrer ici</button> : null}
     </div>);
 }
-function TraceEtapes({ onCible }) {
-  const { db, R } = useApp(); const [q, setQ] = useState(''); const [cible, setCible0] = useState(null); const ref = useRef(null);
+// qInit : recherche reprise de l'en-tête (0.48.0-alpha.1)
+function TraceEtapes({ onCible, qInit }) {
+  const { db, R } = useApp(); const [q, setQ] = useState(qInit || ''); const [cible, setCible0] = useState(null); const ref = useRef(null);
   const setCible = (c) => { setCible0(c); if (onCible) onCible({ ...c, titre: nomCible(c) }); }; // titre lisible (test de traçabilité d'un audit)
   const res = useMemo(() => (q.trim() ? traceChercher(db, R, q) : []), [db, R, q]);
   const ch = useMemo(() => (cible ? traceChaine(db, R, cible) : null), [db, R, cible]);

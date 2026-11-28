@@ -354,7 +354,7 @@ function CartoucheEditor({ m, set }) {
               : <input className="inp" style={{ flex: '1 1 160px', width: 'auto' }} value={x.valeur || ''} onChange={(e) => upd(i, { valeur: e.target.value })} aria-label={`Valeur de la ligne ${i + 1} du cartouche`} />}
             {x.k === 'libre' ? <Btn size="sm" kind="danger" aria-label={`Supprimer la ligne ${x.label}`} onClick={() => put(L.filter((_, k) => k !== i))}>✕</Btn> : null}
           </div>))}
-        <Btn size="sm" onClick={() => put([...L, { k: 'libre', label: 'Réf.', valeur: '', visible: true }])}>+ Ligne libre</Btn>
+        <Btn size="sm" onClick={() => put([...L, { k: 'libre', label: 'Réf.', valeur: '', visible: true }])}>＋ Ligne libre</Btn>
       </div>
     </Group>
   );
@@ -532,10 +532,10 @@ function ColsEditor({ value, onChange, fill }) {
           {!n.c.length ? <div className="flex items-center gap-1" style={{ flex: '0 1 280px', minWidth: 170 }}><SI plain value={n.k || ''} onChange={(v) => { if (v === '__perso') { setPerso({ p, k: n.k || '' }); return; } mut((t) => { node(t, p).k = v || null; }); }} placeholder="✍ à remplir à la main" options={optsDe(n.k)} aria-label="Contenu de la colonne" />{n.k && n.k.startsWith('x_') ? <Btn size="sm" onClick={() => setPerso({ p, k: n.k })} aria-label="Modifier le pré-rempli personnalisé" title="Modifier les données de ce pré-rempli">✎</Btn> : null}</div> : <span className="text-xs text-ink2">{colLeaves(n.c).length} sous-colonnes</span>}
           <Btn size="sm" disabled={first} onClick={() => mut((t) => { const s = sib(t, p); const i = p[p.length - 1]; [s[i - 1], s[i]] = [s[i], s[i - 1]]; })} aria-label="Déplacer avant">↑</Btn>
           <Btn size="sm" disabled={last} onClick={() => mut((t) => { const s = sib(t, p); const i = p[p.length - 1]; [s[i + 1], s[i]] = [s[i], s[i + 1]]; })} aria-label="Déplacer après">↓</Btn>
-          <Btn size="sm" onClick={() => mut((t) => { const nd = node(t, p); nd.k = null; nd.c.push({ h: nd.c.length ? 'réel' : 'théo.', k: null, c: [] }); })} title="Ajouter une sous-colonne (ex. théo. / réel)">+ sous-colonne</Btn>
+          <Btn size="sm" onClick={() => mut((t) => { const nd = node(t, p); nd.k = null; nd.c.push({ h: nd.c.length ? 'réel' : 'théo.', k: null, c: [] }); })} title="Ajouter une sous-colonne (ex. théo. / réel)">＋ sous-colonne</Btn>
           <Btn size="sm" kind="danger" onClick={() => mut((t) => { sib(t, p).splice(p[p.length - 1], 1); })} aria-label="Retirer la colonne">✕</Btn>
         </div>))}
-      <Btn size="sm" onClick={() => mut((t) => { t.push({ h: 'Nouvelle colonne', k: null, c: [] }); })}>+ Ajouter une colonne</Btn>
+      <Btn size="sm" onClick={() => mut((t) => { t.push({ h: 'Nouvelle colonne', k: null, c: [] }); })}>＋ Ajouter une colonne</Btn>
       {perso ? <PrerempliDialog fill={fill} value={perso.k} onClose={() => setPerso(null)} onSave={(k) => mut((t) => { node(t, perso.p).k = k; })} /> : null}
     </div>
   );
@@ -564,7 +564,7 @@ function ModeleEditor({ tpl, onClose }) {
           <div className="mt-3"><CartoucheEditor m={m} set={set} /></div>
           <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)' }}>
             <Group label="Champs à remplir sous l’en-tête (un par ligne)" help="« {clé} » après le libellé : rempli par Œnotrack (choisissez dans la liste ci-dessous) ; sans clé : à écrire à la main."><TA value={(m.champs || []).join('\n')} onChange={(v) => set('champs', v.split('\n').map((x) => x.trim()).filter(Boolean))} rows={5} aria-label="Champs sous l’en-tête" />
-              <div className="mt-1"><SI plain value="" onChange={(v) => { if (!v) return; const c = FICHE_CHAMPS_CLES.find((x) => x[0] === v); set('champs', [...(m.champs || []), `${c[1]} {${c[0]}}`]); }} options={[{ value: '', label: '+ Ajouter un champ pré-rempli…' }, ...FICHE_CHAMPS_CLES.map(([k, l, q]) => ({ value: k, label: `${l} (${q})` }))]} aria-label="Ajouter un champ pré-rempli" /></div></Group>
+              <div className="mt-1"><SI plain value="" onChange={(v) => { if (!v) return; const c = FICHE_CHAMPS_CLES.find((x) => x[0] === v); set('champs', [...(m.champs || []), `${c[1]} {${c[0]}}`]); }} options={[{ value: '', label: '＋ Ajouter un champ pré-rempli…' }, ...FICHE_CHAMPS_CLES.map(([k, l, q]) => ({ value: k, label: `${l} (${q})` }))]} aria-label="Ajouter un champ pré-rempli" /></div></Group>
             <Group label="Proposé par défaut pour (opérations)"><div className="max-h-56 space-y-2 overflow-auto pr-1">{opGroupes(db, null, true).map((g) => <div key={g.title}><div className="text-xs font-semibold text-ink2">{g.title}</div><div className="flex flex-wrap gap-x-4 gap-y-1">{g.items.filter((k) => k !== 'declassement').map((k) => <Check key={k} checked={(m.types || []).includes(k)} onChange={(v) => set('types', v ? [...(m.types || []), k] : (m.types || []).filter((x) => x !== k))} label={OP_LABELS[k] || k} />)}</div></div>)}</div></Group>
           </div>
         </Sec>
@@ -585,7 +585,7 @@ function ModeleEditor({ tpl, onClose }) {
                   <Field label="Colonnes en texte (2 espaces = sous-colonne ; {clé} = pré-remplie)"><textarea className="inp num" style={{ minHeight: 150, fontSize: 12, whiteSpace: 'pre' }} value={t.cols} onChange={(e) => setT(i, 'cols', e.target.value)} spellCheck={false} /></Field>
                 </div></details>
             </div>))}
-          <Btn size="sm" onClick={() => set('tableaux', [...(m.tableaux || []), { titre: '', fill: 'aucun', lignes: 6, zebre: false, fixes: '', cols: 'Colonne 1\nColonne 2\nColonne 3' }])}>+ Ajouter un tableau</Btn>
+          <Btn size="sm" onClick={() => set('tableaux', [...(m.tableaux || []), { titre: '', fill: 'aucun', lignes: 6, zebre: false, fixes: '', cols: 'Colonne 1\nColonne 2\nColonne 3' }])}>＋ Ajouter un tableau</Btn>
         </Sec>
         <Sec title="3 · Couleurs et lisibilité">
           <div className="mb-3 flex flex-wrap gap-2">{FICHE_PRESETS.map((p) => <Btn key={p.id} size="sm" onClick={() => set('couleurs', { ...FICHE_COULEURS(), ...p.c })}><span className="swatch" style={{ background: p.c.th || FICHE_COULEURS().th }} />{p.nom}</Btn>)}<Btn size="sm" onClick={() => set('couleurs', { ...FICHE_COULEURS(), th: accent, thTxt: '#FFFFFF', band: accent, bandTxt: '#FFFFFF', titre: accent, bord: accent })}><span className="swatch" style={{ background: accent }} />Couleur de la charte</Btn></div>

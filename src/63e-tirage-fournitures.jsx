@@ -59,7 +59,7 @@ function TirageFournitures() {
   const lots = (p) => (db.arrivages || []).filter((a) => a.produitId === p.id).map((a) => ({ a, rest: arrivalRest(R, a) })).sort((x, y) => (x.a.date < y.a.date ? 1 : -1));
   const RT = fournitureRetours(db).filter((x) => P.some((p) => p.id === x.produitId));
   return (<div data-tirage-fournitures="">
-    <Notice tone="info" title="Fournitures = intrants">Bouteilles, obturateurs, capsules et adjuvants sont les intrants de l’exploitation (Intrants › Produits) : une fourniture se crée ou se reçoit ici comme là-bas, sans stock en double.</Notice>
+    <Aide id="tirage-fournitures" titre="ℹ Fournitures = intrants" resume="Vos fournitures sont vos intrants : aucun stock en double."><span>Bouteilles, obturateurs, capsules et adjuvants sont les intrants de l’exploitation (Intrants › Produits) : une fourniture se crée ou se reçoit ici comme là-bas, sans stock en double.</span></Aide>
     <div className="my-3 flex flex-wrap items-center gap-2"><SI plain value={type} onChange={setType} style={{ width: 'auto' }} options={[{ value: '', label: 'Toutes les fournitures' }, ...FOURNITURE_TYPES.map((t) => ({ value: t.id, label: t.label }))]} aria-label="Type de fourniture" />
       {lect ? null : <><Btn onClick={() => setProd({})}>＋ Article</Btn><Btn onClick={() => setArr({})}>＋ Réception</Btn></>}</div>
     {!P.length ? <Empty>Aucune fourniture de tirage : créez un article (matière sèche) et choisissez son type.</Empty> : P.map((p) => { const L = lots(p); const c = fournitureCaracs(p); const def = fournitureTypeDef(fournitureTypeDe(p)) || { caracs: [] };

@@ -25,9 +25,9 @@ const init = () => {
   const ov = () => page.locator('.overlay').last();
   const etat = () => page.evaluate(() => ({ imp: window.__imp, saved: window.__saved, zone: !!document.getElementById('zone-impression'), classe: document.documentElement.className, titre: document.title }));
   const toasts = async () => page.locator('.toast').allInnerTexts();
-  const titre0 = await page.title();
   // 1. bon de pesée : impression directe
   await page.click('#tab-pressoir'); await page.waitForTimeout(400);
+  const titre0 = await page.title(); // 0.48.0-alpha.1 : le titre suit l'onglet ouvert
   await page.locator('[aria-label="Année des vendanges"]').selectOption('2026'); await page.waitForTimeout(250);
   await page.locator('main [data-bon-pesee-btn]:visible').first().click(); await page.waitForTimeout(400);
   const pied = await txt(ov().locator('.sheet-f'));
@@ -143,7 +143,7 @@ const init = () => {
   ok('… deux choix : cet appareil, ou clé de sécurité / autre téléphone', (await page.locator('[data-appareils] [data-cle-ajouter-externe]').count()) === 1 && /＋ Clé de sécurité ou autre téléphone/.test(await txt(page.locator('[data-appareils]'))));
   ok('… journal des accès : « Clé d’accès ajoutée »', (d.audit || []).some((a) => a.action === 'cle' && /Clé d’accès ajoutée/.test(a.resume)));
   // un opérateur : son appareil attend l'accord de l'administrateur
-  await page.locator('main button', { hasText: '+ Nouvel utilisateur' }).first().click(); await page.waitForTimeout(400);
+  await page.locator('main button', { hasText: '＋ Nouvel utilisateur' }).first().click(); await page.waitForTimeout(400);
   let f = ov(); await f.locator('input[aria-label="Identifiant"]').fill('chai'); await f.locator('label', { hasText: 'Nom affiché' }).locator('input').fill('Opérateur Essai');
   await f.locator('input[aria-label="Mot de passe provisoire"]').fill('Chai-2026!zz'); await f.locator('select[aria-label="Profil de droits"]').selectOption('pf_operateur');
   await f.locator('label', { hasText: 'À changer à la première connexion' }).locator('input').uncheck();

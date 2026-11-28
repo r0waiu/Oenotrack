@@ -35,7 +35,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   await pick(page, f.locator('input[placeholder="Cuve · lot · volume…"]').first(), prep.lot, prep.lot); await page.waitForTimeout(150);
   await f.locator('input[placeholder="0"]').first().fill('6,7');
   for (const [i, code, vol] of [[0, 'LT-T79', '0,36'], [1, 'LEV-T79', '0,375']]) {
-    await f.getByRole('button', { name: '+ Ajouter une préparation' }).click(); await page.waitForTimeout(100);
+    await f.getByRole('button', { name: '＋ Ajouter une préparation' }).click(); await page.waitForTimeout(100);
     const sel = f.locator('select').filter({ hasText: 'Préparation…' }).nth(i);
     if (await sel.count()) await sel.selectOption(await sel.locator('option', { hasText: code }).first().getAttribute('value')); else await pick(page, f.locator('input[placeholder="Préparation…"]').nth(i), code, code);
     await f.locator('input[placeholder="0"]').nth(1 + i).fill(vol);
@@ -52,7 +52,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   await f.getByRole('button', { name: /Valider/ }).last().click(); await page.waitForTimeout(300);
   ok('… validation refusée : le vin d’un tirage par mixtion doit venir d’une cuve de mixtion', (await page.locator('.overlay').count()) >= 2 && (await db()).ops.filter((o) => o.type === 'tirage' && o.chantierId).length === 0);
   await f.getByLabel('Mode de tirage').selectOption('pompe'); await page.waitForTimeout(150);
-  for (const [i, code, vol] of [[0, 'LT-T79', '0,36'], [1, 'LEV-T79', '0,375']]) { await f.getByRole('button', { name: '+ Ajouter une préparation' }).click(); await page.waitForTimeout(100); const sel = f.locator('select').filter({ hasText: 'Préparation…' }).nth(i); if (await sel.count()) await sel.selectOption(await sel.locator('option', { hasText: code }).first().getAttribute('value')); else await pick(page, f.locator('input[placeholder="Préparation…"]').nth(i), code, code); await f.locator('input[placeholder="0"]').nth(1 + i).fill(vol); }
+  for (const [i, code, vol] of [[0, 'LT-T79', '0,36'], [1, 'LEV-T79', '0,375']]) { await f.getByRole('button', { name: '＋ Ajouter une préparation' }).click(); await page.waitForTimeout(100); const sel = f.locator('select').filter({ hasText: 'Préparation…' }).nth(i); if (await sel.count()) await sel.selectOption(await sel.locator('option', { hasText: code }).first().getAttribute('value')); else await pick(page, f.locator('input[placeholder="Préparation…"]').nth(i), code, code); await f.locator('input[placeholder="0"]').nth(1 + i).fill(vol); }
   await f.getByRole('button', { name: /Valider/ }).last().click(); await page.waitForTimeout(600);
   d = await db(); const op = d.ops.find((o) => o.type === 'tirage' && o.chantierId === ch.id);
   ok('lot de tirage enregistré : mode pompe, formats (900 bouteilles, 50 magnums), total et volume moyen pour les versions antérieures, casse, point de tirage, contrôle', op && op.mode === 'pompe' && op.formats.length === 2 && op.nbBouteilles === 950 && Math.abs(op.nbBouteilles * op.volBouteilleL - 750) < 0.01 && op.casse === 4 && op.pointGL === 24 && op.pompe.consignes.liqueurPct === 4.8 && op.pompe.controles[0].mesure === 36.5, op);

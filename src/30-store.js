@@ -1,5 +1,6 @@
 /* ============ STORE : base, opérations, alertes, campagnes, persistance ============ */
-const fail = (msg) => ({ ok: false, msg });
+// 0.48.0-alpha.1 : fail(message, { champ }) — le champ du formulaire en cause (facultatif) ; r.ok et r.msg inchangés
+const fail = (msg, extra) => ({ ...(extra && typeof extra === 'object' ? extra : {}), ok: false, msg });
 const okr = (extra) => ({ ok: true, ...(extra || {}) });
 
 const DEFAULT_PARAMS = () => ([
@@ -333,10 +334,10 @@ function alertRefuse(db, id, operateurs) {
 //   maintenant (heure de saisie, ISO), apercu (aperçu du formulaire : pas de motif exigé) }
 function opSave(db, spec, editingId, opts) {
   const old = editingId ? db.ops.find((o) => o.id === editingId) : null;
-  if (!isoOK(spec.date)) return fail('Date invalide.');
+  if (!isoOK(spec.date)) return fail('Date invalide.', { champ: 'date' });
   const camp = campOf(db, spec.date);
-  if (!camp) return fail('Aucune campagne ne couvre cette date. Créez-la dans Paramètres › Campagnes.');
-  if (camp.figee) return fail(`La campagne ${camp.nom} est figée : rouvrez-la pour enregistrer ou modifier une opération à cette date.`);
+  if (!camp) return fail('Aucune campagne ne couvre cette date. Créez-la dans Paramètres › Campagnes.', { champ: 'date' });
+  if (camp.figee) return fail(`La campagne ${camp.nom} est figée : rouvrez-la pour enregistrer ou modifier une opération à cette date.`, { champ: 'date' });
   if (old && isLocked(db, old.date)) return fail('Cette opération appartient à une campagne figée.');
   // compatibilité : une opération créée par une version plus récente garde ses champs inconnus ; le n° de fiche est conservé
   // « av » = la version la plus récente dont l'opération porte des données : réécrite ici, elle garde ce marqueur pour que les champs

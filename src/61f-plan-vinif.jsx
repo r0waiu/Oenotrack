@@ -4,7 +4,8 @@
      l'instruction de travail de la cave ; modification, duplication, vérification, import d'un tableur (.xlsx, .xls, .ods, .csv).
    - Appliquer à un lot : colonne du plan qui s'applique au lot (cépage majoritaire, revendication, fraction), quantités calculées pour son
      volume (doses en g/hL, cL/hL, mL/hL, g/L), fiche à imprimer.
-   - Schémas par lot : les schémas de vinification (avant : Paramètres › Schémas de vinification). */
+   - Schémas par lot : les schémas de vinification (avant : Paramètres › Schémas de vinification).
+   0.48.0-alpha.1 : sous-onglet « Tableau du plan » (plus le nom du module répété) ; explication repliable (Aide « plan-vinif »). */
 const PLANV_TYPES_LIB = { etape: 'Étape', section: 'Titre de section', note: 'Note (toute la largeur)' };
 const PLANV_ETENDUES_LIB = { colonne: 'Une dose par colonne', revendication: 'Cuvée et tailles réunies', groupe: 'Tout le groupe de cépages' };
 const planVinifEtat = (p) => (p.aVerifier ? <Chip tone="warn">{p.exemple ? 'exemple à vérifier' : 'à vérifier'}</Chip> : <Chip tone="good">vérifié</Chip>);
@@ -103,15 +104,15 @@ function PlanVinifForm({ id, base, onClose }) {
             <div className="card space-y-2 p-3" data-planv-groupes=""><div className="lbl">Groupes de cépages</div>
               {f.groupes.map((g, i) => <div key={g.id} className="rounded-md border border-line p-2"><div className="flex gap-1"><TI value={g.label} onChange={(v) => liste('groupes', i, { label: v })} aria-label="Groupe de cépages" /><Btn size="sm" kind="ghost" onClick={() => retirer('groupes', i)} aria-label="Retirer le groupe" disabled={f.groupes.length < 2}>✕</Btn></div>
                 <div className="mt-1 flex flex-wrap gap-x-3">{cepages.map((c) => <Check key={c.id} checked={(g.cepages || []).includes(c.id)} onChange={(v) => coche('groupes', i, 'cepages', c.id, v)} label={c.label} />)}</div></div>)}
-              <Btn size="sm" onClick={() => set('groupes', [...f.groupes, { id: planVinifIdNeuf(f.groupes, 'g'), label: '', cepages: [] }])}>+ Groupe</Btn></div>
+              <Btn size="sm" onClick={() => set('groupes', [...f.groupes, { id: planVinifIdNeuf(f.groupes, 'g'), label: '', cepages: [] }])}>＋ Groupe</Btn></div>
             <div className="card space-y-2 p-3" data-planv-revendications=""><div className="lbl">Revendications</div>
               {f.revendications.map((r, i) => <div key={r.id} className="flex gap-1"><select className="inp" value={qualifs.some((q) => q.id === r.id) ? r.id : ''} onChange={(e) => { const q = qualifs.find((x) => x.id === e.target.value); liste('revendications', i, q ? { id: q.id, label: qualifAffiche(q) } : { id: planVinifIdNeuf(f.revendications, 'r') }); }} aria-label="Revendication de la liste"><option value="">— autre —</option>{qualifs.map((q) => <option key={q.id} value={q.id}>{qualifAffiche(q)}</option>)}</select>
                 <TI value={r.label} onChange={(v) => liste('revendications', i, { label: v })} aria-label="Libellé de la revendication" /><Btn size="sm" kind="ghost" onClick={() => retirer('revendications', i)} aria-label="Retirer la revendication" disabled={f.revendications.length < 2}>✕</Btn></div>)}
-              <Btn size="sm" onClick={() => set('revendications', [...f.revendications, { id: planVinifIdNeuf(f.revendications, 'r'), label: '' }])}>+ Revendication</Btn></div>
+              <Btn size="sm" onClick={() => set('revendications', [...f.revendications, { id: planVinifIdNeuf(f.revendications, 'r'), label: '' }])}>＋ Revendication</Btn></div>
             <div className="card space-y-2 p-3" data-planv-fractions=""><div className="lbl">Fractions</div>
               {f.fractions.map((x, i) => <div key={x.id} className="rounded-md border border-line p-2"><div className="flex gap-1"><TI value={x.label} onChange={(v) => liste('fractions', i, { label: v })} aria-label="Fraction" /><Btn size="sm" kind="ghost" onClick={() => retirer('fractions', i)} aria-label="Retirer la fraction" disabled={f.fractions.length < 2}>✕</Btn></div>
                 <div className="mt-1 flex flex-wrap gap-x-3">{fracs.map((c) => <Check key={c.id} checked={(x.fractions || []).includes(c.id)} onChange={(v) => coche('fractions', i, 'fractions', c.id, v)} label={c.label} />)}</div></div>)}
-              <Btn size="sm" onClick={() => set('fractions', [...f.fractions, { id: planVinifIdNeuf(f.fractions, 'f'), label: '', fractions: [] }])}>+ Fraction</Btn></div>
+              <Btn size="sm" onClick={() => set('fractions', [...f.fractions, { id: planVinifIdNeuf(f.fractions, 'f'), label: '', fractions: [] }])}>＋ Fraction</Btn></div>
           </div>
           <p className="help mt-1">Les cépages et les fractions cochés servent à trouver la colonne d’un lot (cépage majoritaire, fraction) ; la revendication du lot choisit sa revendication.</p>
         </Group>
@@ -128,7 +129,7 @@ function PlanVinifForm({ id, base, onClose }) {
                 </div>
                 {l.type === 'etape' ? <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))' }}>{cases.map((c) => <label key={c.key} className="text-xs"><span className="text-ink2">{c.label}</span><input className="inp" value={(l.valeurs || {})[c.key] || ''} onChange={(e) => valeur(i, c.key, e.target.value)} aria-label={`${l.etape || 'Étape'} — ${c.label}`} data-planv-case={c.key} /></label>)}</div> : null}
               </div>); })}
-            <div className="flex flex-wrap gap-2"><Btn size="sm" onClick={() => ajouter('etape')}>+ Étape</Btn><Btn size="sm" onClick={() => ajouter('section')}>+ Titre de section</Btn><Btn size="sm" onClick={() => ajouter('note')}>+ Note</Btn></div>
+            <div className="flex flex-wrap gap-2"><Btn size="sm" onClick={() => ajouter('etape')}>＋ Étape</Btn><Btn size="sm" onClick={() => ajouter('section')}>＋ Titre de section</Btn><Btn size="sm" onClick={() => ajouter('note')}>＋ Note</Btn></div>
             <p className="help">Doses écrites comme dans votre document (« 4,3 cL/hL », « 10 g/hL », « 22 g/L », « 18 °C »…) : celles en g, cL ou mL par hL ou par L donnent une quantité calculée pour le volume d’un lot.</p>
           </div>
         </Group>
@@ -148,11 +149,10 @@ function PlanVinifVue() {
   const ct = sel ? planConditionsTexte(db, sel) : '';
   return (
     <div data-planv="">
-      <Notice tone={sel && sel.aVerifier ? 'warn' : 'info'} title="Plan de vinification">
+      <Aide id="plan-vinif" resume="Les doses sont à adapter à chaque lot, avec votre œnologue.">
         <span>Instruction de travail de la cave : pour chaque étape (sulfitage, enzymage, débourbage, levurage, chaptalisation, FML, passage au froid, filtration, tirage…), le produit et la dose selon le groupe de cépages, la revendication et la fraction.</span>{' '}
-        <span>Les doses sont à adapter à chaque lot, avec votre œnologue.</span>{' '}
         <span>Modifiez directement les cases du tableau. À la création d’un lot, les étapes de sa colonne lui sont proposées dans l’ordre, comme opérations à réaliser ; une variante (partenaire, cru, échelle, revendication…) remplace le plan général pour les lots qui remplissent ses conditions.</span>
-      </Notice>
+      </Aide>
       <div className="my-3 flex flex-wrap items-center gap-2">
         {L.length > 1 ? <select className="inp" style={{ width: 'auto', maxWidth: 360 }} value={sel ? sel.id : ''} onChange={(e) => setSel(e.target.value)} aria-label="Plan de vinification">{L.map((p) => <option key={p.id} value={p.id}>{`${planVinifEstVariante(p) ? '↳ ' : ''}${p.nom}${planVinifTitre(p) ? ` (${planVinifTitre(p)})` : ''}${p.actif === false ? ' — archivé' : ''}`}</option>)}</select> : null}
         {sel ? <><span className="text-sm text-ink2">{planVinifTitre(sel)}</span>{planVinifEtat(sel)}</> : null}
@@ -167,7 +167,7 @@ function PlanVinifVue() {
             {sel ? <Btn onClick={() => act((d) => { const p = plansVinifMaterialiser(d).find((x) => x.id === sel.id); if (!p) return fail('Plan de vinification introuvable.'); p.actif = p.actif === false; return okr(); }, sel.actif === false ? 'Plan rétabli.' : 'Plan archivé.')}>{sel.actif === false ? 'Rétablir' : 'Archiver'}</Btn> : null}
             {sel ? <Btn kind="danger" onClick={() => ask('Retirer ce plan de vinification ?', (d) => planVinifSupprimer(d, sel.id), 'Plan retiré.')}>Retirer</Btn> : null}
             <Btn onClick={() => setImporter(!importer)} data-planv-importer="">⬆ Importer un tableur</Btn>
-            <Btn kind="primary" onClick={() => setForm({})} data-planv-nouveau="">+ Nouveau plan</Btn>
+            <Btn kind="primary" onClick={() => setForm({})} data-planv-nouveau="">＋ Nouveau plan</Btn>
           </>}
         </span>
       </div>
@@ -228,7 +228,7 @@ function TabPlan() {
   const { db, uid, secu } = useApp();
   const voirSchemas = !secu || niveauModule(db, uid, 'params') !== 'aucun';
   // 0.43.0-alpha.2 : « Schémas par lot » retiré (schémas convertis en variantes du plan) ; l'ancien identifiant mène au plan
-  const items = [{ id: 'plan', label: '🗂 Plan de vinification' }, { id: 'lot', label: 'Appliquer à un lot' }]; void voirSchemas;
+  const items = [{ id: 'plan', label: 'Tableau du plan' }, { id: 'lot', label: 'Appliquer à un lot' }]; void voirSchemas; // 0.48.0-alpha.1 : plus le nom du module répété
   const [sub0, setSub] = useSousOnglet([...items, { id: 'schemas', label: '' }], 'plan'); const sub = sub0 === 'schemas' ? 'plan' : sub0;
   return <div><SubNav value={sub} onChange={setSub} items={items} />{sub === 'lot' ? <PlanVinifLot /> : <PlanVinifVue />}</div>;
 }

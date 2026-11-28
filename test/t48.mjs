@@ -26,7 +26,7 @@ ok('éditeur : pourriture acide marquée « si non sain »', /si non sain/.test(
 await e.locator('[data-fe-champ="pourritureAcide"] button[aria-label^="Détails"]').click(); await page.waitForTimeout(150);
 ok('… case « Seulement si l’état sanitaire n’est pas « Sain » » cochée', await coche(e.locator('[data-fe-champ="pourritureAcide"] label', { hasText: 'Seulement si l’état sanitaire' })));
 const ajout = async (nom, type) => {
-  await e.locator('button', { hasText: '+ Ajouter un champ' }).click(); await page.waitForTimeout(250); const c = ov();
+  await e.locator('button', { hasText: '＋ Ajouter un champ' }).click(); await page.waitForTimeout(250); const c = ov();
   await c.locator('[aria-label="Nom du champ"]').fill(nom); if (type) await c.locator('[aria-label="Type de champ"]').selectOption(type); await page.waitForTimeout(100);
   const x = await coche(c.locator('label', { hasText: 'Seulement si l’état sanitaire' })); await c.locator('.sheet-f .btn-primary', { hasText: 'Ajouter le champ' }).click(); await page.waitForTimeout(250); return x;
 };
@@ -63,7 +63,7 @@ ok('« Modifier » un pressurage du journal : marc du carnet de pressoir', /Marc
 await fermer();
 await page.locator('[data-vers-pressoir] button').click(); await page.waitForTimeout(400);
 ok('« onglet Pressoir » : ouvre le Pressoir (pesées)', (await page.locator('#tab-pressoir').getAttribute('aria-selected')) === 'true' && (await page.locator('[data-nouvelle-pesee]').count()) === 1);
-ok('Pressoir : sous-onglet « Pressurages », « + Nouveau pressurage »', /Pressurages/.test(await txt(page.locator('[data-pressoir] [role=tablist]'))) && (await (async () => { await page.locator('[data-pressoir] [role=tab]', { hasText: 'Pressurages' }).click(); await page.waitForTimeout(300); return /\+ Nouveau pressurage/.test(await txt(page.locator('[data-nouveau-marc]'))); })()));
+ok('Pressoir : sous-onglet « Pressurages », « + Nouveau pressurage »', /Pressurages/.test(await txt(page.locator('[data-pressoir] [role=tablist]'))) && (await (async () => { await page.locator('[data-pressoir] [role=tab]', { hasText: 'Pressurages' }).click(); await page.waitForTimeout(300); return /＋ Nouveau pressurage/.test(await txt(page.locator('[data-nouveau-marc]'))); })()));
 await page.locator('[data-pressoir] [role=tab]', { hasText: 'Pesées' }).first().click(); await page.waitForTimeout(300);
 await page.locator('[data-presser="5"]').click(); await page.waitForTimeout(400); f = ov(); t = await txt(f);
 const ch5 = await f.evaluate((el) => [...el.querySelectorAll('select')].map((x) => (x.options[x.selectedIndex] || {}).text || '').concat([...el.querySelectorAll('input[role=combobox]')].map((x) => x.value)).filter((x) => /n° 5\b/.test(x)));

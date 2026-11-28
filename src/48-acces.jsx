@@ -249,7 +249,7 @@ function UtilisateursListe() {
   const basculer = async (u) => { if (u.actif !== false && !(await confirm({ title: `Désactiver « ${u.identifiant} » ?`, body: 'Cette personne ne pourra plus se connecter. Son nom reste dans le journal et sur ses saisies. Vous pourrez la réactiver.', ok: 'Désactiver', danger: true }))) return; act((d) => utilisateurActif(d, u.id, u.actif === false), u.actif === false ? 'Utilisateur réactivé.' : 'Utilisateur désactivé.'); };
   const suppr = async (u) => { if (await confirm({ title: `Supprimer « ${u.identifiant} » ?`, body: 'Possible seulement si cet identifiant n’a jamais servi.', ok: 'Supprimer', danger: true })) act((d) => utilisateurDelete(d, u.id), 'Utilisateur supprimé.'); };
   return (
-    <Sec title={`Utilisateurs (${L.filter((u) => u.actif !== false).length} actifs)`} right={<Btn kind="primary" size="sm" onClick={() => setForm({ id: null })}>+ Nouvel utilisateur</Btn>}>
+    <Sec title={`Utilisateurs (${L.filter((u) => u.actif !== false).length} actifs)`} right={<Btn kind="primary" size="sm" onClick={() => setForm({ id: null })}>＋ Nouvel utilisateur</Btn>}>
       <Tbl rows={L} cols={[
         { h: 'Identifiant', r: (u) => <span className="whitespace-nowrap"><b>{u.identifiant}</b>{u.id === uid ? <Chip tone="info" className="ml-1">vous</Chip> : null}</span> },
         { h: 'Nom', r: (u) => u.nom || '' }, { h: 'Profil', r: (u) => <Chip tone={estAdmin(db, u.id) ? 'warn' : undefined}>{profilNom(db, u)}</Chip> },
@@ -304,7 +304,7 @@ function ProfilsListe() {
   const { db, act, confirm } = useApp(); const [form, setForm] = useState(null);
   const nb = (id) => (db.utilisateurs || []).filter((u) => u.profilId === id && u.actif !== false).length;
   return (
-    <Sec title="Profils de droits" right={<Btn size="sm" onClick={() => setForm({ id: null })}>+ Nouveau profil</Btn>}>
+    <Sec title="Profils de droits" right={<Btn size="sm" onClick={() => setForm({ id: null })}>＋ Nouveau profil</Btn>}>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,280px),1fr))' }}>
         {(db.profils || []).map((p) => (
           <div key={p.id} className="card flex flex-col gap-2 p-3" data-profil={p.id}>

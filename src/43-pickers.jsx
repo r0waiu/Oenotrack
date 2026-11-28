@@ -1,6 +1,6 @@
 /* ============ SÉLECTEURS : crus (villages), apporteurs ; blocs de composition ============ */
 function CruForm({ id, preset, onClose, onSaved }) {
-  const { db, act } = useApp(); const c = id ? db.crus.find((x) => x.id === id) : null;
+  const { db } = useApp(); const act = useActFiche(); /* 0.48.0-alpha.1 : refus affiché dans la fiche */ const c = id ? db.crus.find((x) => x.id === id) : null;
   const [f, set] = useDraft({ nom: c ? c.nom : (preset && preset.nom) || '', echelle: c ? c.echelle : (eDef('autre') ? 'autre' : (ECHELLES[0] || {}).id), dep: c ? c.dep : 'Marne', alias: c ? c.alias || '' : '', masque: c ? !!c.masque : false });
   const save = () => { const r = act((d) => cruSave(d, f, id), id ? 'Cru modifié.' : 'Cru personnalisé ajouté.'); if (r.ok) { if (onSaved) onSaved(r.id); onClose(); } };
   const dup = f.nom.trim() && nameTaken(db.crus, f.nom, id);
@@ -16,7 +16,7 @@ function CruForm({ id, preset, onClose, onSaved }) {
 }
 // Partenaire (db.apporteurs) : apporteur de raisins ou de moûts, vendeur de vins, ou les deux ; crus par défaut proposés à la saisie
 function ApporteurForm({ id, preset, onClose, onSaved }) {
-  const { db, act } = useApp(); const a = id ? db.apporteurs.find((x) => x.id === id) : null; const p = preset || {};
+  const { db } = useApp(); const act = useActFiche(); /* 0.48.0-alpha.1 */ const a = id ? db.apporteurs.find((x) => x.id === id) : null; const p = preset || {};
   const [f, set] = useDraft({ nom: a ? a.nom : p.nom || '', commune: a ? a.commune : '', ident: a ? a.ident || '' : '', contact: a ? a.contact : '', notes: a ? a.notes : p.notes || '', apporteur: a ? a.apporteur !== false : p.vendeur ? false : true, vendeur: a ? !!a.vendeur : !!p.vendeur, crusDefaut: a ? [...(a.crusDefaut || [])] : [], cruAuto: a ? !!a.cruAuto : true });
   const [cru, setCru] = useState('');
   const save = () => { const r = act((d) => apporteurSave(d, f, id), id ? 'Partenaire modifié.' : 'Partenaire ajouté.'); if (r.ok) { if (onSaved) onSaved(r.id); onClose(); } };
@@ -66,7 +66,7 @@ function ParcelleSelect({ value, onChange, placeholder = 'Parcelle : commencez �
   );
 }
 function ParcelleForm({ id, preset, onClose, onSaved }) {
-  const { db, act } = useApp(); const p = id ? (db.parcelles || []).find((x) => x.id === id) : null; const s0 = p || preset || {};
+  const { db } = useApp(); const act = useActFiche(); /* 0.48.0-alpha.1 */ const p = id ? (db.parcelles || []).find((x) => x.id === id) : null; const s0 = p || preset || {};
   const [f, set] = useDraft({ nom: s0.nom || '', cruId: s0.cruId || '', lieuDit: s0.lieuDit || '', cadastre: s0.cadastre || '', surface: s0.surface != null ? String(s0.surface) : '', cepageId: s0.cepageId || '', annee: s0.annee || '', apporteurId: s0.apporteurId || '', appellationId: s0.appellationId || '', niveau: s0.niveau || '', notes: s0.notes || '', masque: !!s0.masque });
   const save = () => { const r = act((d) => parcelleSave(d, f, id), id ? 'Parcelle modifiée.' : 'Parcelle ajoutée.'); if (r.ok) { if (onSaved) onSaved(r.id); onClose(); } };
   return (
@@ -113,7 +113,7 @@ function CrusEditor({ crus, onChange, echelle, onEchelle }) {
           <Btn kind="danger" size="sm" aria-label="Retirer le cru" onClick={() => onChange(crus.length > 1 ? crus.filter((_, k) => k !== i) : [{ cruId: '', pct: '' }])}>✕</Btn>
         </div>
       ))}
-      <Btn size="sm" onClick={() => onChange([...crus, { cruId: '', pct: '' }])}>+ Ajouter un cru</Btn>
+      <Btn size="sm" onClick={() => onChange([...crus, { cruId: '', pct: '' }])}>＋ Ajouter un cru</Btn>
       {!used ? <Field label={`${ECH.nom} (si les villages sont inconnus)`}><SI value={echelle} onChange={onEchelle} placeholder="Non renseignée" options={[...ECHELLES].reverse().map((e) => ({ value: e.id, label: e.un }))} /></Field> : null}
     </div>
   );

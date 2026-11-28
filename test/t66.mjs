@@ -38,7 +38,7 @@ t = (await page.locator('main [data-groupe]').allInnerTexts()).join(' ');
 ok('saisie : « Macération (cuvaison) » et « Écoulage » proposés, « Remuage » plus proposé', /Macération \(cuvaison\)/.test(t) && /Écoulage/.test(t) && !/Remuage/.test(t), t.slice(0, 300));
 for (let i = 0; i < 4 && await page.locator('.overlay').count(); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); }
 await page.click('#tab-registres'); await page.waitForTimeout(400); await sous('DRM'); await page.locator('[data-drm-reglages]').click(); await page.waitForTimeout(400);
-await page.locator('.overlay').last().locator('button', { hasText: '+ Nouveau produit' }).click(); await page.waitForTimeout(400);
+await page.locator('.overlay').last().locator('button', { hasText: '＋ Nouveau produit' }).click(); await page.waitForTimeout(400);
 const opts = await page.locator('datalist#drm-appellations option').evaluateAll((L) => L.map((x) => x.value));
 ok('DRM : les appellations de la liste proposées pour le libellé d’un produit', opts.includes('Médoc') && opts.includes('Saint-Émilion') && !opts.includes('Sauternes'), opts);
 for (let i = 0; i < 4 && await page.locator('.overlay').count(); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); }

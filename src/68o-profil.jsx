@@ -14,10 +14,10 @@ function ProfilViticoleView() {
   const groupes = ['France', 'Étranger', 'Autre'];
   return (
     <div className="space-y-5" data-profil="">
-      <Notice tone="info" title="Région et types de vins produits">
+      <Aide id="profil" resume="Région et types de vins produits : onglets, opérations, cépages, fractions et seuils adaptés.">
         <span>Adaptez Œnotrack à votre exploitation : onglets, opérations, stades, cépages, appellations, fractions, pressoir et seuils indicatifs.</span>{' '}
         <span>Chaque changement est proposé dans la liste ci-dessous : décochez ce que vous ne voulez pas. Rien n’est supprimé ni renommé, et vos réglages faits à la main sont gardés.</span>
-      </Notice>
+      </Aide>
       {pv.defini ? <p className="text-sm text-ink2" data-profil-actuel=""><span>Profil actuel :</span> <b>{(profilRegionDef(pv.region) || {}).nom}</b> · <span>{pv.types.map((t) => (PROFIL_TYPES.find((x) => x[0] === t) || [t, t])[1]).join(', ')}</span>{pv.le ? <span>{` · appliqué le ${fmtDate(pv.le)}`}</span> : null}</p> : null}
       <Sec title="Raccourcis">
         <div className="flex flex-wrap gap-2" data-profil-raccourcis="">{PROFIL_RACCOURCIS.map((x) => <Btn key={x.id} onClick={() => raccourci(x)} disabled={lect} data-raccourci={x.id}>{x.label}</Btn>)}</div>

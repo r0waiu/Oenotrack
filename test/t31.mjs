@@ -20,7 +20,7 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(200);
 await page.click('#tab-ops'); await page.waitForTimeout(300);
 await page.click('main button:text-is("Jaugeage")'); await page.waitForTimeout(400);
 ok('opération : liste vide expliquée', (await top().innerText()).includes('Aucun opérateur dans la liste de la société'));
-await top().locator('button:text-is("+ Ajouter un opérateur")').click(); await page.waitForTimeout(300);
+await top().locator('button:text-is("＋ Ajouter un opérateur")').click(); await page.waitForTimeout(300);
 const f = top(); await f.locator('input').nth(0).fill('Camille'); await f.locator('input').nth(1).fill('Noël'); await f.locator('input').nth(2).fill('Caviste');
 await f.locator('input').nth(1).press('Enter'); await page.waitForTimeout(400); // Entrée : enregistre l'opérateur, pas l'opération
 const t = await top().innerText();

@@ -1,7 +1,9 @@
 /* ============ TIRAGES › PRÉPARER (0.42.0-alpha.1) : calculateur, fonte de liqueur, levains (étapes, propagation, recalibrage) ============
    Calculateur dans les deux sens : vin de base → volume de mixtion et équivalent bouteilles, ou cols à tirer → vin, liqueur, levain,
    adjuvants. Levain : fiche avec besoins par étape, plan de propagation (prévu / réalisé), recalibrage du jour (le tirage n'avance jamais
-   au rythme annoncé), journal des étapes, alimentations et relevés (opérations « alimentation »), plan imprimable. */
+   au rythme annoncé), journal des étapes, alimentations et relevés (opérations « alimentation »), plan imprimable.
+   0.48.0-alpha.1 : pieds de cuve malolactiques créés ici aussi (toutes les préparations de tirage), liqueurs modifiables ; calculateur :
+   aide neutre tant que ni cols ni vin ne sont saisis. */
 
 const hl2 = (L) => `${fmt(num(L) / 100, 2)} hL`;
 const litres = (L) => `${fmt(num(L), num(L) < 100 ? 1 : 0)} L`;
@@ -32,6 +34,7 @@ function TirageCalculateur({ onPreparer }) {
   const [mode, setMode] = useState('cols'); const [vinL, setVinL] = useState(''); const [formats, setFormats] = useState([{ format: 'bouteille', nb: '' }]);
   const [sur, setSur] = useState({}); const p = useMemo(() => tirageFusion(base, sur), [base, sur]);
   const r = useMemo(() => tirageCalcul(mode === 'vin' ? { mode: 'vin', vinL } : { mode: 'cols', formats }, p), [mode, vinL, formats, p]);
+  const saisi = mode === 'vin' ? String(vinL || '').trim() !== '' : formats.some((x) => String(x.nb || '').trim() !== ''); // U13 : pas de reproche avant la saisie
   const S = (k, label, help) => <Field label={label} help={help}><NI value={sur[k] ?? p[k] ?? ''} onChange={(v) => setSur({ ...sur, [k]: v })} aria-label={label} placeholder={k === 'pointGL' ? 'ex. 24' : undefined} /></Field>;
   return (<div className="card p-4 grid gap-3" data-tirage-calcul="">
     <div className="flex flex-wrap items-center gap-2"><b>🧮 Calculateur de tirage</b>
@@ -58,7 +61,7 @@ function TirageCalculateur({ onPreparer }) {
       <div className="flex flex-wrap gap-2"><Btn onClick={() => onPreparer({ type: 'preparation', preset: { ptype: 'liqueur_tirage', volL: String(Math.round(r.liqueurTotaleL * 100) / 100), fonte: { titreGL: num(p.titreLiqueurGL), volSucreLkg: num(p.volSucreLkg) } } })}>⚗ Fondre cette liqueur</Btn>
         <Btn onClick={() => onPreparer({ type: 'preparation', preset: { ptype: 'levain', levainPlan: { mixTotalL: Math.round(r.mixL), jours: [{ date: addDays(todayISO(), 5), cols: Math.round(r.mixL / 0.75) }], sur: { pointGL: num(p.pointGL), levainPct: num(p.levainPct), titreLiqueurGL: num(p.titreLiqueurGL) } } } })}>🧫 Préparer le levain</Btn></div>
       <p className="help">VRTP = volume tiré − liqueur utilisée − vin (levain + mixtion) ; cahier des charges AOC Champagne : au plus {TIRAGE_VRTP_MAX_PCT} % des volumes mis en œuvre. Taux et doses « à vérifier » : Paramètres › Calculs œnologiques.</p>
-    </div> : <p className="help">{r.msg}</p>}
+    </div> : <p className="help" data-tirage-aide="">{!hasNum(p.pointGL) && !saisi ? 'Choisissez le point de tirage de la cuvée pour lancer le calcul.' : r.msg}</p>}
   </div>);
 }
 
@@ -141,7 +144,7 @@ function AlimentationForm({ prepId: prepId0, editId, preset, onClose }) {
       <div className="grid2"><PortionSelect db={db} Rd={Rd} value={f.sourcePortionId} onChange={(v) => upd({ sourcePortionId: v })} placeholder="Vin de base : aucun" /><VI value={f.sourceVolL} onChange={(v) => upd({ sourceVolL: v })} placeholder="Vin (hL)" aria-label="Vin de base ajouté" /></div>
       <div className="grid2"><SI plain value={f.liqueurId} onChange={(v) => upd({ liqueurId: v })} options={[{ value: '', label: 'Liqueur : aucune' }, ...liqueurs.map((p) => ({ value: p.id, label: `${p.code} · ${qLabel(p.qualif)} · reste ${fmtL(p.remaining)}`, donnee: true }))]} aria-label="Liqueur de tirage" /><VI value={f.liqueurL} onChange={(v) => upd({ liqueurL: v })} placeholder="Liqueur (hL)" aria-label="Liqueur ajoutée" /></div>
       <div className="grid2"><Field label="Eau déchlorée (hL)"><VI value={f.eauL} onChange={(v) => upd({ eauL: v })} aria-label="Eau ajoutée" /></Field><Field label="Autres ajouts (hL)" help="Levures réhydratées, activateur… s’ils changent le volume."><VI value={f.autreL} onChange={(v) => upd({ autreL: v })} aria-label="Autres ajouts" /></Field></div>
-      <LignesEditor db={db} Rd={Rd} lignes={f.lignes} onChange={(l) => upd({ lignes: l })} qualif={lev.qualif} vol={num(lev.remaining)} cats={['oeno', 'aux']} hideDose addLabel="+ Levures, activateur, phosphates…" />
+      <LignesEditor db={db} Rd={Rd} lignes={f.lignes} onChange={(l) => upd({ lignes: l })} qualif={lev.qualif} vol={num(lev.remaining)} cats={['oeno', 'aux']} hideDose addLabel="＋ Levures, activateur, phosphates…" />
     </div></Group>
     <Group label="Relevés"><div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
       <Field label="Température visée (°C)"><NI value={f.m.tempCible ?? ''} onChange={(v) => setM({ tempCible: v })} /></Field><Field label="Température relevée (°C)"><NI value={f.m.tempReleve ?? ''} onChange={(v) => setM({ tempReleve: v })} aria-label="Température relevée" /></Field>
@@ -195,17 +198,24 @@ function LevainSheet({ prepId, onClose }) {
 function TiragePreparer({ onForm }) {
   const { db, R } = useApp(); const [lev, setLev] = useState(null);
   const L = Object.values(R.preps).filter((p) => p.ptype === 'levain').sort(desc_); const Q = Object.values(R.preps).filter((p) => p.ptype === 'liqueur_tirage').sort(desc_);
+  const M = Object.values(R.preps).filter((p) => p.ptype === 'pied_mlf').sort(desc_); // 0.48.0-alpha.1 (U07) : pieds de cuve créés ici aussi
+  const opDe = (p) => (db.ops || []).find((x) => x.id === p.opId) || (db.ops || []).find((x) => x.prepId === p.id && x.type === 'preparation');
   return (<div data-tirage-preparer="">
     <Sec title="Calculer"><TirageCalculateur onPreparer={onForm} /></Sec>
     <Sec title="Levains de tirage" data-vg="levains" right={<Btn kind="primary" onClick={() => onForm({ type: 'preparation', preset: { ptype: 'levain' } })}>＋ Levain</Btn>}>
-      <Tbl rows={L} empty="Aucun levain : partez du calculateur ou créez-en un." onRow={(p) => setLev(p.id)} cols={[{ h: 'Levain', r: (p) => <b translate="no">{p.code}</b> }, { h: 'Revendication', r: (p) => <QChip id={p.qualif} /> }, { h: 'Préparé le', r: (p) => <span className="num">{fmtDate(p.date)}</span> },
+      <TblCartes rows={L} empty="Aucun levain : partez du calculateur ou créez-en un." onRow={(p) => setLev(p.id)} cols={[{ h: 'Levain', r: (p) => <b translate="no">{p.code}</b> }, { h: 'Revendication', r: (p) => <QChip id={p.qualif} /> }, { h: 'Préparé le', r: (p) => <span className="num">{fmtDate(p.date)}</span> },
         { h: 'Disponible', cls: 'r', r: (p) => <b className={cx('num', p.remaining < -0.01 && 'text-bad')}>{litres(p.remaining)}</b> }, { h: 'Lots servis', r: (p) => <span className="flex flex-wrap gap-x-2">{uniq(R.prepUse.filter((u) => u.prepId === p.id).map((u) => u.lotId).filter(Boolean)).map((id) => <LotLink key={id} id={id} />)}</span> },
         { h: 'Suivi', r: (p) => `${levainSuivi(db, p.id).length} étape(s)` }, { h: '', r: (p) => <Btn size="sm" onClick={(e) => { e.stopPropagation(); setLev(p.id); }}>Ouvrir</Btn> }]} />
     </Sec>
-    <Sec title="Liqueurs de tirage" right={<Btn onClick={() => onForm({ type: 'preparation', preset: { ptype: 'liqueur_tirage' } })}>＋ Fonte de liqueur</Btn>}>
-      <Tbl rows={Q} empty="Aucune liqueur de tirage." cols={[{ h: 'Liqueur', r: (p) => <b translate="no">{p.code}</b> }, { h: 'Revendication', r: (p) => <QChip id={p.qualif} /> }, { h: 'Date', r: (p) => <span className="num">{fmtDate(p.date)}</span> },
+    <Sec title="Liqueurs de tirage" data-liqueurs-tirage="" right={<Btn onClick={() => onForm({ type: 'preparation', preset: { ptype: 'liqueur_tirage' } })}>＋ Fonte de liqueur</Btn>}>
+      <TblCartes rows={Q} empty="Aucune liqueur de tirage." cols={[{ h: 'Liqueur', r: (p) => <b translate="no">{p.code}</b> }, { h: 'Revendication', r: (p) => <QChip id={p.qualif} /> }, { h: 'Date', r: (p) => <span className="num">{fmtDate(p.date)}</span> },
         { h: 'Titre', r: (p) => { const o = (db.ops || []).find((x) => x.prepId === p.id && x.type === 'preparation') || {}; return o.fonte && o.fonte.titreGL ? `${fmt(o.fonte.titreGL)} g/L${o.fonte.sucreKg ? ` · ${fmt(o.fonte.sucreKg, 1)} kg` : ''}` : '—'; } },
-        { h: 'Préparé', cls: 'r', r: (p) => <span className="num">{litres(p.vol)}</span> }, { h: 'Reste', cls: 'r', r: (p) => <b className="num">{litres(p.remaining)}</b> }]} />
+        { h: 'Préparé', cls: 'r', r: (p) => <span className="num">{litres(p.vol)}</span> }, { h: 'Reste', cls: 'r', r: (p) => <b className="num">{litres(p.remaining)}</b> },
+        { h: 'Utilisée pour', r: (p) => <span className="flex flex-wrap gap-x-2">{uniq(R.prepUse.filter((u) => u.prepId === p.id).map((u) => u.lotId).filter(Boolean)).map((id) => <LotLink key={id} id={id} />)}</span> },
+        { h: '', r: (p) => (opDe(p) ? <OpBtns op={opDe(p)} onEdit={(id) => onForm({ editId: id })} /> : null) }]} />
+    </Sec>
+    <Sec title="Pieds de cuve malolactiques" data-pieds-cuve="" right={<Btn onClick={() => onForm({ type: 'preparation', preset: { ptype: 'pied_mlf' } })}>＋ Pied de cuve malolactique</Btn>}>
+      <PrepsTable rows={M} onEdit={(id) => onForm({ editId: id })} empty="Aucun pied de cuve malolactique." />
     </Sec>
     {lev ? <LevainSheet prepId={lev} onClose={() => setLev(null)} /> : null}
   </div>);

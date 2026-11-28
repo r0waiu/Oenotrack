@@ -2,6 +2,12 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.48.0-alpha.1 — 28/11/2026
+
+- Interface revue (audit validé) : en-tête compact au téléphone (statuts, thème et visite derrière « ⋯ »), recherche dans l’en-tête (Ctrl+K) qui ouvre directement la fiche d’un lot, d’une cuve ou d’une opération, figer la campagne depuis sa pastille, sous-onglets distincts des boutons d’action, flèches aux bords des onglets qui défilent, tuiles et pastilles d’alerte qui disent ce qu’elles comptent et mènent à la liste à traiter.
+- Page Opérations allégée (« ＋ Nouvelle opération » avec recherche, favoris et dernières opérations ; journal paginé, actions rangées dans « ⋯ »), menu « ⋯ » sur chaque contenant et chaque lot, barre d’actions de la fiche du lot, états vides guidés ; préparations de tirage créées dans « Préparer », Traçabilité en une seule recherche filtrée et sommaire des documents imprimables, impression des listes de Cave, Dégorgement et Hygiène, tableaux en cartes au téléphone.
+- Formulaires et sécurité de saisie : erreur affichée sous le champ concerné (focus, alerte au-dessus des boutons), clavier retenu dans la fiche, fiches compactes au téléphone, « Annuler » proposé 10 s après une suppression et focus sur « Annuler » dans les confirmations ; réglages des modules réunis sous « ⚙ Réglages », Paramètres en liste au téléphone, visite guidée qui tient dans l’écran avec un parcours « L’essentiel », aides repliables, contrastes et cibles tactiles améliorés, libellés harmonisés (« ＋ », « Supprimer », « ⬇ Exporter »).
+
 ## 0.47.0-alpha.3 — 28/11/2026
 
 - Onglet ouvert : un réglage pour le démarrage, un pour la connexion et un pour le déverrouillage (Paramètres › Modules), avec le choix « Dernière page visitée », retenue sur l’appareil pour chaque personne ; au déverrouillage, la page en cours reste par défaut.

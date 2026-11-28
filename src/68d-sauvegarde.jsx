@@ -89,6 +89,22 @@ function useRestaurer() {
   };
 }
 
+// Documents joints (0.48.0-alpha.1 : venus de « Société & opérateurs ») : nombre, taille, fichiers orphelins
+function DocumentsJointsSec() {
+  const { db, toast, confirm } = useApp(); const [orph, setOrph] = useState(null);
+  const docs = db.docs || []; const total = sum(docs, (d) => d.taille);
+  const scan = async () => { try { const keys = await docKeys(); const ids = new Set(docs.map((d) => d.id)); setOrph(keys.filter((k) => !ids.has(k))); } catch (er) { toast('Stockage des documents indisponible.', 'bad'); } };
+  const clean = async () => { if (!orph || !orph.length) return; if (!(await confirm({ title: `Supprimer ${orph.length} fichier(s) orphelin(s) ?`, body: 'Ces fichiers ne sont plus rattachés à aucune opération ni aucun arrivage.', ok: 'Supprimer', danger: true }))) return; for (const k of orph) { try { await docDel(k); } catch (er) { /* ignoré */ } } setOrph([]); toast('Fichiers orphelins supprimés.'); };
+  return (
+    <Sec title="Documents joints" data-docs-joints="">
+      <div className="card space-y-3 p-4">
+        <dl className="kv"><dt>Documents</dt><dd>{docs.length} ({fmtSize(total)}) — {docs.filter((d) => d.cible.type === 'op').length} sur des opérations{docs.some((d) => d.cible.type === 'prev') ? `, ${docs.filter((d) => d.cible.type === 'prev').length} sur des opérations à réaliser` : ''}, {docs.filter((d) => d.cible.type === 'arrivage').length} sur des arrivages d’intrants{docs.some((d) => d.cible.type === 'produitHygiene') ? `, ${docs.filter((d) => d.cible.type === 'produitHygiene').length} sur des produits d’hygiène` : ''}{docs.some((d) => d.cible.type === 'produit') ? `, ${docs.filter((d) => d.cible.type === 'produit').length} sur des produits œnologiques (FT, FDS…)` : ''}{docs.some((d) => d.archive) ? ` (dont ${docs.filter((d) => d.archive).length} version(s) archivée(s))` : ''}{docs.some((d) => d.cible.type === 'bareme') ? `, ${docs.filter((d) => d.cible.type === 'bareme').length} de barèmes de jaugeage` : ''}</dd></dl>
+        <p className="help">Les fichiers sont conservés dans ce navigateur et sont inclus dans le fichier complet ci-dessus, avec la base et le logo.</p>
+        <div className="flex flex-wrap gap-2"><Btn onClick={scan}>Rechercher les fichiers orphelins</Btn>{orph && orph.length ? <Btn kind="danger" onClick={clean}>Supprimer {orph.length} fichier(s) orphelin(s)</Btn> : orph ? <Chip tone="ok">aucun fichier orphelin</Chip> : null}</div>
+      </div>
+    </Sec>
+  );
+}
 function SauvegardeView() {
   const { db, act, toast, resetEmpty, loadSample, cloud, confirm } = useApp(); const fileRef = useRef(null); const restaurer = useRestaurer();
   const [drive, setDrive] = useState(() => { try { return window.localStorage.getItem('oenotrack-drive') || 'gdrive'; } catch (e) { return 'gdrive'; } });
@@ -122,6 +138,8 @@ function SauvegardeView() {
           <p className="help">Compatible avec toutes les versions d’Œnotrack : les sauvegardes des versions précédentes (et de « Cuverie champenoise ») s’importent telles quelles.</p>
         </section>
       </div>
+
+      <DocumentsJointsSec />
 
       <Sec title="Repartir de zéro">
         <div className="card flex flex-wrap items-center gap-2 p-4"><Btn onClick={loadSample}>Recharger le jeu d’exemple</Btn><Btn kind="danger" onClick={resetEmpty}>Réinitialiser à vide</Btn><span className="help">Pensez à exporter la base complète avant.</span></div>
