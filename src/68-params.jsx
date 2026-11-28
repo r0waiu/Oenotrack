@@ -70,21 +70,60 @@ function AppRefAjout() {
       <span className="ml-auto" />{pris.has(norm(a.nom)) ? <Chip tone="ok">déjà dans la liste</Chip> : <Btn size="sm" onClick={() => act((d) => appellationDepuisRef(d, a.id), 'Appellation ajoutée.')} data-appref-ajouter={a.id}>＋ Ajouter</Btn>}</li>) : <li className="help">Aucune appellation trouvée.</li>}</ul> : <p className="help mt-1">{`${appRef().length} appellations : France (AOP, IGP), Italie, Espagne, Portugal, Allemagne, Autriche, Suisse, États-Unis, Australie — relevé officiel du 27/11/2026.`}</p>}
   </div>);
 }
-function ListCard({ meta }) {
-  const { db, act } = useApp(); const [nv, setNv] = useState(''); const [ed, setEd] = useState(null); const items = db.lists[meta.key] || [];
+function ListCard({ meta, q, replie, onBasculer }) {
+  const { db, act } = useApp(); const [nv, setNv] = useState(''); const [ed, setEd] = useState(null); const tous = db.lists[meta.key] || []; const items = q ? tous.filter((it) => norm(it.label).includes(q) || norm(meta.title).includes(q)) : tous;
   const add = () => { const r = act((d) => listAdd(d, meta.key, nv), 'Élément ajouté.'); if (r.ok) setNv(''); };
   const ren = () => { const r = act((d) => listRename(d, meta.key, ed.id, ed.label), 'Élément renommé.'); if (r.ok) setEd(null); };
   return (
-    <div className="card p-3"><h4 className="mb-2 text-lg font-semibold">{meta.title}</h4>
-      <ul className="space-y-1">{items.map((it) => { const n = listUsage(db, meta.key, it.id); return (
+    <div className="card p-3" data-liste-section={meta.key}><h4 className="text-lg font-semibold"><ListeTete titre={meta.title} n={tous.length} replie={replie} onBasculer={onBasculer} id={meta.key} /></h4>
+      {replie ? null : <>
+      <ul className="mt-2 space-y-1">{items.map((it) => { const n = listUsage(db, meta.key, it.id); return (
         <li key={it.id} className="flex items-center gap-2">{ed && ed.id === it.id ? <><TI value={ed.label} onChange={(v) => setEd({ ...ed, label: v })} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') ren(); if (e.key === 'Escape') setEd(null); }} /><Btn size="sm" kind="primary" onClick={ren}>OK</Btn><Btn size="sm" onClick={() => setEd(null)}>✕</Btn></>
           : <><span className="min-w-0 flex-1 truncate">{it.label}</span>{n ? <Chip title="Nombre d’utilisations">{n}×</Chip> : null}<Btn size="sm" kind="ghost" onClick={() => setEd({ id: it.id, label: it.label })}>Renommer</Btn><Btn size="sm" kind="ghost" disabled={n > 0} title={n > 0 ? 'Utilisé : renommez plutôt que supprimer' : 'Supprimer'} onClick={() => act((d) => listRemove(d, meta.key, it.id), 'Élément supprimé.')}>Supprimer</Btn></>}</li>); })}</ul>
       <div className="mt-3 flex gap-2"><TI value={nv} onChange={setNv} placeholder="Nouvel élément…" onKeyDown={(e) => { if (e.key === 'Enter') add(); }} aria-label={`Ajouter à ${meta.title}`} /><Btn onClick={add}>Ajouter</Btn></div>
       {meta.key === 'appellations' ? <><AppEchellesSec /><AppRefAjout /></> : null}
+      </>}
     </div>
   );
 }
-const ListesView = () => (<div><p className="mb-3 text-sm text-ink2">Ces listes alimentent les formulaires. Un élément déjà utilisé peut être renommé ou masqué (l’historique suit) mais pas supprimé.</p><div className="card mb-4 p-4" data-qualifs-editor=""><h3 className="mb-2 text-lg font-semibold">Revendications</h3><QualifsEditor /></div><VinListesView /><div className="card mb-4 p-4"><h3 className="mb-2 text-lg font-semibold">Fractions de moût</h3><FractionsEditor /></div><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))' }}>{LIST_META.map((m) => <ListCard key={m.key} meta={m} />)}</div></div>);
+/* 0.48.0-alpha.1 : recherche dans toutes les listes et repli liste par liste (souvenir sur cet appareil : oenotrack-listes-replis, jamais
+   dans la base) ; une recherche déplie les listes qui contiennent le texte et masque les autres. */
+const LISTES_REPLIS_KEY = 'oenotrack-listes-replis';
+const listesReplisLire = () => { try { const v = JSON.parse(window.localStorage.getItem(LISTES_REPLIS_KEY) || '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch (e) { return []; } };
+const listesReplisEcrire = (L) => { try { window.localStorage.setItem(LISTES_REPLIS_KEY, JSON.stringify(L)); } catch (e) { /* ignoré */ } };
+function ListeTete({ id, titre, n, replie, onBasculer }) {
+  return (<button type="button" className="liste-tete" aria-expanded={!replie} onClick={onBasculer} data-liste-basculer={id}><span className="liste-fleche" aria-hidden="true">{replie ? '▸' : '▾'}</span><span>{titre}</span>{n != null ? <span className="chip">{n}</span> : null}</button>);
+}
+function ListeSection({ id, titre, n, replie, onBasculer, children, ...p }) {
+  return (<div className="card mb-4 p-4" data-liste-section={id} {...p}><h3 className="text-lg font-semibold"><ListeTete id={id} titre={titre} n={n} replie={replie} onBasculer={onBasculer} /></h3>{replie ? null : <div className="mt-2">{children}</div>}</div>);
+}
+function ListesView() {
+  const { db } = useApp(); const [q0, setQ] = useState(''); const q = norm(q0.trim()); const [replis, setReplis] = useState(listesReplisLire);
+  const sections = useMemo(() => [
+    { id: 'qualifs', titre: 'Revendications', labels: qualifList(db).map((x) => x.label) },
+    { id: 'vin', titre: 'Stades, mélanges et couleurs du vin', labels: [...stadeList(db), ...couleurList(db)].map((x) => x.label) },
+    { id: 'fractions', titre: 'Fractions de moût', labels: (db.lists.fractions || []).map((x) => x.label) },
+    ...LIST_META.map((m) => ({ id: m.key, titre: m.title, meta: m, labels: (db.lists[m.key] || []).map((x) => x.label) })),
+  ], [db]);
+  const trouve = (x) => !q || norm(x.titre).includes(q) || x.labels.some((l) => norm(l).includes(q));
+  const replie = (id) => !q && replis.includes(id);
+  const basculer = (id) => { const L = replis.includes(id) ? replis.filter((x) => x !== id) : [...replis, id]; setReplis(L); listesReplisEcrire(L); };
+  const tous = (r) => { const L = r ? sections.map((x) => x.id) : []; setReplis(L); listesReplisEcrire(L); };
+  const S = Object.fromEntries(sections.map((x) => [x.id, x])); const vis = sections.filter(trouve);
+  const sec = (id, children, p) => (trouve(S[id]) ? <ListeSection id={id} titre={S[id].titre} n={S[id].labels.length} replie={replie(id)} onBasculer={() => basculer(id)} {...p}>{children}</ListeSection> : null);
+  return (<div>
+    <p className="mb-3 text-sm text-ink2">Ces listes alimentent les formulaires. Un élément déjà utilisé peut être renommé ou masqué (l’historique suit) mais pas supprimé.</p>
+    <div className="liste-outils mb-4 flex flex-wrap items-center gap-2" data-listes-outils="">
+      <input className="inp" style={{ width: 'auto', flex: '1 1 240px' }} value={q0} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un élément ou une liste…" aria-label="Rechercher dans les listes" data-listes-recherche="" />
+      {q ? <Btn size="sm" kind="ghost" onClick={() => setQ('')}>Effacer</Btn> : <><Btn size="sm" onClick={() => tous(true)} data-listes-replier="">Tout replier</Btn><Btn size="sm" onClick={() => tous(false)} data-listes-deplier="">Tout déplier</Btn></>}
+    </div>
+    {q && !vis.length ? <Empty>Aucune liste ne contient ce texte.</Empty> : null}
+    {sec('qualifs', <QualifsEditor />, { 'data-qualifs-editor': '' })}
+    {sec('vin', <VinListesView />)}
+    {sec('fractions', <FractionsEditor />)}
+    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,300px),1fr))' }}>{LIST_META.filter((m) => trouve(S[m.key])).map((m) => <ListCard key={m.key} meta={m} q={norm(S[m.key].titre).includes(q) ? '' : q} replie={replie(m.key)} onBasculer={() => basculer(m.key)} />)}</div>
+  </div>);
+}
 
 function Setting({ label, help, k, step, defaut, zero }) {
   const { db, act } = useApp(); const cur = db.settings[k] != null ? db.settings[k] : defaut; const txt = cur != null ? String(cur).replace('.', ',') : '';
@@ -101,6 +140,7 @@ function BaseView() {
         <dl className="kv"><dt>Enregistrement automatique</dt><dd>{storeOK ? <Chip tone="ok">actif (dans ce navigateur)</Chip> : <Chip tone="bad">indisponible</Chip>}</dd><dt>Dernière sauvegarde</dt><dd>{derniereSauvegarde(db) ? `${fmtDate(derniereSauvegarde(db))} (${ilYa(derniereSauvegarde(db))})` : <span className="text-warn">jamais</span>}</dd><dt>Taille de la base</dt><dd className="num">{kb} Ko (+ {fmtSize(sum(db.docs || [], (d) => d.taille))} de documents)</dd><dt>Version</dt><dd>Œnotrack {APP_VERSION} · base créée avec {versionAffichee(db.meta.creeAvec) || '—'}</dd></dl>
         <div className="flex flex-wrap items-center gap-2"><Btn kind="primary" onClick={() => setTab('params', 'sauvegarde')}>💾 Sauvegarde, import et Drive…</Btn><span className="help">Export / import de la base complète (documents compris), Google Drive, OneDrive, Dropbox, iCloud, sauvegarde en ligne.</span></div>
       </div></Sec>
+      <Sec title="Langue de l’interface"><div className="card p-4" data-langue-params=""><LangueChoix /><p className="help mt-2">Réglage de cet appareil (chaque personne choisit la sienne). Français, English, Español, Italiano, Deutsch, Português : la traduction se fait par étapes ; ce qui n’est pas encore traduit reste en français. Les données saisies et les registres exportés ne sont pas traduits.</p></div></Sec>
       <InstallerCard />
       <Sec title="Charte graphique"><ChartePicker /></Sec>
       <Sec title="Mode d’affichage"><ModePicker /></Sec>
@@ -143,15 +183,22 @@ TABS_REG.registres = TabRegistres;
 /* 0.39.0-alpha.1 : rubriques regroupées (menu latéral sur ordinateur, rangées sur téléphone). Les réglages métier qui ont leur place
    ailleurs y sont déplacés (PARAMS_DEPLACES) : le lien de Paramètres y mène, et le réglage s'affiche ici si le module d'arrivée est
    désactivé ou interdit (rien n'est perdu). Les identifiants de rubriques sont inchangés : setTab('params', 'operations') marche toujours. */
-const PARAMS_ITEMS = [{ id: 'entreprise', label: 'Société & opérateurs' }, { id: 'codification', label: '🏷 Codification des lots' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Région & types de vins' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: 'Campagnes' }, { id: 'sites', label: 'Sites' }, { id: 'contenants', label: 'Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: 'Crus & parcelles' }, { id: 'apporteurs', label: 'Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '🗂 Plan de vinification' }, { id: 'listes', label: 'Revendications, stades & listes' }, { id: 'calculs', label: '🧪 Calculs œnologiques' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: '🖥 Affichage & application' }];
+/* 0.48.0-alpha.1 : une icône par rubrique ; groupe « Réglages des modules » (dernier sous-onglet « ⚙ Réglages » de chaque module, ouvert dans
+   son onglet, ↗) à la place des trois rubriques qui faisaient sortir de Paramètres ; au téléphone, liste simple des rubriques puis la rubrique
+   choisie (« ‹ Rubriques » pour revenir). Identifiants inchangés : setTab('params', 'operations' | 'schemas' | 'jaugeage') marche toujours. */
+const PARAMS_ITEMS = [{ id: 'entreprise', label: '🏢 Société & opérateurs' }, { id: 'codification', label: '🏷 Codification des lots' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Région & types de vins' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: '📅 Campagnes' }, { id: 'sites', label: '📍 Sites' }, { id: 'contenants', label: '🎨 Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: '🗺 Crus & parcelles' }, { id: 'apporteurs', label: '🤝 Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '🗂 Plan de vinification' }, { id: 'listes', label: '📋 Revendications, stades & listes' }, { id: 'calculs', label: '🧪 Calculs œnologiques' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: '🖥 Affichage & application' },
+  { id: 'reglages-pressoir', label: '🍇 Pressoir', module: true }, { id: 'reglages-analyses', label: '🔬 Analyses', module: true }, { id: 'reglages-hygiene', label: '🧽 Hygiène', module: true }, { id: 'reglages-equipements', label: '🛠 Équipements', module: true }];
 const PARAMS_GROUPES = [
   { id: 'exploitation', label: 'Exploitation', items: ['entreprise', 'sites', 'apporteurs', 'crus', 'campagnes'] },
-  { id: 'vin', label: 'Vin & cuverie', items: ['profil', 'listes', 'codification', 'contenants', 'calculs', 'operations', 'schemas', 'jaugeage'] },
+  { id: 'vin', label: 'Vin & cuverie', items: ['profil', 'listes', 'codification', 'contenants', 'calculs'] },
   { id: 'equipe', label: 'Équipe & sécurité', items: ['utilisateurs', 'garde', 'ia'] },
   { id: 'donnees', label: 'Données & application', items: ['sauvegarde', 'modules', 'base'] },
+  { id: 'modules-reglages', label: 'Réglages des modules', items: ['operations', 'schemas', 'jaugeage', 'reglages-pressoir', 'reglages-analyses', 'reglages-hygiene', 'reglages-equipements'] },
 ];
-// réglages métier rangés dans un autre onglet (module, sous-onglet)
-const PARAMS_DEPLACES = { operations: { tab: 'ops', sub: 'catalogue', ou: 'Vinification › Opérations & Assemblages' }, schemas: { tab: 'plan', sub: 'plan', ou: 'Vinification › Plan de vinification' }, jaugeage: { tab: 'cuverie', sub: 'jaugeage', ou: 'Vinification › Cuverie & Lots' } };
+// réglages rangés dans l'onglet d'un module (module, sous-onglet) ; `module` : sans vue de repli dans Paramètres (proposé seulement si le module est affiché)
+const PARAMS_DEPLACES = { operations: { tab: 'ops', sub: 'catalogue', ou: 'Vinification › Opérations & Assemblages' }, schemas: { tab: 'plan', sub: 'plan', ou: 'Vinification › Plan de vinification' }, jaugeage: { tab: 'cuverie', sub: 'jaugeage', ou: 'Vinification › Cuverie & Lots' },
+  'reglages-pressoir': { tab: 'pressoir', sub: 'reglages', ou: 'Pressoir › ⚙ Réglages', module: true }, 'reglages-analyses': { tab: 'analyses', sub: 'modeles', ou: 'Analyses › ⚙ Réglages', module: true },
+  'reglages-hygiene': { tab: 'hygiene', sub: 'listes', ou: 'Hygiène › ⚙ Réglages', module: true }, 'reglages-equipements': { tab: 'equipements', sub: 'listes', ou: 'Équipements › ⚙ Réglages', module: true } };
 const paramsDeplaceOk = (db, uid, id) => { const v = PARAMS_DEPLACES[id]; return !!v && moduleActif(db, v.tab) && moduleAutorise(db, uid, v.tab); };
 // consultation seulement (droits des paramètres en lecture) : rappel en tête des réglages déplacés dans un autre onglet
 function ParamsLecture() {
@@ -160,29 +207,32 @@ function ParamsLecture() {
 }
 const PARAMS_VUES = { codification: CodificationView, utilisateurs: UtilisateursView, modules: ModulesView, profil: ProfilViticoleView, sauvegarde: SauvegardeView, garde: GardeView, campagnes: CampagnesView, listes: ListesView, operations: OperationsView, schemas: PlanVinifVue, crus: CrusEtParcelles, apporteurs: ApporteursView, sites: SitesView, contenants: StudioView, jaugeage: BaremesView, base: BaseView, calculs: CalculsView, ia: IaView, entreprise: EntrepriseView };
 function TabParams() {
-  const { db, uid, secu, setTab } = useApp();
+  const { db, uid, secu, setTab, nav } = useApp();
   // identifiants activés : paramètres selon le profil (sauvegarde et utilisateurs : droits particuliers ; « Utilisateurs & droits » montre au moins son compte)
   const niv = secu ? niveauModule(db, uid, 'params') : 'ecriture';
-  const items = PARAMS_ITEMS.filter((i) => !secu || i.id === 'utilisateurs' || i.id === 'ia' || i.id === 'garde' || (i.id === 'sauvegarde' ? peut(db, uid, 'sauvegarde') : niv !== 'aucun')); // assistant IA : réglage personnel, sur l'appareil
-  const [sub, setSub] = useSousOnglet(items, items[0].id);
+  const items = PARAMS_ITEMS.filter((i) => (i.module ? paramsDeplaceOk(db, uid, i.id) : (!secu || i.id === 'utilisateurs' || i.id === 'ia' || i.id === 'garde' || (i.id === 'sauvegarde' ? peut(db, uid, 'sauvegarde') : niv !== 'aucun')))); // assistant IA : réglage personnel, sur l'appareil
+  const [sub, setSub] = useSousOnglet(items.filter((i) => !i.module), items[0].id);
+  // téléphone : la liste des rubriques d'abord (nouvel accès à Paramètres), puis la rubrique choisie ; un lien vers une rubrique l'ouvre directement
+  const [liste, setListe] = useState(!(nav && nav.sub)); useEffect(() => { setListe(!(nav && nav.sub)); }, [nav]);
   const lectureP = secu && niv === 'lecture' && !['utilisateurs', 'sauvegarde', 'ia', 'garde'].includes(sub);
-  const choisir = (id) => { if (paramsDeplaceOk(db, uid, id)) setTab(PARAMS_DEPLACES[id].tab, PARAMS_DEPLACES[id].sub); else setSub(id); };
+  const choisir = (id) => { if (paramsDeplaceOk(db, uid, id)) setTab(PARAMS_DEPLACES[id].tab, PARAMS_DEPLACES[id].sub); else { setSub(id); setListe(false); } };
   const groupes = PARAMS_GROUPES.map((g) => ({ ...g, L: g.items.map((id) => items.find((x) => x.id === id)).filter(Boolean) })).filter((g) => g.L.length);
-  const V = PARAMS_VUES[sub] || EntrepriseView; const dep = PARAMS_DEPLACES[sub];
+  const V = PARAMS_VUES[sub] || EntrepriseView; const dep = PARAMS_DEPLACES[sub]; const cour = items.find((i) => i.id === sub);
   return (
-    <div className="md:flex md:items-start md:gap-5" data-params="">
-      <nav className="params-menu no-print mb-4 space-y-2 md:mb-0 md:w-60 md:shrink-0" aria-label="Rubriques des paramètres" data-params-menu="">
+    <div className={cx('md:flex md:items-start md:gap-5', liste ? 'params-tel-liste' : 'params-tel-rubrique')} data-params="" data-params-vue-tel={liste ? 'liste' : 'rubrique'}>
+      <nav className="params-menu no-print mb-4 space-y-3 md:mb-0 md:w-60 md:shrink-0 md:space-y-2" aria-label="Rubriques des paramètres" data-params-menu="">
         {groupes.map((g) => (
           <div key={g.id} data-params-groupe={g.id}>
             <div className="lbl mb-1">{g.label}</div>
-            <div className="flex gap-1 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0" role="tablist" aria-label={g.label}>
+            <div className="params-menu-liste flex flex-col gap-1" role="tablist" aria-label={g.label}>
               {g.L.map((it) => { const ail = paramsDeplaceOk(db, uid, it.id); return (
                 <button key={it.id} type="button" role="tab" aria-selected={sub === it.id} onClick={() => choisir(it.id)} data-params-item={it.id} title={ail ? `Réglage rangé dans ${PARAMS_DEPLACES[it.id].ou}` : undefined}
-                  className={cx('btn shrink-0 md:w-full md:justify-start md:text-left', sub === it.id && 'btn-primary')}>{it.label}{ail ? <span className="ml-auto pl-1 text-xs opacity-70" aria-hidden="true">↗</span> : null}</button>); })}
+                  className={cx('btn w-full justify-start text-left', sub === it.id && 'btn-primary')}>{it.label}{ail ? <span className="ml-auto pl-1 text-xs opacity-70" aria-hidden="true">↗</span> : null}</button>); })}
             </div>
           </div>))}
       </nav>
-      <div className="min-w-0 flex-1" data-params-rubrique={sub}>
+      <div className="params-contenu min-w-0 flex-1" data-params-rubrique={sub}>
+        <div className="params-retour no-print mb-3 flex items-center gap-2 md:hidden"><Btn size="sm" onClick={() => { setListe(true); window.scrollTo({ top: 0 }); }} data-params-retour="">‹ Rubriques</Btn><b className="min-w-0 truncate">{cour ? cour.label : ''}</b></div>
         {lectureP ? <div className="mb-4"><Notice tone="info" title="Consultation des paramètres">Votre profil « {profilNom(db, uid)} » permet de consulter les paramètres, pas de les modifier.</Notice></div> : null}
         {dep ? <div className="mb-4"><Notice tone="info" title={`Réglage rangé dans ${dep.ou}`}>Il s’affiche ici parce que ce module est désactivé ou non accessible avec votre profil.</Notice></div> : null}
         <V />

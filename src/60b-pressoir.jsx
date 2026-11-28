@@ -569,7 +569,7 @@ function TabPressoir() {
   const [annee, setAnnee] = useState(annees.includes(a0) ? a0 : annees[0]);
   const b = useMemo(() => bilanPressoir(db, annee), [db, annee]);
   const nP = P.registre ? b.nonValides.pesees : 0; const nB = b.alertes.filter((a) => a.niveau === 'bloquant').length;
-  const items = [{ id: 'pesees', label: 'Pesées', badge: nP || null }, { id: 'marcs', label: 'Pressurages', badge: b.nonValides.marcs || null }, { id: 'releves', label: 'Relevés par apporteur' }, { id: 'bilan', label: 'Bilan', badge: nB || null }, { id: 'journal', label: 'Journal' }, { id: 'reglages', label: 'Réglages' }];
+  const items = [{ id: 'pesees', label: 'Pesées', badge: nP || null }, { id: 'marcs', label: 'Pressurages', badge: b.nonValides.marcs || null }, { id: 'releves', label: 'Relevés par apporteur' }, { id: 'bilan', label: 'Bilan', badge: nB || null }, { id: 'journal', label: 'Journal' }, { id: 'reglages', label: '⚙ Réglages' }];
   const [sub, setSub] = useSousOnglet(items, 'pesees');
   const V = { pesees: PeseesView, marcs: MarcsView, releves: RelevesView, bilan: BilanPressoirView, journal: JournalPressoirView, reglages: ReglagesPressoirView }[sub] || PeseesView;
   return (

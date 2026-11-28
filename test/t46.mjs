@@ -53,9 +53,11 @@ const onglets = (pg) => pg.locator('[role=tab][id^="tab-"]').allInnerTexts();
   ok('base existante, navigateur en anglais : l’interface reste en français', (await onglets(page)).includes('Pressoir') && (await page.evaluate(() => localStorage.getItem('oenotrack-langue'))) === 'fr');
   // Paramètres › Société : langue et région
   await page.click('#tab-params'); await page.waitForTimeout(300);
-  ok('Paramètres › Société : choix de la langue ; région et types de vins en résumé (0.46.0-alpha.1)', (await page.locator('[data-langue-societe] [data-langue]').count()) === 1 && (await page.locator('[data-region-societe] [data-profil-resume]').count()) === 1);
+  ok('Paramètres › Société : région et types de vins en résumé (0.46.0-alpha.1)', (await page.locator('[data-region-societe] [data-profil-resume]').count()) === 1);
   await page.locator('[data-region-societe] [data-profil-regler]').click(); await page.waitForTimeout(500);
   ok('… le lien ouvre le réglage de la région et des types de vins', (await page.locator('[data-params-rubrique="profil"] [data-profil]').count()) === 1);
+  await page.locator('[data-params-item="base"]').click(); await page.waitForTimeout(400);
+  ok('Paramètres › Affichage & application : choix de la langue (0.48.0-alpha.1 : venu de Société & opérateurs)', (await page.locator('[data-langue-params] [data-langue]').count()) === 1);
   ok('aucune erreur', !errors.length, errors.slice(0, 3));
   await browser.close();
 }

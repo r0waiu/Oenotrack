@@ -142,7 +142,7 @@ function EquipVerifications() {
 
 function TabEquipements() {
   const T = useEquipTaches();
-  const items = [{ id: 'parc', label: 'Parc' }, { id: 'afaire', label: 'À faire', badge: T.length || null }, { id: 'maintenance', label: 'Maintenance' }, { id: 'verif', label: 'Vérifications' }, { id: 'listes', label: '⚙ Listes' }];
+  const items = [{ id: 'parc', label: 'Parc' }, { id: 'afaire', label: 'À faire', badge: T.length || null }, { id: 'maintenance', label: 'Maintenance' }, { id: 'verif', label: 'Vérifications' }, { id: 'listes', label: '⚙ Réglages' }];
   const [sub, setSub] = useSousOnglet(items, 'parc');
   return (<div data-equipements=""><SubNav value={sub} onChange={setSub} items={items} />
     {sub === 'afaire' ? <HygAFaire quoi="equipements" /> : sub === 'maintenance' ? <MaintenanceOnglet /> : sub === 'verif' ? <EquipVerifications /> : sub === 'listes' ? <HygListesView groupes={['equipements', 'maintenance']} /> : <EquipParc />}</div>);

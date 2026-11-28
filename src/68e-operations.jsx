@@ -84,8 +84,8 @@ function OperationsView() {
   const nPerso = L.filter((x) => x.custom).length; const nAuto = L.filter((x) => x.stadeAuto && x.stadeAuto.actif).length; const nMasq = L.filter((x) => x.masque && !x.interne).length;
   return (
     <div>
-      <Notice tone="info" title="Opérations personnalisables">Renommez, regroupez, masquez les opérations, <b>réglez leur formulaire</b> (⚙ Formulaire : champs affichés, repliés ou masqués, obligatoires, valeurs par défaut, champs personnalisés et calculés), choisissez leur fiche d’enregistrement et le <b>changement de stade automatique</b> (ex. soutirage → « vin soutiré », filtration → « vin filtré »). Créez vos propres opérations à partir d’un comportement : elles sont tracées comme les autres et restent lisibles par toutes les versions d’Œnotrack.</Notice>
-      <div className="my-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
+      <Aide id="ops-catalogue" resume="Opérations personnalisables : nom, groupe, formulaire, fiche et changement de stade.">Renommez, regroupez, masquez les opérations, <b>réglez leur formulaire</b> (⚙ Formulaire : champs affichés, repliés ou masqués, obligatoires, valeurs par défaut, champs personnalisés et calculés), choisissez leur fiche d’enregistrement et le <b>changement de stade automatique</b> (ex. soutirage → « vin soutiré », filtration → « vin filtré »). Créez vos propres opérations à partir d’un comportement : elles sont tracées comme les autres et restent lisibles par toutes les versions d’Œnotrack.</Aide>
+      <div className="my-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }} data-vg="ops-catalogue">
         <Kpi label="Opérations proposées" value={fmt(L.filter((x) => !x.masque && !x.interne).length)} /><Kpi label="Personnalisées" value={fmt(nPerso)} /><Kpi label="Avec stade automatique" value={fmt(nAuto)} /><Kpi label="Masquées" value={fmt(nMasq)} />
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">

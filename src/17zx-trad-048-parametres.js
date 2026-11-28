@@ -1,0 +1,42 @@
+/* ============ TRADUCTIONS (0.48.0-alpha.1) : Paramètres (icônes des rubriques, « Réglages des modules », liste au téléphone), « ⚙ Réglages »
+   des modules, listes et crus repliables, documents joints dans Sauvegarde & Drive, aides repliables, visite guidée (« L’essentiel », durée),
+   « Tableau du plan » ============
+   [français, English, Español, Italiano, Deutsch, Português] */
+TRAD_TABLE.push(...[
+  ['🏢 Société & opérateurs', '🏢 Company & operators', '🏢 Empresa y operarios', '🏢 Azienda e operatori', '🏢 Betrieb & Mitarbeiter', '🏢 Empresa e operadores'],
+  ['📍 Sites', '📍 Sites', '📍 Instalaciones', '📍 Siti', '📍 Standorte', '📍 Instalações'],
+  ['🤝 Partenaires', '🤝 Partners', '🤝 Socios', '🤝 Partner', '🤝 Partner', '🤝 Parceiros'],
+  ['🗺 Crus & parcelles', '🗺 Crus & plots', '🗺 Crus y parcelas', '🗺 Cru e particelle', '🗺 Crus & Parzellen', '🗺 Crus e parcelas'],
+  ['📅 Campagnes', '📅 Seasons', '📅 Campañas', '📅 Campagne', '📅 Kampagnen', '📅 Campanhas'],
+  ['🎨 Contenants & couleurs', '🎨 Vessels & colours', '🎨 Recipientes y colores', '🎨 Contenitori e colori', '🎨 Behälter & Farben', '🎨 Recipientes e cores'],
+  ['📋 Revendications, stades & listes', '📋 Designations, stages & lists', '📋 Reivindicaciones, fases y listas', '📋 Rivendicazioni, fasi ed elenchi', '📋 Bezeichnungen, Stufen & Listen', '📋 Reivindicações, fases e listas'],
+  ['🍇 Pressoir', '🍇 Press', '🍇 Prensa', '🍇 Torchio', '🍇 Kelter', '🍇 Prensa'],
+  ['🔬 Analyses', '🔬 Analyses', '🔬 Análisis', '🔬 Analisi', '🔬 Analysen', '🔬 Análises'],
+  ['🧽 Hygiène', '🧽 Hygiene', '🧽 Higiene', '🧽 Igiene', '🧽 Hygiene', '🧽 Higiene'],
+  ['🛠 Équipements', '🛠 Equipment', '🛠 Equipos', '🛠 Attrezzature', '🛠 Ausrüstung', '🛠 Equipamentos'],
+  ['Réglages des modules', 'Module settings', 'Ajustes de los módulos', 'Impostazioni dei moduli', 'Moduleinstellungen', 'Definições dos módulos'],
+  ['⚙ Réglages', '⚙ Settings', '⚙ Ajustes', '⚙ Impostazioni', '⚙ Einstellungen', '⚙ Definições'],
+  ['Pressoir › ⚙ Réglages', 'Press › ⚙ Settings', 'Prensa › ⚙ Ajustes', 'Torchio › ⚙ Impostazioni', 'Kelter › ⚙ Einstellungen', 'Prensa › ⚙ Definições'],
+  ['Analyses › ⚙ Réglages', 'Analyses › ⚙ Settings', 'Análisis › ⚙ Ajustes', 'Analisi › ⚙ Impostazioni', 'Analysen › ⚙ Einstellungen', 'Análises › ⚙ Definições'],
+  ['Hygiène › ⚙ Réglages', 'Hygiene › ⚙ Settings', 'Higiene › ⚙ Ajustes', 'Igiene › ⚙ Impostazioni', 'Hygiene › ⚙ Einstellungen', 'Higiene › ⚙ Definições'],
+  ['Équipements › ⚙ Réglages', 'Equipment › ⚙ Settings', 'Equipos › ⚙ Ajustes', 'Attrezzature › ⚙ Impostazioni', 'Ausrüstung › ⚙ Einstellungen', 'Equipamentos › ⚙ Definições'],
+  ['‹ Rubriques', '‹ Sections', '‹ Secciones', '‹ Sezioni', '‹ Rubriken', '‹ Secções'],
+  ['Stades, mélanges et couleurs du vin', 'Wine stages, stage mixes and colours', 'Fases, mezclas de fases y colores del vino', 'Fasi, miscele di fasi e colori del vino', 'Weinstadien, Stadienmischungen und Weinfarben', 'Fases, misturas de fases e cores do vinho'],
+  ['Rechercher un élément ou une liste…', 'Search for an item or a list…', 'Buscar un elemento o una lista…', 'Cerca un elemento o un elenco…', 'Eintrag oder Liste suchen…', 'Procurar um elemento ou uma lista…'],
+  ['Rechercher dans les listes', 'Search the lists', 'Buscar en las listas', 'Cerca negli elenchi', 'In den Listen suchen', 'Procurar nas listas'],
+  ['Tout replier', 'Collapse all', 'Plegar todo', 'Comprimi tutto', 'Alle einklappen', 'Recolher tudo'],
+  ['Tout déplier', 'Expand all', 'Desplegar todo', 'Espandi tutto', 'Alle ausklappen', 'Expandir tudo'],
+  ['Aucune liste ne contient ce texte.', 'No list contains this text.', 'Ninguna lista contiene este texto.', 'Nessun elenco contiene questo testo.', 'Keine Liste enthält diesen Text.', 'Nenhuma lista contém este texto.'],
+  ['Rechercher un village', 'Search for a village', 'Buscar un municipio', 'Cerca un comune', 'Gemeinde suchen', 'Procurar uma localidade'],
+  ['Sans département', 'No department', 'Sin departamento', 'Senza dipartimento', 'Ohne Departement', 'Sem departamento'],
+  ['Les fichiers sont conservés dans ce navigateur et sont inclus dans le fichier complet ci-dessus, avec la base et le logo.', 'The files are kept in this browser and are included in the full file above, with the database and the logo.', 'Los archivos se conservan en este navegador y se incluyen en el archivo completo de arriba, con la base y el logotipo.', 'I file sono conservati in questo browser e sono inclusi nel file completo qui sopra, con la base e il logo.', 'Die Dateien werden in diesem Browser gespeichert und sind in der vollständigen Datei oben enthalten, mit der Datenbank und dem Logo.', 'Os ficheiros são guardados neste navegador e estão incluídos no ficheiro completo acima, com a base e o logótipo.'],
+  ['Opérations personnalisables : nom, groupe, formulaire, fiche et changement de stade.', 'Customisable operations: name, group, form, sheet and change of stage.', 'Operaciones personalizables: nombre, grupo, formulario, ficha y cambio de fase.', 'Operazioni personalizzabili: nome, gruppo, modulo, scheda e cambio di fase.', 'Anpassbare Arbeitsschritte: Name, Gruppe, Formular, Blatt und Stadienwechsel.', 'Operações personalizáveis: nome, grupo, formulário, ficha e mudança de fase.'],
+  ['Région et types de vins produits : onglets, opérations, cépages, fractions et seuils adaptés.', 'Region and wine types produced: tabs, operations, grape varieties, fractions and thresholds adapted.', 'Región y tipos de vino producidos: pestañas, operaciones, variedades, fracciones y umbrales adaptados.', 'Regione e tipi di vino prodotti: schede, operazioni, vitigni, frazioni e soglie adattati.', 'Region und erzeugte Weintypen: Reiter, Arbeitsschritte, Rebsorten, Fraktionen und Schwellen angepasst.', 'Região e tipos de vinho produzidos: separadores, operações, castas, frações e limiares adaptados.'],
+  ['★ L’essentiel', '★ The essentials', '★ Lo esencial', '★ L’essenziale', '★ Das Wichtigste', '★ O essencial'],
+  ['Tableau du plan', 'Plan table', 'Tabla del plan', 'Tabella del piano', 'Plantabelle', 'Tabela do plano'],
+]);
+TRAD_MOTIFS.push(...[
+  ['{a} départements', '{a} departments', '{a} departamentos', '{a} dipartimenti', '{a} Departements', '{a} departamentos'],
+  ['{a} étapes · ~{c} min', '{a} steps · ~{c} min', '{a} etapas · ~{c} min', '{a} tappe · ~{c} min', '{a} Schritte · ~{c} Min.', '{a} etapas · ~{c} min'],
+  ['Tout voir · {a} étapes · ~{c} min →', 'See all · {a} steps · ~{c} min →', 'Ver todo · {a} etapas · ~{c} min →', 'Vedi tutto · {a} tappe · ~{c} min →', 'Alles ansehen · {a} Schritte · ~{c} Min. →', 'Ver tudo · {a} etapas · ~{c} min →'],
+]);

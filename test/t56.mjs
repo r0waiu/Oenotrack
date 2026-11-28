@@ -21,7 +21,7 @@ const onglets = await page.$$eval('.navtabs [role=tab]', (b) => b.map((x) => x.i
 ok('onglet « Équipements » juste après l’Hygiène', onglets.indexOf('equipements') === onglets.indexOf('hygiene') + 1 && /Équipements/.test(await txt(page.locator('#tab-equipements'))), onglets);
 await page.click('#tab-equipements'); await page.waitForTimeout(500);
 let t = await txt(page.locator('main'));
-ok('sous-onglets : Parc, À faire, Maintenance, Vérifications, Listes', /Parc À faire( \d+)? Maintenance Vérifications ⚙ Listes/.test(await txt(page.locator('main [role=tablist]').first())), await txt(page.locator('main [role=tablist]').first()));
+ok('sous-onglets : Parc, À faire, Maintenance, Vérifications, Réglages (0.48.0-alpha.1 : « ⚙ Listes » → « ⚙ Réglages »)', /Parc À faire( \d+)? Maintenance Vérifications ⚙ Réglages/.test(await txt(page.locator('main [role=tablist]').first())), await txt(page.locator('main [role=tablist]').first()));
 ok('indicateurs : matériel en service, en panne (1, jeu d’exemple), maintenance en retard, vérifications', /Matériel en service \d+ \d+ fiche\(s\)/i.test(t) && /En panne 1/i.test(t) && /Maintenance en retard/i.test(t) && /Vérifications/i.test(t), t.slice(0, 400));
 ok('parc par catégorie : Pressoirs, Pesage et instruments de mesure, Pompes…, Filtration (2)…', /Pressoirs \(1\)/i.test(t) && /Pesage et instruments de mesure \(1\)/i.test(t) && /Pompes, tuyaux et raccords \(1\)/i.test(t) && /Filtration \(2\)/i.test(t), t.slice(0, 900));
 ok('… la pompe du jeu d’exemple « en panne » (avec la panne), la bascule et sa vignette', (await page.locator('[data-equip="pompe"][data-equip-etat="panne"]').count()) === 1 && /⚠ panne/.test(await txt(page.locator('[data-equip="pompe"]'))) && /valide · 30\/06\/2027/.test(await txt(page.locator('[data-equip="bascule"]'))), await txt(page.locator('[data-equip="bascule"]')));
@@ -79,7 +79,7 @@ ok('Maintenance : plan du matériel, « ⚠ Signaler une panne », « 🖨 Impri
 await sous('Vérifications'); t = await txt(page.locator('main'));
 ok('Vérifications : bascule (valide · 30/06/2027) et réfractomètre (valide · 20/11/2027), extincteurs à renseigner', /Matériel vérifié \(2\)/.test(t) && /Bascule du pressoir/.test(t) && /valide · 30\/06\/2027/.test(t) && /valide · 20\/11\/2027/.test(t), t.slice(0, 700));
 // 6. Listes : catégorie ajoutée, proposée avant « Autre matériel »
-await sous('⚙ Listes'); t = await txt(page.locator('main'));
+await sous('⚙ Réglages'); t = await txt(page.locator('main'));
 ok('Listes des équipements : catégories, types et résultats des interventions (3 listes)', /Listes des équipements/.test(t) && (await page.locator('[data-hyg-liste]').count()) === 3 && /Catégories d’équipements/.test(t) && /Types d’intervention de maintenance/.test(t), t.slice(0, 500));
 const carte = page.locator('[data-hyg-liste="equipCategories"]');
 await carte.locator('input[aria-label="Ajouter à Catégories d’équipements"]').fill('Matériel viticole'); await carte.locator('button', { hasText: 'Ajouter' }).click(); await page.waitForTimeout(400);
@@ -99,7 +99,7 @@ await fermer();
 await page.click('#tab-hygiene'); await page.waitForTimeout(400);
 let st = await txt(page.locator('main [role=tablist]').first());
 ok('Hygiène : sous-onglets sans « Maintenance »', !/Maintenance/.test(st) && /Plan de nettoyage/.test(st), st);
-await sous('⚙ Listes');
+await sous('⚙ Réglages');
 ok('Hygiène › Listes : listes de l’hygiène seules (9)', (await page.locator('[data-hyg-liste]').count()) === 9 && !(await page.locator('[data-hyg-liste="maintTypes"]').count()));
 // 9. onglet désactivé : la maintenance revient dans l'Hygiène
 await page.click('#tab-params'); await page.waitForTimeout(250); await page.locator('main button', { hasText: 'Modules' }).first().click(); await page.waitForTimeout(400);
