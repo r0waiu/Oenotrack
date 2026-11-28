@@ -56,6 +56,13 @@ function parcelleSave(db, s, id) {
   if (!s.cruId || !db.crus.some((c) => c.id === s.cruId)) return fail('Choisissez le cru (village) de la parcelle.');
   if (db.parcelles.some((p) => p.id !== id && p.cruId === s.cruId && norm(p.nom).trim() === norm(nom).trim())) return fail(`La parcelle « ${nom} » existe déjà dans ce cru.`);
   const item = { nom, cruId: s.cruId, lieuDit: String(s.lieuDit || '').trim(), cadastre: String(s.cadastre || '').trim(), surface: hasNum(s.surface) ? num(s.surface) : null, cepageId: s.cepageId || '', annee: String(s.annee || '').trim(), apporteurId: s.apporteurId || '', notes: String(s.notes || '').trim(), masque: !!s.masque };
+  // 0.47.0-alpha.1 : appellation de la parcelle et son niveau dans la hiérarchie de l'appellation (absents du formulaire : gardés)
+  if ('appellationId' in s) {
+    const appId = s.appellationId && ((db.lists && db.lists.appellations) || []).some((a) => a && a.id === s.appellationId) ? s.appellationId : '';
+    if (s.appellationId && !appId) return fail('Appellation introuvable dans la liste.');
+    const niv = appId && s.niveau ? s.niveau : ''; if (niv && typeof appellationNiveaux === 'function' && !appellationNiveaux(db, appId).some((i) => i.id === niv)) return fail('Niveau inconnu dans la hiérarchie de cette appellation.');
+    item.appellationId = appId; item.niveau = niv;
+  }
   if (id) { const p = db.parcelles.find((x) => x.id === id); if (!p) return fail('Parcelle introuvable.'); Object.assign(p, item); return okr({ id }); }
   const nid_ = nid(db, 'parc'); db.parcelles.push({ id: nid_, ...item }); return okr({ id: nid_ });
 }
@@ -181,19 +188,45 @@ const ongletDe = (id) => Object.keys(ONGLETS_GROUPES).find((g) => ONGLETS_GROUPE
 // modules affichés (déjà filtrés : actifs, autorisés) → onglets de la barre, dans l'ordre ; un groupe apparaît une seule fois
 const ongletsBarre = (mods) => (Array.isArray(mods) ? mods : []).map(ongletDe).filter((x, i, a) => a.indexOf(x) === i);
 const ongletMembres = (onglet, mods) => (ONGLETS_GROUPES[onglet] ? (Array.isArray(mods) ? mods : []).filter((m) => ONGLETS_GROUPES[onglet].includes(m)) : [onglet]);
-/* onglet ouvert au démarrage, à la connexion et au déverrouillage : settings.ongletDefaut (identifiant d'onglet ou de groupe ; '' = le
-   premier onglet de la barre), réglage commun de la base ; ignoré s'il n'est pas affiché (module désactivé, profil sans accès).
-   Renvoie le module à ouvrir (pour un groupe : son premier module affiché). */
-function ongletOuverture(db, mods) {
-  const L = Array.isArray(mods) ? mods : modulesVisibles(db); const pref = String(((db && db.settings) || {}).ongletDefaut || '');
-  const m = pref ? ongletMembres(pref, L).filter((x) => L.includes(x)) : [];
-  return m[0] || L[0] || MODULE_FIXE;
+/* onglet ouvert au démarrage, à la connexion et au déverrouillage (0.34.0-alpha.1 ; 0.47.0-alpha.3 : un réglage par moment) — réglages
+   communs de la base, ignorés s'ils ne sont pas affichés (module désactivé, profil sans accès) :
+   - démarrage : settings.ongletDefaut (absent = premier onglet de la barre ; seul réglage lu par les versions antérieures, au démarrage
+     et à la connexion ; « derniere » y retombe sur le premier onglet) ;
+   - connexion : settings.ongletConnexion (absent = comme au démarrage) ;
+   - déverrouillage : settings.ongletDeverrouillage (absent = dernière page visitée : la page en cours reste, formulaire intact) ;
+   valeurs : identifiant d'onglet ou de groupe, « premier » (premier onglet de la barre), « derniere » (dernière page visitée par la
+   personne sur cet appareil, retenue hors de la base : oenotrack-derniere-page), « demarrage » (comme au démarrage). */
+const ONGLET_MOMENTS = [['demarrage', 'ongletDefaut', 'Au démarrage'], ['connexion', 'ongletConnexion', 'À la connexion'], ['deverrouillage', 'ongletDeverrouillage', 'Au déverrouillage']];
+const ONGLET_SPECIAUX = ['premier', 'derniere', 'demarrage'];
+const ongletCle = (moment) => (ONGLET_MOMENTS.find((x) => x[0] === moment) || ONGLET_MOMENTS[0])[1];
+// réglage effectif d'un moment : « premier », « derniere » ou un onglet (les valeurs par défaut résolues)
+function ongletReglage(db, moment) {
+  const S = (db && db.settings) || {}; const m = moment || 'demarrage'; let v = String(S[ongletCle(m)] || '');
+  if (m === 'demarrage') return !v || v === 'demarrage' ? 'premier' : v;
+  if (!v) v = m === 'deverrouillage' ? 'derniere' : 'demarrage';
+  return v === 'demarrage' ? ongletReglage(db, 'demarrage') : v;
 }
-function ongletDefautSet(db, id) {
-  const v = String(id || '');
-  if (v && !ONGLETS_GROUPES[v] && !estModule(v)) return fail('Onglet inconnu.');
+// module à ouvrir (pour un groupe : son premier module affiché) ; derniere = { tab, sub } retenu sur cet appareil (ou null)
+function ongletOuverture(db, mods, moment, derniere) {
+  return ongletOuvertureNav(db, mods, moment, derniere).tab;
+}
+function ongletOuvertureNav(db, mods, moment, derniere) {
+  const L = Array.isArray(mods) ? mods : modulesVisibles(db); let pref = ongletReglage(db, moment);
+  if (pref === 'derniere') {
+    if (derniere && derniere.tab && L.includes(derniere.tab)) return { tab: derniere.tab, sub: derniere.sub || null, derniere: true };
+    pref = moment && moment !== 'demarrage' && ongletReglage(db, 'demarrage') !== 'derniere' ? ongletReglage(db, 'demarrage') : 'premier';
+  }
+  const m = pref && pref !== 'premier' ? ongletMembres(pref, L).filter((x) => L.includes(x)) : [];
+  return { tab: m[0] || L[0] || MODULE_FIXE, sub: null };
+}
+function ongletDefautSet(db, id, moment) {
+  const v = String(id || ''); const m = moment || 'demarrage';
+  if (!ONGLET_MOMENTS.some((x) => x[0] === m)) return fail('Moment inconnu.');
+  if (v === 'demarrage' && m === 'demarrage') return fail('Onglet inconnu.');
+  if (v && !ONGLET_SPECIAUX.includes(v) && !ONGLETS_GROUPES[v] && !estModule(v)) return fail('Onglet inconnu.');
   if (v && MODULES_DANS[v]) return fail('Ce module n’a pas d’onglet propre.');
-  if (v) db.settings.ongletDefaut = v; else delete db.settings.ongletDefaut; return okr();
+  const k = ongletCle(m); const defaut = m === 'demarrage' ? (v === 'premier' || !v) : m === 'connexion' ? (!v || v === 'demarrage') : (!v || v === 'derniere');
+  if (defaut) delete db.settings[k]; else db.settings[k] = v; return okr();
 }
 // nouvel ordre des modules connus ; les ids inconnus restent à leur place
 function modulesOrdonner(db, ids) {
@@ -666,8 +699,10 @@ function moutAnalysesCuve(db, R, cid) {
   return out;
 }
 // enrichissement (chaptalisation) pour atteindre le TAV visé : réglages Paramètres › 🧪 Calculs œnologiques
-const chaptalReglages = (db) => { const s = (db && db.settings) || {}; return { tav: hasNum(s.chaptalTAV) ? num(s.chaptalTAV) : 10.5, coef: num(s.chaptalCoef) > 0 ? num(s.chaptalCoef) : 17, max: hasNum(s.chaptalMax) ? num(s.chaptalMax) : 2 }; };
-const tapMoyen = (db, moy) => (moy && moy.tap ? moy.tap.moy : moy && moy.sucres ? moy.sucres.moy / chaptalReglages(db).coef : null);
+// 0.47.0-alpha.2 : deux réglages distincts — sucre à ajouter pour +1 % vol (enrichissement, 17 g/L) et conversion analytique sucres → TAP
+// (16,83 g/L par % vol, convention réglementaire à vérifier : settings.sucresTapCoef)
+const chaptalReglages = (db) => { const s = (db && db.settings) || {}; return { tav: hasNum(s.chaptalTAV) ? num(s.chaptalTAV) : 10.5, coef: num(s.chaptalCoef) > 0 ? num(s.chaptalCoef) : 17, max: hasNum(s.chaptalMax) ? num(s.chaptalMax) : 2, sucresTap: num(s.sucresTapCoef) > 0 ? num(s.sucresTapCoef) : 16.83 }; };
+const tapMoyen = (db, moy) => (moy && moy.tap ? moy.tap.moy : moy && moy.sucres ? moy.sucres.moy / chaptalReglages(db).sucresTap : null);
 function enrichissement(db, tap, volL, tavVise) {
   const g = chaptalReglages(db); const tav = hasNum(tavVise) ? num(tavVise) : g.tav;
   if (tap == null || !(num(volL) > 0)) return null;

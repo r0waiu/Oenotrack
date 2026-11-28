@@ -3,7 +3,7 @@
    vins de base ; la cuve de mixtion ou le lot tiré par pompe doseuse se créent depuis la ligne, qui passe « en mixtion » puis « tirée »,
    avec l'écart au prévu. La déclaration préalable du chantier en reprend une ligne par cuvée. */
 
-const cuveeQualiteTexte = (db, ce) => [couleurLabel(db, ce.couleur), ce.qualif ? qLabel(ce.qualif) : '', ce.echelle ? (eDef(ce.echelle) || { label: ce.echelle }).label : '', ce.millesime || ''].filter(Boolean).join(' · ');
+const cuveeQualiteTexte = (db, ce) => [couleurLabel(db, ce.couleur), ce.qualif ? qLabel(ce.qualif) : '', ce.echelle ? (eDef(ce.echelle) || { label: ce.echelle }).label : '', millesimeAffiche(ce.millesime)].filter(Boolean).join(' · ');
 function CuveeForm({ chantierId, id, onClose }) {
   const { db, R, act, uid } = useApp(); const ch = chantierTirage(db, chantierId); const c0 = id ? chantierCuvee(db, chantierId, id) : null;
   const [f, setF] = useState(() => ({ nom: c0 ? c0.nom : '', sources: c0 && c0.sources.length ? c0.sources.map((s) => ({ portionId: s.portionId, volL: s.volL ? String(r2(s.volL)) : '' })) : [{ portionId: '', volL: '' }], vinHL: c0 && hasNum(c0.vinHL) ? String(c0.vinHL) : '', pointGL: c0 && c0.pointGL != null ? String(c0.pointGL) : '',
@@ -49,7 +49,7 @@ function CuveesSec({ ch, lect, onForm }) {
       { h: 'Mode', r: (x) => (TIRAGE_MODES.find((m) => m.id === x.c.mode) || {}).label },
       { h: 'Réalisé', r: (x) => <div><Chip tone={x.re.statut === 'tiree' ? 'good' : x.re.statut === 'en_cours' ? 'warn' : ''}>{CUVEE_STATUTS[x.re.statut]}</Chip>{x.re.statut === 'tiree' ? <div className="num text-xs">{[`${fmt(x.re.cols)} cols`, x.re.ecartCols != null ? `(écart ${(x.re.ecartCols > 0 ? '+' : '') + fmt(x.re.ecartCols)})` : ''].filter(Boolean).join(' ')}</div> : null}</div> },
       { h: '', r: (x) => (lect ? null : <div className="flex flex-wrap gap-1">{x.c.mode === 'mixtion' && x.re.statut === 'prevue' ? <Btn size="sm" onClick={() => onForm({ type: 'assemblage', preset: cuveePreset(db, R, ch, x.c, 'assemblage') })} data-cuvee-mixtion={x.c.id}>＋ Cuve de mixtion</Btn> : null}
-        {x.c.mode === 'pompe' || x.re.statut === 'en_cours' ? <Btn size="sm" kind="primary" onClick={() => onForm({ type: 'tirage', preset: cuveePreset(db, R, ch, x.c, 'tirage') })} data-cuvee-tirer={x.c.id}>＋ Lot de tirage</Btn> : null}
+        {x.c.mode !== 'mixtion' || x.re.statut === 'en_cours' ? <Btn size="sm" kind="primary" onClick={() => onForm({ type: 'tirage', preset: cuveePreset(db, R, ch, x.c, 'tirage') })} data-cuvee-tirer={x.c.id}>＋ Lot de tirage</Btn> : null}
         <Btn size="sm" onClick={() => setForm({ id: x.c.id })}>Modifier</Btn>{x.re.statut === 'prevue' ? <Btn size="sm" kind="ghost" onClick={() => suppr(x.c)}>Retirer</Btn> : null}</div>) },
     ]} /></div>
     {form ? <CuveeForm chantierId={ch.id} id={form.id} onClose={() => setForm(null)} /> : null}

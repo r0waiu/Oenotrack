@@ -4,7 +4,7 @@
 const STADE_PHASES = [['mout', 'Moût'], ['ferm', 'Fermentation'], ['vin', 'Vin'], ['bout', 'Bouteille']];
 const STADE_ROLES = [
   ['', '— aucun —'], ['entree', 'Moût reçu ou pressé'], ['debourbage', 'Après débourbage'], ['levurage', 'Après levurage (levures, levain, pied de cuve)'],
-  ['finfa', 'Fin de fermentation alcoolique'], ['bacteries', 'Après ensemencement malolactique'], ['finfml', 'Fin de fermentation malolactique'], ['clair', 'Vin clair (reprise de stock)'], ['assemblage', 'Lot créé par assemblage de vins'], ['tirage', 'Tirage (mise en bouteille)'], ['degorgement', 'Dégorgement'],
+  ['finfa', 'Fin de fermentation alcoolique'], ['bacteries', 'Après ensemencement malolactique'], ['finfml', 'Fin de fermentation malolactique'], ['clair', 'Vin clarifié (reprise de stock)'], ['assemblage', 'Lot créé par assemblage de vins'], ['tirage', 'Tirage (mise en bouteille)'], ['degorgement', 'Dégorgement'],
 ];
 const DEFAULT_STADES = () => ([
   { id: 'mout', label: 'Moût', court: 'Moût', phase: 'mout', role: 'entree', couleur: '#C9B458' },
@@ -15,11 +15,11 @@ const DEFAULT_STADES = () => ([
   { id: 'fin_fml', label: 'FML terminée', court: 'FML faite', phase: 'vin', role: 'finfml', couleur: '#8E4A7E' },
   { id: 'vin_soutire', label: 'Vin soutiré', court: 'Soutiré', phase: 'vin', role: '', couleur: '#6F8FB5' },
   { id: 'vin_colle', label: 'Vin collé', court: 'Collé', phase: 'vin', role: '', couleur: '#5A9AA8' },
-  { id: 'vin_clair', label: 'Vin clair', court: 'Vin clair', phase: 'vin', role: 'clair', couleur: '#3C8DB0' },
+  { id: 'vin_clair', label: 'Vin clarifié', court: 'Clarifié', phase: 'vin', role: 'clair', couleur: '#3C8DB0' }, // 0.47.0-alpha.2 : « Vin clair » (sens champenois : vins de base) → « Vin clarifié »
   { id: 'vin_filtre', label: 'Vin filtré', court: 'Filtré', phase: 'vin', role: '', couleur: '#2E6F9E' },
   { id: 'elevage', label: 'En élevage (fût, foudre…)', court: 'Élevage', phase: 'vin', role: '', couleur: '#8A6A3B' },
   { id: 'assemble', label: 'Vin assemblé', court: 'Assemblé', phase: 'vin', role: 'assemblage', couleur: '#4F5DB0' },
-  { id: 'stabilise', label: 'Vin stabilisé, prêt au tirage', court: 'Stabilisé', phase: 'vin', role: '', couleur: '#2C7C78' },
+  { id: 'stabilise', label: 'Vin stabilisé, prêt à la mise en bouteille ou au tirage', court: 'Stabilisé', phase: 'vin', role: '', couleur: '#2C7C78' },
   { id: 'tire', label: 'Tiré (prise de mousse, sur lattes)', court: 'Tiré', phase: 'bout', role: 'tirage', couleur: '#6A4C9C' },
   { id: 'sur_pointes', label: 'Remué, sur pointes', court: 'Sur pointes', phase: 'bout', role: '', couleur: '#4E3E7E' },
   { id: 'degorge', label: 'Dégorgé', court: 'Dégorgé', phase: 'bout', role: 'degorgement', couleur: '#33305A' },
@@ -34,18 +34,18 @@ const DEFAULT_COULEURS_VIN = () => ([
 const ECHELLE_PRESETS = [
   { id: 'champagne', nom: 'Champagne', titre: 'Échelle des crus', items: [
     { id: 'autre', label: 'Autres crus', un: 'Autre cru', court: 'AUT', rang: 1, couleur: '#8A7F6B' },
-    { id: 'premier', label: 'Premiers crus', un: '1er Cru', court: '1ER', rang: 2, couleur: '#C07A2C' },
-    { id: 'grand', label: 'Grands crus', un: 'Grand Cru', court: 'GC', rang: 3, couleur: '#C79A1E' }] },
+    { id: 'premier', label: 'Premiers Crus', un: 'Premier Cru', court: '1ER', rang: 2, couleur: '#C07A2C' },
+    { id: 'grand', label: 'Grands Crus', un: 'Grand Cru', court: 'GC', rang: 3, couleur: '#C79A1E' }] },
   { id: 'bourgogne', nom: 'Bourgogne', titre: 'Hiérarchie des appellations', items: [
     { id: 'regionale', label: 'Appellations régionales', un: 'Régionale', court: 'RÉG', rang: 1, couleur: '#8A7F6B' },
     { id: 'village', label: 'Villages', un: 'Village', court: 'VIL', rang: 2, couleur: '#5F8A6B' },
-    { id: 'premier', label: 'Premiers crus', un: '1er Cru', court: '1ER', rang: 3, couleur: '#C07A2C' },
-    { id: 'grand', label: 'Grands crus', un: 'Grand Cru', court: 'GC', rang: 4, couleur: '#C79A1E' }] },
+    { id: 'premier', label: 'Premiers Crus', un: 'Premier Cru', court: '1ER', rang: 3, couleur: '#C07A2C' },
+    { id: 'grand', label: 'Grands Crus', un: 'Grand Cru', court: 'GC', rang: 4, couleur: '#C79A1E' }] },
   { id: 'alsace', nom: 'Alsace', titre: 'Hiérarchie des appellations', items: [
     { id: 'regionale', label: 'AOC Alsace', un: 'AOC Alsace', court: 'AOC', rang: 1, couleur: '#8A7F6B' },
     { id: 'communale', label: 'Communales et lieux-dits', un: 'Communale / lieu-dit', court: 'COM', rang: 2, couleur: '#5F8A6B' },
-    { id: 'grand', label: 'Grands crus', un: 'Grand Cru', court: 'GC', rang: 3, couleur: '#C79A1E' }] },
-  { id: 'saint-emilion', nom: 'Bordeaux (Saint-Émilion)', titre: 'Classement', items: [
+    { id: 'grand', label: 'Grands Crus', un: 'Grand Cru', court: 'GC', rang: 3, couleur: '#C79A1E' }] },
+  { id: 'saint-emilion', nom: 'Saint-Émilion (classement)', titre: 'Classement', items: [
     { id: 'aoc', label: 'Saint-Émilion', un: 'Saint-Émilion', court: 'SE', rang: 1, couleur: '#8A7F6B' },
     { id: 'gc', label: 'Saint-Émilion grand cru', un: 'Grand cru', court: 'GC', rang: 2, couleur: '#7C2D36' },
     { id: 'gcc', label: 'Grands crus classés', un: 'Grand cru classé', court: 'GCC', rang: 3, couleur: '#C07A2C' },
@@ -100,11 +100,11 @@ function stadeMix(db, ids) {
 // stade du lot créé par un assemblage : mélange des stades ; si c'est un vin, le stade automatique de l'opération (« vin assemblé »)
 const stadeAssemblage = (db, ids, auto) => { const m = stadeMix(db, ids); const cible = auto === undefined ? stadeRole(db, 'assemblage') : auto; if (!m) return cible || ''; return cible && stadeDef(db, cible) && stadePhase(db, m) === 'vin' ? cible : m; };
 
-// Une analyse peut confirmer un passage de stade : sucres < 2 g/L (ou densité ≤ 0,994) en FA → fin de FA ; acide malique ≤ 0,2 g/L en FML → FML terminée
+// Une analyse peut confirmer un passage de stade : sucres < 2 g/L (ou densité ≤ seuil de fin de FA, 0,994 par défaut : fermReglages) en FA → fin de FA ; acide malique ≤ 0,2 g/L en FML → FML terminée
 function stadeSuggestion(db, R, a) {
   const lot = a && R.lots[a.lotId]; if (!lot) return null; const v = a.valeurs || {}; const role = (stadeDef(db, lot.stade) || {}).role;
   const has = (k) => v[k] != null && v[k] !== '' && Number.isFinite(num(v[k]));
-  if (role === 'levurage' && ((has('sucres') && num(v.sucres) < 2) || (has('densite') && num(v.densite) <= 0.994))) { const t = stadeRole(db, 'finfa'); return t ? { lotId: lot.id, stade: t, why: has('sucres') ? `sucres ${fmt(v.sucres, 1)} g/L` : `densité ${fmt(v.densite, 3)}` } : null; }
+  if (role === 'levurage' && ((has('sucres') && num(v.sucres) < 2) || (has('densite') && num(v.densite) <= fermReglages(db).fin + 1e-9))) { const t = stadeRole(db, 'finfa'); return t ? { lotId: lot.id, stade: t, why: has('sucres') ? `sucres ${fmt(v.sucres, 1)} g/L` : `densité ${fmt(v.densite, 3)}` } : null; }
   if (role === 'bacteries' && has('malique') && num(v.malique) <= 0.2) { const t = stadeRole(db, 'finfml'); return t ? { lotId: lot.id, stade: t, why: `acide malique ${fmt(v.malique, 2)} g/L` } : null; }
   return null;
 }
@@ -138,8 +138,32 @@ const qualifDef = (db, id) => qualifList(db).find((x) => x.id === id) || null;
 // options des listes de choix : revendications visibles (+ la valeur actuelle si elle est masquée)
 const qualifOptions = (db, keep) => QUALIFS.filter((q) => !q.masque || q.id === keep).map((q) => ({ value: q.id, label: `${q.code} (rang ${q.rang})` }))
   .concat(keep && !qConnu(keep) ? [{ value: keep, label: `(${keep})` }] : []);
+/* 0.45.0-alpha.1 — revendication bio : nom « BIO » et code d'agrément de l'organisme certificateur (q.codeAgrement, q.organisme) ;
+   le code d'agrément est la revendication affichée partout (qLabel, listes, fiches, déclarations, exports) mais la revendication reste du bio
+   (règles, référentiel Bio UE). Bio = référentiel « bio-ue » choisi, ou deviné d'après le nom ; Demeter, Biodyvin… (qui en héritent) n'en ont pas. */
+const qualifEstBio = (q) => !!q && (Array.isArray(q.referentiels) ? q.referentiels.includes('bio-ue') : (q.id === 'bio' || (typeof refDeviner === 'function' && refDeviner(q).includes('bio-ue'))));
+const CODE_AGREMENT_RE = /^[A-Z]{2}-[A-ZÄÖÜ]{2,4}-\d{2,3}$/; // format européen : pays-terme-numéro (ex. FR-BIO-01), règlement (UE) 2018/848
+const codeAgrementNorm = (v) => String(v == null ? '' : v).trim().toUpperCase().replace(/\s+/g, '').replace(/–|—/g, '-');
+const codeAgrementValide = (v) => { const c = codeAgrementNorm(v); return !c || CODE_AGREMENT_RE.test(c); };
+const qualifAffiche = (q) => (q ? String((qualifEstBio(q) && q.codeAgrement) || q.label || q.code || q.id) : '');
+function qualifCodeAgrementSet(db, id, s, uid) {
+  if (!Array.isArray(db.lists.qualifs) || !db.lists.qualifs.length) db.lists.qualifs = qualifList(db).map((x) => ({ ...x }));
+  const q = db.lists.qualifs.find((x) => x && x.id === id); if (!q) return fail('Revendication introuvable.');
+  if (!qualifEstBio(q)) return fail('Le code d’agrément de l’organisme certificateur ne concerne que les revendications bio.');
+  const code = codeAgrementNorm(s.codeAgrement); if (!codeAgrementValide(code)) return fail(`Code d’agrément « ${String(s.codeAgrement).trim()} » invalide : pays, terme et numéro, ex. FR-BIO-01.`);
+  const org = String(s.organisme == null ? (q.organisme || '') : s.organisme).trim().slice(0, 80);
+  if (code) q.codeAgrement = code; else delete q.codeAgrement; if (org) q.organisme = org; else delete q.organisme;
+  q.agrementPar = uid || ''; q.agrementLe = new Date().toISOString(); return okr({ code });
+}
+// migration (une fois) : le nom d'exemple « FR-BIO-01 » (code d'Ecocert) devient « BIO », sans code d'agrément ; un autre nom n'est pas touché
+function bioMigrerLibelle(db) {
+  if (!db.settings) db.settings = {}; if (db.settings.bioLibelle) return false;
+  const q = Array.isArray(db.lists && db.lists.qualifs) ? db.lists.qualifs.find((x) => x && x.id === 'bio') : null; let fait = false;
+  if (q && String(q.label || '').trim().toUpperCase() === 'FR-BIO-01' && !q.codeAgrement) { q.label = 'BIO'; fait = true; }
+  db.settings.bioLibelle = { de: fait ? 'FR-BIO-01' : '', le: new Date().toISOString(), version: typeof APP_VERSION === 'string' ? APP_VERSION : '' }; return fait;
+}
 function syncQualifs(db) {
-  const L = qualifList(db).map((x, i) => ({ id: String(x.id), code: String(x.label || x.code || x.id), court: String(x.court || x.label || x.id).slice(0, 8), rang: i + 1, masque: x.id !== 'conv' && !!x.masque }));
+  const L = qualifList(db).map((x, i) => ({ id: String(x.id), code: qualifAffiche(x), nom: String(x.label || x.code || x.id), court: String(x.court || x.label || x.id).slice(0, 8), rang: i + 1, masque: x.id !== 'conv' && !!x.masque, ...(qualifEstBio(x) ? { bio: true } : {}), ...(x.codeAgrement ? { codeAgrement: x.codeAgrement, organisme: x.organisme || '' } : {}) }));
   QUALIFS.splice(0, QUALIFS.length, ...L);
 }
 

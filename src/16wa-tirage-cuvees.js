@@ -48,7 +48,7 @@ function chantierCuveeSave(db, chantierId, s, id, uid) {
   const sources = (s.sources || []).filter((x) => x && (x.portionId || x.lotId)).map((x) => ({ portionId: x.portionId || '', lotId: x.lotId || '', volL: num(x.volL) }));
   const formats = (s.formats || []).filter((f) => f && num(f.nb) > 0 && tirageFormat(f.format)).map((f) => ({ format: f.format, nb: Math.round(num(f.nb)) }));
   const mentions = (Array.isArray(s.mentions) ? s.mentions : String(s.mentions || '').split(/[,;\n]/)).map((m) => String(m).trim().slice(0, 60)).filter(Boolean).slice(0, 12);
-  const x = { ...(old || {}), id: old ? old.id : `cv${(L.length ? Math.max(...L.map((c) => num(String(c.id).replace(/\D/g, '')) || 0)) : 0) + 1}`, nom, sources, ...(hasNum(s.vinHL) ? { vinHL: num(s.vinHL) } : {}), pointGL: hasNum(s.pointGL) ? num(s.pointGL) : null, mode: s.mode === 'mixtion' ? 'mixtion' : 'pompe', formats,
+  const x = { ...(old || {}), id: old ? old.id : `cv${(L.length ? Math.max(...L.map((c) => num(String(c.id).replace(/\D/g, '')) || 0)) : 0) + 1}`, nom, sources, ...(hasNum(s.vinHL) ? { vinHL: num(s.vinHL) } : {}), pointGL: hasNum(s.pointGL) ? num(s.pointGL) : null, mode: ['mixtion', 'ancestrale'].includes(s.mode) ? s.mode : 'pompe', formats,
     couleur: s.couleur && couleurDef(db, s.couleur) ? s.couleur : '', qualif: s.qualif && qualifList(db).some((q) => q.id === s.qualif) ? s.qualif : '', echelle: s.echelle && eDef(s.echelle) ? s.echelle : '', millesime: String(s.millesime == null ? '' : s.millesime).trim().slice(0, 10), mentions, notes: String(s.notes || '').trim().slice(0, 300), maj: new Date().toISOString(), ...(old ? {} : { par: uid || '', le: new Date().toISOString() }) };
   if (!hasNum(s.vinHL)) delete x.vinHL;
   if (old) L[L.indexOf(old)] = x; else L.push(x); ch.maj = x.maj; return okr({ id: x.id });
@@ -82,8 +82,8 @@ function declPrealableCuvees(db, R, chantierId) {
   const ch = chantierTirage(db, chantierId); const C = chantierCuvees(ch); if (!C.length) return null;
   const lignes = C.map((c) => { const ce = cuveeEffective(db, R, c); const k = hasNum(ce.pointGL) && ce.vinHL > 0 ? declPrealableCalcul(db, { vinHL: ce.vinHL, pointGL: ce.pointGL }) : fail('');
     const rose = ce.couleur === 'rose' || (couleurDef(db, ce.couleur) || {}).melange;
-    return { id: c.id, nom: c.nom, couleur: ce.couleur, qualif: ce.qualif, echelle: ce.echelle, millesime: ce.millesime, mentions: ce.mentions, mode: c.mode, ok: k.ok, vinHL: k.ok ? k.vinHL : ce.vinHL, sucreHL: k.ok ? k.sucreHL : null, sucreKg: k.ok ? k.sucreKg : null, totalHL: k.ok ? k.totalHL : null, vrtpHL: k.ok ? k.vrtpHL : null,
+    return { id: c.id, nom: c.nom, couleur: ce.couleur, qualif: ce.qualif, echelle: ce.echelle, millesime: ce.millesime, mentions: ce.mentions, mode: c.mode, ok: k.ok, vinHL: k.ok ? k.vinHL : ce.vinHL, sucreHL: k.ok ? k.sucreHL : null, liqueurHL: k.ok ? k.liqueurHL : null, sucreKg: k.ok ? k.sucreKg : null, totalHL: k.ok ? k.totalHL : null, vrtpHL: k.ok ? k.vrtpHL : null,
       rougeHL: rose && ce.caracteres.volL > 0 ? ce.vinHL * ce.caracteres.rougeL / ce.caracteres.volL : 0, blancHL: rose && ce.caracteres.volL > 0 ? ce.vinHL * ce.caracteres.blancL / ce.caracteres.volL : 0, manque: !hasNum(ce.pointGL) ? 'point de tirage' : !(ce.vinHL > 0) ? 'volume de vin' : '' }; });
   const t = (k) => sum(lignes.filter((l) => l.ok), (l) => l[k] || 0);
-  return { lignes, vinHL: t('vinHL'), sucreHL: t('sucreHL'), sucreKg: t('sucreKg'), totalHL: t('totalHL'), vrtpHL: t('vrtpHL'), rougeHL: sum(lignes, (l) => l.rougeHL), blancHL: sum(lignes, (l) => l.blancHL), incompletes: lignes.filter((l) => !l.ok).map((l) => l.nom) };
+  return { lignes, vinHL: t('vinHL'), sucreHL: t('sucreHL'), liqueurHL: t('liqueurHL'), sucreKg: t('sucreKg'), totalHL: t('totalHL'), vrtpHL: t('vrtpHL'), rougeHL: sum(lignes, (l) => l.rougeHL), blancHL: sum(lignes, (l) => l.blancHL), incompletes: lignes.filter((l) => !l.ok).map((l) => l.nom) };
 }

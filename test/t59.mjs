@@ -38,7 +38,7 @@ const etF = F.ops.find((o) => o.type === 'etape' && o.date === '2026-11-10'); co
   await ov().locator('button', { hasText: '⬆ Enrichissement' }).click(); await page.waitForTimeout(300);
   const en = ov().locator('[data-calcul=enrichissement]'); const ie = en.locator('input');
   await ie.nth(0).fill('20'); await ie.nth(1).fill('9,5'); await ie.nth(2).fill('10,5'); await page.waitForTimeout(200);
-  ok('enrichissement au sucre : +1 % vol → 34,0 kg pour 20 hL, volume ≈ 20,21 hL', /34,0 kg de sucre/.test(await txt(en.locator('[data-enrich-resultat]'))) && /20,21 hL/.test(await txt(en)), await txt(en.locator('[data-enrich-resultat]')));
+  ok('enrichissement au sucre : +1 % vol → 34,0 kg pour 20 hL, volume ≈ 20,22 hL (0,6329 L/kg)', /34,0 kg de sucre/.test(await txt(en.locator('[data-enrich-resultat]'))) && /20,22 hL/.test(await txt(en)), await txt(en.locator('[data-enrich-resultat]')));
   await ie.nth(2).fill('12'); await page.waitForTimeout(200);
   ok('… +2,5 % vol : au-delà du maximum réglé (2 % vol), plafond indicatif', /Au-delà du maximum réglé/.test(await txt(en)) && /Plafond indicatif/.test(await txt(en)));
   await ie.nth(2).fill('10,5'); await en.locator('button', { hasText: 'MCR' }).click(); await page.waitForTimeout(200);
@@ -46,7 +46,7 @@ const etF = F.ops.find((o) => o.type === 'etape' && o.date === '2026-11-10'); co
   await en.locator('button', { hasText: 'Sucre (saccharose)' }).click(); await page.waitForTimeout(150);
   await pick(page, en.locator('input[placeholder="Sucre, MCR…"]'), 'Sucre de', 'Sucre de canne');
   await en.locator('button', { hasText: 'Préparer l’opération d’enrichissement' }).click(); await page.waitForTimeout(600);
-  ok('… « Préparer l’opération » : formulaire « Enrichissement (chaptalisation) », sucre de canne 34 kg', /Enrichissement \(chaptalisation\)/.test(await txt(ov())) && (await ov().locator('input[inputmode=decimal]').evaluateAll((els) => els.map((e) => e.value))).includes('34'), (await txt(ov())).slice(0, 200));
+  ok('… « Préparer l’opération » : formulaire « Enrichissement », sucre de canne 34 kg', /Nouvelle opération — Enrichissement/.test(await txt(ov())) && (await ov().locator('input[inputmode=decimal]').evaluateAll((els) => els.map((e) => e.value))).includes('34'), (await txt(ov())).slice(0, 200));
   const sav = ov().locator('.btn-primary', { hasText: 'Valider' }).last(); await sav.click(); await page.waitForTimeout(700);
   let d = await db(); const oe = d.ops.filter((o) => o.sousType === 'enrichissement' && o.date === '2026-11-21');
   const Rpi = await page.evaluate(() => { const R = getR(JSON.parse(localStorage.getItem('oenotrack-db-v2'))); return R.pinfo; });

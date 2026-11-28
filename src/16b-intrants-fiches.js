@@ -70,7 +70,7 @@ const FT_LIB_DATES = [ // [étiquette, longueur lue après l'étiquette]
   [/date de (?:la )?(?:mise a jour|revision|modification|redaction|creation|publication|parution|l'edition)|mise a jour(?: le| du)?|mis(?:e)? a jour le|revise(?:e)? le|derniere (?:revision|mise a jour)|revision date|date of (?:revision|issue)|last updated?|updated on|date d'(?:edition|emission|etablissement)|edite(?:e)? le|etabli(?:e)? le|issue date/, 40],
   [/(?<!remplace\s(?:la\s)?)(?:^|\s)(?:revision|rev\.?|edition|version|ver\.|indice)\s*(?:n\s*[°o]\s*)?(?:[\w.,-]{1,6}\s+)?(?:du|le|of|:|-|–)?\s*/, 24], [/(?:^|\s)date\s*[:.]/, 40],
 ];
-// une date de révision n'est pas dans le futur (une DLUO, si) : un mois de marge
+// une date de révision n'est pas dans le futur (une DDM, si) : un mois de marge
 const dateRevOk = (d) => !!d && isoOK(d) && d >= '1990-01-01' && d <= addDays(todayISO(), 31);
 // date trouvée après une étiquette (même ligne, ou ligne suivante si l'étiquette est seule)
 function ficheDateApres(lignes, F, libs, n) {

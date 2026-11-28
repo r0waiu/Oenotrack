@@ -1,5 +1,5 @@
 # Paquet « Œnotrack en ligne » : dist/web/oenotrack-web/ (index.html complet, config.json, README.md, CHANGELOG.md) + zip
-import os, json, zipfile, re
+import os, json, zipfile, re, shutil
 racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 src = open(os.path.join(racine, 'dist', 'cuverie.html'), encoding='utf8').read()
 version = re.search(r"const APP_VERSION = '([^']+)'", open(os.path.join(racine, 'src', '10-core.js'), encoding='utf8').read()).group(1)
@@ -8,8 +8,14 @@ import urllib.parse
 icone = 'data:image/svg+xml,' + urllib.parse.quote(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icones', 'icone.svg'), encoding='utf8').read().replace('\n', ''), safe="=:/'(),.-")
 dossier = os.path.join(racine, 'dist', 'web', 'oenotrack-web'); os.makedirs(dossier, exist_ok=True)
 cfg = os.path.join(dossier, 'config.json')
-if not os.path.exists(cfg) or os.environ.get('CONFIG_VIDE'):
-    json.dump({"google": {"clientId": ""}, "microsoft": {"clientId": ""}, "dropbox": {"appKey": ""}}, open(cfg, 'w', encoding='utf8'), indent=2)
+# identifiants publics du site officiel (config.json de la racine, déclarés chez Google, Microsoft et Dropbox pour https://oenotrack.pages.dev ;
+# ce ne sont pas des secrets) repris dans le paquet ; CONFIG_VIDE=1 : paquet sans identifiants (autre hébergement, chacun les siens)
+cfg_racine = os.path.join(racine, 'config.json')
+if os.environ.get('CONFIG_VIDE') or not os.path.exists(cfg_racine):
+    if not os.path.exists(cfg) or os.environ.get('CONFIG_VIDE'):
+        json.dump({"google": {"clientId": ""}, "microsoft": {"clientId": ""}, "dropbox": {"appKey": ""}}, open(cfg, 'w', encoding='utf8'), indent=2)
+else:
+    shutil.copy(cfg_racine, cfg)
 # pages fixes (0.23.0-alpha.1) : informations légales et page d'accueil lisibles sans JavaScript, rendues par Œnotrack lui-même
 # (tools/pages-statiques.mjs, Playwright) avec le config.json du paquet ; sans Playwright, le paquet se fait sans elles
 import subprocess
@@ -140,7 +146,7 @@ shutil.copy(os.path.join(racine, 'CHANGELOG.md'), os.path.join(dossier, 'CHANGEL
 if os.path.exists(os.path.join(dossier, 'LISEZ-MOI.txt')): os.remove(os.path.join(dossier, 'LISEZ-MOI.txt'))
 # licence et code source de cette version (depuis 0.21.0-alpha.1) : sans les notes de travail ni le test qui lit des documents privés de l'exploitation
 shutil.copy(os.path.join(racine, 'LICENCE.txt'), os.path.join(dossier, 'LICENCE.txt'))
-EXCLUS_RACINE = {'dist', 'NOTES.md', 'published-fragment.html', '.git', 'node_modules', 'vendor'}
+EXCLUS_RACINE = {'dist', 'NOTES.md', 'published-fragment.html', '.git', 'node_modules', 'vendor', '.claude'}  # .claude : outils locaux (copies de travail), jamais dans le code source livré
 EXCLUS = {os.path.join('test', 't37.mjs')}
 nom_src = 'oenotrack-' + version.replace(' ', '-')
 cs = os.path.join(dossier, 'code-source.zip')

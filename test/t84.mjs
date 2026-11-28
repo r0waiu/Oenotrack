@@ -1,7 +1,7 @@
 // 0.43.0-alpha.3 : configuration guidée — à la première ouverture (après la page de présentation) : mode basique, questions une par une,
 // aperçu, base vide, revendications, onglets, compte administrateur (connexion, code de secours), visite guidée ; depuis Paramètres :
 // questionnaire avancé relancé (réponses reprises, pas de choix de la base), opérateurs, campagne, onglet d'ouverture ; anglais.
-// Données fictives.
+// 0.44.0-alpha.3 : VDC proposée à côté de HVE. Données fictives.
 import { open } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests'); fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 900) : ''); };
@@ -26,13 +26,15 @@ const repondre = async (page, ov, reponses) => {
   await page.locator('[data-perso-mode="basique"]').click(); await page.waitForTimeout(300);
   await page.locator('[data-perso-suivant]').click(); await page.waitForTimeout(200);
   ok('réponse obligatoire : le nom vide est refusé', /Réponse attendue/.test(await txt(ov())));
+  let vdcVu = false;
   const vus = await repondre(page, ov, {
     nom: async (f) => { await f.getByLabel('Nom de votre exploitation').fill('Domaine fictif T84'); },
     pressoir: async (f) => { await f.locator('label.perso-choix', { hasText: 'Non' }).click(); },
-    revendications: async (f) => { await f.locator('label', { hasText: 'Vin Méthode Nature' }).click(); },
+    revendications: async (f) => { vdcVu = (await f.locator('label', { hasText: 'VDC' }).count()) === 1 && (await f.locator('label', { hasText: 'HVE' }).count()) === 1; await f.locator('label', { hasText: 'Vin Méthode Nature' }).click(); },
     acces: async (f) => { await f.locator('label', { hasText: 'Une équipe' }).click(); },
     compte: async (f) => { await f.getByLabel('Identifiant').fill('fictif'); await f.getByLabel('Nom affiché').fill('Utilisateur Fictif'); await f.getByLabel('Mot de passe', { exact: true }).fill('MotDePasse-T84'); await f.getByLabel('Confirmer le mot de passe').fill('MotDePasse-T84'); },
   });
+  ok('revendications proposées : HVE et VDC (0.44.0-alpha.3)', vdcVu);
   ok('questions du mode basique, une par écran, dans l’ordre ; « compte » parce que l’équipe se connecte ; « base de départ » à la première ouverture', vus[0] === 'nom' && vus.includes('compte') && vus.includes('donnees') && vus.includes('tirage') && !vus.includes('evv'), vus);
   t = await txt(page.locator('[data-perso-apercu]'));
   ok('aperçu : nom, profil viticole, onglet Pressoir masqué, revendications, base vide, identifiants', /Domaine fictif T84/.test(t) && /Champagne/.test(t) && /Onglet Pressoir : masqué/.test(t) && /Vin Méthode Nature/.test(t) && /base vide|vide/.test(t) && /Identifiants/.test(t), t.slice(0, 700));
@@ -43,12 +45,16 @@ const repondre = async (page, ov, reponses) => {
   ok('base vide (plus de lots d’exemple), nom de l’exploitation, onglet Pressoir masqué', (d.lots || []).length === 0 && d.entreprise.nom === 'Domaine fictif T84' && (await page.locator('#tab-pressoir').count()) === 0, { lots: (d.lots || []).length, nom: d.entreprise.nom });
   ok('revendications : VMN ajoutée avec son référentiel ; identifiants activés, administrateur connecté', d.lists.qualifs.some((q) => q.id === 'vmn' && q.referentiels[0] === 'vmn') && d.settings.securite.actif === true && d.utilisateurs.some((u) => u.identifiant === 'fictif' && u.profilId === 'pf_admin') && (await page.locator('[data-utilisateur]').count()) === 1);
   ok('réponses gardées sans le mot de passe', d.settings.personnalisation.mode === 'basique' && !JSON.stringify(d.settings.personnalisation).includes('MotDePasse') && d.settings.personnalisation.reponses.nom === 'Domaine fictif T84');
-  // visite guidée
+  // visite guidée (0.45.0-alpha.1 : par chapitres)
   await page.locator('[data-perso-visite]').click(); await page.waitForTimeout(700);
-  ok('visite guidée lancée : bulle « Étape 1 / n » pointant le logo', (await page.locator('[data-visite="1"]').count()) === 1 && /Étape 1 \/ \d+/.test(await txt(page.locator('.visite-bulle'))));
-  await page.locator('[data-visite-suivant]').click(); await page.waitForTimeout(300); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(300);
+  const chaps = await page.locator('[data-visite-chapitre]').evaluateAll((e) => e.map((x) => x.getAttribute('data-visite-chapitre')));
+  ok('visite guidée : sommaire des chapitres ; l’onglet masqué (Pressoir) n’est pas présenté', chaps[0] === 'prise' && chaps.includes('cuverie') && chaps.includes('params') && !chaps.includes('pressoir'), chaps);
+  await page.locator('[data-visite-chapitre="prise"]').click(); await page.waitForTimeout(700);
+  ok('chapitre « Prise en main » : bulle « étape 1 / n » pointant le logo', (await page.locator('[data-visite="1"]').count()) === 1 && /étape 1 \/ \d+/.test(await txt(page.locator('.visite-bulle'))) && /Œnotrack/.test(await txt(page.locator('.visite-bulle'))));
+  await page.locator('[data-visite-suivant]').click(); await page.waitForTimeout(400); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400);
   ok('… Suivant et flèche → : étape 3', (await page.locator('[data-visite="3"]').count()) === 1);
-  ok('… l’onglet masqué (Pressoir) n’est pas présenté', !(await (async () => { for (let k = 0; k < 15; k++) { if (/Registre des pesées/.test(await txt(page.locator('.visite-bulle')))) return true; if (!(await page.locator('[data-visite-suivant]').count())) return false; await page.locator('[data-visite-suivant]').click(); await page.waitForTimeout(150); } return false; })()));
+  await page.locator('[data-visite-retour]').click(); await page.waitForTimeout(300);
+  ok('… retour au sommaire', (await page.locator('[data-visite-sommaire]').count()) === 1);
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   ok('Échap : visite fermée ; bouton « ❓ Visite guidée » dans l’en-tête', (await page.locator('.visite').count()) === 0 && (await page.locator('[data-visite-bouton]').count()) === 1);
   ok('aucune erreur dans la page', errors.length === 0, errors);

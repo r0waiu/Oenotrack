@@ -41,7 +41,7 @@ ok('historique des mouvements : réception, régularisations (casse, inventaire)
 await page.locator('main [role=tab]', { hasText: 'Produits & règles' }).click(); await page.waitForTimeout(300);
 await page.locator('main tr', { hasText: p2.nom }).first().locator('button', { hasText: 'Modifier' }).click(); await page.waitForTimeout(400); s = ov();
 t = await txt(s.locator('[data-produit-allergenes-rev]'));
-ok('fiche du produit : « Allergènes & revendications », Enzymes coché, FR-BIO-01 : Non, Demeter', /Allergènes & revendications/i.test(t) && await s.locator('[data-allergenes] label', { hasText: 'Enzymes' }).locator('input').isChecked() && (await s.locator('[data-rev="bio"] [data-oui-non="non"][aria-pressed="true"]').count()) === 1 && (await s.locator('[data-rev="dem"]').count()) === 1, t);
+ok('fiche du produit : « Allergènes & revendications », Enzymes coché, BIO : Non, Demeter', /Allergènes & revendications/i.test(t) && await s.locator('[data-allergenes] label', { hasText: 'Enzymes' }).locator('input').isChecked() && (await s.locator('[data-rev="bio"] [data-oui-non="non"][aria-pressed="true"]').count()) === 1 && (await s.locator('[data-rev="dem"]').count()) === 1, t);
 await s.locator('[data-allergenes] label', { hasText: 'Lait (caséine' }).locator('input').check();
 await s.locator('[data-rev="dem"] [data-oui-non="oui"]').click(); await page.waitForTimeout(100);
 await s.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(500);
@@ -54,7 +54,7 @@ await row.locator('button', { hasText: 'Modifier' }).click(); await page.waitFor
 const ft = ['FICHE TECHNIQUE', p2.nom.toUpperCase(), 'Composition : préparation enzymatique, ovalbumine', 'Utilisable en agriculture biologique (règlement (UE) 2018/848)', 'Allergènes', 'Gluten : non', 'Date : 03/2026'].join('\n');
 await s.locator('input[aria-label="Fichiers à joindre"]').setInputFiles({ name: 'FT_t69.txt', mimeType: 'text/plain', buffer: Buffer.from(ft, 'utf8') }); await page.waitForTimeout(1500);
 let dep = ov(); const inf = dep.locator('[data-fiche-infos]'); t = await txt(inf);
-ok('dépôt : « Allergènes (liste) » Œuf ajouté (coché), « Utilisable en FR-BIO-01 » Oui proposé — décoché : le choix Non avait été vérifié', /Allergènes \(liste\)/.test(t) && /Œuf/.test(t) && /Utilisable en FR-BIO-01/.test(t) && await inf.locator('[data-info="allergenesListe"]').isChecked() && !(await inf.locator('[data-info="rev:bio"]').isChecked()), t);
+ok('dépôt : « Allergènes (liste) » Œuf ajouté (coché), « Utilisable en BIO » Oui proposé — décoché : le choix Non avait été vérifié', /Allergènes \(liste\)/.test(t) && /Œuf/.test(t) && /Utilisable en BIO/.test(t) && await inf.locator('[data-info="allergenesListe"]').isChecked() && !(await inf.locator('[data-info="rev:bio"]').isChecked()), t);
 await inf.locator('[data-info="rev:bio"]').check(); await inf.locator('[data-info="allergenes"]').uncheck();
 await dep.locator('.sheet-f button', { hasText: 'Joindre 1 document' }).first().click(); await page.waitForTimeout(700);
 d = await db(); pp = d.produits.find((p) => p.id === p2.id); const rb = d.regles.find((r) => r.produitId === p2.id && r.qualifId === 'bio');
@@ -66,7 +66,7 @@ await page.locator('main [data-recap-ouvrir]').first().click(); await page.waitF
 ok('fiche récapitulative : colonnes par défaut, aperçu', /Fiche récapitulative des produits œnologiques/.test(await txt(s)) && (await s.locator('[data-recap] th').count()) === 6);
 await s.locator('[data-recap-colonnes] label', { hasText: 'Utilisable en bio' }).locator('input').check(); await s.locator('[data-recap-colonnes] label', { hasText: /^FDS$/ }).locator('input').uncheck(); await page.waitForTimeout(200);
 const ths = await s.locator('[data-recap] th').allInnerTexts(); const lr = await txt(s.locator('[data-recap] tr', { hasText: p2.nom }).first());
-ok('… colonne ajoutée et retirée, ligne du produit (stock, revendications compatibles, allergènes)', ths.length === 6 && ths.some((h) => /Utilisable en bio/i.test(h)) && !ths.some((h) => /^FDS$/i.test(h)) && /\d,\d\d g/.test(lr) && /FR-BIO-01/.test(lr) && /Œuf, Lait, Enzymes/.test(lr), [ths, lr]);
+ok('… colonne ajoutée et retirée, ligne du produit (stock, revendications compatibles, allergènes)', ths.length === 6 && ths.some((h) => /Utilisable en bio/i.test(h)) && !ths.some((h) => /^FDS$/i.test(h)) && /\d,\d\d g/.test(lr) && /BIO/.test(lr) && /Œuf, Lait, Enzymes/.test(lr), [ths, lr]);
 await s.locator('[data-recap-csv]').click(); await page.waitForTimeout(500);
 const csv = await page.evaluate(async () => { const b = window.__fichiers.filter((x) => /csv/.test(x.type)).pop(); return b ? b.text() : ''; });
 ok('… CSV téléchargé (en-têtes choisis, ligne du produit)', /^﻿?Produit;Fournisseur;Stock actuel;Revendications compatibles;Utilisable en bio;Allergènes/.test(csv) && csv.includes(p2.nom), csv.slice(0, 300));
@@ -81,8 +81,8 @@ t = await txt(page.locator('[data-produits-maintenance]'));
 ok('catalogue : 2 produits, contact alimentaire, cave, FDS, stock 2,50 kg / non suivi', /Graisse alimentaire fictive H1/.test(t) && /Joint de porte de cuve fictif/.test(t) && /2,50 kg/.test(t) && /non suivi/.test(t) && /FDS du 01\/03\/2025/.test(t) && /FDS non requise/.test(t), t.slice(0, 600));
 await page.locator('[data-maint-produit-nouveau]').click(); await page.waitForTimeout(300); s = ov();
 await s.locator('[aria-label="Nom du produit de maintenance"]').fill('Huile de compresseur fictive'); await s.locator('[aria-label="Fournisseur du produit de maintenance"]').fill('Fournisseur test');
-await s.locator('[aria-label="Usage"]').fill('Compresseur du pressoir'); await s.locator('[aria-label="Agréé contact alimentaire"] [data-oui-non="non"]').click(); await s.locator('[aria-label="Utilisation en cave de vinification"] [data-oui-non="oui"]').click();
-ok('… alerte : utilisé en cave sans agrément contact alimentaire', /sans agrément contact alimentaire/.test(await txt(s)));
+await s.locator('[aria-label="Usage"]').fill('Compresseur du pressoir'); await s.locator('[aria-label="Apte au contact alimentaire"] [data-oui-non="non"]').click(); await s.locator('[aria-label="Utilisation en cave de vinification"] [data-oui-non="oui"]').click();
+ok('… alerte : utilisé en cave, non apte au contact alimentaire', /non apte au contact alimentaire/.test(await txt(s)));
 await s.locator('[data-suivi-stock] input[type=checkbox]').check(); await page.waitForTimeout(100); await s.locator('[aria-label="Stock minimal"]').fill('2');
 await s.locator('button', { hasText: '+ Champ' }).click(); await s.locator('[aria-label="Nom du champ 1"]').fill('Viscosité'); await s.locator('[aria-label="Valeur du champ 1"]').fill('ISO VG 46');
 await s.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(500);
@@ -96,7 +96,7 @@ ok('… historique du stock (solde)', /Entrée \(réception\)/.test(await txt(ov
 await fermer();
 await page.locator('[data-recap-maint]').click(); await page.waitForTimeout(300); s = ov();
 t = await txt(s.locator('[data-recap="maintenance"]'));
-ok('fiche récapitulative des produits de maintenance (contact alimentaire, cave, stock)', /Fiche récapitulative des produits de maintenance/.test(t) && /Huile de compresseur fictive/.test(t) && /Agréé contact alimentaire/i.test(t) && /5,00 u/.test(t), t.slice(0, 400));
+ok('fiche récapitulative des produits de maintenance (contact alimentaire, cave, stock)', /Fiche récapitulative des produits de maintenance/.test(t) && /Huile de compresseur fictive/.test(t) && /Apte au contact alimentaire/i.test(t) && /5,00 u/.test(t), t.slice(0, 400));
 await fermer();
 // 7. anglais
 await page.evaluate(() => { localStorage.setItem('oenotrack-langue', 'en'); }); await page.reload(); await page.waitForTimeout(1200);

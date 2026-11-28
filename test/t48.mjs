@@ -44,7 +44,7 @@ ok('retour à « Sain » : relevés de pourriture masqués', (await f.locator('[
 await f.locator('[data-heure]').fill('10:20'); await f.locator('[data-brut]').fill('3200'); await f.locator('[data-tare]').fill('200');
 await f.locator('.sheet-f .btn-primary', { hasText: 'Peser et valider' }).click(); await page.waitForTimeout(500);
 const tk = await txt(ov());
-ok('bon de pesée d’une pesée « Sain » : aucune ligne de pourriture', /Bon de pesée n° 5/.test(tk) && !/Pourriture/i.test(tk), tk.slice(0, 700));
+ok('bon de pesée d’une pesée « Sain » : aucune ligne de pourriture', /Ticket de pesée n° 5/.test(tk) && !/Pourriture/i.test(tk), tk.slice(0, 700));
 await fermer();
 let d = await db(); const o5 = d.ops.find((x) => x.type === 'apport' && x.pesee && x.pesee.num === 5 && x.date.startsWith('2026'));
 ok('base : pesée « Sain » sans pourriture acide ni pourriture grise', o5 && o5.pesee.etat === 'sain' && o5.pesee.pourritureAcide === undefined && !(o5.champs || []).some((c) => /Pourriture/.test(c.label)), o5 && { pesee: o5.pesee, champs: o5.champs });

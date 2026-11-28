@@ -9,6 +9,10 @@ function sessionEcrire(s) {
   try { window.sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* ignoré */ } try { window.localStorage.removeItem(SESSION_KEY); } catch (e) { /* ignoré */ }
   if (!s) return; try { window[s.garder ? 'localStorage' : 'sessionStorage'].setItem(SESSION_KEY, JSON.stringify({ uid: s.uid, t: s.t || Date.now(), verrou: !!s.verrou })); } catch (e) { /* ignoré */ }
 }
+// dernière page visitée (0.47.0-alpha.3) : par personne (identifiant, '' sans identifiants), sur cet appareil seulement, jamais dans la base
+const DERNIERE_PAGE_KEY = 'oenotrack-derniere-page';
+const dernierePageLire = (uid) => { try { const o = JSON.parse(window.localStorage.getItem(DERNIERE_PAGE_KEY) || '{}'); const x = o && o[uid || '']; return x && typeof x.tab === 'string' ? { tab: x.tab, sub: typeof x.sub === 'string' ? x.sub : null } : null; } catch (e) { return null; } };
+const dernierePageEcrire = (uid, nav) => { try { const o = JSON.parse(window.localStorage.getItem(DERNIERE_PAGE_KEY) || '{}') || {}; o[uid || ''] = { tab: nav.tab, sub: typeof nav.sub === 'string' ? nav.sub : null }; window.localStorage.setItem(DERNIERE_PAGE_KEY, JSON.stringify(o)); } catch (e) { /* ignoré */ } };
 const dernierIdent = () => { try { return window.localStorage.getItem(DERNIER_IDENT_KEY) || ''; } catch (e) { return ''; } };
 const dernierIdentEcrire = (v) => { try { window.localStorage.setItem(DERNIER_IDENT_KEY, v || ''); } catch (e) { /* ignoré */ } };
 const appareilNom = () => { try { const ua = navigator.userAgent || ''; return /iPhone|iPad/.test(ua) ? 'iPhone / iPad' : /Android/.test(ua) ? 'Android' : /Macintosh|Mac OS/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'PC Windows' : /Linux/.test(ua) ? 'Linux' : 'appareil'; } catch (e) { return 'appareil'; } };

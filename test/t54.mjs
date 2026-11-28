@@ -39,13 +39,13 @@ ok('recherche « grand cru » : les deux pesées de grands crus', (await page.lo
 await page.locator('main input[aria-label="Rechercher une pesée"]').fill(''); await page.waitForTimeout(200);
 await page.locator('[data-nouvelle-pesee]').click(); await page.waitForTimeout(300); f = ov();
 await pick(page, f.locator('input[placeholder^="Cru (village)"]').first(), 'Avenay');
-ok('nouvelle pesée : l’échelle du cru choisi s’affiche (« Échelle des crus : 1er Cru »)', /Échelle des crus : 1er Cru/.test(await txt(f.locator('[data-echelle-pesee]'))) && (await f.locator('[data-echelle-pesee] [data-echelle-cru="premier"]').count()) === 1);
+ok('nouvelle pesée : l’échelle du cru choisi s’affiche (« Échelle des crus : Premier Cru »)', /Échelle des crus : Premier Cru/.test(await txt(f.locator('[data-echelle-pesee]'))) && (await f.locator('[data-echelle-pesee] [data-echelle-cru="premier"]').count()) === 1);
 await fermer();
 
 // 3. bon de pesée (distinct du bon de pressoir) : livraison, échelle, cumul de la campagne de l'apporteur, identifiants
 await page.locator('main tr:visible', { has: page.locator('[data-num-pesee]', { hasText: /^4$/ }) }).locator('[data-bon-pesee-btn]').click(); await page.waitForTimeout(400);
 let b = await txt(ov().locator('[data-bon-pesee]'));
-ok('bon de pesée n° 4 : titre, campagne, centre de pressurage et ses identifiants, apporteur et son identifiant', /Bon de pesée n° 4/.test(b) && /Vendanges 2026/.test(b) && /Centre de pressurage/i.test(b) && /Domaine Fictif des Essais/.test(b) && /CVI 51 000 00000 · Accise FR00000000000/.test(b) && b.includes(ap4.nom) && /CVI 51 999 99999/.test(b), b.slice(0, 600));
+ok('bon de pesée n° 4 : titre, campagne, centre de pressurage et ses identifiants, apporteur et son identifiant', /Ticket de pesée n° 4/.test(b) && /Vendanges 2026/.test(b) && /Centre de pressurage/i.test(b) && /Domaine Fictif des Essais/.test(b) && /CVI 51 000 00000 · Accise FR00000000000/.test(b) && b.includes(ap4.nom) && /CVI 51 999 99999/.test(b), b.slice(0, 600));
 ok('… livraison : cépage, cru, échelle des crus (« Autre cru »), poids net', (await ov().locator('[data-bon-livraison] th', { hasText: 'Échelle des crus' }).count()) === 1 && /Autre cru/.test(await txt(ov().locator('[data-bon-livraison]'))) && /4 000 kg/.test(await txt(ov().locator('[data-bon-livraison]'))));
 const cumul = await txt(ov().locator('[data-bon-cumul]'));
 ok('… cumul de la campagne de l’apporteur : 2 pesées, 8 000 kg ; par cépage et par échelle', /Cette livraison 1 (83 )?4 000 kg/i.test(cumul) && /Cumul de la campagne 2 (166 )?8 000 kg/i.test(cumul) && /Cépages livrés : Meunier = 8 000 kg/.test(b) && /Échelle des crus : Autre cru = 8 000 kg/.test(await txt(ov().locator('[data-bon-echelles]'))), [cumul, b.slice(0, 900)]);
@@ -54,7 +54,7 @@ await page.screenshot({ path: SC + '/shots/t54-bon-pesee.png' });
 await fermer();
 await page.locator('main tr:visible', { has: page.locator('[data-num-pesee]', { hasText: /^1$/ }) }).locator('[data-bon-pesee-btn]').click(); await page.waitForTimeout(400);
 b = await txt(ov().locator('[data-bon-pesee]'));
-ok('bon de pesée n° 1 (autre apporteur) : Grand Cru, cumul 1 pesée', /Bon de pesée n° 1/.test(b) && /Grand Cru/.test(b) && /Cumul de la campagne 1 (\d+ )?8 000 kg/i.test(await txt(ov().locator('[data-bon-cumul]'))) && /Échelle des crus : Grand Cru = 8 000 kg/.test(b), b.slice(0, 700));
+ok('bon de pesée n° 1 (autre apporteur) : Grand Cru, cumul 1 pesée', /Ticket de pesée n° 1/.test(b) && /Grand Cru/.test(b) && /Cumul de la campagne 1 (\d+ )?8 000 kg/i.test(await txt(ov().locator('[data-bon-cumul]'))) && /Échelle des crus : Grand Cru = 8 000 kg/.test(b), b.slice(0, 700));
 await fermer();
 
 // 4. bon de pressoir d'un marc
@@ -67,8 +67,8 @@ b = await txt(ov().locator('[data-bon-pressoir]'));
 ok('bon de pressoir : un par marc, titre « Bon de pressoir — marc n° 1 », heures de pressurage', nbBons >= 5 && /Bon de pressoir — marc n° 1/.test(b) && new RegExp(`Pressurage du \\d\\d/\\d\\d/2026, de ${m1.marc.heureDebut} à ${m1.marc.heureFin}`).test(b), b.slice(0, 500));
 ok('… raisins chargés : pesée, apporteur, cru, échelle, poids ; total chargé', (await ov().locator('[data-bon-charges] th', { hasText: 'Échelle des crus' }).count()) === 1 && /Grand Cru/.test(await txt(ov().locator('[data-bon-charges]'))) && new RegExp(`Total chargé ${(m1.charges || []).reduce((a, c) => a + Number(c.kg || 0), 0).toLocaleString('fr-FR').replace(/\s/g, ' ')} kg`, 'i').test((await txt(ov().locator('[data-bon-charges]'))).replace(/\s/g, ' ')));
 ok('… répartition : « Cépages : Chardonnay = 100,0 % », « Échelle des crus : Grand Cru = 100,0 % »', /Cépages : Chardonnay = 100,0 %/.test(b) && /Échelle des crus : Grand Cru = 100,0 %/.test(b), b.slice(0, 900));
-ok('… moûts obtenus avec leurs cuves et lots, revendicable, rendement, contrôles, validation, signatures', (await ov().locator('[data-bon-fractions] tbody tr').count()) >= 2 && /Revendicable \(cuvée \+ tailles\)/i.test(b) && /Rendement [\d,]+ L \/ 160 kg/i.test(b) && /Contrôles/.test(b) && /Marc inscrit au carnet de pressoir sous le n° 1, validé le/.test(b) && /Signature du responsable du pressurage/.test(b) && /Signature de l’apporteur \(pressurage à façon\)/.test(b), b.slice(0, 1400));
-ok('… distinct du bon de pesée', !/Bon de pesée/.test(b) && !/Cumul de la campagne/.test(b));
+ok('… moûts obtenus avec leurs cuves et lots, revendicable, rendement, contrôles, validation, signatures', (await ov().locator('[data-bon-fractions] tbody tr').count()) >= 2 && /Revendicable \(cuvée \+ taille\)/i.test(b) && /Rendement [\d,]+ L \/ 160 kg/i.test(b) && /Contrôles/.test(b) && /Marc inscrit au carnet de pressoir sous le n° 1, validé le/.test(b) && /Signature du responsable du pressurage/.test(b) && /Signature de l’apporteur \(pressurage à façon\)/.test(b), b.slice(0, 1400));
+ok('… distinct du bon de pesée', !/Ticket de pesée/.test(b) && !/Cumul de la campagne/.test(b));
 await page.screenshot({ path: SC + '/shots/t54-bon-pressoir.png' });
 await fermer();
 
@@ -177,7 +177,7 @@ if (await page.locator('[data-connexion]').count()) { await page.locator('[data-
 await page.click('#tab-pressoir'); await page.waitForTimeout(400); await page.locator('[aria-label="Harvest year"]').selectOption('2026').catch(() => {}); await page.waitForTimeout(250);
 await page.locator('main tr:visible', { has: page.locator('[data-num-pesee]', { hasText: /^4$/ }) }).locator('[data-bon-pesee-btn]').click(); await page.waitForTimeout(400);
 b = await txt(ov().locator('[data-bon-pesee]'));
-ok('anglais : bon de pesée (« Weighing slip no. 4 », « Cru scale: Other cru = 8 000 kg », cumul)', /Weighing slip no\. 4/.test(b) && /Harvest 2026/.test(b) && /Cru scale: Other cru = 8 000 kg/.test(b) && /Grape varieties delivered: Meunier = 8 000 kg/.test(b) && /Campaign total/i.test(b) && /Weighing recorded in the weighing register under no\. 4, validated on .*\. Register kept according to the AOC Champagne specification \(chapter II\)\./.test(b) && !/Bon de pesée|Cumul de la campagne|Vendanges|Registre tenu/.test(b), b.slice(0, 900));
+ok('anglais : bon de pesée (« Weighing ticket no. 4 », « Cru scale: Other cru = 8 000 kg », cumul)', /Weighing ticket no\. 4/.test(b) && /Harvest 2026/.test(b) && /Cru scale: Other cru = 8 000 kg/.test(b) && /Grape varieties delivered: Meunier = 8 000 kg/.test(b) && /Campaign total/i.test(b) && /Weighing recorded in the weighing register under no\. 4, validated on .*\. Register kept according to the AOC Champagne specification \(chapter II\)\./.test(b) && !/Bon de pesée|Cumul de la campagne|Vendanges|Registre tenu/.test(b), b.slice(0, 900));
 await fermer(); await sub('Pressings');
 await page.locator('main [data-bon-pressoir-btn]:visible').first().click(); await page.waitForTimeout(400);
 b = await txt(ov().locator('[data-bon-pressoir]'));

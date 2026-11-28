@@ -54,8 +54,8 @@ await page.screenshot({ path: SC + '/shots/t47-pesee.png' });
 await f.locator('.sheet-f .btn-primary', { hasText: 'Peser et valider' }).click(); await page.waitForTimeout(500);
 // 4. ticket : mentions obligatoires, relevés, champ masqué vide omis
 const tk = await txt(ov());
-ok('bon de pesée : mentions obligatoires (n°, apporteur, date et heure, cépage, revendication particulière, poids net)', /Bon de pesée n° 5/.test(tk) && /Lefèvre/.test(tk) && /09:10/.test(tk) && /Chardonnay/.test(tk) && /Revendication particulière/i.test(tk) && /4 000 kg/.test(tk), tk);
-ok('bon de pesée : pourriture acide, TAP et relevé personnalisé ; caisses (masquées, vides) omises', /Pourriture acide 3,0 %/i.test(tk) && /TAP \(titre alcoométrique probable\) 8,1 % vol\./i.test(tk) && /Pourriture grise 5 %/i.test(tk) && !/Caisses/i.test(tk), tk);
+ok('bon de pesée : mentions obligatoires (n°, apporteur, date et heure, cépage, revendication particulière, poids net)', /Ticket de pesée n° 5/.test(tk) && /Lefèvre/.test(tk) && /09:10/.test(tk) && /Chardonnay/.test(tk) && /Revendication particulière/i.test(tk) && /4 000 kg/.test(tk), tk);
+ok('bon de pesée : pourriture acide, TAP et relevé personnalisé ; caisses (masquées, vides) omises', /Pourriture acide 3,0 %/i.test(tk) && /TAP \(titre alcoométrique volumique en puissance\) 8,1 % vol\./i.test(tk) && /Pourriture grise 5 %/i.test(tk) && !/Caisses/i.test(tk), tk);
 await page.screenshot({ path: SC + '/shots/t47-ticket.png' });
 await fermer();
 let d = await db(); let o = d.ops.find((x) => x.type === 'apport' && x.pesee && x.pesee.num === 5 && x.date.startsWith('2026'));

@@ -16,14 +16,14 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   await calc.getByLabel('Point de tirage de la cuvée (g/L)').fill('24'); await page.waitForTimeout(250);
   const v = async (k) => (await calc.locator(`[data-calc="${k}"]`).innerText()).replace(/\s/g, ' ');
   ok('cols → besoins : 75,00 hL de mixtion, 67,65 hL de vin, 360 L de liqueur, 375 L de levain', /75,00/.test(await v('mix')) && /67,65/.test(await v('vin')) && /360/.test(await v('liqueur')) && /375/.test(await v('levain')), [await v('mix'), await v('vin'), await v('liqueur'), await v('levain')]);
-  t = await txt(calc); ok('… sucre 180 kg, VRTP prévisionnel sous 1 %', /180,0 kg/.test(t) && /0,96 %/.test(t), t.slice(0, 600));
+  t = await txt(calc); ok('… sucre 180 kg, VRTP prévisionnel sous 1 %', /180,0 kg/.test(t) && /0,91 % des volumes mis en œuvre/.test(t), t.slice(0, 600));
   // ---- dans l'autre sens : 67,65 hL de vin → 10 000 cols
   await calc.getByRole('tab', { name: /J’ai x hL de vin/ }).click(); await calc.getByLabel('Vin de base disponible').fill('67,65'); await page.waitForTimeout(250);
   t = await txt(calc); ok('vin → mixtion : 75,00 hL, 10 000 cols', /75,00 hL/.test(t) && /10 000 cols/.test(t), t.slice(0, 400));
   await page.screenshot({ path: `${SC}/shots/t78-calcul.png` });
   // ---- fonte de la liqueur depuis le calculateur
   await calc.getByRole('button', { name: /Fondre cette liqueur/ }).click(); await page.waitForTimeout(400);
-  t = await txt(ov().locator('[data-fonte-resultat]')); ok('fonte de liqueur préremplie : 386 L à 500 g/L → 193 kg de sucre et 259 L de vin', /386/.test(t) && /193,1 kg/.test(t) && /259 L/.test(t), t);
+  t = await txt(ov().locator('[data-fonte-resultat]')); ok('fonte de liqueur préremplie : 386 L à 500 g/L → 193 kg de sucre et 264 L de vin (0,6329 L/kg)', /386/.test(t) && /193,1 kg/.test(t) && /264 L/.test(t), t);
   await ov().getByRole('button', { name: /Fermer|Annuler/ }).first().click(); await page.waitForTimeout(300);
   // ---- levain depuis le calculateur
   await calc.getByRole('tab', { name: /Je veux tirer x cols/ }).click(); await calc.getByLabel('Cols 1').fill('10000'); await page.waitForTimeout(200);

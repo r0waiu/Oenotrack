@@ -53,11 +53,9 @@ const onglets = (pg) => pg.locator('[role=tab][id^="tab-"]').allInnerTexts();
   ok('base existante, navigateur en anglais : l’interface reste en français', (await onglets(page)).includes('Pressoir') && (await page.evaluate(() => localStorage.getItem('oenotrack-langue'))) === 'fr');
   // Paramètres › Société : langue et région
   await page.click('#tab-params'); await page.waitForTimeout(300);
-  ok('Paramètres › Société : choix de la langue et de la région viticole', (await page.locator('[data-langue-societe] [data-langue]').count()) === 1 && (await page.locator('[data-region-societe] [data-region="autre"]').count()) === 1);
-  await page.locator('[data-region-societe] [data-region="autre"]').click(); await page.waitForTimeout(300);
-  await page.locator('[role=alertdialog] .btn-primary').click(); await page.waitForTimeout(400);
-  const d = await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')));
-  ok('région « autre » choisie depuis la Société : profil sans plafond', d.settings.region === 'autre' && d.settings.pressoir.profil === 'libre' && /Spécificités champenoises désactivées/.test(await txt(page, '[data-region-societe]')));
+  ok('Paramètres › Société : choix de la langue ; région et types de vins en résumé (0.46.0-alpha.1)', (await page.locator('[data-langue-societe] [data-langue]').count()) === 1 && (await page.locator('[data-region-societe] [data-profil-resume]').count()) === 1);
+  await page.locator('[data-region-societe] [data-profil-regler]').click(); await page.waitForTimeout(500);
+  ok('… le lien ouvre le réglage de la région et des types de vins', (await page.locator('[data-params-rubrique="profil"] [data-profil]').count()) === 1);
   ok('aucune erreur', !errors.length, errors.slice(0, 3));
   await browser.close();
 }

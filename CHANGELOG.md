@@ -2,6 +2,42 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.47.0-alpha.3 — 28/11/2026
+
+- Onglet ouvert : un réglage pour le démarrage, un pour la connexion et un pour le déverrouillage (Paramètres › Modules), avec le choix « Dernière page visitée », retenue sur l’appareil pour chaque personne ; au déverrouillage, la page en cours reste par défaut.
+- Textes mis à jour : page de présentation (douze fonctions, configuration guidée, chiffrement sur l’appareil, dossier réseau), site officiel oenotrack.pages.dev, identifiants Google, Microsoft et Dropbox déjà en place pour tous sur le site officiel.
+
+## 0.47.0-alpha.2 — 27/11/2026
+
+- Vocabulaire technique revu avec l’exploitation : TAV acquis pour les vins (SO₂ moléculaire) et TAP pour les moûts, TAV naturel et indice de Folin-Ciocalteu distincts dans les bulletins, enrichissement (saccharose, moût concentré, MCR), vin clarifié, fractions Cuvée, Taille et Rebêche d’une base neuve (sous-fractions ajoutées avec leur rôle), DDM au lieu de DLUO, ticket de pesée, revendication, apte au contact alimentaire, Premier Cru et Grand Cru, « non millésimé », déclaration d’intention de tirage et déclaration de revendication ; les libellés d’origine de vos listes sont mis à jour, ceux que vous avez changés sont gardés.
+- Coefficients corrigés (à vérifier) : un seul coefficient de 2,5 g/L de sucre par point de densité (0,4 point par g/L pour la correction du point de tirage), augmentation de volume du saccharose de 0,6329 L/kg pour les calculs (tirage, enrichissement) et de 0,66 L/kg pour les déclarations, conversion sucres → TAP de 16,83 g/L par % vol, fin de FA à 0,994, VRTP en % des volumes mis en œuvre (vins et liqueurs) ; avertissement pour un rosé par coupage de vin blanc et de vin rouge d’un vin tranquille (règlement délégué (UE) 2019/934, art. 8), sauf Côte-Rôtie.
+
+## 0.47.0-alpha.1 — 27/11/2026
+
+- Échelle par appellation : chaque appellation de votre liste a sa hiérarchie, proposée d’après son nom et sa région puis confirmée ou changée (Paramètres › Listes) — Champagne, Bourgogne, Chablis, Alsace, Beaujolais, Côtes du Rhône, Saint-Émilion, Médoc, Sauternes et Barsac, Graves, Languedoc, Val de Loire, Italie, Espagne, Allemagne (loi de 2021), Autriche (DAC), Portugal, Suisse, générique ; repères réglementaires à vérifier.
+- Parcelles : appellation et niveau dans sa hiérarchie (par exemple Chablis premier cru) ; la fiche d’un lot montre ses appellations et niveaux au prorata de ses parcelles. L’échelle des crus de l’exploitation reste en place.
+
+## 0.46.0-alpha.2 — 27/11/2026
+
+- Référentiel des appellations viticoles (relevé officiel du 27/11/2026) : France — 365 AOP et 74 IGP (INAO, registre de l’UE eAmbrosia, cahiers des charges), Italie, Espagne, Portugal, Allemagne, Autriche (registre eAmbrosia), Suisse (AOC), États-Unis (AVA) et Australie (indications géographiques), soit 1 692 appellations avec leurs catégories et couleurs de vins ; Paramètres › Listes › Appellations : recherche et ajout depuis le référentiel, la région du profil d’abord.
+- Région et types de vins : un type qu’aucune appellation de la région n’autorise est signalé « hors appellation » (vin sans indication géographique, toujours choisissable), par exemple la méthode ancestrale et les vins moelleux en Champagne ; nouvelle région Charentes (Pineau des Charentes, IGP Charentais).
+
+## 0.46.0-alpha.1 — 27/11/2026
+
+- Opérations des autres vins : vinification en rouge et rosé (éraflage / foulage, macération préfermentaire à froid, macérations carbonique et semi-carbonique, thermovinification, flash-détente, pigeage séparé du remontage, macération finale à chaud, pressurage des marcs), vins doux (arrêt de fermentation, mutage), élevage (contrôle d’élevage sous bois, élevage sous voile, micro-oxygénation, morceaux de bois de chêne), stabilisation (électrodialyse, échangeurs de cations, stabilisation protéique) et assemblage de millésimes ; proposées par le profil viticole selon vos types de vins.
+- Tirage en méthode ancestrale : vin mis en bouteille en cours de fermentation, sans liqueur de tirage (ni cuve de mixtion ni pompe doseuse pour ce lot) ; dégorgement facultatif.
+- Région et types de vins : un seul réglage (Paramètres › Région & types de vins) ; l’identité de la société et les réglages du pressoir en montrent le résumé, avec un lien.
+
+## 0.45.0-alpha.1 — 27/11/2026
+
+- Revendication bio : nommée « BIO » (et non plus « FR-BIO-01 », le code d’Ecocert) ; Paramètres › Revendications, stades & listes accueille le code d’agrément de votre organisme certificateur (et son nom) : ce code est la revendication affichée partout (cuverie, lots, fiches, déclarations, traçabilité, exports) mais la revendication reste du bio (règles d’intrants, référentiel Bio UE). Aussi demandé par la configuration guidée. Les bases qui portaient le nom d’exemple « FR-BIO-01 » passent à « BIO », sans code.
+- Visite guidée par chapitres : un sommaire propose un chapitre par module affiché (cuverie, pressoir, opérations, à réaliser, plan de vinification, tirages, cave, dégorgement, analyses, intrants, hygiène, équipements, traçabilité, registres et DRM, paramètres) ou « Tout voir » ; chaque étape ouvre l’onglet voulu et présente la fonctionnalité.
+- Écran « Session verrouillée » : le logo Œnotrack ouvre aussi la page de présentation ; au retour, la session reste verrouillée jusqu’au mot de passe.
+
+## 0.44.0-alpha.3 — 27/11/2026
+
+- Configuration guidée : la revendication VDC (Viticulture Durable en Champagne) est proposée à côté de HVE ; ces certifications de durabilité s’ajoutent juste après Conventionnel, sous Bio et les autres labels, pour qu’un assemblage garde la revendication la plus basse.
+
 ## 0.44.0-alpha.2 — 27/11/2026
 
 - Tirages : la fiche d’enregistrement HACCP de la chaîne (démarrage, contrôles en cours de chantier, fin de journée, conditionnement, incidents, visas) et son impression, ainsi que le contrôle de réception de la verrerie (échantillon, mesures, défauts, décision) et ses réglages, sont retirés ; les retours au fournisseur restent. Les fiches et contrôles déjà saisis restent dans la base, sans être modifiés, et les versions précédentes les retrouvent.

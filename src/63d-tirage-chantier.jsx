@@ -106,7 +106,7 @@ function ChantierSheet({ id, onClose, onForm }) {
 function ChantiersSec({ onForm }) {
   const { db, R, camp } = useApp(); const lect = useLectureSeule('tirage'); const [nv, setNv] = useState(false); const [ouv, setOuv] = useState(null);
   const C = [...chantiersTirage(db)].sort((a, b) => String(b.dateDebut).localeCompare(String(a.dateDebut)));
-  return (<Sec title="Chantiers de tirage" right={lect || camp.figee ? null : <Btn kind="primary" onClick={() => setNv(true)}>＋ Chantier</Btn>}>
+  return (<Sec title="Chantiers de tirage" data-vg="chantiers" right={lect || camp.figee ? null : <Btn kind="primary" onClick={() => setNv(true)}>＋ Chantier</Btn>}>
     <Tbl rows={C} onRow={(c) => setOuv(c.id)} empty="Aucun chantier : créez-en un pour regrouper les lots d’une ou plusieurs journées de tirage." cols={[{ h: 'N°', r: (c) => <b translate="no">{c.numero}</b> }, { h: 'Nom', r: (c) => <span translate="no">{c.nom || '—'}</span> }, { h: 'Dates', r: (c) => <span className="num">{`${fmtDate(c.dateDebut)}${c.dateFin ? ` → ${fmtDate(c.dateFin)}` : ''}`}</span> },
       { h: 'Réalisation', r: (c) => (c.realisation === 'prestataire' ? ((db.fournisseurs || []).find((f) => f.id === c.prestataireId) || { nom: 'Prestataire' }).nom : 'Interne') }, { h: 'Cols', cls: 'r', r: (c) => <span className="num">{fmt(chantierBilan(db, R, c.id).cols)}</span> }, { h: 'Documents', cls: 'r', r: (c) => docsOf(db, 'chantier', c.id).length }]} />
     {nv ? <ChantierForm onClose={(id) => { setNv(false); if (id) setOuv(id); }} /> : null}

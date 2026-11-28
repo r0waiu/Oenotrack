@@ -11,7 +11,7 @@ const MODULE_DEFS = {
   cave: { label: 'Cave', icone: '🕯', desc: 'Bouteilles sur lattes : stock par lot, âge, remuage et mise sur pointes (saisis ici).' },
   degorgement: { label: 'Dégorgement', icone: '🥂', desc: 'Liqueurs d’expédition, dégorgements (saisis ici) et lots finis.' },
   analyses: { label: 'Analyses', icone: '🔬', desc: 'Analyses et paramètres personnalisables.' },
-  intrants: { label: 'Intrants & Stocks', icone: '📦', desc: 'Produits œnologiques, arrivages, lots fournisseurs, DLUO et stocks.' },
+  intrants: { label: 'Intrants & Stocks', icone: '📦', desc: 'Produits œnologiques, arrivages, lots fournisseurs, DDM et stocks.' },
   hygiene: { label: 'Hygiène', icone: '🧽', desc: 'Journal des nettoyages, rinçages et désinfections.' },
   equipements: { label: 'Équipements', icone: '🛠', desc: 'Parc de matériel (fiches, documents), maintenance préventive et réglementaire, pannes, vérifications périodiques des balances et instruments.' },
   trace: { label: 'Traçabilité', icone: '🔎', desc: 'Recherches ascendante et descendante, par intrant, par parcelle.' },
@@ -44,7 +44,9 @@ function App() {
   const dbRef = useRef(db); dbRef.current = db;
   const [storeOK, setStoreOK] = useState(true);
   const [showMig, setShowMig] = useState(first.current.migrated);
-  const [nav, setNav] = useState(() => ({ tab: ongletOuverture(first.current.db), sub: null })); // onglet d'ouverture (réglage) ou premier onglet
+  // onglet d'ouverture au démarrage (réglage, dernière page visitée par la personne de la session gardée, ou premier onglet) — 0.47.0-alpha.3
+  const [nav, setNav] = useState(() => { const d0 = first.current.db; const s0 = securiteActive(d0) ? sessionLire() : null; const u0 = s0 && utilisateurDe(d0, s0.uid) ? s0.uid : '';
+    const L0 = modulesVisibles(d0).filter((m) => moduleAutorise(d0, u0, m)); const n = ongletOuvertureNav(d0, L0.length ? L0 : modulesVisibles(d0), 'demarrage', dernierePageLire(u0)); return { tab: n.tab, sub: n.sub }; });
   const groupeMemo = useRef({}); // dernier sous-onglet ouvert de chaque onglet regroupé (Vinification)
   const [toastMsg, setToastMsg] = useState(null);
   const [cfm, setCfm] = useState(null);
@@ -141,6 +143,7 @@ function App() {
   const visibles = modulesVisibles(db).filter((m) => moduleAutorise(db, uid, m));
   useEffect(() => { if (!visibles.includes(nav.tab)) setNav({ tab: ongletOuverture(db, visibles), sub: null }); }, [visibles.join(), nav.tab]);
   useEffect(() => { const g = ongletDe(nav.tab); if (ONGLETS_GROUPES[g]) groupeMemo.current[g] = nav.tab; }, [nav.tab]);
+  useEffect(() => { if (!accueil && !verrouille && (!secu || uid)) dernierePageEcrire(uid, nav); }, [nav.tab, nav.sub, uid, verrouille, accueil, secu]); // dernière page visitée (0.47.0-alpha.3)
   const onglets = ongletsBarre(visibles);
   const ouvrirOnglet = (o) => { const M = ongletMembres(o, visibles); const m = groupeMemo.current[o]; setTab(M.includes(m) ? m : M[0] || o); };
   const push = useCallback((k, id) => setStack((s) => { const top = s[s.length - 1]; if (top && top.k === k && top.id === id) return s; return [...s.filter((x) => !(x.k === k && x.id === id)), { k, id }]; }), []);
@@ -164,15 +167,19 @@ function App() {
   // connexion, verrouillage (manuel ou après inactivité), déconnexion
   const derniereActivite = useRef(Date.now());
   // connexion (0.34.0-alpha.1) : ouverture sur l'onglet choisi (Paramètres › Modules) ou le premier de la barre — plus sur « Société &
-  // opérateurs » (l'écran de connexion, sans droits, retombait sur Paramètres). Déverrouillage de la même session : la page reste telle
-  // quelle (formulaire en cours intact) si elle est toujours accessible.
+  // opérateurs » (l'écran de connexion, sans droits, retombait sur Paramètres). 0.47.0-alpha.3 : un réglage pour la connexion et un pour
+  // le déverrouillage (par défaut : la page en cours reste telle quelle, formulaire intact, si elle est toujours accessible).
   const sessionEtat = useRef(session); sessionEtat.current = session; const navRef = useRef(nav); navRef.current = nav;
   const connecter = useCallback((id, garder, opts) => {
     const s0 = sessionEtat.current; const d = dbRef.current; const L = modulesVisibles(d).filter((m) => moduleAutorise(d, id, m));
     derniereActivite.current = Date.now(); setSession({ uid: id, garder: !!garder, t: Date.now(), verrou: false });
     if (opts && opts.rester) return; // activation des identifiants depuis Paramètres : on y reste (code de secours affiché)
-    if (s0 && s0.verrou && s0.uid === id && L.includes(navRef.current.tab)) return;
-    setNav({ tab: ongletOuverture(d, L), sub: null });
+    // déverrouillage de la même session (réglage « dernière page visitée », par défaut) : la page en cours reste, formulaire intact ;
+    // sinon : onglet du moment (connexion ou déverrouillage, 0.47.0-alpha.3)
+    const deverrou = !!(s0 && s0.verrou && s0.uid === id); const cour = navRef.current;
+    if (deverrou && ongletReglage(d, 'deverrouillage') === 'derniere' && L.includes(cour.tab)) return;
+    const n = ongletOuvertureNav(d, L, deverrou ? 'deverrouillage' : 'connexion', deverrou ? cour : dernierePageLire(id));
+    setNav({ tab: n.tab, sub: n.sub || null });
   }, [setSession]);
   const verrouiller = useCallback((auto) => { const id = sessionRef.current; if (!id) return; act((d) => auditAjouter(d, { uid: id, action: 'verrouillage', resume: auto ? 'Verrouillage automatique (inactivité)' : 'Session verrouillée', appareil: appareilNom() }), null, { systeme: true }); setSession({ uid: id, garder: !!(session && session.garder), t: Date.now(), verrou: true }); }, [act, session, setSession]);
   const deconnecter = useCallback(() => { const id = sessionRef.current || (session && session.uid); if (id && utilisateurDe(dbRef.current, id)) act((d) => auditAjouter(d, { uid: id, action: 'deconnexion', resume: 'Déconnexion', appareil: appareilNom() }), null, { systeme: true }); setSession(null); setStack([]); setOpDlg(null); setMisc(null); setMenu(null); setContEdit(null); setReport(null); setDocsDlg(null); setToastMsg(null); }, [act, session, setSession]);
@@ -184,12 +191,12 @@ function App() {
     return () => { ev.forEach((x) => window.removeEventListener(x, bouge)); clearInterval(iv); };
   }, [uid, verrouille, verrouiller]);
   useEffect(() => { // écran verrouillé : le reste de la page est inerte (clavier, lecteurs d'écran), Échap ne ferme rien dessous
-    if (!verrouille) return undefined;
+    if (!verrouille || accueil) return undefined; /* 0.45.0-alpha.1 : page de présentation ouverte depuis l'écran verrouillé (sans données) : utilisable */
     const echap = (e) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); } };
     window.addEventListener('keydown', echap, true);
     const els = [...document.body.children].filter((el) => !el.hasAttribute('data-verrou') && el.tagName !== 'SCRIPT'); els.forEach((el) => el.setAttribute('inert', ''));
     return () => { window.removeEventListener('keydown', echap, true); els.forEach((el) => el.removeAttribute('inert')); };
-  }, [verrouille]);
+  }, [verrouille, accueil]);
   // session d'un compte désactivé ou supprimé (depuis un autre appareil) : retour à l'écran de connexion
   useEffect(() => { if (secu && session && !uid) { setSession(null); setStack([]); setOpDlg(null); } }, [secu, session, uid]);
   const ctx = {
@@ -274,7 +281,7 @@ function App() {
   }
   return (
     <Ctx.Provider value={ctx}>
-      {verrouille ? ReactDOM.createPortal(<div className="login-voile" data-verrou=""><EcranConnexion key={`verrou-${session.uid}`} verrou={session} onConnecte={connecter} onChanger={deconnecter} />{toastMsg ? <div className={`toast ${toastMsg.kind === 'bad' ? 'bad' : ''}`} role="status" aria-live="polite">{toastMsg.msg}</div> : null}</div>, document.body) : null}
+      {verrouille ? ReactDOM.createPortal(<div className="login-voile" data-verrou=""><EcranConnexion key={`verrou-${session.uid}`} verrou={session} onConnecte={connecter} onChanger={deconnecter} onPresentation={revoirAccueil} />{toastMsg ? <div className={`toast ${toastMsg.kind === 'bad' ? 'bad' : ''}`} role="status" aria-live="polite">{toastMsg.msg}</div> : null}</div>, document.body) : null}
       {uid && uSession.doitChanger ? <ChangerMdpSheet force onClose={() => {}} /> : null}
       <header className="topbar">
         <div className="wrap flex flex-wrap items-center gap-x-6 gap-y-3 py-3">

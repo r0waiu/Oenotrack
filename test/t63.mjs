@@ -26,7 +26,7 @@ async function peserEtPresser(heure, cuveC, cuveT, valider = true) {
   await sub('Pressurages'); await page.locator('[data-nouveau-marc]').click(); await page.waitForTimeout(300); f = ov();
   await f.locator('[data-heure-debut]').fill(heure); await f.locator('[data-remplir]').click(); await page.waitForTimeout(200);
   await f.locator('input[aria-label="Volume Cuvée"]').fill('20,5'); await pick(page, f.locator('input[aria-label="Cuve Cuvée"]'), cuveC);
-  await f.locator('input[aria-label="Volume 1ère taille"]').fill('5'); await pick(page, f.locator('input[aria-label="Cuve 1ère taille"]'), cuveT);
+  await f.locator('input[aria-label="Volume Taille"]').fill('5'); await pick(page, f.locator('input[aria-label="Cuve Taille"]'), cuveT);
   await f.locator('[data-tavp]').fill('10,2'); await f.locator('input[aria-label="Bourbes"]').fill('0,6'); await page.waitForTimeout(300);
   if (valider) await f.locator('[data-valider-marc]').click(); else await f.locator('.sheet-f .btn-primary').last().click();
   await page.waitForTimeout(900);
@@ -49,16 +49,16 @@ await page.screenshot({ path: SC + '/shots/t63-feuille.png' });
 await btn.click(); await page.waitForTimeout(700);
 let d = await db(); const pv = (d.previsions || []).filter((p) => p.schema && p.schema.plan); const lotC = d.lots.find((l) => l.code === 'P26-06-C');
 ok('opérations à réaliser créées : sans date, dans l’ordre (ordre 1…n), liées au plan et à la colonne', pv.length === n1 && pv.every((p) => p.sansDate && p.statut === 'prevue' && p.plan && p.plan.colonne) && pv.filter((p) => p.schema.lotId === lotC.id).map((p) => p.ordre).join() === pv.filter((p) => p.schema.lotId === lotC.id).map((p, i) => i + 1).join());
-const sulf = pv.find((p) => p.schema.lotId === lotC.id && p.f && p.f.sousType === 'sulfitage');
+const sulf = pv.find((p) => p.schema.lotId === lotC.id && p.f && p.f.sousType === 'sulfitage'); const enz = pv.find((p) => p.schema.lotId === lotC.id && p.f && p.f.sousType === 'enzymage'); // 0.47.0-alpha.2 : dose du sulfitage en SO₂ (pas de quantité de produit déduite) : l'enzymage est validé
 ok('… sulfitage : opération du catalogue, produit en stock et quantité prévus, consigne (étape, produit, dose)', sulf && sulf.type === 'intrant' && sulf.f.lignes && sulf.f.lignes[0].produitId && /Sulfitage/.test(sulf.notes) && /5 g\/hL/.test(sulf.notes), sulf);
 // 2. « À réaliser » : étapes « n / m », pastille du plan, jamais en retard
 await page.click('#tab-previsions'); await page.waitForTimeout(500);
 t = await txt(page.locator('main'));
 ok('« À réaliser » : « Étape 1 / n », pastille « plan de vinification », aucun retard', /Étape 1 \/ \d+/.test(t) && (await page.locator('main [data-schema-chip]').count()) >= n1 && /plan de vinification/.test(t) && !/en retard/.test(t), t.slice(0, 500));
-await page.locator('main tbody tr', { hasText: 'Sulfitage · P26-06-C' }).first().locator('button:has-text("Valider…")').click(); await page.waitForTimeout(500);
+await page.locator('main tbody tr', { hasText: 'Enzymage · P26-06-C' }).first().locator('button:has-text("Valider…")').click(); await page.waitForTimeout(500);
 await ov().locator('.sheet-f button:text-is("✓ Valider")').click(); await page.waitForTimeout(600);
-d = await db(); const opS = d.ops.find((o) => o.schema && o.schema.lotId === lotC.id); const pS1 = d.previsions.find((p) => p.id === sulf.id);
-ok('étape validée : opération enregistrée avec la marque du plan, étape réalisée', !!opS && opS.sousType === 'sulfitage' && pS1.statut === 'realisee', [opS && opS.schema]);
+d = await db(); const opS = d.ops.find((o) => o.schema && o.schema.lotId === lotC.id); const pS1 = d.previsions.find((p) => p.id === enz.id);
+ok('étape validée : opération enregistrée avec la marque du plan, étape réalisée', !!opS && opS.sousType === 'enzymage' && pS1.statut === 'realisee', [opS && opS.schema]);
 // 3. fiche du lot : étapes n / m, impression sans jour, retrait
 await page.click('#tab-cuverie'); await page.waitForTimeout(400); await sous('Cartes');
 await page.locator('.tankcard', { hasText: 'Bac D1' }).first().click(); await page.waitForTimeout(500);

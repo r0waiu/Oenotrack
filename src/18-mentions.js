@@ -6,8 +6,8 @@
 const LEGAL_DATE = '2026-11-19'; // dernière mise à jour des textes
 const OENOTRACK_AUTEUR = ''; // titulaire des droits sur le code (à compléter) ; à défaut : « l'auteur d'Œnotrack »
 const OENOTRACK_DEPOT = 'https://github.com/r0waiu/Oenotrack'; // dépôt officiel du code source (GitHub, depuis 0.24.0-alpha.1)
-const OENOTRACK_SITE = 'https://oenotrack.fr'; // site officiel (0.23.0-alpha.1)
-const siteOfficielIci = (hote) => /(^|\.)oenotrack\.fr$/i.test(String(hote || ''));
+const OENOTRACK_SITE = 'https://oenotrack.pages.dev'; // site officiel (0.23.0-alpha.1 ; adresse en ligne depuis 0.47.0-alpha.3, déclarée chez Google, Microsoft et Dropbox)
+const siteOfficielIci = (hote) => /(^|\.)oenotrack\.(pages\.dev|fr)$/i.test(String(hote || '')); // oenotrack.fr : nom de domaine réservé
 /* page d'accueil (0.23.0-alpha.1) : présentation d'Œnotrack à la toute première ouverture sur un appareil, jusqu'à ce qu'on entre dans
    l'application ; plus jamais ensuite. Marque gardée dans ce navigateur (« a-voir » puis « vu »), jamais dans la base.
    marque : valeur enregistrée ; base : une base Œnotrack existait déjà à l'ouverture (personne qui utilisait déjà Œnotrack ici) ;
@@ -28,6 +28,7 @@ const HEBERGEURS = [
   { id: 'scaleway', court: 'Scaleway', nom: 'Scaleway SAS', details: 'SAS au capital de 214 410,50 € · RCS Paris 433 115 904', adresse: '8 rue de la Ville l’Évêque, 75008 Paris, France', tel: '', web: 'https://www.scaleway.com', ue: true },
   { id: 'netlify', court: 'Netlify', nom: 'Netlify, Inc.', details: '', adresse: '101 2nd Street, San Francisco, CA 94105, États-Unis', tel: '', web: 'https://www.netlify.com', ue: false },
   { id: 'github', court: 'GitHub Pages', nom: 'GitHub, Inc. (GitHub Pages)', details: '', adresse: '88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis', tel: '', web: 'https://pages.github.com', ue: false },
+  { id: 'cloudflare', court: 'Cloudflare Pages', nom: 'Cloudflare, Inc. (Cloudflare Pages)', details: '', adresse: '101 Townsend Street, San Francisco, CA 94107, États-Unis', tel: '', web: 'https://pages.cloudflare.com', ue: false }, // 0.47.0-alpha.3 : hébergeur du site officiel
 ];
 const MENTIONS_STATUTS = [['particulier', 'Particulier, à titre non professionnel'], ['pro', 'Professionnel (entreprise individuelle ou société)'], ['association', 'Association']];
 const mentionsVides = () => ({ editeur: { statut: 'particulier', nom: '', email: '', adresse: '', tel: '', immatriculation: '', directeur: '' }, hebergeur: { id: '', nom: '', details: '', adresse: '', tel: '', web: '' }, site: '', depot: '', maj: '' });

@@ -18,7 +18,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   // ---- SO₂ comparé
   await page.locator('[data-labels-vue="so2"]').click(); await page.waitForTimeout(400);
   t = await txt(page.locator('[data-labels-so2]'));
-  ok('SO₂ total : exploitation, labels et plafond retenu côte à côte (FR-BIO-01, vins rouges : 100 mg/L)', /FR-BIO-01/.test(t) && /100 mg\/L/.test(t) && /Retenu/i.test(t), t.slice(0, 400));
+  ok('SO₂ total : exploitation, labels et plafond retenu côte à côte (BIO, vins rouges : 100 mg/L)', /BIO/.test(t) && /100 mg\/L/.test(t) && /Retenu/i.test(t), t.slice(0, 400));
   ok('… plafonds de l’exploitation et des labels dans la même vue', (await page.locator('[data-plafonds-so2]').count()) === 1 && (await page.locator('[data-ref-so2]').count()) === 1);
   // ---- plafond lié aux produits des catalogues
   const b = page.locator('[data-plafonds-so2] [data-plafond-catalogue]').first(); const pid = await b.getAttribute('data-plafond-catalogue'); const lib0 = await b.innerText();

@@ -73,36 +73,60 @@ function Questionnaire({ premiere, onClose, onVisite }) {
   </Sheet>);
 }
 
-/* ---------- visite guidée ---------- */
-const VISITE_ETAPES = [
-  { cible: '[data-brand-presentation]', titre: 'Œnotrack', texte: 'Le logo ramène à la page de présentation de l’application.' },
-  { cible: '.hdr-camp', titre: 'La campagne', texte: 'Choisissez la campagne affichée ; une campagne figée n’est plus modifiable.' },
-  { cible: '#tab-vinification', titre: 'Vinification', texte: 'Cuverie et lots, opérations et assemblages, opérations à réaliser et plan de vinification.' },
-  { cible: '#tab-pressoir', titre: 'Pressoir', texte: 'Registre des pesées, carnet de pressoir et marcs : les lots de cuvée et de tailles sont créés à la validation.' },
-  { cible: '#tab-tirage', titre: 'Tirages', texte: 'Levains, liqueurs, chantiers de tirage, fournitures et déclarations à l’AIDAC.' },
-  { cible: '#tab-analyses', titre: 'Analyses', texte: 'Résultats saisis ou lus dans les bulletins du laboratoire.' },
-  { cible: '#tab-intrants', titre: 'Intrants & Stocks', texte: 'Produits, arrivages, stocks, catalogues, labels et cahiers des charges.' },
-  { cible: '#tab-trace', titre: 'Traçabilité', texte: 'De la bouteille à la parcelle : origine, intrants, opérations, conformité.' },
-  { cible: '#tab-params', titre: 'Paramètres', texte: 'Tous les réglages ; la configuration guidée peut y être relancée.' },
-  { cible: '.hdr-status', titre: 'État de l’appareil', texte: 'Qui saisit, sauvegarde, synchronisation et thème de l’affichage.' },
-  { cible: '[data-visite-bouton]', titre: 'Revoir la visite', texte: 'Ce bouton relance la visite guidée quand vous le souhaitez.' },
-];
+/* ---------- visite guidée par chapitres (0.45.0-alpha.1 ; chapitres : VISITE_CHAPITRES, 16z) ----------
+   Sommaire des chapitres (modules affichés et autorisés) ou « Tout voir » ; chaque étape ouvre l'onglet et le sous-onglet voulus,
+   puis met la cible en avant (bulle et halo) ; une cible absente est sautée. Suivant / Précédent / flèches, Échap pour fermer. */
+const visiteAttendre = (ms) => new Promise((r) => setTimeout(r, ms));
+const visiteOnglets = () => [...document.querySelectorAll('main [role=tablist]')].find((x) => !x.closest('[data-onglet-groupe]') && x.getClientRects().length > 0) || null;
+const visiteCible = (sel) => { try { const el = sel === '@onglets' ? visiteOnglets() : document.querySelector(sel); return el && el.getClientRects().length > 0 ? el : null; } catch (x) { return null; } };
 function VisiteGuidee({ onClose }) {
-  const [etapes] = useState(() => VISITE_ETAPES.filter((e) => { try { const el = document.querySelector(e.cible); return !!el && el.getClientRects().length > 0; } catch (x) { return false; } }));
-  const [i, setI] = useState(0); const [r, setR] = useState(null); const e = etapes[i];
-  const mesurer = () => { if (!e) return; const el = document.querySelector(e.cible); if (!el) { setR(null); return; } try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (x) { /* ignoré */ } const b = el.getBoundingClientRect(); setR({ x: b.left, y: b.top, w: b.width, h: b.height }); };
-  useEffect(() => { mesurer(); const f = () => mesurer(); window.addEventListener('resize', f); window.addEventListener('scroll', f, true); return () => { window.removeEventListener('resize', f); window.removeEventListener('scroll', f, true); }; }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { const k = (ev) => { if (ev.key === 'Escape') onClose(); else if (ev.key === 'ArrowRight' && i < etapes.length - 1) setI(i + 1); else if (ev.key === 'ArrowLeft' && i > 0) setI(i - 1); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [i, etapes.length, onClose]);
-  if (!etapes.length) { setTimeout(onClose, 0); return null; }
-  const W = Math.min(340, (typeof window !== 'undefined' ? window.innerWidth : 800) - 24); const vh = typeof window !== 'undefined' ? window.innerHeight : 800; const vw = typeof window !== 'undefined' ? window.innerWidth : 800;
-  const dessous = !r || r.y + r.h + 180 < vh; const top = r ? (dessous ? r.y + r.h + 12 : Math.max(12, r.y - 172)) : vh / 2 - 80; const left = r ? Math.max(12, Math.min(vw - W - 12, r.x + r.w / 2 - W / 2)) : vw / 2 - W / 2;
-  return ReactDOM.createPortal(<div className="visite" data-visite={i + 1} role="dialog" aria-modal="true" aria-label="Visite guidée">
-    {r ? <div className="visite-cible" style={{ left: r.x - 6, top: r.y - 6, width: r.w + 12, height: r.h + 12 }} /> : <div className="visite-voile" />}
-    <div className="visite-bulle card" style={{ top, left, width: W }}>
-      <div className="text-xs text-ink2">{`Étape ${i + 1} / ${etapes.length}`}</div>
-      <div className="font-semibold">{e.titre}</div><p className="text-sm">{e.texte}</p>
-      <div className="mt-2 flex flex-wrap gap-2"><Btn size="sm" kind="ghost" onClick={onClose} data-visite-passer="">Passer</Btn><span className="ml-auto" />{i ? <Btn size="sm" onClick={() => setI(i - 1)}>← Précédent</Btn> : null}{i < etapes.length - 1 ? <Btn size="sm" kind="primary" onClick={() => setI(i + 1)} data-visite-suivant="">Suivant →</Btn> : <Btn size="sm" kind="primary" onClick={onClose} data-visite-terminer="">Terminer</Btn>}</div>
-    </div>
+  const { db, nav, setTab, niveau } = useApp();
+  const chapitres = useMemo(() => visiteChapitres(db, (m) => niveau(m) !== 'aucun'), [db]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [file, setFile] = useState(null); const [pos, setPos] = useState({ c: 0, e: 0, dir: 1 }); const [r, setR] = useState(null); const [pret, setPret] = useState(false); const [fin, setFin] = useState(false);
+  const navRef = useRef(nav); navRef.current = nav; const elRef = useRef(null);
+  const ch = file ? file[pos.c] : null; const et = ch ? ch.etapes[pos.e] : null;
+  const total = file ? sum(file, (c) => c.etapes.length) : 0; const rangE = file ? sum(file.slice(0, pos.c), (c) => c.etapes.length) + pos.e + 1 : 0;
+  const deplacer = (dir) => setPos((p) => { const F = file || []; let c = p.c; let e = p.e + dir;
+    if (e >= ((F[c] || {}).etapes || []).length) { c += 1; e = 0; } else if (e < 0) { c -= 1; e = c >= 0 ? F[c].etapes.length - 1 : 0; }
+    if (c >= F.length) { setFin(true); return p; } if (c < 0) return { c: 0, e: 0, dir: 1 }; return { c, e, dir }; });
+  const mesurer = () => { const el = elRef.current; if (!el || !document.body.contains(el)) { setR(null); return; } const b = el.getBoundingClientRect(); setR({ x: b.left, y: b.top, w: b.width, h: b.height }); };
+  useEffect(() => { if (!file || fin || !et) return undefined; let annule = false; setPret(false);
+    (async () => {
+      const sub = et.sub || null;
+      if (ch.module && (navRef.current.tab !== ch.module || (sub && navRef.current.sub !== sub))) { setTab(ch.module, sub || undefined); await visiteAttendre(380); }
+      if (et.clic != null) { const T = visiteOnglets(); const b = T ? T.querySelectorAll('[role=tab]')[et.clic] : null; if (b && b.getAttribute('aria-selected') !== 'true') { b.click(); await visiteAttendre(320); } }
+      if (annule) return; let el = visiteCible(et.cible); if (!el) { await visiteAttendre(250); el = visiteCible(et.cible); }
+      if (annule) return; if (!el) { deplacer(pos.dir || 1); return; }
+      elRef.current = el; try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (x) { /* ignoré */ } await visiteAttendre(60); if (!annule) { mesurer(); setPret(true); }
+    })();
+    return () => { annule = true; };
+  }, [file, pos, fin]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const f = () => mesurer(); window.addEventListener('resize', f); window.addEventListener('scroll', f, true); return () => { window.removeEventListener('resize', f); window.removeEventListener('scroll', f, true); }; }, []);
+  useEffect(() => { if (!pret) return undefined; const h = setInterval(mesurer, 350); return () => clearInterval(h); }, [pret]); /* la page peut encore bouger après la mesure (images, polices) */
+  useEffect(() => { const k = (ev) => { if (ev.key === 'Escape') onClose(); else if (file && !fin && pret && ev.key === 'ArrowRight') deplacer(1); else if (file && !fin && pret && ev.key === 'ArrowLeft') deplacer(-1); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }); // eslint-disable-line react-hooks/exhaustive-deps
+  const lancer = (L) => { setFin(false); setR(null); elRef.current = null; setPos({ c: 0, e: 0, dir: 1 }); setFile(L); };
+  const sommaire = () => { setFile(null); setFin(false); setR(null); };
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 800; const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+  if (!file || fin) {
+    return ReactDOM.createPortal(<div className="visite" role="dialog" aria-modal="true" aria-label="Visite guidée" data-visite-sommaire="">
+      <div className="visite-voile" />
+      <div className="visite-bulle card" style={{ top: Math.max(12, vh / 2 - 230), left: Math.max(12, vw / 2 - Math.min(460, vw - 24) / 2), width: Math.min(460, vw - 24), maxHeight: vh - 24, overflowY: 'auto' }}>
+        <div className="font-semibold">{fin ? 'Fin de la visite' : '❓ Visite guidée'}</div>
+        <p className="text-sm text-ink2">{fin ? 'Choisissez un autre chapitre, ou fermez la visite.' : 'Choisissez un chapitre (un module), ou faites tout le tour. Seuls les modules affichés sont présentés.'}</p>
+        <div className="my-2 grid gap-1" data-visite-chapitres="">{chapitres.map((c) => <button key={c.id} type="button" className="btn btn-sm justify-between" style={{ width: '100%' }} onClick={() => lancer([c])} data-visite-chapitre={c.id}><span>{c.titre}</span><span className="text-xs text-ink2">{`${c.etapes.length} étape(s)`}</span></button>)}</div>
+        <div className="mt-2 flex flex-wrap gap-2"><Btn size="sm" kind="ghost" onClick={onClose} data-visite-passer="">Fermer</Btn><span className="ml-auto" /><Btn size="sm" kind="primary" onClick={() => lancer(chapitres)} data-visite-tout="">Tout voir →</Btn></div>
+      </div>
+    </div>, document.body);
+  }
+  const W = Math.min(340, vw - 24); const dessous = !r || r.y + r.h + 200 < vh; const top = r ? (dessous ? r.y + r.h + 12 : Math.max(12, r.y - 192)) : vh / 2 - 80; const left = r ? Math.max(12, Math.min(vw - W - 12, r.x + r.w / 2 - W / 2)) : vw / 2 - W / 2;
+  const dernier = pos.c === file.length - 1 && pos.e === ch.etapes.length - 1;
+  return ReactDOM.createPortal(<div className="visite" data-visite={rangE} data-visite-chap={ch.id} role="dialog" aria-modal="true" aria-label="Visite guidée">
+    {pret && r ? <div className="visite-cible" style={{ left: r.x - 6, top: r.y - 6, width: r.w + 12, height: r.h + 12 }} /> : <div className="visite-voile" />}
+    {pret ? <div className="visite-bulle card" style={{ top, left, width: W }}>
+      <div className="text-xs text-ink2"><span translate="no">{ch.titre}</span>{` · étape ${rangE} / ${total}`}</div>
+      <div className="font-semibold">{et.titre}</div><p className="text-sm">{et.texte}</p>
+      <div className="mt-2 flex flex-wrap gap-2"><Btn size="sm" kind="ghost" onClick={onClose} data-visite-passer="">Passer</Btn><Btn size="sm" kind="ghost" onClick={sommaire} data-visite-retour="">Sommaire</Btn><span className="ml-auto" />{rangE > 1 ? <Btn size="sm" onClick={() => deplacer(-1)}>← Précédent</Btn> : null}<Btn size="sm" kind="primary" onClick={() => deplacer(1)} data-visite-suivant="">{dernier ? 'Terminer' : 'Suivant →'}</Btn></div>
+    </div> : null}
   </div>, document.body);
 }
 // Paramètres : relancer la configuration guidée ou la visite

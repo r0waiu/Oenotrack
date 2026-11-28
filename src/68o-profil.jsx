@@ -5,7 +5,7 @@ function ProfilViticoleView() {
   const { db, act, uid } = useApp(); const lect = useLectureSeule('params'); const pv = profilViticole(db); useLangue();
   const [region, setRegion] = useState(pv.region); const [types, setTypes] = useState(pv.types); const [decoches, setDecoches] = useState([]);
   const plan = useMemo(() => profilPlan(db, region, types), [db, region, types]);
-  const R = profilRegionDef(region) || {};
+  const R = profilRegionDef(region) || {}; const AT = useMemo(() => appTypesRegion(region), [region]); /* 0.46.0-alpha.2 : types hors appellation */
   const pris = plan.filter((x) => !decoches.includes(x.id));
   const basculer = (t) => { setTypes((L) => (L.includes(t) ? L.filter((x) => x !== t) : [...L, t])); setDecoches([]); };
   const choisirRegion = (r) => { setRegion(r); setDecoches([]); const d = profilRegionDef(r); if (d && !pv.defini) setTypes(d.types); };
@@ -30,7 +30,8 @@ function ProfilViticoleView() {
           </select>
         </Field>
         <div><span className="lbl">Types de vins produits</span>
-          <div className="space-y-1" data-profil-types="">{PROFIL_TYPES.map(([t, l]) => <label key={t} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={types.includes(t)} disabled={lect} onChange={() => basculer(t)} data-type={t} /><span>{l}</span></label>)}</div>
+          <div className="space-y-1" data-profil-types="">{PROFIL_TYPES.map(([t, l]) => { const hors = !AT.libre && !AT.possibles.includes(t); return <label key={t} className="flex flex-wrap items-center gap-2 text-sm"><input type="checkbox" checked={types.includes(t)} disabled={lect} onChange={() => basculer(t)} data-type={t} /><span>{l}</span>{hors ? <Chip tone={types.includes(t) ? 'warn' : ''} title="Aucune appellation de la région n’autorise ce type de vin : vin sans indication géographique." data-hors-appellation={t}>hors appellation</Chip> : null}</label>; })}</div>
+          <p className="help mt-2" data-profil-appellations="">{AT.nb.total ? (AT.libre ? `${AT.nb.total} appellation(s) dans le référentiel ; elles ne restreignent pas le type de vin.` : `${AT.nb.total} appellation(s) dans le référentiel (AOP : ${AT.nb.aop}, IGP : ${AT.nb.igp}) : un type qu’aucune n’autorise est signalé « hors appellation » (vins sans IG), sans être interdit.`) : 'Aucune appellation de cette région dans le référentiel.'}</p>
         </div>
       </div>
       <Sec title={`Changements proposés (${plan.length})`}>
@@ -52,4 +53,14 @@ function ProfilViticoleView() {
       {lect ? null : <div className="flex flex-wrap gap-2"><Btn kind="primary" disabled={!types.length} onClick={appliquer} data-profil-appliquer="">{`✓ Appliquer (${pris.length})`}</Btn></div>}
     </div>
   );
+}
+/* 0.46.0-alpha.1 — région et types de vins : un seul réglage (Paramètres › Région & types de vins) ; l'identité de la société et les réglages
+   du pressoir en montrent le résumé (région, types, spécificités champenoises) avec un lien vers ce réglage */
+function ProfilResume() {
+  const { db, setTab } = useApp(); const pv = profilViticole(db); const R = profilRegionDef(pv.region) || {};
+  return (<div className="flex flex-wrap items-center gap-3" data-profil-resume="">
+    <div className="text-sm"><b translate="no">{pv.defini ? R.nom : 'Région non précisée'}</b>{pv.types.length ? <span className="text-ink2">{` · ${pv.types.map((t) => (PROFIL_TYPES.find((x) => x[0] === t) || [t, t])[1]).join(', ')}`}</span> : null}
+      <div className="help">{champenois(db) ? 'Spécificités champenoises actives (cahier des charges de l’AOC Champagne au pressoir, échelle des crus).' : 'Spécificités champenoises désactivées.'}</div></div>
+    <Btn className="ml-auto" onClick={() => setTab('params', 'profil')} data-profil-regler="">🍇 Régler la région et les types de vins</Btn>
+  </div>);
 }

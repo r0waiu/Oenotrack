@@ -36,7 +36,7 @@ function PrevisionsView() {
         </select> : null}
         <input className="inp" style={{ width: 'auto', flex: '1 1 200px' }} placeholder="Rechercher cuve, lot, n° de fiche, opérateur…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une opération à réaliser" />
         <Btn disabled={!sel.length} kind={sel.length ? 'primary' : undefined} onClick={() => openFiche(sel.map((id) => ({ kind: 'prev', id })))}>🖨 Fiche(s) pour la sélection ({sel.length})</Btn>
-        <Btn onClick={() => setJour(true)} title="Une fiche multi-lignes par type d’opération et par jour : prévu et relevé, une ligne par cuve">🖨 Fiche du jour…</Btn>
+        <Btn onClick={() => setJour(true)} data-vg="fiche-jour" title="Une fiche multi-lignes par type d’opération et par jour : prévu et relevé, une ligne par cuve">🖨 Fiche du jour…</Btn>
         {sel.length ? <Btn size="sm" kind="ghost" onClick={() => setSel([])}>Désélectionner</Btn> : null}
       </div>
       <Tbl rows={list} empty={statut === 'prevue' ? 'Rien à réaliser. Dans un formulaire d’opération, « 📋 Planifier (à réaliser) » l’ajoute ici.' : 'Aucune opération.'} cols={[

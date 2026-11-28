@@ -8,7 +8,7 @@
    - cuve de mixtion : opération « assemblage » marquée mixtion (lot.mixtion = true) avec préparations versées (levain, liqueur) et
      densités ; une version antérieure y voit un assemblage */
 
-const TIRAGE_MODES = [{ id: 'mixtion', label: 'Mixtion en cuve' }, { id: 'pompe', label: 'Pompe doseuse / injecteuse en ligne' }];
+const TIRAGE_MODES = [{ id: 'mixtion', label: 'Mixtion en cuve' }, { id: 'pompe', label: 'Pompe doseuse / injecteuse en ligne' }, { id: 'ancestrale', label: 'Méthode ancestrale (en fermentation, sans liqueur de tirage)' }]; // 0.46.0-alpha.1 : méthode ancestrale
 const TIRAGE_LIGNE = [['depalettiseur', 'Dépalettiseur'], ['tireuse', 'Tireuse'], ['injecteuse', 'Injecteuse (pompe doseuse)'], ['biduleuse', 'Biduleuse'], ['capsuleuse', 'Capsuleuse'], ['marquage', 'Marquage (laser, jet d’encre)'], ['emboxeur', 'Emboxeur'], ['robot', 'Robot de palettisation'], ['vision', 'Contrôle par vision']];
 const POMPE_CONTROLES = [{ id: 'eprouvette', label: 'Éprouvette (volume injecté)' }, { id: 'pesee', label: 'Pesée de cols' }, { id: 'densite', label: 'Densité du vin mixtionné' }, { id: 'debit', label: 'Débit de la ligne' }];
 const FOURNISSEUR_ROLES = [{ id: 'prestataire_tirage', label: 'Prestataire de tirage' }];
@@ -44,6 +44,10 @@ function tirageModeControle(db, R, spec) {
   if (mode === 'pompe') {
     if (srcMix.some((x) => x)) return 'Tirage par pompe doseuse : le vin de base ne doit pas venir d’une cuve de mixtion (la liqueur et le levain sont dosés en ligne).';
     if (!prepsInc.length) return 'Tirage par pompe doseuse : indiquez la liqueur et le levain dosés en ligne.';
+  }
+  if (mode === 'ancestrale') { // mise en bouteille d'un vin (ou moût) en cours de fermentation : la prise de mousse finit en bouteille, sans liqueur de tirage
+    if (srcMix.some((x) => x)) return 'Méthode ancestrale : pas de cuve de mixtion (le vin est mis en bouteille en cours de fermentation, sans liqueur de tirage).';
+    if (prepsInc.some((u) => ((R.preps || {})[u.prepId] || {}).ptype === 'liqueur_tirage')) return 'Méthode ancestrale : pas de liqueur de tirage (les sucres restants du raisin font la prise de mousse).';
   }
   return null;
 }

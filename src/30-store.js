@@ -3,14 +3,14 @@ const fail = (msg) => ({ ok: false, msg });
 const okr = (extra) => ({ ok: true, ...(extra || {}) });
 
 const DEFAULT_PARAMS = () => ([
-  { id: 'tap', nom: 'TAP', unite: '% vol.', dec: 1 }, { id: 'at', nom: 'AT', unite: 'g/L H₂SO₄', dec: 2 }, { id: 'ph', nom: 'pH', unite: '', dec: 2 },
+  { id: 'tap', nom: 'TAP', unite: '% vol.', dec: 1 }, { id: 'tav', nom: 'TAV acquis', unite: '% vol.', dec: 1 }, { id: 'at', nom: 'AT', unite: 'g/L H₂SO₄', dec: 2 }, { id: 'ph', nom: 'pH', unite: '', dec: 2 }, // TAP : moûts ; TAV acquis : vins (0.47.0-alpha.2)
   { id: 'azote', nom: 'Azote assimilable', unite: 'mg/L', dec: 0 }, { id: 'so2t', nom: 'SO₂ total', unite: 'mg/L', dec: 0 }, { id: 'so2l', nom: 'SO₂ libre', unite: 'mg/L', dec: 0 },
   { id: 'dbase', nom: 'Densité vin de base', unite: '', dec: 4 }, { id: 'dmix', nom: 'Densité mixtion', unite: '', dec: 4 },
   ...SUIVI_PARAMS(),
 ]);
 // suivi de vinification : fermentations (densité, température, sucres) et FML (acide malique), acidité volatile
 const SUIVI_PARAMS = () => ([
-  { id: 'densite', nom: 'Densité', unite: '', dec: 3 }, { id: 'temp', nom: 'Température', unite: '°C', dec: 1 }, { id: 'sucres', nom: 'Sucres (glucose + fructose)', unite: 'g/L', dec: 1 },
+  { id: 'densite', nom: 'Densité (masse volumique à 20 °C)', unite: 'g/mL', dec: 3 }, { id: 'temp', nom: 'Température', unite: '°C', dec: 1 }, { id: 'sucres', nom: 'Sucres (glucose + fructose)', unite: 'g/L', dec: 1 },
   { id: 'malique', nom: 'Acide malique', unite: 'g/L', dec: 2 }, { id: 'av', nom: 'Acidité volatile', unite: 'g/L H₂SO₄', dec: 2 },
 ]);
 const SUIVI_MODELES = () => ([
@@ -19,8 +19,8 @@ const SUIVI_MODELES = () => ([
 ]);
 const DEFAULT_MODELES = () => ([
   { id: 'm_mout', nom: 'Moût', etape: 'Débourbage', paramIds: ['tap', 'at', 'ph', 'azote'] },
-  { id: 'm_clair', nom: 'Vin clair', etape: 'Vinification', paramIds: ['tap', 'at', 'ph', 'so2t', 'so2l'] },
-  { id: 'm_pretirage', nom: 'Pré-tirage', etape: 'Tirage', paramIds: ['tap', 'at', 'ph', 'so2t', 'dbase', 'dmix'] },
+  { id: 'm_clair', nom: 'Vin clair', etape: 'Vinification', paramIds: ['tav', 'at', 'ph', 'so2t', 'so2l'] },
+  { id: 'm_pretirage', nom: 'Pré-tirage', etape: 'Tirage', paramIds: ['tav', 'at', 'ph', 'so2t', 'dbase', 'dmix'] },
   ...SUIVI_MODELES(),
 ]);
 
@@ -31,7 +31,7 @@ function emptyDb(campNom) {
   return {
     app: APP_ID, schema: SCHEMA,
     meta: { seq: 0, opSeq: 0, creeLe: todayISO(), derniereExport: null, exemple: false, creeAvec: APP_VERSION, appVersion: APP_VERSION, versions: [APP_VERSION] },
-    settings: { campagneActive: nom, coefSucre: 2.6, volBouteilleL: 0.75, objectifTirageGL: 24, siteActif: 'all', domaine: '', couleurDefaut: 'blanc', echelleNom: 'Échelle des crus', echellePreset: 'champagne', planHygieneDepuis: todayISO() },
+    settings: { campagneActive: nom, coefSucre: COEF_SUCRE_DEFAUT, volBouteilleL: 0.75, objectifTirageGL: 24, siteActif: 'all', domaine: '', couleurDefaut: 'blanc', echelleNom: 'Échelle des crus', echellePreset: 'champagne', planHygieneDepuis: todayISO() },
     lists: DEFAULT_LISTS(),
     sites: [{ id: 'site1', nom: 'Cuverie principale', adresse: '', zones: [] }],
     crus: DEFAULT_CRUS(), parcelles: [], apporteurs: [], apparence: DEFAULT_APPARENCE(),
@@ -53,6 +53,7 @@ function emptyDb(campNom) {
   };
 }
 
+const dlFr0 = (d) => ((d && d.lists) || {}).fractions; // liste de fractions enregistrée dans la base d'origine
 function normalizeDb(d) {
   const e = emptyDb(); const old = (d.schema || 1) < 2; // sauvegardes de la v1 « Cuverie champenoise » : migration automatique
   const out = { ...e, ...d, meta: { ...e.meta, ...(d.meta || {}) }, settings: { ...e.settings, ...(d.settings || {}) }, lists: { ...e.lists, ...(d.lists || {}) } };
@@ -69,6 +70,8 @@ function normalizeDb(d) {
     if (old) dl[key].forEach((x) => { if (!cur.some((y) => y.id === x.id)) cur.push({ ...x }); });
     cur.forEach((x) => { const dflt = dl[key].find((y) => y.id === x.id); extra.forEach(([f, fb]) => { if (x[f] == null || x[f] === '') x[f] = dflt ? dflt[f] : fb; }); });
   };
+  // 0.47.0-alpha.2 : une base sans liste de fractions enregistrée qui utilise la 2e taille (retirée des valeurs d'une base neuve) la retrouve
+  if (!Array.isArray(dlFr0(d)) && (out.ops || []).some((o) => o && (o.fractionId === 'taille2' || (o.fractions || []).some((f) => f && f.fractionId === 'taille2') || (o.entrees || []).some((e) => e && e.fractionId === 'taille2')))) out.lists.fractions = [...(out.lists.fractions || []), { id: 'taille2', label: '2e taille', suffix: 'T2', pressurage: true }];
   mergeList('typesContenant', [['forme', 'cuve']]); mergeList('matieres', [['couleur', '#B9C4CC'], ['finition', 'lisse']]); mergeList('fractions', [['suffix', ''], ['pressurage', true]]);
   // entrées de moûts « v2 » (une cuve, fraction et revendication globales) → moûts par ligne avec destinations
   out.ops = out.ops.map((o) => {
@@ -100,7 +103,7 @@ function normalizeDb(d) {
   if (!Array.isArray(dlists.echelles) || !dlists.echelles.length) out.lists.echelles = DEFAULT_ECHELLES().map((x) => ({ ...x, couleur: (ap.echelleColors || {})[x.id] || x.couleur }));
   if (!Array.isArray(dlists.stades) || !dlists.stades.length) out.lists.stades = DEFAULT_STADES();
   if (!Array.isArray(dlists.couleursVin) || !dlists.couleursVin.length) out.lists.couleursVin = DEFAULT_COULEURS_VIN();
-  // revendications (0.18.0-alpha.1) : bases antérieures → Conventionnel, FR-BIO-01, Demeter avec leurs couleurs ; « conv » toujours en tête
+  // revendications (0.18.0-alpha.1) : bases antérieures → Conventionnel, BIO (FR-BIO-01 avant 0.45.0-alpha.1), Demeter avec leurs couleurs ; « conv » toujours en tête
   out.lists.qualifs = !Array.isArray(dlists.qualifs) || !dlists.qualifs.some((x) => x && x.id) ? DEFAULT_QUALIFS().map((x) => ({ ...x, couleur: (ap.qualifColors || {})[x.id] || x.couleur })) : qualifList(out);
   out.lists.stades = out.lists.stades.map((x) => ({ phase: 'vin', role: '', ...x }));
   if (!out.settings.suiviV3) { // une seule fois : paramètres et modèles de suivi des fermentations
@@ -122,7 +125,7 @@ function normalizeDb(d) {
     // opérations d'origine : les réglages de l'utilisateur priment, les nouveaux champs par défaut complètent ; comportement toujours d'origine
     out.lists.operations = cur.map((y) => { const x = D.find((z) => z.id === y.id); return x ? { ...x, ...y, base: x.base } : (y.base ? y : { ...y, base: 'suivi' }); });
     // libellé d'origine renommé (0.25.0-alpha.2) : « Apport vendange » → « Pesée de vendange » (un libellé choisi par l'utilisateur est gardé)
-    out.lists.operations.forEach((y) => { if (y.id === 'apport' && y.label === 'Apport vendange') y.label = 'Pesée de vendange'; }); }
+    out.lists.operations.forEach((y) => { if (y.id === 'apport' && y.label === 'Apport vendange') y.label = 'Pesée de vendange'; if (y.id === 'remontage' && y.label === 'Remontage / pigeage') y.label = 'Remontage'; }); } // 0.46.0-alpha.1 : pigeage séparé
   // compatibilité entre versions : les champs inconnus (créés par une version plus récente) sont conservés tels quels,
   // le marqueur de schéma ne redescend jamais, et la base garde la trace des versions qui l'ont ouverte
   out.app = APP_ID; out.schema = Math.max(SCHEMA, num(d.schema));
@@ -130,6 +133,8 @@ function normalizeDb(d) {
   out.meta = { ...out.meta, creeAvec: dm.creeAvec || (old ? 'Cuverie champenoise' : vs[0] || '0.7.0-alpha.1 ou antérieure'), appVersion: APP_VERSION, versions: vs.includes(APP_VERSION) ? vs : [...vs, APP_VERSION].slice(-30) };
   if (typeof plansVinifConvertirSchemas === 'function') plansVinifConvertirSchemas(out); // 0.43.0-alpha.2 : schémas → variantes du plan de vinification (une fois)
   if (typeof refMigrerLabels === 'function') refMigrerLabels(out); // 0.43.0-alpha.1 : AVN → VMN (Vin Méthode Nature), bascule tracée
+  bioMigrerLibelle(out); // 0.45.0-alpha.1 : nom d'exemple « FR-BIO-01 » → « BIO » (une fois, tracé dans settings.bioLibelle)
+  termesMigrer047(out); // 0.47.0-alpha.2 : libellés et coefficients d'origine corrigés (une fois, tracé dans settings.termes047 ; valeurs réglées gardées)
   syncConfig(out);
   return out;
 }

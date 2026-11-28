@@ -1,7 +1,7 @@
 /* ============ CLÉS D'ACCÈS : INTERFACE (0.28.0-alpha.1, multiplateforme 0.38.0-alpha.2) ============
    Moteur : 34b-cles-acces.js. Sur un appareil accepté, connexion par empreinte, visage ou code PIN (Windows Hello, Touch ID / Face ID,
    Android, Linux par clé de sécurité, téléphone ou Gestionnaire de mots de passe de Chrome). Le mot de passe reste toujours possible.
-   Les clés d'accès exigent une page sécurisée (https) ouverte seule : la version en ligne (votre site, oenotrack.fr) ou l'application
+   Les clés d'accès exigent une page sécurisée (https) ouverte seule : la version en ligne (votre site, oenotrack.pages.dev) ou l'application
    installée ; pas l'aperçu dans claude.ai (cadre d'un autre site).
    0.38.0-alpha.2 : deux façons d'activer un appareil — « cet appareil » (authentificateur intégré : empreinte, visage ou code PIN du
    téléphone ou de l'ordinateur, y compris Android) et « clé de sécurité ou autre téléphone » (USB, NFC, QR code). La disponibilité de
@@ -13,7 +13,7 @@ function clesEtat() {
   const sur = !!window.isSecureContext; const rp = (location && location.hostname) || '';
   // ordre : page non sécurisée (le navigateur y cache les clés d'accès), navigateur trop ancien, aperçu dans un cadre, fichier ouvert depuis
   // l'ordinateur, adresse IP
-  const raison = !sur ? 'Les clés d’accès demandent une page sécurisée (https) : utilisez la version en ligne d’Œnotrack.' : !api ? 'Ce navigateur ne gère pas les clés d’accès : mettez-le à jour.' : cadre ? 'Les clés d’accès fonctionnent dans la version en ligne d’Œnotrack (votre site ou oenotrack.fr) et dans l’application installée, pas dans cet aperçu.' : !rp ? 'Les clés d’accès fonctionnent dans la version en ligne d’Œnotrack (votre site ou oenotrack.fr) et dans l’application installée, pas dans un fichier ouvert depuis l’ordinateur.' : /^\d+\.\d+\.\d+\.\d+$/.test(rp) || /^\[/.test(rp) ? 'Les clés d’accès demandent une adresse avec un nom de domaine (pas une adresse IP).' : '';
+  const raison = !sur ? 'Les clés d’accès demandent une page sécurisée (https) : utilisez la version en ligne d’Œnotrack.' : !api ? 'Ce navigateur ne gère pas les clés d’accès : mettez-le à jour.' : cadre ? 'Les clés d’accès fonctionnent dans la version en ligne d’Œnotrack (votre site ou oenotrack.pages.dev) et dans l’application installée, pas dans cet aperçu.' : !rp ? 'Les clés d’accès fonctionnent dans la version en ligne d’Œnotrack (votre site ou oenotrack.pages.dev) et dans l’application installée, pas dans un fichier ouvert depuis l’ordinateur.' : /^\d+\.\d+\.\d+\.\d+$/.test(rp) || /^\[/.test(rp) ? 'Les clés d’accès demandent une adresse avec un nom de domaine (pas une adresse IP).' : '';
   return { ok: !raison, raison, rp };
 }
 // nom proposé pour l'appareil et ce qu'il demande (empreinte, visage, code PIN)

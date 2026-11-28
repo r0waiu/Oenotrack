@@ -112,10 +112,10 @@ function detectionPropositions(db, cible, p, V) {
     if (p.categorie !== 'sec') Object.keys(V).filter((k) => /^rev:/.test(k)).forEach((k) => {
       const qid = k.slice(4); const q = qualifDef(db, qid); if (!q) return; const v = V[k] === 'oui'; const r = ruleFor(db, p.id, qid);
       if (r && !!r.autorise === v) return; const verifiee = !!(r && r.aVerifier === false && r.verifieLe);
-      out.push({ k, lab: `Utilisable en ${q.label}`, v: V[k], aff: v ? 'Oui' : 'Non', src: 'script', actuel: r ? (r.autorise ? 'Oui' : 'Non') : '', complete: !verifiee });
+      out.push({ k, lab: `Utilisable en ${qualifAffiche(q)}`, v: V[k], aff: v ? 'Oui' : 'Non', src: 'script', actuel: r ? (r.autorise ? 'Oui' : 'Non') : '', complete: !verifiee });
     });
   }
-  if (cible.type === 'produitMaintenance' && V.contactAlimentaire && p.contactAlimentaire !== V.contactAlimentaire) out.push({ k: 'contactAlimentaire', lab: 'Agréé contact alimentaire', v: V.contactAlimentaire, aff: V.contactAlimentaire === 'oui' ? 'Oui' : 'Non', src: 'script', actuel: p.contactAlimentaire ? (p.contactAlimentaire === 'oui' ? 'Oui' : 'Non') : '', complete: !p.contactAlimentaire });
+  if (cible.type === 'produitMaintenance' && V.contactAlimentaire && p.contactAlimentaire !== V.contactAlimentaire) out.push({ k: 'contactAlimentaire', lab: 'Apte au contact alimentaire', v: V.contactAlimentaire, aff: V.contactAlimentaire === 'oui' ? 'Oui' : 'Non', src: 'script', actuel: p.contactAlimentaire ? (p.contactAlimentaire === 'oui' ? 'Oui' : 'Non') : '', complete: !p.contactAlimentaire });
   return out;
 }
 function detectionAppliquer(db, cible, p, k, v) {
@@ -175,7 +175,7 @@ function intrantMouvements(db, R, o = {}) {
 /* ---------- fiche récapitulative des produits œnologiques (colonnes au choix) ---------- */
 const RECAP_INTRANTS_COLS = [
   ['nom', 'Produit'], ['categorie', 'Catégorie'], ['famille', 'Famille'], ['fournisseur', 'Fournisseur'], ['reference', 'Référence'], ['fabricant', 'Fabricant'], ['unite', 'Unité de stock'],
-  ['stock', 'Stock actuel'], ['lots', 'Lots en stock'], ['dluo', 'Prochaine DLUO'], ['revendications', 'Revendications compatibles'], ['bio', 'Utilisable en bio'], ['allergenes', 'Allergènes'],
+  ['stock', 'Stock actuel'], ['lots', 'Lots en stock'], ['dluo', 'Prochaine DDM'], ['revendications', 'Revendications compatibles'], ['bio', 'Utilisable en bio'], ['allergenes', 'Allergènes'],
   ['composition', 'Composition'], ['dose', 'Dose d’emploi'], ['so2', 'Teneur en SO₂'], ['fds', 'FDS'], ['ft', 'Fiche technique'], ['conservation', 'Conservation'], ['stockage', 'Stockage'], ['notes', 'Notes'],
 ];
 const RECAP_INTRANTS_DEFAUT = ['nom', 'fournisseur', 'stock', 'revendications', 'allergenes', 'fds'];
@@ -188,7 +188,7 @@ function recapIntrants(db, R, cols, o = {}) {
     const ls = (db.arrivages || []).filter((a) => a.produitId === p.id).map((a) => ({ a, rest: arrivalRest(R, a) })).filter((x) => x.rest > 0.0001);
     if (o.enStock && !ls.length) return; const total = sum(ls, (x) => x.rest);
     const dl = ls.filter((x) => x.a.dluo).sort((x, y) => (x.a.dluo < y.a.dluo ? -1 : 1))[0];
-    const revs = p.categorie === 'sec' ? 'sans objet' : qualifList(db).filter((q) => !q.masque && (regleEffective(db, p, q.id) || {}).autorise).map((q) => q.label).join(', ') || 'aucune';
+    const revs = p.categorie === 'sec' ? 'sans objet' : qualifList(db).filter((q) => !q.masque && (regleEffective(db, p, q.id) || {}).autorise).map((q) => qualifAffiche(q)).join(', ') || 'aucune';
     const v = {
       nom: p.nom, categorie: CATEGORIES[p.categorie] || p.categorie, famille: p.famille ? famLabel(p.famille) : '', fournisseur: fournisseurNom(db, p.fournisseurId), reference: p.reference || '', fabricant: p.fabricant || '', unite: p.unite,
       stock: `${fmt(total, 2)} ${p.unite}`, lots: ls.map((x) => `${x.a.numLot} (${fmt(x.rest, 2)})`).join(', '), dluo: dl ? `${fmtDate(dl.a.dluo)}${dl.a.dluo < auj ? ' (dépassée)' : ''}` : '',

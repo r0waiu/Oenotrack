@@ -53,7 +53,7 @@ ok('sous-onglet À réaliser & fiches', await choisi('previsions') && /réaliser
 await params('Modules');
 const sel = page.locator('main select[aria-label="Onglet ouvert au démarrage"]');
 const opts = await sel.locator('option').allInnerTexts();
-ok('réglage : « Premier onglet de la barre (actuellement « Vinification ») » puis les 12 onglets ; Cuverie marquée « dans Vinification »', /Premier onglet de la barre.*Vinification/.test(opts[0]) && opts.length === 13 && opts.includes('Analyses') && !opts.includes('Cuverie & Lots') && /dans « Vinification »/.test(await txt(page.locator('main [data-module="cuverie"]'))), opts);
+ok('réglage : « Premier onglet de la barre (actuellement « Vinification ») », « Dernière page visitée » puis les 12 onglets ; Cuverie marquée « dans Vinification »', /Premier onglet de la barre.*Vinification/.test(opts[0]) && opts.length === 14 && opts[1] === 'Dernière page visitée' && opts.includes('Analyses') && !opts.includes('Cuverie & Lots') && /dans « Vinification »/.test(await txt(page.locator('main [data-module="cuverie"]'))), opts);
 await sel.selectOption('analyses'); await page.waitForTimeout(300);
 let d = await db();
 ok('… « Analyses » choisi : enregistré dans la base, marqué « s’ouvre au démarrage », ordre inchangé', d.settings.ongletDefaut === 'analyses' && /s’ouvre au démarrage/.test(await txt(page.locator('main [data-module="analyses"]'))) && !d.settings.modulesOrdre && (await barre())[0] === 'vinification');

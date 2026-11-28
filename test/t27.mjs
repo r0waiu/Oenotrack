@@ -82,7 +82,7 @@ ok('catalogue : soutirage sans stade auto', (await page.locator('main [data-op="
 await page.click('#tab-ops'); await page.waitForTimeout(300); await page.locator('main [role=tab]', { hasText: /^Opérations$/ }).click(); await page.waitForTimeout(300);
 await page.locator('main [data-groupe] button', { hasText: 'Tanisage' }).click(); await page.waitForTimeout(400);
 ok('nouvelle opération : formulaire', (await top().locator('h2').innerText()).includes('Tanisage'));
-await pick(page, top().locator('input[role=combobox]').first(), 'Cuve 06', 'P25-02-T1'); await page.waitForTimeout(200);
+await pick(page, top().locator('input[role=combobox]').first(), 'Cuve 06', 'P25-02-T'); await page.waitForTimeout(200);
 ok('nouvelle opération : stade auto « élevage » proposé', (await top().locator('select[aria-label="Stade du lot après l’opération"]').inputValue()) === 'elevage');
 await top().locator('button', { hasText: 'Fiche à remplir' }).click(); await page.waitForTimeout(600);
 ok('nouvelle opération : fiche associée', (await top().innerText()).includes('Tanisage'), (await top().locator('h2').innerText()).slice(0, 80));
@@ -92,7 +92,7 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(300); await page.
 await page.click('#tab-params'); await page.click('main button:has-text("Revendications, stades & listes")'); await page.waitForTimeout(300);
 ok('mélanges : règles affichées', await page.locator('main [data-regle]').count() >= 10, await page.locator('main [data-regle]').count());
 await page.locator('main select[aria-label="Tester : stade A"]').selectOption('vin_filtre'); await page.locator('main select[aria-label="Tester : stade B"]').selectOption('vin_clair'); await page.waitForTimeout(150);
-ok('mélanges : test vin filtré + vin clair', (await page.locator('main [data-test="mix-resultat"]').innerText()).includes('Vin clair'), await page.locator('main [data-test="mix-resultat"]').innerText());
+ok('mélanges : test vin filtré + vin clarifié', (await page.locator('main [data-test="mix-resultat"]').innerText()).includes('Vin clarifié'), await page.locator('main [data-test="mix-resultat"]').innerText());
 await page.locator('main [data-regle]').first().scrollIntoViewIfNeeded(); await page.screenshot({ path: SH + '/t27-melanges.png' });
 // 11. registres : sorties de cave en hL (module Registres, séparé des Paramètres depuis la 0.13.0-alpha.1)
 await page.click('#tab-registres'); await page.click('main button:has-text("Registres (CSV / Excel)")'); await page.waitForTimeout(300);

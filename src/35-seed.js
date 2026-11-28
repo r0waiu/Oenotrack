@@ -61,7 +61,7 @@ function sampleDb0() {
     ['levp', 'Levure fermentation primaire', 'oeno', 'g', 'O2C', [[1, 30], [1, 30], [1, 30]]], ['levm', 'Levure prise de mousse', 'oeno', 'g', 'IOC', [[1, 30], [1, 30], [1, 30]]],
     ['act', 'Activateur de fermentation', 'oeno', 'g', 'O2C', [[1, 40], [0], [0]]], ['tan', 'Tanins œnologiques', 'oeno', 'g', 'Compas', [[1, 20], [1, 15], [0]]],
     ['lys', 'Lysozyme', 'oeno', 'g', 'Compas', [[1, 50], [0], [0]]], ['gel', 'Gélatine liquide', 'aux', 'mL', 'Sofralab', [[1, 10], [1, 10], [1, 5]]],
-    ['ben', 'Bentonite sodique', 'aux', 'g', 'CSGV', [[1, 100], [1, 100], [1, 100]]], ['dia', 'Terre diatomée', 'aux', 'kg', 'CSGV', [[1, 300], [1, 300], [1, 300]]],
+    ['ben', 'Bentonite sodique', 'aux', 'g', 'CSGV', [[1, 100], [1, 100], [1, 100]]], ['dia', 'Terre de diatomées', 'aux', 'kg', 'CSGV', [[1, 300], [1, 300], [1, 300]]],
     ['plq', 'Plaques de filtration', 'aux', 'u', 'Compas', [[1], [1], [1]]], ['bac', 'Bactéries lactiques (FML)', 'oeno', 'g', 'IOC', [[1, 2], [1, 2], [1, 2]]], ['suc', 'Sucre de canne', 'oeno', 'kg', 'CSGV', [[1], [1], [1]]],
     ['mcr', 'MCR (moût concentré rectifié)', 'oeno', 'L', 'Sofralab', [[1], [1], [1]]], ['bou', 'Bouteille champenoise 75 cl', 'sec', 'u', 'CSGV', [[1], [1], [1]]],
     ['cap', 'Capsule de tirage', 'sec', 'u', 'CSGV', [[1], [1], [1]]], ['bch', 'Bouchon liège champenois', 'sec', 'u', 'CSGV', [[1], [1], [1]]], ['mus', 'Muselet', 'sec', 'u', 'CSGV', [[1], [1], [1]]],
@@ -125,14 +125,14 @@ function sampleDb0() {
 
   apport('a1', '2025-09-10', 'chard', 8000, 'conv', 'Cramant', 'Lefèvre Père & Fils'); apport('a2', '2025-09-10', 'pn', 4000, 'conv', 'Verzenay', 'GAEC des Crayères'); apport('a3', '2025-09-12', 'pm', 4000, 'conv', 'Vincelles', 'EARL Marchand'); apport('a4', '2025-09-13', 'chard', 4000, 'bio', 'Vertus', 'Domaine Hennequin'); apport('a5', '2025-09-14', 'pn', 4000, 'dem', 'Ambonnay', 'GAEC des Crayères');
   press('2025-09-10', 'P1', 'P25-01', 'Chardonnay 2025 – pressée 1', 'conv', [['a1', 4000]], { cuvee: [2050, 'bacd1'], taille1: [500, 'c05'] });
-  press('2025-09-10', 'P2', 'P25-02', 'Pinot Noir 2025 – pressée 2', 'conv', [['a2', 4000]], { cuvee: [2050, 'bacd2'], taille1: [480, 'c06'] });
+  press('2025-09-10', 'P2', 'P25-02', 'Pinot noir 2025 – pressée 2', 'conv', [['a2', 4000]], { cuvee: [2050, 'bacd2'], taille1: [480, 'c06'] });
   trans('debourbage', '2025-09-11', 'P1C', 'bacd1', 'c01', 1300, [['bourbes', 45]], [ln('enz', 'enza', 25), ln('so2', 'so2a', 120)]);
   trans('debourbage', '2025-09-11', 'P1C', 'bacd1', 'c07', null, [['bourbes', 25]], [ln('enz', 'enza', 15), ln('so2', 'so2a', 70)]);
   trans('debourbage', '2025-09-11', 'P2C', 'bacd2', 'c02', null, [['bourbes', 70]], [ln('enz', 'enza', 40), ln('so2', 'so2a', 190)]);
   press('2025-09-12', 'P3', 'P25-03', 'Meunier 2025 – pressée 3', 'conv', [['a3', 4000]], { cuvee: [2050, 'bacd1'] });
   press('2025-09-13', 'P4', 'P25-04', 'Chardonnay Bio 2025 – pressée 4', 'bio', [['a4', 4000]], { cuvee: [2050, 'bacd2'] });
   trans('debourbage', '2025-09-13', 'P3C', 'bacd1', 'c03', null, [['bourbes', 60]], [ln('enz', 'enza', 40), ln('so2', 'so2a', 190)]);
-  press('2025-09-14', 'P5', 'P25-05', 'Pinot Noir Demeter 2025 – pressée 5', 'dem', [['a5', 4000]], { cuvee: [2050, 'bacd1'] });
+  press('2025-09-14', 'P5', 'P25-05', 'Pinot noir Demeter 2025 – pressée 5', 'dem', [['a5', 4000]], { cuvee: [2050, 'bacd1'] });
   trans('debourbage', '2025-09-14', 'P4C', 'bacd2', 'cb1', null, [['bourbes', 50]], [ln('so2', 'so2a', 100)]);
   trans('debourbage', '2025-09-15', 'P5C', 'bacd1', 'cd1', null, [['bourbes', 55]], [ln('so2', 'so2a', 60)]);
   // variantes du catalogue (sousType) : levurage → « en FA », soutirage → « vin soutiré », collage → « vin collé », filtration → « vin filtré »
@@ -173,7 +173,7 @@ function sampleDb0() {
   press('2026-09-09', 'P6', 'P26-01', 'Chardonnay 2026 – pressée 1', 'conv', [['a6', 4000]], { cuvee: [2050, 'bacd1'], taille1: [500, 'bact'] });
   press('2026-09-10', 'P7', 'P26-02', 'Chardonnay 2026 – pressée 2', 'conv', [['a6', 4000]], { cuvee: [2050, 'bacd2'] });
   trans('debourbage', '2026-09-10', 'P6C', 'bacd1', 'c01', null, [['bourbes', 65]], [ln('enz', 'enzb', 40), ln('so2', 'so2b', 190)]);
-  press('2026-09-11', 'P8', 'P26-03', 'Pinot Noir 2026 – pressée 3', 'conv', [['a7', 4000]], { cuvee: [2050, 'bacd1'] });
+  press('2026-09-11', 'P8', 'P26-03', 'Pinot noir 2026 – pressée 3', 'conv', [['a7', 4000]], { cuvee: [2050, 'bacd1'] });
   trans('debourbage', '2026-09-11', 'P7C', 'bacd2', 'c02', null, [['bourbes', 70]], [ln('so2', 'so2b', 200)]);
   press('2026-09-12', 'P9', 'P26-04', 'Meunier Bio 2026 – pressée 4', 'bio', [['a8', 4000]], { cuvee: [2050, 'bacd2'] });
   trans('debourbage', '2026-09-12', 'P8C', 'bacd1', 'c03', null, [['bourbes', 60]], [ln('so2', 'so2b', 190)]);
@@ -207,7 +207,7 @@ function sampleDb0() {
     { compartiment: 'C1', cepageId: 'chard', fractionId: 'cuvee', cruId: cr('Avize'), qualifId: 'conv', apporteurId: K.apt['Maison Dubois'], ...ME[0], volL: 1200, dests: [{ contenantId: K.ct.c08, volL: 1200 }] },
     { compartiment: 'C2', cepageId: 'chard', fractionId: 'cuvee', cruId: cr('Cramant'), qualifId: 'conv', apporteurId: K.apt['Maison Dubois'], ...ME[1], volL: 800, dests: [{ contenantId: K.ct.c08, volL: 800 }] },
     { compartiment: 'C3', cepageId: 'pn', fractionId: 'taille1', cruId: cr('Mareuil-sur-Ay'), qualifId: 'conv', apporteurId: K.apt['Maison Dubois'], ...ME[2], volL: 1200, dests: [{ contenantId: K.ct.c09, volL: 700 }, { contenantId: K.ct.c07, volL: 500 }] }],
-  lots: [{ contenantId: K.ct.c08, code: 'M26-01-C', designation: 'Moût cuvée Chardonnay Grands Crus – Maison Dubois' }, { contenantId: K.ct.c09, code: 'M26-01-T1-1', designation: 'Moût 1ère taille Pinot Noir – Maison Dubois' }, { contenantId: K.ct.c07, code: 'M26-01-T1-2', designation: 'Moût 1ère taille Pinot Noir – Maison Dubois' }] }); K.lot.M1 = mo.lots[0].lotId;
+  lots: [{ contenantId: K.ct.c08, code: 'M26-01-C', designation: 'Moût cuvée Chardonnay Grands Crus – Maison Dubois' }, { contenantId: K.ct.c09, code: 'M26-01-T1-1', designation: 'Moût taille Pinot noir – Maison Dubois' }, { contenantId: K.ct.c07, code: 'M26-01-T1-2', designation: 'Moût taille Pinot noir – Maison Dubois' }] }); K.lot.M1 = mo.lots[0].lotId;
   treat('intrant', '2026-09-15', 'M1', 'c08', [ln('so2', 'so2b', 90)], { sousType: 'sulfitage', motif: 'Sulfitage à réception' });
   et('2026-09-16', 'M1', 'fa');
   // contenants « artisanaux » : réserve en jarre, essai en amphore, élevage en œuf

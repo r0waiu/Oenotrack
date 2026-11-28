@@ -67,18 +67,27 @@ function ParcelleSelect({ value, onChange, placeholder = 'Parcelle : commencez �
 }
 function ParcelleForm({ id, preset, onClose, onSaved }) {
   const { db, act } = useApp(); const p = id ? (db.parcelles || []).find((x) => x.id === id) : null; const s0 = p || preset || {};
-  const [f, set] = useDraft({ nom: s0.nom || '', cruId: s0.cruId || '', lieuDit: s0.lieuDit || '', cadastre: s0.cadastre || '', surface: s0.surface != null ? String(s0.surface) : '', cepageId: s0.cepageId || '', annee: s0.annee || '', apporteurId: s0.apporteurId || '', notes: s0.notes || '', masque: !!s0.masque });
+  const [f, set] = useDraft({ nom: s0.nom || '', cruId: s0.cruId || '', lieuDit: s0.lieuDit || '', cadastre: s0.cadastre || '', surface: s0.surface != null ? String(s0.surface) : '', cepageId: s0.cepageId || '', annee: s0.annee || '', apporteurId: s0.apporteurId || '', appellationId: s0.appellationId || '', niveau: s0.niveau || '', notes: s0.notes || '', masque: !!s0.masque });
   const save = () => { const r = act((d) => parcelleSave(d, f, id), id ? 'Parcelle modifiée.' : 'Parcelle ajoutée.'); if (r.ok) { if (onSaved) onSaved(r.id); onClose(); } };
   return (
     <FormSheet title={id ? `Modifier la parcelle ${p.nom}` : 'Nouvelle parcelle'} sub="Une parcelle appartient à un cru (village) : la choisir dans un apport renseigne le cru automatiquement." onClose={onClose} onSave={save}>
       <div className="grid2"><Field label="Nom de la parcelle"><TI value={f.nom} onChange={(v) => set('nom', v)} placeholder="ex. Les Crayères – rang 3" /></Field><Field label="Cru (village)"><CruSelect value={f.cruId} onChange={(v) => set('cruId', v)} /></Field></div>
       <div className="grid2"><Field label="Lieu-dit"><TI value={f.lieuDit} onChange={(v) => set('lieuDit', v)} /></Field><Field label="Référence cadastrale" help="ex. AB 123"><TI value={f.cadastre} onChange={(v) => set('cadastre', v)} /></Field></div>
       <div className="grid3"><Field label="Surface (ares)"><NI value={f.surface} onChange={(v) => set('surface', v)} placeholder="ex. 35,20" /></Field><Field label="Cépage principal"><SI value={f.cepageId} onChange={(v) => set('cepageId', v)} placeholder="—" options={opts(db, 'cepages')} /></Field><Field label="Année de plantation"><TI value={f.annee} onChange={(v) => set('annee', v)} inputMode="numeric" placeholder="ex. 1998" /></Field></div>
+      <ParcelleAppellation f={f} set={set} />
       <Field label="Exploitant / apporteur" help="Proposé automatiquement dans les apports de cette parcelle."><ApporteurSelect value={f.apporteurId} onChange={(v) => set('apporteurId', v)} /></Field>
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} placeholder="Porte-greffe, clone, mode de conduite, exposition…" /></Field>
       <Check checked={f.masque} onChange={(v) => set('masque', v)} label="Masquer cette parcelle dans les listes de saisie" />
     </FormSheet>
   );
+}
+// 0.47.0-alpha.1 : appellation de la parcelle et son niveau dans la hiérarchie de l'appellation
+function ParcelleAppellation({ f, set }) {
+  const { db } = useApp(); const A = db.lists.appellations || []; const e = f.appellationId ? appellationEchelle(db, f.appellationId) : null; const N = e && e.hierarchie ? e.hierarchie.items : [];
+  return (<div className="grid2" data-parcelle-appellation="">
+    <Field label="Appellation"><SI plain value={f.appellationId} onChange={(v) => { set('appellationId', v); set('niveau', ''); }} options={[{ value: '', label: A.length ? 'Non précisée' : 'Aucune appellation dans la liste (Paramètres › Listes)' }, ...A.map((a) => ({ value: a.id, label: a.label, donnee: true }))]} aria-label="Appellation de la parcelle" /></Field>
+    <Field label={e && e.hierarchie ? `Niveau (${e.hierarchie.nom})` : 'Niveau'} help={e && !e.confirmee ? 'Hiérarchie proposée d’après l’appellation : confirmez-la dans Paramètres › Listes.' : undefined}><SI plain value={f.niveau} onChange={(v) => set('niveau', v)} disabled={!N.length} options={[{ value: '', label: 'Non précisé' }, ...N.map((i) => ({ value: i.id, label: i.label }))]} aria-label="Niveau de la parcelle" /></Field>
+  </div>);
 }
 function ApporteurSelect({ value, onChange, placeholder = 'Partenaire : commencez à écrire…', allowAdd = true, className, role, ariaLabel = 'Partenaire' }) {
   const { db } = useApp(); const [add, setAdd] = useState(null);
@@ -118,7 +127,7 @@ function compItems(db, comp) {
   const mk = (o, colorOf, labelOf) => Object.keys(o || {}).sort((a, b) => o[b] - o[a]).map((k, i) => ({ key: k, label: labelOf(k), share: o[k], color: colorOf(k, i) }));
   return {
     cepages: mk(comp.cepages, (k) => cepageColor(db, k), (k) => lbl(db, 'cepages', k)),
-    millesimes: mk(comp.millesimes, (k, i) => MILL_COLORS[i % MILL_COLORS.length], (k) => k),
+    millesimes: mk(comp.millesimes, (k, i) => MILL_COLORS[i % MILL_COLORS.length], (k) => millesimeAffiche(k)),
     fractions: mk(comp.fractions, (k) => fracColor(db, k), (k) => fracLabel(db, k)),
     qualifs: mk(comp.qualifs, (k) => qColor(db, k), (k) => qLabel(k)),
     echelles: mk(comp.echelles, (k) => eColor(db, k === 'inconnu' ? null : k), (k) => (k === 'inconnu' ? 'Non renseigné' : eLabel(k))),

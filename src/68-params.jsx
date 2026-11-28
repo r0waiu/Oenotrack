@@ -10,7 +10,7 @@ function SnapshotView({ snap, live }) {
       <SnapTable title="Vin en contenants" rows={snap.portions} cols={[{ h: 'Contenant', r: (p) => p.contenant }, { h: 'Lot', r: (p) => <b>{p.code}</b> }, { h: 'Revendication', r: (p) => (p.qualif ? <QChip id={p.qualif} /> : '—') }, { h: 'Volume', cls: 'r', r: (p) => <span className="num">{fmtL(p.volL)}</span> }]} />
       <SnapTable title="Bouteilles sur lattes" rows={snap.bouteilles} cols={[{ h: 'Lot de tirage', r: (b) => <b>{b.code}</b> }, { h: 'Bouteilles', cls: 'r', r: (b) => <span className="num">{fmt(b.nb)}</span> }]} />
       <SnapTable title="Préparations" rows={snap.preparations} cols={[{ h: 'Code', r: (p) => <b>{p.code}</b> }, { h: 'Type', r: (p) => PREP_TYPES[p.type] }, { h: 'Revendication', r: (p) => <QChip id={p.qualif} /> }, { h: 'Reste', cls: 'r', r: (p) => <span className="num">{fmtL(p.restantL)}</span> }]} />
-      <SnapTable title="Intrants en stock" rows={snap.intrants} cols={[{ h: 'Produit', r: (i) => i.produit }, { h: 'N° lot fournisseur', r: (i) => <span className="num">{i.numLot}</span> }, { h: 'DLUO', r: (i) => fmtDate(i.dluo) }, { h: 'Restant', cls: 'r', r: (i) => <span className="num">{fmt(i.restant, 2)} {i.unite}</span> }]} />
+      <SnapTable title="Intrants en stock" rows={snap.intrants} cols={[{ h: 'Produit', r: (i) => i.produit }, { h: 'N° lot fournisseur', r: (i) => <span className="num">{i.numLot}</span> }, { h: 'DDM', r: (i) => fmtDate(i.dluo) }, { h: 'Restant', cls: 'r', r: (i) => <span className="num">{fmt(i.restant, 2)} {i.unite}</span> }]} />
     </div>
   );
 }
@@ -40,6 +40,36 @@ function CampagnesView() {
   );
 }
 
+// 0.47.0-alpha.1 : hiérarchie de chaque appellation (proposée d'après le nom et la région, à confirmer ou à changer)
+function AppEchellesSec() {
+  const { db, act, uid } = useApp(); const lect = useLectureSeule('params'); const A = db.lists.appellations || [];
+  if (!A.length) return null;
+  return (<div className="mt-3 border-t border-line pt-3" data-app-echelles="">
+    <div className="lbl">Hiérarchie de chaque appellation</div>
+    <ul className="space-y-2">{A.map((a) => { const e = appellationEchelle(db, a.id) || {}; const h = e.hierarchie || {};
+      return (<li key={a.id} className="flex flex-wrap items-center gap-2 text-sm" data-app-echelle={a.id}>
+        <b className="min-w-0" translate="no">{a.label}</b>
+        <select className="inp" style={{ width: 'auto' }} value={e.id || ''} disabled={lect} aria-label={`Hiérarchie de ${a.label}`} onChange={(ev) => act((d) => appellationEchelleSet(d, a.id, ev.target.value, uid), 'Hiérarchie enregistrée.')}>{ECHELLE_HIERARCHIES.map((x) => <option key={x.id} value={x.id}>{x.nom}</option>)}</select>
+        {e.confirmee ? <Chip tone="ok">confirmée</Chip> : <><Chip tone="warn">proposée</Chip>{lect ? null : <Btn size="sm" onClick={() => act((d) => appellationEchelleSet(d, a.id, e.id, uid), 'Hiérarchie confirmée.')} data-app-echelle-confirmer={a.id}>✓ Confirmer</Btn>}</>}
+        {h.aVerifier ? <Chip title="Repère réglementaire à vérifier pour votre appellation">à vérifier</Chip> : null}
+        <span className="w-full text-xs text-ink2">{(h.items || []).map((i) => i.label).join(' < ')}</span>
+      </li>); })}</ul>
+  </div>);
+}
+// 0.46.0-alpha.2 : ajout d'une appellation depuis le référentiel (France, UE, Suisse, États-Unis, Australie), la région du profil d'abord
+function AppRefAjout() {
+  const { db, act } = useApp(); const lect = useLectureSeule('params'); const [q, setQ] = useState(''); const region = profilViticole(db).region;
+  const R = useMemo(() => appChercher(q, { region, limite: 25 }), [q, region]);
+  const pris = new Set((db.lists.appellations || []).map((x) => norm(x.label)));
+  if (lect) return null;
+  return (<div className="mt-3 border-t border-line pt-3" data-appref="">
+    <label className="lbl" htmlFor="appref-q">Ajouter depuis le référentiel officiel</label>
+    <input id="appref-q" className="inp" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ex. Chablis, Rioja, Napa…" aria-label="Chercher une appellation" />
+    {q.trim() ? <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto" data-appref-resultats="">{R.length ? R.map((a) => <li key={a.id} className="flex flex-wrap items-center gap-2 text-sm">
+      <span translate="no"><b>{a.nom}</b></span><span className="text-xs text-ink2" translate="no">{[a.signe, a.sousRegion, (PROFIL_REGIONS.find((x) => x.id === a.region) || {}).nom].filter(Boolean).join(' · ')}</span>{a.etat ? <Chip tone="warn">{APP_ETATS[a.etat] || a.etat}</Chip> : null}
+      <span className="ml-auto" />{pris.has(norm(a.nom)) ? <Chip tone="ok">déjà dans la liste</Chip> : <Btn size="sm" onClick={() => act((d) => appellationDepuisRef(d, a.id), 'Appellation ajoutée.')} data-appref-ajouter={a.id}>＋ Ajouter</Btn>}</li>) : <li className="help">Aucune appellation trouvée.</li>}</ul> : <p className="help mt-1">{`${appRef().length} appellations : France (AOP, IGP), Italie, Espagne, Portugal, Allemagne, Autriche, Suisse, États-Unis, Australie — relevé officiel du 27/11/2026.`}</p>}
+  </div>);
+}
 function ListCard({ meta }) {
   const { db, act } = useApp(); const [nv, setNv] = useState(''); const [ed, setEd] = useState(null); const items = db.lists[meta.key] || [];
   const add = () => { const r = act((d) => listAdd(d, meta.key, nv), 'Élément ajouté.'); if (r.ok) setNv(''); };
@@ -50,6 +80,7 @@ function ListCard({ meta }) {
         <li key={it.id} className="flex items-center gap-2">{ed && ed.id === it.id ? <><TI value={ed.label} onChange={(v) => setEd({ ...ed, label: v })} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') ren(); if (e.key === 'Escape') setEd(null); }} /><Btn size="sm" kind="primary" onClick={ren}>OK</Btn><Btn size="sm" onClick={() => setEd(null)}>✕</Btn></>
           : <><span className="min-w-0 flex-1 truncate">{it.label}</span>{n ? <Chip title="Nombre d’utilisations">{n}×</Chip> : null}<Btn size="sm" kind="ghost" onClick={() => setEd({ id: it.id, label: it.label })}>Renommer</Btn><Btn size="sm" kind="ghost" disabled={n > 0} title={n > 0 ? 'Utilisé : renommez plutôt que supprimer' : 'Supprimer'} onClick={() => act((d) => listRemove(d, meta.key, it.id), 'Élément supprimé.')}>Supprimer</Btn></>}</li>); })}</ul>
       <div className="mt-3 flex gap-2"><TI value={nv} onChange={setNv} placeholder="Nouvel élément…" onKeyDown={(e) => { if (e.key === 'Enter') add(); }} aria-label={`Ajouter à ${meta.title}`} /><Btn onClick={add}>Ajouter</Btn></div>
+      {meta.key === 'appellations' ? <><AppEchellesSec /><AppRefAjout /></> : null}
     </div>
   );
 }
@@ -82,13 +113,14 @@ function CalculsView() {
   return (
     <div className="space-y-6" data-params-calculs="">
       <Sec title="Paramètres de calcul" right={moduleActif(db, 'tirage') && moduleAutorise(db, uid, 'tirage') ? <Btn size="sm" kind="ghost" onClick={() => setTab('tirage')}>🍾 Onglet Tirages</Btn> : null}><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
-        <Setting label="Sucre : g/L par point de densité" k="coefSucre" help="Sucre mixtion = (densité mixtion − densité base) × 1000 × ce coefficient (≈ 2,6)." /><Setting label="Volume d’une bouteille (L)" k="volBouteilleL" /></div></div></Sec>
+        <Setting label="Sucre : g/L par point de densité" k="coefSucre" defaut={COEF_SUCRE_DEFAUT} help="Un seul coefficient : sucre de la mixtion = (densité mixtion − densité base) × 1000 × ce coefficient ; la correction du point de tirage en déduit les points de densité par g/L (1 ÷ coefficient). 2,5 par défaut (0,4 point par g/L), à vérifier." /><Setting label="Volume d’une bouteille (L)" k="volBouteilleL" /></div></div></Sec>
       <Sec title="Tirage : levain, liqueur et calculateur"><TirageProfilCard /></Sec>
-      <Sec title="Enrichissement des moûts (chaptalisation)"><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
+      <Sec title="Enrichissement des moûts (saccharose, MCR)"><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
         <Setting label="TAV visé après enrichissement (% vol)" k="chaptalTAV" defaut={10.5} help="Valeur proposée par défaut (10,5) ; modifiable sur chaque fiche de cuve." />
-        <Setting label="Sucre pour 1 % vol (g/L)" k="chaptalCoef" defaut={17} help="Usage courant : 17 g/L pour 1 % vol (vins blancs) ; sert aussi à déduire le TAP des sucres." />
+        <Setting label="Sucre à ajouter pour +1 % vol, enrichissement (g/L)" k="chaptalCoef" defaut={17} help="Rendement pratique d’un enrichissement : environ 17 g/L pour 1 % vol (vins blancs), 18 g/L (vins rouges)." />
+        <Setting label="Conversion sucres → TAP (g/L par % vol)" k="sucresTapCoef" defaut={16.83} help="Titre alcoométrique volumique en puissance déduit des sucres analysés : 16,83 g/L par % vol (convention réglementaire, à vérifier)." />
         <Setting label="Enrichissement maximal (% vol)" k="chaptalMax" defaut={2} zero help="Avertissement au-delà ; 0 = pas de contrôle. À adapter à la réglementation de la campagne." /></div>
-        <p className="help mt-2">Le calcul part de la moyenne pondérée des analyses saisies à l’entrée des moûts (TAP, ou sucres en g/L) : sucre à ajouter = (TAV visé − TAP) × g/L par % vol × volume. <span>Simulateur (sucre ou MCR) : bouton « 🧪 Calculs » des fiches de cuve et de lot.</span></p></div></Sec>
+        <p className="help mt-2">Le calcul part de la moyenne pondérée des analyses saisies à l’entrée des moûts (TAP, ou sucres en g/L) : sucre à ajouter = (TAV visé − TAP) × g/L par % vol × volume ; augmentation de volume du saccharose : valeur physique du profil de tirage ci-dessus (0,6329 L/kg). <span>Simulateur (sucre ou MCR) : bouton « 🧪 Calculs » des fiches de cuve et de lot.</span></p></div></Sec>
       <FermReglagesCard />
     </div>
   );
