@@ -27,7 +27,7 @@ let d1 = await db(); const fG = d1.lists.fractions.find((f) => f.label === 'Vin 
 ok('fraction ajoutée avec son rôle (cuvée)', !!fG && fG.role === 'cuvee');
 await page.locator(`select[aria-label="Rôle de la fraction (Vin de goutte fin)"]`).selectOption('rebeche'); await page.waitForTimeout(500);
 d1 = await db(); ok('rôle modifié dans la liste (rebêche)', d1.lists.fractions.find((f) => f.label === 'Vin de goutte fin').role === 'rebeche');
-ok('fractions par défaut : rôles déduits (Cuvée, 1ère taille, Rebêche, Lies)', (await page.locator('select[aria-label="Rôle de la fraction (Cuvée)"]').inputValue()) === 'cuvee' && (await page.locator('select[aria-label="Rôle de la fraction (1ère taille)"]').inputValue()) === 'taille' && (await page.locator('select[aria-label="Rôle de la fraction (Rebêche)"]').inputValue()) === 'rebeche' && (await page.locator('select[aria-label="Rôle de la fraction (Lies)"]').inputValue()) === 'autre');
+ok('fractions par défaut : rôles déduits (Cuvée, Taille, Rebêche, Lies)', (await page.locator('select[aria-label="Rôle de la fraction (Cuvée)"]').inputValue()) === 'cuvee' && (await page.locator('select[aria-label="Rôle de la fraction (Taille)"]').inputValue()) === 'taille' && (await page.locator('select[aria-label="Rôle de la fraction (Rebêche)"]').inputValue()) === 'rebeche' && (await page.locator('select[aria-label="Rôle de la fraction (Lies)"]').inputValue()) === 'autre');
 await page.waitForTimeout(400);
 await p2.locator('button', { hasText: 'Reprendre la main ici' }).click(); await p2.waitForTimeout(3500);
 ok('« Reprendre la main ici » : le second onglet se recharge et s’ouvre', (await p2.locator('#tab-params').count()) === 1 && (await p2.locator('[data-onglet="bloque"]').count()) === 0);

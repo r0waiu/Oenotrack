@@ -17,7 +17,7 @@ const ouvrirChantier = async (page, onglet) => {
   const ov = () => page.locator('.overlay').last(); const db = () => page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')));
   await ouvrirChantier(page);
   t = await txt(page.locator('[data-cuvees]'));
-  ok('fiche du chantier : 3 cuvées prévues de qualités différentes (blanc de blancs, blanc de noirs, rosé d’assemblage), mentions calculées', /Blanc de blancs fictif/.test(t) && /Grand Cru – Blanc de blancs/.test(t) && /Blanc de noirs – Monocépage Pinot Noir/.test(t) && /Rosé d’assemblage fictif/.test(t) && /Rosé/i.test(t), t.slice(0, 700));
+  ok('fiche du chantier : 3 cuvées prévues de qualités différentes (blanc de blancs, blanc de noirs, rosé d’assemblage), mentions calculées', /Blanc de blancs fictif/.test(t) && /Grand Cru – Blanc de blancs/.test(t) && /Blanc de noirs – Monocépage Pinot noir/.test(t) && /Rosé d’assemblage fictif/.test(t) && /Rosé/i.test(t), t.slice(0, 700));
   ok('… statuts : blanc de blancs tirée (1 330 cols, écart −20), les autres prévues', /tirée/i.test(t) && /1\s?330 cols \(écart [−-]20\)/.test(t) && /prévue/i.test(t), t.slice(0, 700));
   ok('… boutons selon le statut : lot de tirage pour une cuvée par pompe, rien à créer pour une cuvée tirée', (await page.locator('[data-cuvee-tirer="cv2"]').count()) === 1 && (await page.locator('[data-cuvee-tirer="cv1"]').count()) === 0 && (await page.locator('[data-cuvee-mixtion="cv1"]').count()) === 0);
   await page.screenshot({ path: `${SC}/shots/t85-cuvees.png` });

@@ -7,7 +7,8 @@
      sucres et liqueurs, total tiré), VRTP distinct, puis lot par lot dans l'ordre de la saisie : produit, millésimé, cuvée, flacons par
      format, revendications particulières (cru, monocépage, tirage à façon…) ; ventilation par revendication, échelle des crus, couleur */
 
-const DECL_TIRAGE_TYPES = [{ id: 'prealable', label: 'Déclaration préalable de tirage' }, { id: 'finale', label: 'Déclaration de fin de tirage et de revendication' }];
+// 0.47.0-alpha.2 : noms du cahier des charges AOC Champagne (ch. II, I 3° et 4°) ; identifiants inchangés
+const DECL_TIRAGE_TYPES = [{ id: 'prealable', label: 'Déclaration d’intention de tirage (déclaration préalable)' }, { id: 'finale', label: 'Déclaration de revendication (valant déclaration de tirage)' }];
 const DECL_STATUTS_DECLARANT = [{ id: 'recoltant', label: 'Récoltant' }, { id: 'cooperative', label: 'Coopérative' }, { id: 'negociant', label: 'Négociant' }];
 const DECL_FACON = [{ id: '', label: 'Vins appartenant au déclarant' }, { id: 'recoltant', label: 'Tirage à façon : vins d’un récoltant' }, { id: 'negociant', label: 'Tirage à façon : vins d’un négociant' }, { id: 'caf_ind', label: 'CAF individuelle' }, { id: 'caf_coll', label: 'CAF collective' }];
 const DECL_PREALABLE_DELAI_H = 48; // au moins 48 heures avant le tirage (cahier des charges de l'AOC Champagne, obligations déclaratives)
@@ -27,7 +28,7 @@ function declPrealableCalcul(db, c) {
   const vinHL = num(c.vinHL); if (!(vinHL > 0)) return fail('Indiquez le volume prévisionnel de vin de base (hL).');
   if (!hasNum(c.pointGL)) return fail('Indiquez le point de tirage de la cuvée (g/L).');
   const p = { ...tirageProfil(db), pointGL: num(c.pointGL) }; const k = tirageCalcul({ mode: 'vin', vinL: vinHL * 100 }, p); if (!k.ok) return k;
-  const sucreHL = k.sucreKg * num(p.volSucreLkg) / 100; // volume occupé par le sucre (augmentation de volume du saccharose)
+  const sucreHL = k.sucreKg * sucreVolDouane(db) / 100; // volume occupé par le sucre : valeur douanière (0,66 L/kg, déclarations — 0.47.0-alpha.2)
   return okr({ vinHL: (k.vinL + k.vinLevainL) / 100, sucreKg: k.sucreKg, sucreHL, liqueurHL: k.liqueurTotaleL / 100, totalHL: k.mixL / 100, vrtpHL: k.vrtpL / 100, vrtpPct: k.vrtpPct, eqBouteilles: k.utileL / 0.75, alertes: k.alertes || [] });
 }
 const declDelaiHeures = (date, dateTirage) => (isoOK(date) && isoOK(dateTirage) ? (new Date(`${dateTirage}T00:00:00Z`) - new Date(`${date}T00:00:00Z`)) / 36e5 : null);
@@ -65,7 +66,7 @@ function declFinaleCalcul(db, R, d) {
   const L = declFinaleLots(db, R, d); const t = (k) => sum(L, (l) => l.bilan[k]);
   const vinL = t('vinL'); const liqL = t('liqueurL'); const tireL = t('tireL'); const vrtpL = t('vrtpL'); const eauL = t('eauL');
   const vent = (cle, lab) => { const m = {}; L.forEach((l) => { const k = l[cle] || '?'; const x = (m[k] = m[k] || { cle: k, label: lab(k), nbCols: 0, eqBouteilles: 0, tireL: 0 }); x.nbCols += l.nbCols; x.eqBouteilles += l.eqBouteilles; x.tireL += l.bilan.tireL; }); return Object.values(m).sort((a, b) => b.tireL - a.tireL); };
-  const alertes = []; const vrtpPct = vinL > 0 ? vrtpL / vinL * 100 : 0;
+  const alertes = []; const vrtpPct = vinL + liqL > 0 ? vrtpL / (vinL + liqL) * 100 : 0; // % des volumes mis en œuvre (vins et liqueurs)
   if (vrtpPct > TIRAGE_VRTP_MAX_PCT + 1e-9) alertes.push(`VRTP ${fmt(vrtpPct, 2)} % : au-delà de ${TIRAGE_VRTP_MAX_PCT} % des volumes mis en œuvre.`);
   if (L.some((l) => l.bilan.compoIncomplete)) alertes.push('Composition d’un levain non saisie : le VRTP est surestimé.');
   if (!L.length) alertes.push('Aucun lot de tirage dans cette déclaration.');

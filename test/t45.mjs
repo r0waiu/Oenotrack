@@ -26,7 +26,7 @@ await f.locator('[data-brut]').fill('4300'); await f.locator('[data-tare]').fill
 ok('poids net calculé (brut − tare)', (await f.locator('[data-net]').innerText()).replace(/\s/g, '') === '4000kg', await f.locator('[data-net]').innerText());
 await f.locator('.sheet-f .btn-primary', { hasText: 'Peser et valider' }).click(); await page.waitForTimeout(500);
 const tk = (await ov().innerText()).replace(/\s+/g, ' ');
-ok('bon de pesée ouvert : n° 5, apporteur, poids brut / tare / net, signatures', /Bon de pesée n° 5/.test(tk) && /Lefèvre/.test(tk) && /4 300 kg/.test(tk) && /4 000 kg/.test(tk) && /Signature de l’apporteur/.test(tk) && /cahier des charges de l’AOC Champagne/.test(tk), tk.slice(0, 400));
+ok('bon de pesée ouvert : n° 5, apporteur, poids brut / tare / net, signatures', /Ticket de pesée n° 5/.test(tk) && /Lefèvre/.test(tk) && /4 300 kg/.test(tk) && /4 000 kg/.test(tk) && /Signature de l’apporteur/.test(tk) && /cahier des charges de l’AOC Champagne/.test(tk), tk.slice(0, 400));
 await page.screenshot({ path: SC + '/shots/t45-ticket.png' });
 await ov().locator('.sheet-f .btn', { hasText: 'Fermer' }).click(); await page.waitForTimeout(250);
 let d = await db(); const p5 = d.ops.find((o) => o.type === 'apport' && o.pesee && o.pesee.num === 5 && o.date.startsWith('2026'));
@@ -54,7 +54,7 @@ ok('marc n° 6 chargé « en cours » (heure du début, pesée chargée, pas enc
 ok('carnet : marc en cours affiché, bouton « Compléter »', /en cours/.test(await page.locator('main').innerText()) && (await page.locator('main button', { hasText: 'Compléter' }).count()) === 1);
 await page.locator('main button', { hasText: 'Compléter' }).click(); await page.waitForTimeout(400); f = ov();
 await f.locator('input[aria-label="Volume Cuvée"]').fill('21'); await pick(page, f.locator('input[aria-label="Cuve Cuvée"]'), 'Bac D1');
-await f.locator('input[aria-label="Volume 1ère taille"]').fill('5'); await pick(page, f.locator('input[aria-label="Cuve 1ère taille"]'), 'Bac D2');
+await f.locator('input[aria-label="Volume Taille"]').fill('5'); await pick(page, f.locator('input[aria-label="Cuve Taille"]'), 'Bac D2');
 await f.locator('[data-tavp]').fill('10,2'); await f.locator('input[aria-label="Bourbes"]').fill('0,6'); await page.waitForTimeout(300);
 let tf = (await f.innerText()).replace(/\s+/g, ' ');
 ok('contrôle : plafond 102 L / 160 kg dépassé (2 600 L pour 4 000 kg) → bloquant, validation impossible', /au-dessus du plafond de 25,50 hL/.test(tf) && await f.locator('[data-valider-marc]').isDisabled(), tf.slice(-500));
@@ -66,7 +66,7 @@ await f.locator('[data-valider-marc]').click(); await page.waitForTimeout(600);
 ok('marc validé : schéma de vinification proposé aux lots créés (0.31.0-alpha.1), remis à plus tard', (await page.locator('[data-plan-lot]').count()) === 2);
 if (await page.locator('[data-plan-feuille]').count()) { await ov().locator('.sheet-f button', { hasText: 'Plus tard' }).click(); await page.waitForTimeout(300); }
 d = await db(); m6 = d.ops.find((o) => o.id === m6.id);
-ok('marc validé : lots P26-06-C et P26-06-T1 dans les cuves, journal', !!m6.marc.valide && !m6.marc.enCours && m6.marc.tavp === 10.2 && m6.marc.bourbesL === 60 && m6.fractions.map((x) => x.code).join() === 'P26-06-C,P26-06-T1' && d.lots.some((l) => l.code === 'P26-06-C') && d.journalPressoir.some((j) => j.opId === m6.id && j.action === 'validation'));
+ok('marc validé : lots P26-06-C et P26-06-T dans les cuves, journal', !!m6.marc.valide && !m6.marc.enCours && m6.marc.tavp === 10.2 && m6.marc.bourbesL === 60 && m6.fractions.map((x) => x.code).join() === 'P26-06-C,P26-06-T' && d.lots.some((l) => l.code === 'P26-06-C') && d.journalPressoir.some((j) => j.opId === m6.id && j.action === 'validation'));
 ok('carnet : marc conforme et validé', /conforme/.test(await page.locator('main').innerText()) && (await page.locator('[data-num-marc]').allInnerTexts())[0] === '6');
 // 5. pesée validée : correction avec motif, annulation avec motif (journal)
 await sub('Pesées'); await page.locator('main tr', { hasText: 'Lefèvre' }).filter({ hasText: '08:05' }).locator('button', { hasText: 'Modifier' }).click(); await page.waitForTimeout(300); f = ov();

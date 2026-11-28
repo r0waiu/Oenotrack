@@ -245,7 +245,7 @@ function buildSpec0(type, f, db, Rd, old) {
       if (codePris(db, 'assemblage', f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
       const mx = f.mixtion ? { mixtion: true, ...(f.cuveeId ? { cuveeId: f.cuveeId } : {}), ...(f.chantierId ? { chantierId: f.chantierId } : {}), prepUses: cleanPrepUses(f.prepUses), ...(hasNum(f.densBase) ? { densBase: num(f.densBase) } : {}), ...(hasNum(f.densMix) ? { densMix: num(f.densMix) } : {}), ...(hasNum(f.pointGL) ? { pointGL: num(f.pointGL) } : {}) } : {}; // cuve de mixtion (0.42.0-alpha.2)
       if (f.mixtion && !mx.prepUses.length) return err('Cuve de mixtion : indiquez la liqueur et le levain versés.');
-      return { spec: { ...base, sources, destId: f.destId, pertes: cleanPertes(f.pertes), lignes: cleanLignes(f.lignes), ...mx, lotSpec: { code, designation: f.designation.trim() || code, millesime: f.millesime || String(yearOf(f.date)), type: f.ltype } } };
+      return { spec: { ...base, sources, destId: f.destId, pertes: cleanPertes(f.pertes), lignes: cleanLignes(f.lignes), ...mx, lotSpec: { code, designation: f.designation.trim() || code, millesime: millesimeSaisi(f.millesime) || String(yearOf(f.date)), type: f.ltype } } };
     }
     case 'etape': {
       if (!f.lotId) return err('Choisissez le lot.'); const lot = Rd.lots[f.lotId] || {};
@@ -258,7 +258,7 @@ function buildSpec0(type, f, db, Rd, old) {
       if (codePris(db, codifStadePourOp(db, 'reprise', f), f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
       const cepages = {}; Object.keys(f.cepages || {}).forEach((k) => { if (num(f.cepages[k]) > 0) cepages[k] = num(f.cepages[k]); });
       const crus = {}; (f.crus || []).forEach((x) => { if (x.cruId) crus[x.cruId] = (crus[x.cruId] || 0) + (num(x.pct) > 0 ? num(x.pct) : 1); });
-      const lotSpec = { code, designation: f.designation.trim() || code, millesime: f.millesime || 'NV', type: f.kind === 'bouteilles' ? 'cuvee_tirage' : f.ltype, qualifId: f.qualifId, cepages, crus, echelle: Object.keys(crus).length ? '' : (f.echelle || '') };
+      const lotSpec = { code, designation: f.designation.trim() || code, millesime: millesimeSaisi(f.millesime) || 'NV', type: f.kind === 'bouteilles' ? 'cuvee_tirage' : f.ltype, qualifId: f.qualifId, cepages, crus, echelle: Object.keys(crus).length ? '' : (f.echelle || '') };
       const vendeur = f.apporteurId && (db.apporteurs || []).some((a) => a.id === f.apporteurId) ? { apporteurId: f.apporteurId } : {};
       if (f.sousType === 'entree_vin' && !vendeur.apporteurId) return err('Choisissez le partenaire qui vend ou livre le vin.');
       if (f.kind === 'bouteilles') { if (!(num(f.nbBouteilles) > 0)) return err('Indiquez le nombre de bouteilles.'); return { spec: { ...base, nbBouteilles: num(f.nbBouteilles), volL: 0, lotSpec, ...vendeur } }; }
@@ -283,10 +283,10 @@ function buildSpec0(type, f, db, Rd, old) {
       if (f.chantierId && !chantierTirage(db, f.chantierId)) return err('Chantier introuvable.'); if (hasNum(f.casse) && num(f.casse) < 0) return err('Casse invalide.');
       { const ctl = tirageModeControle(db, Rd, { mode: f.mode, sources, prepUses: cleanPrepUses(f.prepUses) }); if (ctl) return err(ctl); }
       if (codePris(db, 'tirage', f.date, code, own)) return err(`Le code de lot « ${code} » existe déjà.`);
-      const sucre = hasNum(f.densBase) && hasNum(f.densMix) ? r2((num(f.densMix) - num(f.densBase)) * 1000 * num(db.settings.coefSucre)) : null;
+      const sucre = hasNum(f.densBase) && hasNum(f.densMix) ? r2((num(f.densMix) - num(f.densBase)) * 1000 * coefSucre(db)) : null;
       const pompe = f.mode === 'pompe' && f.pompe ? tiragePompeSpec(f.pompe) : null;
       const fo = tirageFournituresSpec(db, f.fournitures, { formats, casse: num(f.casse) }); // 0.42.0-alpha.3 : fournitures (trace) et quantités décomptées
-      return { spec: { ...base, sources, prepUses: cleanPrepUses(f.prepUses), lignes: [...cleanLignes(f.lignes), ...fo.lignes], ...(fo.fournitures.length ? { fournitures: fo.fournitures } : {}), nbBouteilles: compat.nbBouteilles, volBouteilleL: compat.volBouteilleL, ...(formats.length ? { formats } : {}), ...(f.mode ? { mode: f.mode } : {}), ...(f.chantierId ? { chantierId: f.chantierId } : {}), ...(f.cuveeId && f.chantierId ? { cuveeId: f.cuveeId } : {}), ...(num(f.casse) > 0 ? { casse: Math.round(num(f.casse)) } : {}), ...(hasNum(f.pointGL) ? { pointGL: num(f.pointGL) } : {}), ...(pompe ? { pompe } : {}), densBase: hasNum(f.densBase) ? num(f.densBase) : null, densMix: hasNum(f.densMix) ? num(f.densMix) : null, sucreGL: sucre, lotSpec: { code, designation: f.designation.trim() || code, millesime: f.millesime || String(yearOf(f.date)) } } };
+      return { spec: { ...base, sources, prepUses: cleanPrepUses(f.prepUses), lignes: [...cleanLignes(f.lignes), ...fo.lignes], ...(fo.fournitures.length ? { fournitures: fo.fournitures } : {}), nbBouteilles: compat.nbBouteilles, volBouteilleL: compat.volBouteilleL, ...(formats.length ? { formats } : {}), ...(f.mode ? { mode: f.mode } : {}), ...(f.chantierId ? { chantierId: f.chantierId } : {}), ...(f.cuveeId && f.chantierId ? { cuveeId: f.cuveeId } : {}), ...(num(f.casse) > 0 ? { casse: Math.round(num(f.casse)) } : {}), ...(hasNum(f.pointGL) ? { pointGL: num(f.pointGL) } : {}), ...(pompe ? { pompe } : {}), densBase: hasNum(f.densBase) ? num(f.densBase) : null, densMix: hasNum(f.densMix) ? num(f.densMix) : null, sucreGL: sucre, lotSpec: { code, designation: f.designation.trim() || code, millesime: millesimeSaisi(f.millesime) || String(yearOf(f.date)) } } };
     }
     case 'degorgement': {
       if (!f.sourceLotId) return err('Choisissez le lot de tirage à dégorger.'); if (!(num(f.nb) > 0)) return err('Indiquez le nombre de bouteilles dégorgées.');

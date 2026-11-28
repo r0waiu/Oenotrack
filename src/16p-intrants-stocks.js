@@ -115,7 +115,7 @@ function detectionPropositions(db, cible, p, V) {
       out.push({ k, lab: `Utilisable en ${qualifAffiche(q)}`, v: V[k], aff: v ? 'Oui' : 'Non', src: 'script', actuel: r ? (r.autorise ? 'Oui' : 'Non') : '', complete: !verifiee });
     });
   }
-  if (cible.type === 'produitMaintenance' && V.contactAlimentaire && p.contactAlimentaire !== V.contactAlimentaire) out.push({ k: 'contactAlimentaire', lab: 'Agréé contact alimentaire', v: V.contactAlimentaire, aff: V.contactAlimentaire === 'oui' ? 'Oui' : 'Non', src: 'script', actuel: p.contactAlimentaire ? (p.contactAlimentaire === 'oui' ? 'Oui' : 'Non') : '', complete: !p.contactAlimentaire });
+  if (cible.type === 'produitMaintenance' && V.contactAlimentaire && p.contactAlimentaire !== V.contactAlimentaire) out.push({ k: 'contactAlimentaire', lab: 'Apte au contact alimentaire', v: V.contactAlimentaire, aff: V.contactAlimentaire === 'oui' ? 'Oui' : 'Non', src: 'script', actuel: p.contactAlimentaire ? (p.contactAlimentaire === 'oui' ? 'Oui' : 'Non') : '', complete: !p.contactAlimentaire });
   return out;
 }
 function detectionAppliquer(db, cible, p, k, v) {
@@ -175,7 +175,7 @@ function intrantMouvements(db, R, o = {}) {
 /* ---------- fiche récapitulative des produits œnologiques (colonnes au choix) ---------- */
 const RECAP_INTRANTS_COLS = [
   ['nom', 'Produit'], ['categorie', 'Catégorie'], ['famille', 'Famille'], ['fournisseur', 'Fournisseur'], ['reference', 'Référence'], ['fabricant', 'Fabricant'], ['unite', 'Unité de stock'],
-  ['stock', 'Stock actuel'], ['lots', 'Lots en stock'], ['dluo', 'Prochaine DLUO'], ['revendications', 'Revendications compatibles'], ['bio', 'Utilisable en bio'], ['allergenes', 'Allergènes'],
+  ['stock', 'Stock actuel'], ['lots', 'Lots en stock'], ['dluo', 'Prochaine DDM'], ['revendications', 'Revendications compatibles'], ['bio', 'Utilisable en bio'], ['allergenes', 'Allergènes'],
   ['composition', 'Composition'], ['dose', 'Dose d’emploi'], ['so2', 'Teneur en SO₂'], ['fds', 'FDS'], ['ft', 'Fiche technique'], ['conservation', 'Conservation'], ['stockage', 'Stockage'], ['notes', 'Notes'],
 ];
 const RECAP_INTRANTS_DEFAUT = ['nom', 'fournisseur', 'stock', 'revendications', 'allergenes', 'fds'];

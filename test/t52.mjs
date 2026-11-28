@@ -40,8 +40,8 @@ const d0 = await db(); const nA0 = (d0.analyses || []).length;
 await page.locator('input[aria-label="Bulletins d’analyses à importer"]').setInputFiles([`${FX}/bulletin-26-0777.pdf`, `${FX}/bulletin-export.csv`]); await revue();
 const rv = await txt(page.locator('[data-bulletin-revue]'));
 ok('vérification : 2 bulletins, 4 échantillons (laboratoire et n° du PDF reconnus)', (await page.locator('[data-bulletin-ech]').count()) === 4 && /LABORATOIRE OENOLOGIQUE DE DEMONSTRATION/i.test(rv) && /n° 26-0777/.test(rv) && /bulletin-export\.csv/.test(rv), rv.slice(0, 900));
-ok('PDF : valeurs reprises et converties (AT tartrique → H₂SO₄, « < 0,10 » gardé), nouveaux paramètres proposés', (await val('Cuve 06', 'pH')) === '3,06' && (await val('Cuve 06', 'AT')) === '4,148' && (await val('Cuve 06', 'Acide malique')) === '0,1' && (await val('Cuve 06', 'SO₂ total')) === '64'
-  && (await val('AS25-02', 'Acidité volatile')) === '0,31' && (await page.locator(`${E('AS25-02')} [data-bulletin-nouveau]`).count()) === 2 && (await val('AS25-02', 'Turbidité')) === '9',
+ok('PDF : valeurs reprises et converties (AT tartrique → H₂SO₄, « < 0,10 » gardé), nouveau paramètre proposé (turbidité ; TAV acquis : paramètre d’origine depuis 0.47.0-alpha.2)', (await val('Cuve 06', 'pH')) === '3,06' && (await val('Cuve 06', 'AT')) === '4,148' && (await val('Cuve 06', 'Acide malique')) === '0,1' && (await val('Cuve 06', 'SO₂ total')) === '64'
+  && (await val('AS25-02', 'Acidité volatile')) === '0,31' && (await page.locator(`${E('AS25-02')} [data-bulletin-nouveau]`).count()) === 1 && (await val('AS25-02', 'Turbidité')) === '9',
   [await val('Cuve 06', 'pH'), await val('Cuve 06', 'AT'), await val('Cuve 06', 'Acide malique'), await val('AS25-02', 'Acidité volatile'), await val('AS25-02', 'Turbidité')]);
 const lotSel = async (ech) => page.locator(`${E(ech)} [aria-label^="Lot de "]`).first().evaluate((x) => x.value || '', null, { timeout: 2000 }).catch(() => '');
 const lots = await Promise.all(['Cuve 06', 'AS25-02', 'Cuve 10', 'P26-04-C'].map(lotSel));

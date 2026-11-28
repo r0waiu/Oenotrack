@@ -34,7 +34,7 @@ function RptLot({ id, S, brk }) {
     <div className={cx('rpt-item', brk && 'pdf-break')}>
       <h2>Lot {l.code} <span className="muted" style={{ fontWeight: 400 }}>— {l.designation}</span></h2>
       {S.ident ? <table><tbody>
-        <tr><th>Nature</th><td>{LOT_TYPES[l.type]}{l.fractionId ? ` · ${fracLabel(db, l.fractionId)}` : ''}</td><th>Millésime</th><td>{l.millesime || '—'}</td></tr>
+        <tr><th>Nature</th><td>{LOT_TYPES[l.type]}{l.fractionId ? ` · ${fracLabel(db, l.fractionId)}` : ''}</td><th>Millésime</th><td>{millesimeAffiche(l.millesime) || '—'}</td></tr>
         <tr><th>Revendication</th><td>{qLabel(l.qualif)}</td><th>{ECH.nom}</th><td>{eLabel(ei.id)}{ei.partiel ? ' (origine partielle)' : ''}</td></tr>
         <tr><th>Stade</th><td>{stadeLabel(db, l.stade)}</td><th>Couleur</th><td>{couleurLabel(db, l.couleur)}</td></tr>
         <tr><th>Volume en cuverie</th><td>{fmtL(R.lotVol[id] || 0)}</td><th>Bouteilles</th><td>{tir ? `${fmt(tir.nb)} sur lattes${tir.deg ? ` · ${fmt(tir.deg)} dégorgées` : ''}` : '—'}</td></tr>

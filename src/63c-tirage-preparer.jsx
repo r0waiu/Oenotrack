@@ -43,7 +43,7 @@ function TirageCalculateur({ onPreparer }) {
         {formats.length > 1 ? <Btn size="sm" kind="ghost" onClick={() => setFormats(formats.filter((y, k) => k !== i))} aria-label="Retirer le format">✕</Btn> : null}</div>))}
         <div><Btn size="sm" onClick={() => setFormats([...formats, { format: 'magnum', nb: '' }])}>＋ Format</Btn></div></div>)}
     <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-      {S('pointGL', 'Point de tirage de la cuvée (g/L)', 'Sucre apporté par la liqueur, choisi pour chaque cuvée (24 g/L ≈ 6 bars).')}{S('levainPct', 'Levain (%)')}{S('titreLiqueurGL', 'Liqueur (g/L)')}{S('remplissagePct', 'Volume en plus (%)', 'Casse, remplissage, fond de cuve.')}
+      {S('pointGL', 'Point de tirage de la cuvée (g/L)', 'Sucre apporté par la liqueur, choisi pour chaque cuvée (24 g/L ≈ 6 bar de pression relative, environ 7 bar de pression absolue, dans la bouteille à 20 °C).')}{S('levainPct', 'Levain (%)')}{S('titreLiqueurGL', 'Liqueur (g/L)')}{S('remplissagePct', 'Volume en plus (%)', 'Casse, remplissage, fond de cuve.')}
     </div>
     {r.ok ? <div className="grid gap-2" data-tirage-resultat="">
       <div className="tblwrap"><table className="tbl"><tbody>
@@ -52,7 +52,7 @@ function TirageCalculateur({ onPreparer }) {
         <tr><td>Liqueur de tirage</td><td className="r"><b className="num" data-calc="liqueur">{litres(r.liqueurL)}</b></td><td className="text-xs text-ink2">{`${fmt(r.sucreKg, 1)} kg de sucre · ${fmt(r.sucreKgHL, 2)} kg/hL`}</td></tr>
         <tr><td>Levain</td><td className="r"><b className="num" data-calc="levain">{litres(r.levainL)}</b></td><td className="text-xs text-ink2">{`dont ${litres(r.levainL * num(p.levainEauPct) / 100)} d’eau, ${litres(r.liqLevainL)} de liqueur`}</td></tr>
         {r.adjuvants.map((a) => <tr key={a.id || a.nom}><td translate="no">{a.nom}</td><td className="r num">{litres(a.L)}</td><td className="text-xs text-ink2">{`${fmt(a.doseLhL, 2)} L/hL`}</td></tr>)}
-        <tr><td>VRTP prévisionnel</td><td className="r"><b className={cx('num', r.vrtpPct > TIRAGE_VRTP_MAX_PCT && 'text-bad')} data-calc="vrtp">{litres(r.vrtpL)}</b></td><td className="text-xs text-ink2">{`${fmt(r.vrtpPct, 2)} % du vin mis en œuvre (${hl2(r.vinMisEnOeuvreL)}) — limite ${TIRAGE_VRTP_MAX_PCT} %`}</td></tr>
+        <tr><td>VRTP prévisionnel</td><td className="r"><b className={cx('num', r.vrtpPct > TIRAGE_VRTP_MAX_PCT && 'text-bad')} data-calc="vrtp">{litres(r.vrtpL)}</b></td><td className="text-xs text-ink2">{`${fmt(r.vrtpPct, 2)} % des volumes mis en œuvre, vins et liqueurs (${hl2(r.volMisEnOeuvreL)}) — limite ${TIRAGE_VRTP_MAX_PCT} %`}</td></tr>
       </tbody></table></div>
       {r.alertes.map((a, i) => <Notice key={i} tone="warn">{a}</Notice>)}
       <div className="flex flex-wrap gap-2"><Btn onClick={() => onPreparer({ type: 'preparation', preset: { ptype: 'liqueur_tirage', volL: String(Math.round(r.liqueurTotaleL * 100) / 100), fonte: { titreGL: num(p.titreLiqueurGL), volSucreLkg: num(p.volSucreLkg) } } })}>⚗ Fondre cette liqueur</Btn>
@@ -220,9 +220,9 @@ function TirageProfilCard() {
   return (<div className="card p-4 grid gap-3" data-tirage-profil="">
     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
 {F('Levain incorporé (%)', p.levainPct, (v) => set('levainPct', v))}
-      {F('Liqueur de tirage (g/L)', p.titreLiqueurGL, (v) => set('titreLiqueurGL', v))}{F('Augmentation de volume du sucre (L/kg)', p.volSucreLkg, (v) => set('volSucreLkg', v), '1 kg de sucre + 1,34 L de vin = 2 L de liqueur à 500 g/L.')}
+      {F('Liqueur de tirage (g/L)', p.titreLiqueurGL, (v) => set('titreLiqueurGL', v))}{F('Augmentation de volume du saccharose — calculs (L/kg)', p.volSucreLkg, (v) => set('volSucreLkg', v), 'Valeur physique, calculs (0,6329) : calculateur de tirage, fonte de liqueur, simulateur d’enrichissement ; 1 kg de sucre + 1,37 L de vin ≈ 2 L de liqueur à 500 g/L.')}{F('Augmentation de volume du saccharose — déclarations (L/kg)', p.volSucreDeclLkg, (v) => set('volSucreDeclLkg', v), 'Valeur douanière, déclarations (0,66) : volume du sucre de la déclaration préalable de tirage.')}
       {F('Part d’eau du levain (%)', p.levainEauPct, (v) => set('levainEauPct', v), 'VRTP prévisionnel.')}{F('Part de liqueur du levain (%)', p.levainLiqueurPct, (v) => set('levainLiqueurPct', v))}
-      {F('Volume préparé en plus (%)', p.remplissagePct, (v) => set('remplissagePct', v))}{F('Points de densité par g/L', p.densPtParGL, (v) => set('densPtParGL', v), 'Correction du point de tirage (0,4).')}
+      {F('Volume préparé en plus (%)', p.remplissagePct, (v) => set('remplissagePct', v))}<Field label="Points de densité par g/L (déduits)" help="Correction du point de tirage : 1 ÷ le coefficient « g/L de sucre par point de densité » (Paramètres de calcul ci-dessus)."><div className="num pt-2" data-dens-pt-gl="">{fmt(densPtParGL(db), 3)}</div></Field>
       {F('Repère sucre (kg/hL)', p.sucreMaxKgHL, (v) => set('sucreMaxKgHL', v), 'Avertissement au-delà.')}
     </div>
     <div className="lbl">Préparation du levain</div>

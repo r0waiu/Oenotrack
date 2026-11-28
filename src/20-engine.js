@@ -104,7 +104,7 @@ function replay(db, upTo, opts) {
       else {
         const rest = a.qty + regulAu(a.id, op.date) - (R.arrUsed[a.id] || 0);
         if (q > rest + 1e-6) warn(op, `${pr.nom} (lot ${a.numLot}) : quantité utilisée supérieure au restant (${fmt(rest, 2)} ${pr.unite}).`);
-        if (a.dluo && op.date > a.dluo) warn(op, `${pr.nom} (lot ${a.numLot}) : DLUO dépassée au ${fmtDate(a.dluo)}.`);
+        if (a.dluo && op.date > a.dluo) warn(op, `${pr.nom} (lot ${a.numLot}) : DDM dépassée au ${fmtDate(a.dluo)}.`);
         if (a.date && op.date < a.date) warn(op, `${pr.nom} (lot ${a.numLot}) : utilisé avant sa réception (${fmtDate(a.date)}).`);
         R.arrUsed[a.id] = (R.arrUsed[a.id] || 0) + q;
       }
@@ -302,14 +302,14 @@ function getR(db, upTo) {
   const k = upTo || '*'; if (!m.has(k)) m.set(k, replay(db, upTo, upTo || !hygEvenementsUtiles(db) ? undefined : { evenements: true })); return m.get(k); // état complet : avec les événements des contenants si les plans d'hygiène sont suivis (0.26.0-alpha.1)
 }
 
-/* ---------- arrivages / DLUO ---------- */
+/* ---------- arrivages / DDM ---------- */
 const arrivalRest = (R, a) => a.qty + ((R.arrRegul || {})[a.id] || 0) - (R.arrUsed[a.id] || 0); // régularisations comprises (0.36.0-alpha.1)
 function dluoState(dluo, ref) {
-  if (!dluo) return { k: 'none', label: 'Sans DLUO', cls: '' };
+  if (!dluo) return { k: 'none', label: 'Sans DDM', cls: '' };
   const d = daysBetween(ref || todayISO(), dluo);
   if (d < 0) return { k: 'expire', label: `Périmé depuis ${-d} j`, cls: 'chip-bad' };
-  if (d <= 30) return { k: 'bientot', label: `DLUO dans ${d} j`, cls: 'chip-warn' };
-  return { k: 'ok', label: `DLUO ${fmtDate(dluo)}`, cls: 'chip-ok' };
+  if (d <= 30) return { k: 'bientot', label: `DDM dans ${d} j`, cls: 'chip-warn' };
+  return { k: 'ok', label: `DDM ${fmtDate(dluo)}`, cls: 'chip-ok' };
 }
 
 /* ---------- généalogie ---------- */

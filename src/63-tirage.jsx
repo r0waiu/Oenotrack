@@ -58,7 +58,7 @@ function PrepsTable({ rows, onEdit, empty }) {
   );
 }
 
-/* ---------- Tirages : préparations qualifiées et mixtions ---------- */
+/* ---------- Tirages : préparations par revendication et mixtions ---------- */
 // 0.42.0-alpha.1 : sous-onglets « Préparer » (calculateur, levains, liqueurs) et « Tirer » (mixtions, lots de tirage)
 function TabTirage() {
   const { db, camp } = useApp(); const [vue, setVue] = useState(() => { try { return window.localStorage.getItem('oenotrack-tirage-vue') || 'preparer'; } catch (e) { return 'preparer'; } });
@@ -83,7 +83,7 @@ function TabTirageTirer() {
       <ChantiersSec onForm={setForm} />
       <Sec title="Saisir" right={camp.figee ? <Chip tone="bad">Campagne figée : saisie impossible</Chip> : null}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
-          <div className="card p-3"><div className="lbl">Préparations qualifiées</div><div className="flex flex-wrap gap-2">{Object.keys(PREP_TYPES).filter((k) => !PREPS_DEGORGEMENT.includes(k)).map((k) => <Btn key={k} disabled={camp.figee} onClick={() => setForm({ type: 'preparation', preset: { ptype: k } })}>+ {PREP_TYPES[k]}</Btn>)}</div></div>
+          <div className="card p-3"><div className="lbl">Préparations par revendication</div><div className="flex flex-wrap gap-2">{Object.keys(PREP_TYPES).filter((k) => !PREPS_DEGORGEMENT.includes(k)).map((k) => <Btn key={k} disabled={camp.figee} onClick={() => setForm({ type: 'preparation', preset: { ptype: k } })}>+ {PREP_TYPES[k]}</Btn>)}</div></div>
           <div className="card p-3"><div className="lbl">Lot de tirage</div><Btn kind="primary" disabled={camp.figee} onClick={() => setForm({ type: 'tirage' })}>Nouveau tirage</Btn><p className="help">Mixtion en cuve, pompe doseuse ou méthode ancestrale (une seule à la fois) → lot de tirage, en bouteilles sur lattes ; à rattacher de préférence à un chantier.</p></div>
           <AutresOpsModule mod="tirage" sauf={['tirage', 'preparation']} onForm={setForm} />
         </div>
@@ -91,7 +91,7 @@ function TabTirageTirer() {
       </Sec>
       <Sec title="Tirages (mixtions)"><Tbl rows={tirOps} empty="Aucun tirage enregistré." cols={[
         { h: 'Date', r: (o) => <span className="num">{fmtDate(o.date)}</span> }, { h: 'Lot', r: (o) => <LotLink id={o.lotId} /> }, { h: 'Bouteilles', cls: 'r', r: (o) => <span className="num">{fmt(o.nbBouteilles)}</span> }, { h: 'Formats, VRTP', r: (o) => <span className="text-xs">{tirageFormatsDe(o).map((x) => `${fmt(x.nb)} × ${((tirageFormat(x.format) || { label: x.format }).label)}`).join(' · ')}<br /><TirageBilanBox db={db} R={R} op={o} /></span> }, { h: 'Mode', r: (o) => (TIRAGE_MODES.find((m) => m.id === o.mode) || { label: '—' }).label },
-        { h: 'Sucre mixtion', cls: 'r', r: (o) => <span className="num">{(() => { const v = o.sucreGL != null ? o.sucreGL : (hasNum(o.densBase) && hasNum(o.densMix) ? (num(o.densMix) - num(o.densBase)) * 1000 * num(db.settings.coefSucre) : null); return v != null ? `${fmt(v, 1)} g/L` : '—'; })()}</span> },
+        { h: 'Sucre mixtion', cls: 'r', r: (o) => <span className="num">{(() => { const v = o.sucreGL != null ? o.sucreGL : (hasNum(o.densBase) && hasNum(o.densMix) ? (num(o.densMix) - num(o.densBase)) * 1000 * coefSucre(db) : null); return v != null ? `${fmt(v, 1)} g/L` : '—'; })()}</span> },
         { h: 'Vin de base', r: (o) => <span className="flex flex-wrap gap-x-2">{(o.sources || []).map((s, i) => <span key={i}><LotLink id={s.lotId} /> <span className="num text-xs">{fmtL(s.volL)}</span></span>)}</span> },
         { h: 'Préparations', r: (o) => (o.prepUses || []).map((u) => `${prepOf(R, u.prepId).code || '?'} ${fmtL(u.volL)}`).join(' · ') || '—' },
         { h: 'Adjuvants & matières sèches', r: (o) => <span className="text-xs">{lignesText(db, o.lignes) || '—'}</span> },
@@ -169,7 +169,7 @@ function TabDegorgement() {
       <Sec title="Saisir" data-vg="degorgement-saisir" right={camp.figee ? <Chip tone="bad">Campagne figée : saisie impossible</Chip> : null}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
           <div className="card p-3"><div className="lbl">Dégorgement</div><Btn kind="primary" disabled={camp.figee || !aDeg.length} onClick={() => degorger(null)}>Nouveau dégorgement</Btn><p className="help">Sort les bouteilles de la cave et crée un lot fini tracé (dosage, liqueur, bouchage).</p></div>
-          <div className="card p-3"><div className="lbl">Liqueur d’expédition</div><Btn disabled={camp.figee} onClick={() => setForm({ type: 'preparation', preset: { ptype: 'liqueur_exp' } })}>+ {PREP_TYPES.liqueur_exp}</Btn><p className="help">MCR, sucre fondu dans du vin, ou eau ; le tout sulfité.</p></div>
+          <div className="card p-3"><div className="lbl">Liqueur d’expédition</div><Btn disabled={camp.figee} onClick={() => setForm({ type: 'preparation', preset: { ptype: 'liqueur_exp' } })}>+ {PREP_TYPES.liqueur_exp}</Btn><p className="help">Saccharose dissous dans du vin, MCR, moût concentré ou vin seul (non dosé) ; distillat de vin éventuel. Jamais d’eau.</p></div>
           <AutresOpsModule mod="degorgement" sauf={['degorgement']} onForm={setForm} />
         </div>
         <p className="help mt-2">Parcours de chaque lot fini : vins de base (Vinification) → tirage → cave → dégorgement ; la fiche du lot fini retrace toutes les étapes.</p>

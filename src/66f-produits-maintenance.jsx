@@ -22,10 +22,10 @@ function MaintProduitForm({ id, onClose }) {
       <G><Field label="Fournisseur"><TI value={f.fournisseur} onChange={(v) => set('fournisseur', v)} aria-label="Fournisseur du produit de maintenance" /></Field><Field label="Fabricant"><TI value={f.fabricant} onChange={(v) => set('fabricant', v)} /></Field></G>
       <Field label="Usage" help="ex. graissage des pompes et du pressoir, joints de portes de cuves, entretien des tireuses…"><TI value={f.usage} onChange={(v) => set('usage', v)} aria-label="Usage" /></Field>
       <div className="flex flex-wrap gap-x-6 gap-y-2">
-        <Group label="Agréé contact alimentaire"><OuiNon value={f.contactAlimentaire} vide onChange={(v) => set('contactAlimentaire', v)} label="Agréé contact alimentaire" /></Group>
+        <Group label="Apte au contact alimentaire"><OuiNon value={f.contactAlimentaire} vide onChange={(v) => set('contactAlimentaire', v)} label="Apte au contact alimentaire" /></Group>
         <Group label="Utilisation en cave de vinification"><OuiNon value={f.caveVinif} vide onChange={(v) => set('caveVinif', v)} label="Utilisation en cave de vinification" /></Group>
       </div>
-      {f.caveVinif === 'oui' && f.contactAlimentaire === 'non' ? <Notice tone="warn">Produit utilisé en cave sans agrément contact alimentaire : à éviter sur les surfaces en contact avec le vin.</Notice> : null}
+      {f.caveVinif === 'oui' && f.contactAlimentaire === 'non' ? <Notice tone="warn">Produit utilisé en cave non apte au contact alimentaire : à éviter sur les surfaces en contact avec le vin.</Notice> : null}
       <Field label="Composition"><TA value={f.composition} onChange={(v) => set('composition', v)} rows={2} aria-label="Composition" /></Field>
       <Field label="Stockage"><TI value={f.stockage} onChange={(v) => set('stockage', v)} /></Field>
       <div className="rounded-md border border-line px-3 py-2" data-suivi-stock="">
@@ -81,7 +81,7 @@ function MaintProduitsView() {
   const on = (v) => (v ? <Chip tone={v === 'oui' ? 'ok' : 'bad'}>{onLib(v)}</Chip> : <span className="text-ink2">—</span>);
   return (
     <div data-produits-maintenance="">
-      <Notice tone="info" title="Produits de maintenance">Graisses et huiles, lubrifiants, joints, produits d’entretien du matériel : fournisseur, usage, agrément contact alimentaire, utilisation en cave de vinification, FT et FDS. Le suivi du stock s’active produit par produit.</Notice>
+      <Notice tone="info" title="Produits de maintenance">Graisses et huiles, lubrifiants, joints, produits d’entretien du matériel : fournisseur, usage, aptitude au contact alimentaire, utilisation en cave de vinification, FT et FDS. Le suivi du stock s’active produit par produit.</Notice>
       <div className="my-3 flex flex-wrap items-center gap-2"><TI value={q} onChange={setQ} placeholder="Rechercher un produit, un usage…" style={{ width: 240 }} aria-label="Rechercher un produit de maintenance" /><Check checked={inactifs} onChange={setInactifs} label="Inclure les inactifs" />
         {nBas ? <Chip tone="warn">{nBas > 1 ? `${nBas} stocks bas` : '1 stock bas'}</Chip> : null}{nFds ? <Chip tone="bad">{nFds > 1 ? `${nFds} FDS à revoir` : '1 FDS à revoir'}</Chip> : null}
         <span className="ml-auto flex flex-wrap gap-2"><Btn onClick={() => setRecap(true)} data-recap-maint="">🖨 Fiche récapitulative</Btn><Btn kind="primary" onClick={() => setEd({})} data-maint-produit-nouveau="">+ Nouveau produit</Btn></span></div>

@@ -11,7 +11,7 @@ const MODULE_DEFS = {
   cave: { label: 'Cave', icone: '🕯', desc: 'Bouteilles sur lattes : stock par lot, âge, remuage et mise sur pointes (saisis ici).' },
   degorgement: { label: 'Dégorgement', icone: '🥂', desc: 'Liqueurs d’expédition, dégorgements (saisis ici) et lots finis.' },
   analyses: { label: 'Analyses', icone: '🔬', desc: 'Analyses et paramètres personnalisables.' },
-  intrants: { label: 'Intrants & Stocks', icone: '📦', desc: 'Produits œnologiques, arrivages, lots fournisseurs, DLUO et stocks.' },
+  intrants: { label: 'Intrants & Stocks', icone: '📦', desc: 'Produits œnologiques, arrivages, lots fournisseurs, DDM et stocks.' },
   hygiene: { label: 'Hygiène', icone: '🧽', desc: 'Journal des nettoyages, rinçages et désinfections.' },
   equipements: { label: 'Équipements', icone: '🛠', desc: 'Parc de matériel (fiches, documents), maintenance préventive et réglementaire, pannes, vérifications périodiques des balances et instruments.' },
   trace: { label: 'Traçabilité', icone: '🔎', desc: 'Recherches ascendante et descendante, par intrant, par parcelle.' },

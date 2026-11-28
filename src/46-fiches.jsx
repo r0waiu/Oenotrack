@@ -57,7 +57,7 @@ const FICHE_DEFAULTS = () => ([
     champs: ['Date {date}', 'Opérateur(s) {operateurs}', 'Méthode {methode}', 'Filtre ou prestataire {equipement}'],
     tableaux: [
       { titre: 'Vin filtré', fill: 'filtration', lignes: 4, zebre: false, fixes: '', cols: ['Cuve de départ {dep}', 'Lot {depCode}', pr2('Volume avant (hL)', 'depAvT'), 'Cuve d’arrivée {arr}', 'Volume filtré (hL)', 'Turbidité (NTU)\n  avant\n  après', 'Début (heure)', 'Fin (heure)'].join('\n') },
-      { titre: 'Auxiliaires de filtration (terre, plaques, cartouches…)', fill: 'produits', lignes: 4, zebre: false, fixes: '', cols: ['Produit {produit}', pr2('Quantité', 'qte', 'utilisée'), pr2('N° de lot', 'numLot', 'utilisé')].join('\n') }], notes: '' },
+      { titre: 'Adjuvants et médias de filtration (terre, perlite, plaques, cartouches…)', fill: 'produits', lignes: 4, zebre: false, fixes: '', cols: ['Produit {produit}', pr2('Quantité', 'qte', 'utilisée'), pr2('N° de lot', 'numLot', 'utilisé')].join('\n') }], notes: '' },
   { id: 'suivi', titre: 'Suivi des fermentations', sous: 'Relevés de densité et de température', prefixe: 'SFE', orientation: 'paysage', types: ['suivi'],
     champs: ['Date {date}', 'Heure du relevé', 'Opérateur(s) {operateurs}'],
     tableaux: [{ titre: '', fill: 'suivi', lignes: 14, zebre: true, fixes: '', cols: ['Cuve {cuve}', 'Lot {code}', 'Volume (hL) {volHL}', 'Stade {stade}', 'Dernier relevé {dernier}', 'Densité {densite}', 'Température (°C) {temp}', 'Action (remontage, chauffage…) {action}', 'Ajout (produit, quantité, n° de lot) {x_produit_qte_numLot}', 'Visa'].join('\n') }],
@@ -163,7 +163,7 @@ function lotAtomes(db, Rd, lotId, pre) {
   let c = null; try { c = composition(db, Rd, lotId); } catch (e) { c = null; }
   const part = (o, lab) => Object.keys(o || {}).filter((k) => k !== '?' && k !== 'inconnu' && o[k] >= 0.01).sort((a, b) => o[b] - o[a]).map((k) => `${lab(k)}${o[k] < 0.995 ? ` ${Math.round(o[k] * 100)} %` : ''}`).join(' · ');
   return { [`${pre}Designation`]: l.designation || '', [`${pre}Revendication`]: l.qualif ? qLabel(l.qualif) : '', [`${pre}Stade`]: l.stade ? stadeLabel(db, l.stade) : '',
-    [`${pre}Cepages`]: c ? part(c.cepages, (k) => lbl(db, 'cepages', k)) : '', [`${pre}Crus`]: c ? part(c.crus, (k) => cruName(db, k)) : '', [`${pre}Millesimes`]: c ? part(c.millesimes, (k) => k) : String(l.millesime || ''),
+    [`${pre}Cepages`]: c ? part(c.cepages, (k) => lbl(db, 'cepages', k)) : '', [`${pre}Crus`]: c ? part(c.crus, (k) => cruName(db, k)) : '', [`${pre}Millesimes`]: c ? part(c.millesimes, (k) => millesimeAffiche(k)) : millesimeAffiche(l.millesime),
     [`${pre}Fractions`]: c ? part(c.fractions, (k) => fracLabel(db, k)) : '', [`${pre}Partenaires`]: c ? part(c.apporteurs, (k) => apporteurName(db, k)) : '' };
 }
 // cellule d'une fiche : donnée simple {cle} ou pré-rempli personnalisé {x_cle1_cle2…} (valeurs jointes par « · »)

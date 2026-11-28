@@ -130,7 +130,7 @@ function CalculsSheet({ contId, lotId, onglet, onClose }) {
   const portion = parts[0] ? parts[0].portionId : '';
   const [tab, setTab] = useState(onglet || 'so2');
   const val = (pid) => { const x = derniereValeur(db, lots, pid); return x ? String(x.v).replace('.', ',') : ''; };
-  const [s, setS] = useState(() => { let cible = '0,6'; try { cible = window.localStorage.getItem(SO2_CIBLE_KEY) || cible; } catch (e) { /* ignoré */ } return { libre: val('so2l'), ph: val('ph'), temp: val('temp') || '20', tav: val('tap') || '11', cible }; });
+  const [s, setS] = useState(() => { let cible = '0,6'; try { cible = window.localStorage.getItem(SO2_CIBLE_KEY) || cible; } catch (e) { /* ignoré */ } return { libre: val('so2l'), ph: val('ph'), temp: val('temp') || '20', tav: (() => { const v = so2TavDe(db, lots); return v != null ? String(v).replace('.', ',') : '11'; })(), cible }; });
   const so2 = so2Moleculaire({ libre: s.libre, ph: s.ph, tav: s.tav, temp: s.temp }); const besoin = so2LibrePour({ cible: s.cible, ph: s.ph, tav: s.tav, temp: s.temp });
   useEffect(() => { try { window.localStorage.setItem(SO2_CIBLE_KEY, s.cible); } catch (e) { /* ignoré */ } }, [s.cible]);
   const g = chaptalReglages(db);
@@ -156,7 +156,7 @@ function CalculsSheet({ contId, lotId, onglet, onClose }) {
           <Field label="SO₂ libre (mg/L)"><NI value={s.libre} onChange={(v) => setS({ ...s, libre: v })} placeholder="ex. 25" /></Field>
           <Field label="pH"><NI value={s.ph} onChange={(v) => setS({ ...s, ph: v })} placeholder="ex. 3,15" /></Field>
           <Field label="Température (°C)"><NI value={s.temp} onChange={(v) => setS({ ...s, temp: v })} /></Field>
-          <Field label="Alcool (% vol)"><NI value={s.tav} onChange={(v) => setS({ ...s, tav: v })} /></Field>
+          <Field label="TAV acquis (% vol)"><NI value={s.tav} onChange={(v) => setS({ ...s, tav: v })} /></Field>
         </div>
         {so2 ? <div className="card p-3" data-so2-resultat=""><div className="lbl mb-0">SO₂ moléculaire (actif)</div><div className="disp text-2xl"><span className="num">{fmt(so2.moleculaire, 2)}</span> <span>mg/L</span></div><div className="text-sm text-ink2"><span>soit </span><span className="num">{fmt(so2.part * 100, 1)} %</span><span> du SO₂ libre · pKa estimé </span><span className="num">{fmt(so2.pka, 2)}</span></div></div> : <Empty>Indiquez le SO₂ libre et le pH.</Empty>}
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
@@ -200,7 +200,7 @@ function FermReglagesCard() {
     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
       {champ('lente', 'Fermentation lente sous (points de densité / jour)', 'Baisse quotidienne en millièmes : 2 = la densité perd moins de 0,002 par jour.', 1000)}
       {champ('arret', 'Fermentation arrêtée sous (points / jour)', '0,5 = moins de 0,0005 par jour.', 1000)}
-      {champ('fin', 'Densité de fin de FA', 'En dessous, la fermentation est considérée comme finie (pas d’alerte).')}
+      {champ('fin', 'Densité de fin de FA', 'En dessous, la fermentation est considérée comme finie : pas d’alerte, et « Fin de FA » proposée après une analyse (0,994 par défaut, à vérifier).')}
       {champ('recent', 'Relevé ancien après (jours)', 'Signale un dernier relevé trop ancien pour un lot en FA.')}
     </div></div></Sec>);
 }

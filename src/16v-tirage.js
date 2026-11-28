@@ -1,10 +1,13 @@
 /* ============ TIRAGE (0.42.0-alpha.1) : profil, calculateur, fonte de liqueur, levain (étapes, propagation, recalibrage), VRTP ============
    Valeurs par défaut tirées des méthodes de cave courantes (plan de levain en 4 étapes, propagation à 15 % d'alimentation, liqueur à
    500 g/L) : toutes « à vérifier » et modifiables (Paramètres › Calculs œnologiques › Tirage, et sur chaque levain).
-   Texte vérifié : cahier des charges AOC Champagne (arrêté du 31/07/2025), ch. I, VIII 2° d) — volumes résultant d'exigences
+   Texte vérifié : cahier des charges AOC Champagne (arrêté du 31/07/2025), ch. I, IX 2° d) — volumes résultant d'exigences
    techniques particulières (VRTP) au stade du tirage ≤ 1 % des volumes mis en œuvre ; augmentation de volume par la liqueur de tirage
    ≤ 1,12 % pour 1 % vol d'augmentation du TAV.
-   VRTP d'un tirage = volume tiré (cols × contenance ; 0,0075 hL par bouteille de 75 cL) − liqueur utilisée − vin (levain + mixtion). */
+   VRTP d'un tirage = volume tiré (cols × contenance ; 0,0075 hL par bouteille de 75 cL) − liqueur utilisée − vin (levain + mixtion) ;
+   0.47.0-alpha.2 : pourcentage rapporté aux volumes mis en œuvre (vins et liqueurs, levains compris), augmentation de volume du saccharose
+   0,6329 L/kg (valeur physique) pour les calculs et 0,66 L/kg (valeur douanière) pour les déclarations, points de densité par g/L déduits
+   du coefficient unique « g/L de sucre par point de densité » (settings.coefSucre, 2,5). */
 
 const TIRAGE_FORMATS = [
   { id: 'quart', label: 'Quart (20 cL)', L: 0.2 }, { id: 'demie', label: 'Demie (37,5 cL)', L: 0.375 }, { id: 'bouteille', label: 'Bouteille (75 cL)', L: 0.75 },
@@ -13,19 +16,20 @@ const TIRAGE_FORMATS = [
   { id: 'nabuchodonosor', label: 'Nabuchodonosor (15 L)', L: 15 },
 ];
 const tirageFormat = (id) => TIRAGE_FORMATS.find((f) => f.id === id) || null;
-const TIRAGE_VRTP_MAX_PCT = 1; // cahier des charges AOC Champagne, ch. I, VIII 2° d) (vérifié, arrêté du 31/07/2025)
-const TIRAGE_SOURCE_VRTP = 'Cahier des charges de l’AOC Champagne (arrêté du 31/07/2025), ch. I, VIII 2° d)';
+const TIRAGE_VRTP_MAX_PCT = 1; // cahier des charges AOC Champagne, ch. I, IX 2° d) (vérifié, arrêté du 31/07/2025)
+const TIRAGE_SOURCE_VRTP = 'Cahier des charges de l’AOC Champagne (arrêté du 31/07/2025), ch. I, IX 2° d)';
 
 // profil de tirage : réglage commun (settings.tirageProfil), chaque levain ou calcul peut le surcharger
 const TIRAGE_PROFIL_DEFAUT = () => ({
   levainPct: 5, // levain incorporé (% du volume de mixtion)
   titreLiqueurGL: 500, // liqueur de tirage (g de sucre par L)
-  volSucreLkg: 0.66, // augmentation de volume du saccharose (L par kg) : 1 kg + 1,34 L de vin = 2 L de liqueur à 500 g/L
+  volSucreLkg: SUCRE_VOL_PHYSIQUE_LKG, // augmentation de volume du saccharose (L par kg, valeur physique, calculs) : 1 kg + 1,37 L de vin ≈ 2 L de liqueur à 500 g/L
+  volSucreDeclLkg: SUCRE_VOL_DOUANE_LKG, // valeur douanière (L par kg), déclarations : volume du sucre de la déclaration préalable
   sucreLevainGL: 0, // sucre encore présent dans le levain incorporé (g/L), retranché de la liqueur à ajouter
   levainEauPct: 18, // part d'eau du levain (réhydratation, multiplications, alimentations), pour le VRTP prévisionnel
   levainLiqueurPct: 7, // part de liqueur du levain (comptée avec la liqueur utilisée)
   remplissagePct: 0, // volume préparé en plus (casse, remplissage, fond de cuve)
-  densPtParGL: 0.4, // points de densité par g/L de sucre (24 g/L ≈ +9,6)
+  densPtParGL: 1 / COEF_SUCRE_DEFAUT, // points de densité par g/L de sucre (24 g/L ≈ +9,6) : déduits de settings.coefSucre (tirageProfil)
   sucreMaxKgHL: 2.7, // repère déclaratif (kg de sucre par hL, tirage + levain) : avertissement au-delà
   adjuvants: [], // [{ id, nom, produitId, doseLhL }] adjuvants de remuage, en L (ou kg) par hL de mixtion
   etapes: {
@@ -41,11 +45,12 @@ const tirageFusion = (a, b) => { const o = { ...a }; Object.keys(b || {}).forEac
 function tirageProfil(db, sur) {
   const s = (db && db.settings) || {}; const base = tirageFusion(TIRAGE_PROFIL_DEFAUT(), s.tirageProfil || {});
   delete base.pointGL; // 0.42.0-alpha.1 : le point de tirage se choisit pour chaque cuvée (calcul, levain, tirage), jamais dans les réglages communs
+  base.densPtParGL = densPtParGL(db); // 0.47.0-alpha.2 : un seul coefficient (g/L de sucre par point de densité), les points par g/L s'en déduisent
   return sur ? tirageFusion(base, sur) : base;
 }
 function tirageProfilSet(db, p, par) {
   const x = p || {}; const n = (k, min, max) => (x[k] === undefined || x[k] === '' ? undefined : num(x[k]));
-  for (const [k, a, b] of [['levainPct', 0, 20], ['titreLiqueurGL', 100, 800], ['volSucreLkg', 0.5, 0.8], ['remplissagePct', 0, 10], ['levainEauPct', 0, 100], ['levainLiqueurPct', 0, 50], ['sucreLevainGL', 0, 200]]) {
+  for (const [k, a, b] of [['levainPct', 0, 20], ['titreLiqueurGL', 100, 800], ['volSucreLkg', 0.5, 0.8], ['volSucreDeclLkg', 0.5, 0.8], ['remplissagePct', 0, 10], ['levainEauPct', 0, 100], ['levainLiqueurPct', 0, 50], ['sucreLevainGL', 0, 200]]) {
     const v = n(k); if (v !== undefined && (!(v >= a) || v > b)) return fail(`Valeur hors limites : ${k} (${a} à ${b}).`);
   }
   const nombres = (o) => (Array.isArray(o) ? o.map(nombres) : o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, ['id', 'nom', 'produitId', 'par', 'le'].includes(k) ? v : nombres(v)])) : typeof o === 'string' && o.trim() !== '' && hasNum(o) ? num(o) : o);
@@ -83,17 +88,17 @@ function tirageCalcul(entree, p) {
   const adjuvants = (p.adjuvants || []).filter((a) => num(a.doseLhL) > 0).map((a) => ({ id: a.id, nom: a.nom, produitId: a.produitId || '', doseLhL: num(a.doseLhL), L: mixL * num(a.doseLhL) / 100 }));
   const liqLevainL = levainL * num(p.levainLiqueurPct) / 100; const vinLevainL = levainL * Math.max(0, 1 - num(p.levainEauPct) / 100 - num(p.levainLiqueurPct) / 100); // levain : eau, liqueur, vin (prévision)
   const vrtpL = Math.max(0, mixL - liqueurL - liqLevainL - vinL - vinLevainL); const vinMisEnOeuvreL = vinL + vinLevainL; // VRTP = volume − liqueur utilisée − vin (levain + mixtion)
-  const vrtpPct = vinMisEnOeuvreL > 0 ? vrtpL / vinMisEnOeuvreL * 100 : 0;
+  const volMisEnOeuvreL = vinMisEnOeuvreL + liqueurL + liqLevainL; const vrtpPct = volMisEnOeuvreL > 0 ? vrtpL / volMisEnOeuvreL * 100 : 0; // 0.47.0-alpha.2 : % des volumes mis en œuvre (vins et liqueurs)
   if (vrtpPct > TIRAGE_VRTP_MAX_PCT + 1e-9) alertes.push(`VRTP prévisionnel ${fmt(vrtpPct, 2)} % : au-delà de ${TIRAGE_VRTP_MAX_PCT} % des volumes mis en œuvre.`);
   const sucreKgHL = vinMisEnOeuvreL > 0 ? sucreKg / (vinMisEnOeuvreL / 100) : 0;
   if (num(p.sucreMaxKgHL) > 0 && sucreKgHL > num(p.sucreMaxKgHL) + 1e-9) alertes.push(`Sucre ${fmt(sucreKgHL, 2)} kg/hL : au-delà du repère de ${fmt(num(p.sucreMaxKgHL), 2)} kg/hL.`);
-  return okr({ mixL, utileL, vinL, liqueurL, levainL, adjuvants, sucreKg, sucreKgHL, vinFonteL, formats, eqBouteilles: utileL / 0.75, nbCols: tirageNbFormats(formats), vinMisEnOeuvreL, vinLevainL, liqLevainL, liqueurTotaleL: liqueurL + liqLevainL, vrtpL, vrtpPct, alertes, fractions: F });
+  return okr({ mixL, utileL, vinL, liqueurL, levainL, adjuvants, sucreKg, sucreKgHL, vinFonteL, formats, eqBouteilles: utileL / 0.75, nbCols: tirageNbFormats(formats), vinMisEnOeuvreL, volMisEnOeuvreL, vinLevainL, liqLevainL, liqueurTotaleL: liqueurL + liqLevainL, vrtpL, vrtpPct, alertes, fractions: F });
 }
 
 /* ---------- liqueur de tirage : fonte et correction du point de tirage ---------- */
 // { volL } ou { sucreKg } → sucre, vin de fonte et volume de liqueur (augmentation de volume du saccharose comprise)
 function liqueurFonte(e, titreGL, volSucreLkg) {
-  const t = num(titreGL) || 500; const k = hasNum(volSucreLkg) ? num(volSucreLkg) : 0.66;
+  const t = num(titreGL) || 500; const k = hasNum(volSucreLkg) ? num(volSucreLkg) : SUCRE_VOL_PHYSIQUE_LKG;
   if (t * k / 1000 >= 1) return fail('Titre de liqueur impossible avec cette augmentation de volume du sucre.');
   let volL; let sucreKg;
   if (e && num(e.sucreKg) > 0) { sucreKg = num(e.sucreKg); volL = sucreKg * 1000 / t; } else if (e && num(e.volL) > 0) { volL = num(e.volL); sucreKg = volL * t / 1000; } else if (e && num(e.vinL) > 0) { volL = num(e.vinL) / (1 - t * k / 1000); sucreKg = volL * t / 1000; } else return fail('Indiquez le volume de liqueur, la masse de sucre ou le volume de vin.');
@@ -106,7 +111,7 @@ function liqueurFonteSpec(x) {
 }
 // point de tirage : densité théorique = densité du vin + points par g/L × g/L visés ; liqueur à ajouter si la densité lue est trop basse
 function tirageCorrection(e, p) {
-  const k = num((p || {}).densPtParGL) || 0.4; const dth = num(e.densInit) + k * num(e.pointGL);
+  const k = num((p || {}).densPtParGL) || 1 / COEF_SUCRE_DEFAUT; const dth = num(e.densInit) + k * num(e.pointGL);
   const manqueGL = (dth - num(e.densLue)) / k; const liqueurL = manqueGL * num(e.volL) / (num((p || {}).titreLiqueurGL) || 500);
   return { densTheo: dth, manqueGL, liqueurL: Math.max(0, liqueurL), excesGL: manqueGL < 0 ? -manqueGL : 0 };
 }
@@ -174,7 +179,7 @@ function tirageBilan(db, R, op) {
   const formats = Array.isArray(op.formats) && op.formats.length ? op.formats : [{ format: 'bouteille', nb: num(op.nbBouteilles), L: num(op.volBouteilleL) || 0.75 }];
   const tireL = tirageVolFormats(formats); const vin = vinMix + vinLev; const vrtpL = tireL - liq - vin;
   const levL = sum(op.prepUses || [], (u) => (((R.preps || {})[u.prepId] || {}).ptype === 'levain' ? num(u.volL) : 0)); // levain sans composition saisie : son volume inconnu compte dans le VRTP
-  return { tireL, vinMixL: vinMix, vinLevainL: vinLev, vinL: vin, liqueurL: liq, eauL: eau, autreL: autre, vrtpL, vrtpPct: vin > 0 ? vrtpL / vin * 100 : 0, depasse: vin > 0 && vrtpL / vin * 100 > TIRAGE_VRTP_MAX_PCT + 1e-9, formats, compoIncomplete: levL > 0 && autre > 0.5 * levL };
+  return { tireL, vinMixL: vinMix, vinLevainL: vinLev, vinL: vin, liqueurL: liq, eauL: eau, autreL: autre, vrtpL, volMisEnOeuvreL: vin + liq, vrtpPct: vin + liq > 0 ? vrtpL / (vin + liq) * 100 : 0, depasse: vin + liq > 0 && vrtpL / (vin + liq) * 100 > TIRAGE_VRTP_MAX_PCT + 1e-9, formats, compoIncomplete: levL > 0 && autre > 0.5 * levL };
 }
 const tirageVrtp = (cols75, liqueurL, vinL) => num(cols75) * 0.75 - num(liqueurL) - num(vinL); // formule de l'exploitation (L) : bouteilles × 0,0075 hL − liqueur − vin
 

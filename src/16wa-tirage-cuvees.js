@@ -82,8 +82,8 @@ function declPrealableCuvees(db, R, chantierId) {
   const ch = chantierTirage(db, chantierId); const C = chantierCuvees(ch); if (!C.length) return null;
   const lignes = C.map((c) => { const ce = cuveeEffective(db, R, c); const k = hasNum(ce.pointGL) && ce.vinHL > 0 ? declPrealableCalcul(db, { vinHL: ce.vinHL, pointGL: ce.pointGL }) : fail('');
     const rose = ce.couleur === 'rose' || (couleurDef(db, ce.couleur) || {}).melange;
-    return { id: c.id, nom: c.nom, couleur: ce.couleur, qualif: ce.qualif, echelle: ce.echelle, millesime: ce.millesime, mentions: ce.mentions, mode: c.mode, ok: k.ok, vinHL: k.ok ? k.vinHL : ce.vinHL, sucreHL: k.ok ? k.sucreHL : null, sucreKg: k.ok ? k.sucreKg : null, totalHL: k.ok ? k.totalHL : null, vrtpHL: k.ok ? k.vrtpHL : null,
+    return { id: c.id, nom: c.nom, couleur: ce.couleur, qualif: ce.qualif, echelle: ce.echelle, millesime: ce.millesime, mentions: ce.mentions, mode: c.mode, ok: k.ok, vinHL: k.ok ? k.vinHL : ce.vinHL, sucreHL: k.ok ? k.sucreHL : null, liqueurHL: k.ok ? k.liqueurHL : null, sucreKg: k.ok ? k.sucreKg : null, totalHL: k.ok ? k.totalHL : null, vrtpHL: k.ok ? k.vrtpHL : null,
       rougeHL: rose && ce.caracteres.volL > 0 ? ce.vinHL * ce.caracteres.rougeL / ce.caracteres.volL : 0, blancHL: rose && ce.caracteres.volL > 0 ? ce.vinHL * ce.caracteres.blancL / ce.caracteres.volL : 0, manque: !hasNum(ce.pointGL) ? 'point de tirage' : !(ce.vinHL > 0) ? 'volume de vin' : '' }; });
   const t = (k) => sum(lignes.filter((l) => l.ok), (l) => l[k] || 0);
-  return { lignes, vinHL: t('vinHL'), sucreHL: t('sucreHL'), sucreKg: t('sucreKg'), totalHL: t('totalHL'), vrtpHL: t('vrtpHL'), rougeHL: sum(lignes, (l) => l.rougeHL), blancHL: sum(lignes, (l) => l.blancHL), incompletes: lignes.filter((l) => !l.ok).map((l) => l.nom) };
+  return { lignes, vinHL: t('vinHL'), sucreHL: t('sucreHL'), liqueurHL: t('liqueurHL'), sucreKg: t('sucreKg'), totalHL: t('totalHL'), vrtpHL: t('vrtpHL'), rougeHL: sum(lignes, (l) => l.rougeHL), blancHL: sum(lignes, (l) => l.blancHL), incompletes: lignes.filter((l) => !l.ok).map((l) => l.nom) };
 }

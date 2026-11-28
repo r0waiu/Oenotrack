@@ -1,5 +1,5 @@
 /* ============ ONGLET 4 : ANALYSES (paramètres et modèles personnalisables) ============ */
-const sugarOf = (db, v) => (v && v.dbase != null && v.dmix != null ? r2((v.dmix - v.dbase) * 1000 * num(db.settings.coefSucre)) : null);
+const sugarOf = (db, v) => (v && v.dbase != null && v.dmix != null ? r2((v.dmix - v.dbase) * 1000 * coefSucre(db)) : null);
 const valText = (db, pid, v) => { const p = db.analysesParams.find((x) => x.id === pid); return p ? `${p.nom} ${fmt(v, p.dec)}${p.unite ? ' ' + p.unite : ''}` : `${pid} ${v}`; };
 
 function AnalyseForm({ id, preset, onClose }) {
@@ -22,7 +22,7 @@ function AnalyseForm({ id, preset, onClose }) {
       <G><Field label="Lot analysé"><SI value={f.lotId} onChange={pickLot} placeholder="Lot…" options={lots.map((l) => ({ value: l.id, label: `${l.code} · ${l.designation || LOT_TYPES[l.type]}${(Rd.lotVol[l.id] || 0) > 0 ? ' · ' + fmtL(Rd.lotVol[l.id]) : ''}` }))} /></Field>
         <Field label="Contenant prélevé" help="Une analyse est liée à la cuve précise d’où vient l’échantillon."><SI value={f.contenantId} onChange={(v) => set('contenantId', v)} placeholder="Contenant (facultatif)" options={contOpts} /></Field></G>
       <Group label="Résultats"><div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))' }}>{shown.map((p) => <Field key={p.id} label={`${p.nom}${p.unite ? ' (' + p.unite + ')' : ''}`}><NI value={f.valeurs[p.id] ?? ''} onChange={(v) => setF((x) => ({ ...x, valeurs: { ...x.valeurs, [p.id]: v } }))} placeholder={p.dec ? '0,' + '0'.repeat(p.dec) : '0'} /></Field>)}</div></Group>
-      {sucre != null ? <Notice tone="info" title={`Sucre de la mixtion ≈ ${fmt(sucre, 1)} g/L`}>(densité mixtion − densité vin de base) × 1000 × {fmt(db.settings.coefSucre, 2)} g/L par point de densité (objectif {fmt(db.settings.objectifTirageGL)} g/L).</Notice> : null}
+      {sucre != null ? <Notice tone="info" title={`Sucre de la mixtion ≈ ${fmt(sucre, 1)} g/L`}>(densité mixtion − densité vin de base) × 1000 × {fmt(coefSucre(db), 2)} g/L par point de densité (objectif {fmt(db.settings.objectifTirageGL)} g/L).</Notice> : null}
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
     </FormSheet>
   );
@@ -34,7 +34,7 @@ function ParamForm({ id, onClose }) {
   const save = () => { const r = act((d) => paramSave(d, f, id), id ? 'Paramètre modifié.' : 'Paramètre créé.'); if (r.ok) onClose(); };
   return (<FormSheet title={id ? 'Modifier le paramètre' : 'Nouveau paramètre d’analyse'} onClose={onClose} onSave={save}>
     <Field label="Nom"><TI value={f.nom} onChange={(v) => set('nom', v)} placeholder="ex. Acide malique" autoFocus /></Field>
-    <G><Field label="Unité"><TI value={f.unite} onChange={(v) => set('unite', v)} placeholder="g/L, mg/L, % vol., …" /></Field><Field label="Décimales affichées"><NI value={f.dec} onChange={(v) => set('dec', v)} /></Field></G></FormSheet>);
+    <G><Field label="Unité" help="Acidités : 1 g/L H₂SO₄ = 1,531 g/L d’acide tartrique (France : H₂SO₄ ; OIV et UE : acide tartrique ou méq/L)."><TI value={f.unite} onChange={(v) => set('unite', v)} placeholder="g/L, mg/L, % vol., …" /></Field><Field label="Décimales affichées"><NI value={f.dec} onChange={(v) => set('dec', v)} /></Field></G></FormSheet>);
 }
 function ModeleForm({ id, onClose }) {
   const { db, act } = useApp(); const m = id ? db.analysesModeles.find((x) => x.id === id) : null;
@@ -68,7 +68,7 @@ function TabAnalyses() {
             { h: '', r: (a) => (isLocked(db, a.date) ? <Chip>🔒 figée</Chip> : <div className="flex gap-1"><Btn size="sm" onClick={() => setForm({ id: a.id })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => delA(a)}>Supprimer</Btn></div>) }]} />
         </Sec>
         {lotF && rows.length > 1 ? <Sec title={`Évolution du lot ${lotCode(db, R, lotF)}`}><div className="tblwrap"><table className="tbl"><thead><tr><th>Date</th><th>Contenant</th>{pivotIds.map((k) => { const p = db.analysesParams.find((x) => x.id === k); return <th key={k} className="r">{p.nom}{p.unite ? ` (${p.unite})` : ''}</th>; })}</tr></thead>
-          <tbody>{[...rows].reverse().map((a) => (<tr key={a.id}><td className="num">{fmtDate(a.date)}</td><td>{a.contenantId ? contName(db, a.contenantId) : '—'}</td>{pivotIds.map((k) => { const p = db.analysesParams.find((x) => x.id === k); return <td key={k} className="r num">{a.valeurs[k] != null ? fmt(a.valeurs[k], p.dec) : ''}</td>; })}</tr>))}</tbody></table></div></Sec> : null}
+          <tbody>{[...rows].reverse().map((a) => (<tr key={a.id}><td className="num">{fmtDate(a.date)}</td><td>{a.contenantId ? contName(db, a.contenantId) : '—'}</td>{pivotIds.map((k) => { const p = db.analysesParams.find((x) => x.id === k); return <td key={k} className="r num" title={a.valeurs[k] != null ? aciditeEquivalence(a.valeurs[k], p.unite) || undefined : undefined}>{a.valeurs[k] != null ? fmt(a.valeurs[k], p.dec) : ''}</td>; })}</tr>))}</tbody></table></div></Sec> : null}
         <AnalysesEntreesSection />
       </>) : (<>
         <Sec title="Paramètres d’analyse" right={<Btn kind="primary" onClick={() => setForm({ param: true })}>+ Nouveau paramètre</Btn>}><Tbl rows={db.analysesParams} cols={[

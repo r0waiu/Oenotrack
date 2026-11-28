@@ -127,7 +127,7 @@ function compItems(db, comp) {
   const mk = (o, colorOf, labelOf) => Object.keys(o || {}).sort((a, b) => o[b] - o[a]).map((k, i) => ({ key: k, label: labelOf(k), share: o[k], color: colorOf(k, i) }));
   return {
     cepages: mk(comp.cepages, (k) => cepageColor(db, k), (k) => lbl(db, 'cepages', k)),
-    millesimes: mk(comp.millesimes, (k, i) => MILL_COLORS[i % MILL_COLORS.length], (k) => k),
+    millesimes: mk(comp.millesimes, (k, i) => MILL_COLORS[i % MILL_COLORS.length], (k) => millesimeAffiche(k)),
     fractions: mk(comp.fractions, (k) => fracColor(db, k), (k) => fracLabel(db, k)),
     qualifs: mk(comp.qualifs, (k) => qColor(db, k), (k) => qLabel(k)),
     echelles: mk(comp.echelles, (k) => eColor(db, k === 'inconnu' ? null : k), (k) => (k === 'inconnu' ? 'Non renseigné' : eLabel(k))),

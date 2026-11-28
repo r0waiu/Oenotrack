@@ -81,8 +81,8 @@ t = await txt(page.locator('[data-produits-maintenance]'));
 ok('catalogue : 2 produits, contact alimentaire, cave, FDS, stock 2,50 kg / non suivi', /Graisse alimentaire fictive H1/.test(t) && /Joint de porte de cuve fictif/.test(t) && /2,50 kg/.test(t) && /non suivi/.test(t) && /FDS du 01\/03\/2025/.test(t) && /FDS non requise/.test(t), t.slice(0, 600));
 await page.locator('[data-maint-produit-nouveau]').click(); await page.waitForTimeout(300); s = ov();
 await s.locator('[aria-label="Nom du produit de maintenance"]').fill('Huile de compresseur fictive'); await s.locator('[aria-label="Fournisseur du produit de maintenance"]').fill('Fournisseur test');
-await s.locator('[aria-label="Usage"]').fill('Compresseur du pressoir'); await s.locator('[aria-label="Agréé contact alimentaire"] [data-oui-non="non"]').click(); await s.locator('[aria-label="Utilisation en cave de vinification"] [data-oui-non="oui"]').click();
-ok('… alerte : utilisé en cave sans agrément contact alimentaire', /sans agrément contact alimentaire/.test(await txt(s)));
+await s.locator('[aria-label="Usage"]').fill('Compresseur du pressoir'); await s.locator('[aria-label="Apte au contact alimentaire"] [data-oui-non="non"]').click(); await s.locator('[aria-label="Utilisation en cave de vinification"] [data-oui-non="oui"]').click();
+ok('… alerte : utilisé en cave, non apte au contact alimentaire', /non apte au contact alimentaire/.test(await txt(s)));
 await s.locator('[data-suivi-stock] input[type=checkbox]').check(); await page.waitForTimeout(100); await s.locator('[aria-label="Stock minimal"]').fill('2');
 await s.locator('button', { hasText: '+ Champ' }).click(); await s.locator('[aria-label="Nom du champ 1"]').fill('Viscosité'); await s.locator('[aria-label="Valeur du champ 1"]').fill('ISO VG 46');
 await s.locator('.sheet-f .btn-primary').click(); await page.waitForTimeout(500);
@@ -96,7 +96,7 @@ ok('… historique du stock (solde)', /Entrée \(réception\)/.test(await txt(ov
 await fermer();
 await page.locator('[data-recap-maint]').click(); await page.waitForTimeout(300); s = ov();
 t = await txt(s.locator('[data-recap="maintenance"]'));
-ok('fiche récapitulative des produits de maintenance (contact alimentaire, cave, stock)', /Fiche récapitulative des produits de maintenance/.test(t) && /Huile de compresseur fictive/.test(t) && /Agréé contact alimentaire/i.test(t) && /5,00 u/.test(t), t.slice(0, 400));
+ok('fiche récapitulative des produits de maintenance (contact alimentaire, cave, stock)', /Fiche récapitulative des produits de maintenance/.test(t) && /Huile de compresseur fictive/.test(t) && /Apte au contact alimentaire/i.test(t) && /5,00 u/.test(t), t.slice(0, 400));
 await fermer();
 // 7. anglais
 await page.evaluate(() => { localStorage.setItem('oenotrack-langue', 'en'); }); await page.reload(); await page.waitForTimeout(1200);

@@ -12,9 +12,9 @@ function DeclarationRapport({ db, R, d, refEl }) {
   const ligne = (l, v) => <tr><th style={{ width: '42%', textAlign: 'left', textTransform: 'none', letterSpacing: 0, fontSize: 11 }}>{l}</th><td translate="no">{v || '—'}</td></tr>;
   if (d.type === 'prealable') {
     const pc = d.instantane ? (d.instantane.calcul.parCuvee ? d.instantane.calcul : null) : (d.chantierId ? declPrealableCuvees(db, R, d.chantierId) : null); // 0.44.0-alpha.1 : une ligne par cuvée prévue
-    const k = pc ? { ok: true, vinHL: pc.vinHL, sucreHL: pc.sucreHL, sucreKg: pc.sucreKg, totalHL: pc.totalHL, vrtpHL: pc.vrtpHL, vrtpPct: pc.vinHL > 0 ? pc.vrtpHL / pc.vinHL * 100 : 0, liqueurHL: 0 } : d.instantane ? { ok: true, ...d.instantane.calcul } : declPrealableCalcul(db, ch);
+    const k = pc ? { ok: true, vinHL: pc.vinHL, sucreHL: pc.sucreHL, sucreKg: pc.sucreKg, totalHL: pc.totalHL, vrtpHL: pc.vrtpHL, vrtpPct: pc.vinHL + num(pc.liqueurHL) > 0 ? pc.vrtpHL / (pc.vinHL + num(pc.liqueurHL)) * 100 : 0, liqueurHL: num(pc.liqueurHL) } : d.instantane ? { ok: true, ...d.instantane.calcul } : declPrealableCalcul(db, ch);
     return (<div ref={refEl} className="report" data-declaration-rapport="prealable">
-      <ReportHead title="Déclaration préalable de tirage" sub={cht ? `Chantier ${cht.numero} · à déposer au moins ${DECL_PREALABLE_DELAI_H} h avant le tirage` : `À déposer au moins ${DECL_PREALABLE_DELAI_H} h avant le tirage`} />
+      <ReportHead title="Déclaration d’intention de tirage (déclaration préalable)" sub={cht ? `Chantier ${cht.numero} · à déposer au moins ${DECL_PREALABLE_DELAI_H} h avant le tirage` : `À déposer au moins ${DECL_PREALABLE_DELAI_H} h avant le tirage`} />
       <table className="rtbl"><tbody>
         {ligne('Numéro EVV', dec.evv)}{ligne('Code récoltant', dec.codeRecoltant)}{ligne('Nom ou raison sociale du déclarant', dec.nom)}{ligne('Adresse', dec.adresse)}
         {ligne('Lieu du tirage (s’il est différent de l’adresse du siège social)', ch.lieuTirage || dec.lieuTirage)}{ligne('Date du tirage', ch.dateTirage ? fmtDate(ch.dateTirage) : '')}
@@ -33,7 +33,7 @@ function DeclarationRapport({ db, R, d, refEl }) {
   const c = d.instantane ? d.instantane.calcul : declFinaleCalcul(db, R, d); const autresF = uniq(c.lots.flatMap((l) => l.autres.map((a) => a.format)));
   const fa = DECL_FACON.find((x) => x.id === (ch.facon || '')) || DECL_FACON[0];
   return (<div ref={refEl} className="report" data-declaration-rapport="finale">
-    <ReportHead title="Déclaration de fin de tirage et de revendication en appellation Champagne" sub={cht ? `Chantier ${cht.numero} · tirage du ${fmtDate(c.dateDebut)} au ${fmtDate(c.dateFin)} · à saisir sur Innov OI` : `Tirage du ${fmtDate(c.dateDebut)} au ${fmtDate(c.dateFin)} · à saisir sur Innov OI`} />
+    <ReportHead title="Déclaration de revendication en appellation Champagne (valant déclaration de tirage)" sub={cht ? `Chantier ${cht.numero} · tirage du ${fmtDate(c.dateDebut)} au ${fmtDate(c.dateFin)} · à saisir sur Innov OI` : `Tirage du ${fmtDate(c.dateDebut)} au ${fmtDate(c.dateFin)} · à saisir sur Innov OI`} />
     <table className="rtbl"><tbody>
       {ligne('Nom ou raison sociale du déclarant', dec.nom)}{ligne('Adresse complète du siège social', dec.adresse)}{ligne('N° EVV ou à défaut n° d’accise', dec.evv || dec.accise)}{ligne('N° de ressortissant CIVC', dec.civc)}
       {ligne('Tirage', ch.facon ? `${fa.label} : ${ch.proprietaire || '…'}` : `Vins appartenant au déclarant (${(DECL_STATUTS_DECLARANT.find((x) => x.id === (dec.statut || 'recoltant')) || {}).label || ''})`)}
@@ -42,7 +42,7 @@ function DeclarationRapport({ db, R, d, refEl }) {
     <h3>Volume effectif mis en œuvre</h3>
     <table className="rtbl" data-declaration-volumes=""><tbody>
       {ligne('Vins', declHL(c.vinHL))}{ligne('Sucres et liqueurs', declHL(c.liqueurHL))}{ligne('Volume total tiré', declHL(c.totalHL))}
-      {ligne('Volume résultant d’exigences techniques particulières (VRTP)', `${declHL(c.vrtpHL)} · ${fmt(c.vrtpPct, 2)} % des vins (au plus ${TIRAGE_VRTP_MAX_PCT} %)`)}
+      {ligne('Volume résultant d’exigences techniques particulières (VRTP)', `${declHL(c.vrtpHL)} · ${fmt(c.vrtpPct, 2)} % des volumes mis en œuvre, vins et liqueurs (au plus ${TIRAGE_VRTP_MAX_PCT} %)`)}
       {ligne('Titre alcoométrique avant tirage', hasNum(ch.tav) ? `${fmt(num(ch.tav), 2)} % vol.` : '')}{ligne('Nombre de flacons tirés', `${fmt(c.nbCols)} (${fmt(c.eqBouteilles, 0)} équivalent bouteilles)`)}
     </tbody></table>
     <h3>Lots (ordre de la saisie en ligne)</h3>
@@ -150,7 +150,7 @@ function TirageDeclarations() {
   const D = declarationsTirage(db).filter((d) => d.date >= camp.debut && d.date <= camp.fin).sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const nd = tiragesNonDeclares(db, camp);
   return (<div data-tirage-declarations="">
-    <Notice tone="info" title="Déclarations à l’AIDAC">La déclaration préalable se dépose sur le formulaire de l’AIDAC au moins 48 h avant le tirage ; la déclaration de fin de tirage et de revendication se saisit en ligne (Innov OI) : Œnotrack prépare le récapitulatif dans l’ordre de la saisie, le CSV et le PDF à archiver.</Notice>
+    <Notice tone="info" title="Déclarations à l’AIDAC">La déclaration d’intention de tirage (déclaration préalable) se dépose sur le formulaire de l’AIDAC au moins 48 h avant le tirage ; la déclaration de revendication (valant déclaration de tirage) se saisit en ligne (Innov OI) dès la fin du tirage : Œnotrack prépare le récapitulatif dans l’ordre de la saisie, le CSV et le PDF à archiver.</Notice>
     {nd.length ? <p className="my-2 text-sm text-warn" data-tirages-non-declares="">{`⚠ ${nd.length} lot(s) de tirage sans déclaration de fin de tirage.`}</p> : null}
     <Sec title="Déclarations de la campagne" right={lect || camp.figee ? null : <><Btn onClick={() => setForm({ type0: 'prealable' })}>＋ Déclaration préalable</Btn><Btn kind="primary" onClick={() => setForm({ type0: 'finale' })}>＋ Déclaration de fin de tirage</Btn></>}>
       <Tbl rows={D} onRow={(d) => setOuv(d.id)} empty="Aucune déclaration sur la campagne." cols={[{ h: 'Date', r: (d) => <span className="num">{fmtDate(d.date)}</span> }, { h: 'Déclaration', r: (d) => declTypeLabel(d.type) },
