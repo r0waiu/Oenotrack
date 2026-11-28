@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://oenotrack.fr">oenotrack.fr</a> ·
+  <a href="https://oenotrack.pages.dev">oenotrack.pages.dev</a> ·
   <a href="CHANGELOG.md">Nouveautés</a> ·
   <a href="#mettre-œnotrack-en-ligne">Mettre en ligne</a> ·
   <a href="#développement">Développement</a> ·
@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.47.0--alpha.1-8C6E2F">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.47.0--alpha.3-8C6E2F">
   <img alt="Licence" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-1E242B">
   <img alt="Langues" src="https://img.shields.io/badge/langues-FR%20%C2%B7%20EN%20%C2%B7%20ES%20%C2%B7%20IT%20%C2%B7%20DE%20%C2%B7%20PT-5B636D">
 </p>
@@ -39,11 +39,14 @@
 - [Équipements](#équipements)
 - [Au chai : fiches, saisie groupée, fermentation, étiquettes QR](#au-chai--fiches-saisie-groupée-fermentation-étiquettes-qr)
 - [Intrants : catalogues, doses cumulées, plafonds](#intrants--catalogues-doses-cumulées-plafonds)
-- [Plan et schémas de vinification](#plan-et-schémas-de-vinification)
+- [Plan de vinification](#plan-de-vinification)
+- [Tirage et prise de mousse](#tirage-et-prise-de-mousse)
+- [Labels et cahiers des charges](#labels-et-cahiers-des-charges)
 - [DRM (douane) et registre d’enrichissement](#drm-douane-et-registre-denrichissement)
 - [Traçabilité à chaque étape et mode audit](#traçabilité-à-chaque-étape-et-mode-audit)
 - [Connexion simplifiée et impression](#connexion-simplifiée-et-impression)
-- [Champagne ou autre région viticole](#champagne-ou-autre-région-viticole)
+- [Région, types de vins et appellations](#région-types-de-vins-et-appellations)
+- [Prise en main : configuration et visite guidées](#prise-en-main--configuration-et-visite-guidées)
 - [Langues](#langues)
 - [Vos données](#vos-données)
 - [Essayer](#essayer)
@@ -59,14 +62,20 @@
 |---|---|
 | 🍇 **Pressoir et vendange** | Registre des pesées et tickets, carnet de pressoir (cuvée, tailles, rebêches), entrées de moûts par compartiment, crus, partenaires, analyses par lot. |
 | 🛢️ **Cuverie et lots** | Plan de cave, cuves, fûts, foudres, citernes avec leurs barèmes de jaugeage (cahier d’épalement lu en PDF, photo ou tableur), lots, portions et composition (cépages, crus, millésimes, revendications) ; fiches personnalisables, courbes de fermentation et alertes, calculs (SO₂ moléculaire, enrichissement), étiquettes QR. |
-| ⚙️ **Opérations** | Débourbage, levurage, soutirages, assemblages, froid, filtration, tirage, remuage, dégorgement… avec des formulaires personnalisables et des fiches d’enregistrement à imprimer ; saisie groupée sur plusieurs cuves (sulfitage, levurage, relevés…), doses dans l’unité du produit. |
+| ⚙️ **Opérations, tous les vins** | Champagne et vins tranquilles, rouges, rosés ou doux : débourbage, levurage, macérations, pigeage, mutage, élevage sous bois ou sous voile, stabilisation (dont l’électrodialyse), soutirages, assemblages, froid, filtration… avec des formulaires personnalisables et des fiches d’enregistrement à imprimer ; saisie groupée sur plusieurs cuves, doses dans l’unité du produit. |
+| 🗂️ **Plan de vinification** | L’instruction de travail par cépage, revendication et fraction, importée d’un tableur, modifiable case par case, avec des variantes selon l’apporteur, le cru ou l’état sanitaire ; ses étapes sont proposées à la création de chaque lot. |
+| 🍾 **Tirage et prise de mousse** | Calculateur de tirage, levains (plan, suivi, recalibrage) et liqueurs, chantiers de tirage à plusieurs cuvées, cuve de mixtion ou pompe doseuse, fournitures prises dans les intrants, VRTP, déclarations préalable et de fin de tirage, ordre de tirage imprimé. |
+| 🥂 **Cave, dégorgement, expédition** | Bouteilles sur lattes, remuage, dégorgement et liqueur d’expédition (SO₂ imputé au lot fini), habillage, réétiquetage et mise en carton ; codification des lots selon vos propres règles, sans jamais renommer un lot existant. |
 | 🔎 **Traçabilité et registres** | Une seule recherche à n’importe quelle étape (pesée, marc, lot, cuve, lot fini, DAE, lot d’un produit, date) et la chaîne complète du raisin au dégorgé ; traçabilité par intrant, par parcelle ; registres et bilan matière exportés en CSV ou Excel (dont le registre d’enrichissement) ; **DRM** mensuelle ou DRA annuelle calculée d’après les opérations, fichier XML pour CIEL (douane) et pour le CIVC ; fichier de traçabilité remis au destinataire d’un moût ou d’un vin, et repris à la réception. |
 | 🧾 **Mode audit** | Visites d’audit préparées et présentées chapitre par chapitre : agriculture biologique, Demeter, douanes, hygiène (HACCP), appellation, ou vos propres types ; points de contrôle notés, test de traçabilité chronométré, dossier imprimable. |
-| 🧪 **Intrants, analyses** | Stocks d’intrants avec fiches techniques et FDS (lues à leur dépôt, ou photographiées depuis un téléphone), règles par revendication (bio, Demeter…), déclassements (à valider dans **Opérations & Assemblages › Déclassements**), analyses et import des bulletins du laboratoire. |
+| 🧪 **Intrants, analyses** | Stocks d’intrants avec fiches techniques et FDS (lues à leur dépôt, ou photographiées depuis un téléphone), allergènes, règles par revendication (BIO avec le code d’agrément de votre organisme, Demeter…), déclassements (à valider dans **Opérations & Assemblages › Déclassements**), analyses et import des bulletins du laboratoire (plusieurs échantillons, plusieurs tableaux). |
+| ⚖️ **Labels et cahiers des charges** | Référentiel réglementaire des intrants (UE, AOC Champagne, bio UE, Demeter, Biodyvin, Nature & Progrès, Vin Méthode Nature, S.A.I.N.S.) avec le texte source de chaque règle, plafonds de SO₂ comparés, conformité de chaque lot. |
+| 🗺️ **Appellations et régions** | Référentiel officiel de 1 692 appellations (France AOP et IGP, Union européenne, Suisse, États-Unis, Australie) ; types de vins « hors appellation » signalés ; hiérarchie des crus propre à chaque appellation (Chablis, Bourgogne, Médoc, DOCG, pyramide allemande…), proposée puis confirmée. |
 | 🛡 **Importations protégées** | Chaque fichier importé est vérifié avant d’être gardé : programmes et pages web déguisés refusés, PDF désarmés, macros refusées, sauvegardes nettoyées, journal de sécurité et points de restauration. |
 | 🧽 **Hygiène (HACCP)** | Plan de nettoyage et de désinfection, journal d’hygiène avec contrôles après rinçage, tâches et alertes (cuve vidée sans rinçage, changement de revendication…), produits d’hygiène et leurs FDS. |
 | 🛠 **Équipements** | Parc de matériel (une fiche par équipement, documents), maintenance préventive et réglementaire, pannes, vérifications périodiques des bascules, balances, instruments et extincteurs. |
-| 👥 **À plusieurs** | Opérateurs, identifiants et droits par profil, connexion par empreinte, visage ou code PIN sur les appareils acceptés, journal des accès ; partage entre appareils et personnes par votre Google Drive, OneDrive ou Dropbox. |
+| 👥 **À plusieurs** | Opérateurs, identifiants et droits par profil, connexion par empreinte, visage ou code PIN sur les appareils acceptés (gérés utilisateur par utilisateur), journal des accès ; partage entre appareils et personnes par votre Google Drive, OneDrive, Dropbox ou le dossier réseau de l’entreprise. |
+| 🧭 **Prise en main guidée** | Une configuration guidée (basique ou avancée) règle Œnotrack pour votre exploitation ; une visite guidée par chapitres présente chaque module ; onglet ouvert au démarrage, à la connexion et au déverrouillage au choix (dont « dernière page visitée »). |
 | 🤖 **Assistant IA facultatif** | Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…) : identification et lecture des FT, FDS et certificats (fiches produits complétées), suivi de leurs mises à jour. |
 
 ## Le pressoir
@@ -152,19 +161,24 @@ L’onglet **Équipements** (après l’Hygiène) rassemble le matériel et son 
 - **Doses cumulées** de chaque produit dans un lot, héritées des lots d’origine au prorata des volumes (assemblages, tirage, liqueurs), et **SO₂ total estimé** = dernière analyse + ajouts depuis (produits dont la teneur en SO₂ est connue), sur les fiches de lot et de cuve.
 - **Revendications & plafonds** : plafonds de SO₂ total d’exemple (UE, bio, Demeter) et règles de substances, à vérifier ; import d’un cahier des charges dont chaque limite est relue avant d’être appliquée. Un dépassement n’est jamais bloqué : l’opération demande un motif, tracé au journal et au registre des intrants.
 
-## Plan et schémas de vinification
+## Plan de vinification
 
-**Vinification › Plan de vinification** : l’instruction de travail de la cave, sous la forme d’un tableau — pour chaque étape (sulfitage, enzymage, débourbage, levurage, thermorégulation, chaptalisation, FML, passage au froid, filtration, tirage…) et chaque produit, la dose selon le **groupe de cépages** (blancs, noirs), la **revendication** (conventionnel, FR-BIO-01, Demeter…) et la **fraction** (cuvée, tailles). Doses par colonne, réunies pour la cuvée et les tailles ou pour tout un groupe, titres de section et notes, comme dans votre document qualité (référence, version).
+**Vinification › Plan de vinification** : l’instruction de travail de la cave, sous la forme d’un tableau — pour chaque étape (sulfitage, enzymage, débourbage, levurage, thermorégulation, chaptalisation, FML, passage au froid, filtration, tirage…) et chaque produit, la dose selon le **groupe de cépages** (blancs, noirs), la **revendication** (conventionnel, BIO, Demeter…) et la **fraction** (cuvée, tailles). Doses par colonne, réunies pour la cuvée et les tailles ou pour tout un groupe, titres de section et notes, comme dans votre document qualité (référence, version).
 
 - **Importer votre tableur** (Excel, LibreOffice, CSV) : titre, en-têtes fusionnés (cépages, revendications, fractionnement), étapes et produits sont reconnus ; le plan lu se vérifie avant d’être enregistré.
-- **Imprimer** en A4 paysage, couleurs comprises ; modifier, dupliquer, archiver, marquer « vérifié ». L’exemple fourni (doses génériques) est **à vérifier** avec votre œnologue.
-- **Appliquer à un lot** : la colonne du lot est trouvée d’après son cépage majoritaire, sa revendication et sa fraction ; les doses en g, cL ou mL par hL ou par L donnent les quantités pour son volume, sur une fiche à imprimer.
+- **Modifier directement** le tableau : chaque case s’enregistre en la quittant (Échap annule) ; insérer, monter, descendre ou retirer une ligne, la relier à une opération du catalogue.
+- **Variantes** selon l’apporteur, le cru, l’échelle, la revendication, le cépage, la fraction ou l’état sanitaire : la plus précise qui correspond au lot est retenue.
+- **Proposé à la création d’un lot** (marc validé, entrée de moûts) : les étapes de sa colonne, dans l’ordre du tableau, avec les produits en stock et les quantités calculées sur le volume du lot, s’ajoutent en un clic dans **À réaliser** (sans date) ; la fiche du lot suit « étape n / m ».
+- **Imprimer** en A4 paysage, couleurs comprises. L’exemple fourni (doses génériques) est **à vérifier** avec votre œnologue. Les anciens schémas par lot ont été convertis en variantes du plan.
 
-**Vinification › Plan de vinification › Schémas par lot** : des suites d’étapes types — jour après la création du lot (J+n), opération (sulfitage, enzymage, débourbage, levurage, nutrition, suivi de fermentation, fin de FA, FML…), famille de produit, dose par hL de produit ou de SO₂ apporté, consigne — choisies selon le **cépage majoritaire**, la **fraction** et l’**état sanitaire des raisins** pressés. Quatre exemples non officiels sont fournis « à vérifier » (cuvée de Chardonnay, cuvée de noirs avec FML, tailles, raisins altérés) : dupliquez-les et adaptez-les avec votre œnologue.
+## Tirage et prise de mousse
 
-- **Proposé à la création d’un lot** (marc validé au pressoir ou depuis le carnet, entrée de moûts) : le schéma le plus proche est présélectionné, avec les produits en stock et les quantités calculées sur le volume du lot ; on décoche une étape, on change de produit, puis **« ✓ Créer les opérations à réaliser »** les ajoute en un clic dans **À réaliser**, où chacune se valide avec les quantités réelles. Réglage pour ne plus le proposer.
-- **Fiche du lot** : rubrique « Schéma de vinification » (étapes prévues et validées, retrait des étapes à réaliser) ; « 📋 Appliquer un schéma… » pour un lot déjà créé.
-- **Impression au choix** : logigramme vertical, frise ou tableau (avec dates, quantités et colonne visa pour les opérations prévues d’un lot) ; la forme choisie est gardée pour la prochaine impression.
+**Tirages** se partage en quatre sous-onglets :
+
+- **⚗ Préparer** : calculateur de tirage dans les deux sens (volume de vin ou nombre de cols par format, du quart au nabuchodonosor), liqueur de tirage (fonte du sucre), correction du point de tirage, plan du levain (étapes, propagation jour par jour, recalibrage d’après le levain réellement disponible), suivi des alimentations, VRTP prévisionnel. Le point de tirage se choisit pour chaque cuvée ; le profil (levain, titre de liqueur, adjuvants) est **à vérifier**.
+- **🍾 Tirer** : chantiers de tirage (interne ou prestataire, ligne de tirage, documents), **cuvées prévues** d’un même chantier avec leur qualité calculée depuis les vins de base (couleur, revendication, échelle, millésime, mentions comme Blanc de blancs ou Blanc de noirs), cuve de mixtion ou pompe doseuse (contrôles en cours de tirage), méthode ancestrale ; bilan par lot (cols par format, casse, VRTP limité à 1 % des volumes mis en œuvre).
+- **📦 Fournitures** : bouteilles, obturateurs, capsules, bouchons, agrafes et adjuvants sont des intrants (aucun stock en double), décomptés au tirage d’après les cols et la casse, retours au fournisseur.
+- **📄 Déclarations** : déclaration préalable (au moins 48 h avant, une ligne par cuvée) et déclaration de fin de tirage et de revendication (ventilations, VRTP distinct, CSV), figées une fois déposées ; ordre de tirage imprimé.
 
 ## DRM (douane) et registre d’enrichissement
 
@@ -189,19 +203,27 @@ L’onglet **Équipements** (après l’Hygiène) rassemble le matériel et son 
 - **Clés d’accès** : sur un appareil accepté, connexion et déverrouillage par **empreinte, visage ou code PIN** — Windows Hello, Touch ID et Face ID (Mac, iPhone, iPad), déverrouillage Android ; sous Linux et ChromeOS : clé de sécurité, téléphone (QR code) ou code PIN du navigateur. Chacun active ses appareils depuis **Mon compte** ; un administrateur les accepte dans **Paramètres › Utilisateurs & droits** (réglable). Œnotrack ne garde que la clé publique ; le mot de passe reste toujours possible. Les clés d’accès demandent la version en ligne (https) ou l’application installée.
 - **Impression** : « 🖨 Imprimer » ouvre la boîte d’impression de l’appareil (ordinateur, Android, iPhone, iPad) et n’imprime que le document ; « ⬇ PDF » enregistre le PDF en parallèle. Là où l’impression directe n’est pas possible, le PDF prend le relais (sur téléphone : Partager › Imprimer).
 
-## Champagne ou autre région viticole
+## Région, types de vins et appellations
 
-**Paramètres › 🍇 Région & types de vins** : choisissez votre **région** — 12 bassins viticoles français (Champagne, Alsace, Bourgogne, Beaujolais, Bordeaux, Val de Loire, Vallée du Rhône, Languedoc-Roussillon, Provence, Sud-Ouest, Jura et Savoie, Corse), 8 pays (Italie, Espagne, Portugal, Allemagne, Suisse, Autriche, États-Unis, Australie) ou « Autre région » — et les **types de vins** produits (tranquilles blancs, rosés, rouges, effervescents en méthode traditionnelle ou ancestrale, moelleux et liquoreux). Des raccourcis règlent un domaine mixte en un clic (Champagne, Crémant + vins tranquilles, vins tranquilles, vins rouges).
+**Paramètres › 🍇 Région & types de vins** : choisissez votre **région** — 13 bassins viticoles français (Champagne, Alsace, Bourgogne, Beaujolais, Bordeaux, Val de Loire, Vallée du Rhône, Languedoc-Roussillon, Provence, Sud-Ouest, Jura et Savoie, Corse, Charentes), 8 pays (Italie, Espagne, Portugal, Allemagne, Suisse, Autriche, États-Unis, Australie) ou « Autre région » — et les **types de vins** produits (tranquilles blancs, rosés, rouges, effervescents en méthode traditionnelle ou ancestrale, vins moelleux, liquoreux, vins doux naturels et vins de liqueur). Un type qu’aucune appellation de la région n’autorise est signalé **« hors appellation »** (vin sans indication géographique), jamais interdit. Des raccourcis règlent un domaine mixte en un clic (Champagne, Crémant + vins tranquilles, vins tranquilles, vins rouges).
 
 Œnotrack montre alors, dans une **liste à cocher**, chaque changement proposé avant de l’appliquer :
 
 - **onglets** Tirages, Cave et Dégorgement affichés ou masqués selon les effervescents ;
-- **opérations** des vins rouges et rosés (macération, délestage, écoulage, saignée) et remuage, proposées ou masquées ; stade « En macération (cuvaison) » ;
+- **opérations** des vins rouges et rosés (éraflage, macérations, pigeage, délestage, écoulage, saignée, thermovinification…), des vins doux (mutage, arrêt de fermentation), de l’élevage (bois, voile, micro-oxygénation) et remuage, proposées ou masquées ; stade « En macération (cuvaison) » ;
 - **cépages** et **appellations** de la région ajoutés aux listes ; fractions « goutte » et « presse » ; hors Champagne, tailles et rebêche retirées du formulaire de pressurage ;
 - **pressoir** (profil AOC Champagne, crémant — 100 litres pour 150 kg — ou sans plafond), spécificités champenoises (registre des pesées, villages de l’échelle des crus jamais utilisés masqués), échelle de classement ;
 - **seuil indicatif** d’enrichissement maximal : exemple non officiel, **à vérifier**.
 
-Vos personnalisations ne sont jamais écrasées : rien n’est supprimé ni renommé, et une opération, une fraction ou un seuil réglés à la main ne changent pas. Le choix rapide **Champagne / Autre région viticole** reste dans **Pressoir › Réglages**.
+Vos personnalisations ne sont jamais écrasées : rien n’est supprimé ni renommé, et une opération, une fraction ou un seuil réglés à la main ne changent pas. La région et les types de vins se règlent à un seul endroit ; l’identité de la société et **Pressoir › Réglages** en montrent le résumé, avec un lien.
+
+**Appellations** (Paramètres › Listes) : recherche dans le **référentiel officiel de 1 692 appellations** relevé sur les sources officielles (INAO et eAmbrosia pour la France et l’Union européenne, OFAG, TTB, Wine Australia) et ajout à votre liste. Chaque appellation reçoit sa **hiérarchie des crus** (Champagne, Bourgogne, Chablis, Beaujolais, Côtes du Rhône, Médoc, Saint-Émilion, Sauternes, Graves, Alsace, Loire, Languedoc, DOC / DOCG, DO / DOCa, pyramide allemande de 2021, DAC autrichiennes, Portugal, Suisse…), proposée d’après son nom et sa région puis confirmée ; chaque parcelle porte son appellation et son niveau, et la fiche d’un lot en montre la répartition. Hiérarchies et repères sont **à vérifier**.
+
+## Prise en main : configuration et visite guidées
+
+- **Configuration guidée** à la première ouverture (ou depuis **Paramètres › Affichage & application**) : une question par écran, en mode basique ou avancé — entreprise, région et types de vins, revendications (HVE, VDC, BIO et son code d’agrément…), modules, identifiants DRM, opérateurs, campagne, verrouillage, base vide ou exemple. Un aperçu liste chaque changement ; rien n’est supprimé.
+- **Visite guidée par chapitres** (« ❓ Visite guidée » dans l’en-tête) : « Prise en main » puis un chapitre par module affiché, ou « Tout voir ».
+- **Onglet ouvert** (Paramètres › Modules) : un réglage pour le démarrage, un pour la connexion et un pour le déverrouillage — un onglet, le premier de la barre, ou la **dernière page visitée** (retenue sur l’appareil, pour chaque personne).
 
 ## Langues
 
@@ -209,18 +231,18 @@ Français, English, Español, Italiano, Deutsch, Português : la langue se chois
 
 ## Vos données
 
-- Tout ce que vous saisissez est enregistré **sur votre appareil**, jamais chez l’éditeur : pas de compte à créer, pas de publicité, pas de mesure d’audience, pas de cookie.
+- Tout ce que vous saisissez est enregistré et **chiffré sur votre appareil** (AES-256, coffre de l’appareil, mot de passe de l’appareil en option), jamais chez l’éditeur : pas de compte à créer, pas de publicité, pas de mesure d’audience, pas de cookie.
 - Une sauvegarde complète tient dans un seul fichier ; toutes les sauvegardes, de toutes les versions, s’importent.
-- **À plusieurs** : reliez Œnotrack à votre Google Drive, OneDrive ou Dropbox ; il lit et écrit ses fichiers dans le dossier que vous choisissez, directement depuis votre navigateur. Vous pouvez retirer cet accès à tout moment.
+- **À plusieurs** : reliez Œnotrack à votre Google Drive, OneDrive ou Dropbox, ou au dossier réseau de l’entreprise (serveur interne, NAS) ; il lit et écrit ses fichiers dans le dossier que vous choisissez, directement depuis votre navigateur. Vous pouvez retirer cet accès à tout moment.
 - **Chiffrement** (facultatif, **Paramètres › Sauvegarde & Drive**) : un mot de passe commun à l’équipe chiffre les sauvegardes, le fichier du Drive, ses copies et documents (AES-256). Le mot de passe et la clé restent sur chaque appareil : un mot de passe perdu rend les fichiers chiffrés illisibles.
 - Quand les données ne sont que dans ce navigateur, un **rappel de sauvegarde** propose « ⬇ Sauvegarder maintenant » si aucune sauvegarde n’est récente.
 - Les clés des assistants IA restent sur votre appareil ; elles ne vont ni dans la base, ni dans les sauvegardes, ni sur le Drive.
 
-Détails : [politique de confidentialité](https://oenotrack.fr/confidentialite.html).
+Détails : [politique de confidentialité](https://oenotrack.pages.dev/confidentialite.html).
 
 ## Essayer
 
-Ouvrez **[oenotrack.fr](https://oenotrack.fr)** : au premier lancement, un jeu de données d’exemple permet de tout essayer. Œnotrack s’installe comme une application (Android, iPhone, ordinateur) et fonctionne aussi sans connexion.
+Ouvrez **[oenotrack.pages.dev](https://oenotrack.pages.dev)** : au premier lancement, un jeu de données d’exemple permet de tout essayer. Œnotrack s’installe comme une application (Android, iPhone, ordinateur) et fonctionne aussi sans connexion.
 
 ## Mettre Œnotrack en ligne
 
@@ -286,14 +308,15 @@ Les coordonnées du site se mettent dans `config.json`, rubrique `mentions` :
 ```
 
 - `statut` : `particulier`, `pro` ou `association` ; un professionnel ajoute `adresse`, `tel` et `immatriculation`.
-- Hébergeurs connus : `ovh`, `o2switch`, `scaleway`, `netlify`, `github` ; sinon `nom`, `adresse`, `tel`.
+- Hébergeurs connus : `ovh`, `o2switch`, `scaleway`, `netlify`, `github`, `cloudflare` ; sinon `nom`, `adresse`, `tel`.
 - Gardez les identifiants Drive déjà présents dans le même fichier. Après un changement de la rubrique `mentions`, refaites le paquet pour mettre à jour les pages fixes.
 
-### 7. Connexion Google, Microsoft et Dropbox pour tous (site officiel : oenotrack.fr)
+### 7. Connexion Google, Microsoft et Dropbox pour tous (site officiel : oenotrack.pages.dev)
 
-- Page d’accueil à déclarer : `https://oenotrack.fr/` ; politique de confidentialité : `https://oenotrack.fr/confidentialite.html` ; conditions d’utilisation : `https://oenotrack.fr/cgu.html`.
-- **Google** : nom de l’application « Œnotrack », domaine `oenotrack.fr` vérifié dans Google Search Console. L’accès complet au Drive est une autorisation « restreinte » : la vérification de l’application est plus poussée (justification, vidéo de démonstration).
-- **Microsoft** (Entra ID) et **Dropbox** : mêmes adresses dans les réglages de l’application.
+- Les identifiants du site officiel sont dans le `config.json` de la racine et repris par `tools/paquet-web.py` (`CONFIG_VIDE=1` : paquet sans identifiants, pour un autre hébergement). Ils désignent l’application, pas une personne : **communs à tous les utilisateurs**, qui se connectent chacun à leur propre compte et n’autorisent que l’accès à leurs fichiers. Ce ne sont pas des secrets (jamais de « client secret » ni d’« App secret »).
+- Ils ne fonctionnent qu’à l’adresse déclarée (`https://oenotrack.pages.dev`) : un autre hébergement déclare la sienne ou crée ses propres identifiants (Paramètres › Sauvegarde & Drive › Identifiants des services).
+- Page d’accueil déclarée : `https://oenotrack.pages.dev/` ; politique de confidentialité : `https://oenotrack.pages.dev/confidentialite.html` ; conditions d’utilisation : `https://oenotrack.pages.dev/cgu.html`.
+- **Google** : l’accès au Drive est une autorisation « restreinte » ; au-delà des utilisateurs de test, la vérification de l’application est nécessaire (justification, vidéo de démonstration). **Dropbox** : 500 utilisateurs en mode développement, puis demande de production. **Microsoft** (Entra ID) : multi-annuaire et comptes personnels.
 
 ## Développement
 
@@ -339,8 +362,8 @@ Le nom « Œnotrack » et son logo ne sont pas couverts par la licence : une ver
 
 ## In English
 
-**Œnotrack** is free, open-source cellar traceability software for winegrowers, running entirely in the browser (computer, tablet, phone; installable, works offline). Data stays on your device; optional sharing goes through your own Google Drive, OneDrive or Dropbox folder.
+**Œnotrack** is free, open-source cellar traceability software for winegrowers, running entirely in the browser (computer, tablet, phone; installable, works offline). Data stays on your device, encrypted at rest; optional sharing goes through your own Google Drive, OneDrive or Dropbox folder, or the company network folder.
 
-It covers the **press house** (weighing register with the cru scale and weighing slips showing each supplier’s campaign total, press logbook filled as you go with a pressing slip per press load, AOC Champagne pressing rules: 102 litres of settled must per 160 kg, minimum *rebêches* rate, at most 6 press cycles per 24 hours per press…), the **tank room** (tanks and barrels with calibration tables, lots and their composition), **cellar operations**, **traceability and registers** (CSV/Excel), **additives and analyses** (technical and safety data sheets read when added, or photographed from a phone; laboratory analysis reports imported from PDF, scans, photos or spreadsheets), **traceability files** handed to the buyer of a must or wine and read back at reception (you choose what you share; a SHA-256 fingerprint shows any change), **protected imports** (every imported file is checked: disguised programs and web pages refused, PDFs disarmed, macros refused, backups cleaned, security log and restore points), **hygiene following the HACCP method** (cleaning and disinfection plan, tasks and alerts such as a tank emptied without rinsing or a switch from conventional to organic without cleaning), an **equipment** tab (fleet records, maintenance plan, breakdowns, periodic checks of weighbridges, scales and instruments), **traceability at any stage** (one search, then the full chain from grapes to disgorged bottles and shipments), an **audit mode** (organic, Demeter, customs, HACCP, appellation or your own audit types, presented chapter by chapter with checkpoints, a timed traceability test and a printable file), **direct printing** with a PDF alongside, **multi-user rights** with sign-in by fingerprint, face or PIN (passkeys) on accepted devices, and day-to-day cellar tools: customisable tank and lot sheets, grouped entry over several tanks (sulphiting, yeast, readings…), fermentation curves with slow / stuck fermentation alerts, molecular SO₂ and enrichment calculators, QR labels that open a tank’s sheet from a phone camera, optional encryption of backups and of the shared Drive file with a team password, and additive tracking with preinstalled supplier catalogues (906 oenological products, facts only, to be checked against the technical data sheet), supplier-first entry, cumulative doses inherited through blends, an estimated total SO₂ and example limits per designation (to be checked), any exceedance requiring a recorded reason, and **winemaking protocols** (standard steps by grape variety, fraction and grape health, suggested when a lot is created and turned into operations to do in one click, printable as a vertical flowchart, a timeline or a table — like the cleaning and maintenance plans), the French **customs return (DRM)**, monthly or annual, calculated from your operations with finished bottles leaving the cellar entered each month, exported as the customs XML file for CIEL (DTI+ format, checked against the customs schema), the same file with CIVC product codes, a printout or a CSV, and an **enrichment register**. A **wine-region profile** (12 French regions, 8 countries) and the **wine types** produced adapt the tabs, operations, stages, grape varieties, appellations, fractions, press rules and indicative thresholds, each change listed in a preview with tick boxes and your own settings never overwritten; Champagne-specific rules can be switched off for other wine regions (no cap, or *crémant*: 100 litres per 150 kg).
+It covers the **press house** (weighing register with the cru scale and weighing slips showing each supplier’s campaign total, press logbook filled as you go with a pressing slip per press load, AOC Champagne pressing rules: 102 litres of settled must per 160 kg, minimum *rebêches* rate, at most 6 press cycles per 24 hours per press…), the **tank room** (tanks and barrels with calibration tables, lots and their composition), **cellar operations**, **traceability and registers** (CSV/Excel), **additives and analyses** (technical and safety data sheets read when added, or photographed from a phone; laboratory analysis reports imported from PDF, scans, photos or spreadsheets), **traceability files** handed to the buyer of a must or wine and read back at reception (you choose what you share; a SHA-256 fingerprint shows any change), **protected imports** (every imported file is checked: disguised programs and web pages refused, PDFs disarmed, macros refused, backups cleaned, security log and restore points), **hygiene following the HACCP method** (cleaning and disinfection plan, tasks and alerts such as a tank emptied without rinsing or a switch from conventional to organic without cleaning), an **equipment** tab (fleet records, maintenance plan, breakdowns, periodic checks of weighbridges, scales and instruments), **traceability at any stage** (one search, then the full chain from grapes to disgorged bottles and shipments), an **audit mode** (organic, Demeter, customs, HACCP, appellation or your own audit types, presented chapter by chapter with checkpoints, a timed traceability test and a printable file), **direct printing** with a PDF alongside, **multi-user rights** with sign-in by fingerprint, face or PIN (passkeys) on accepted devices, and day-to-day cellar tools: customisable tank and lot sheets, grouped entry over several tanks (sulphiting, yeast, readings…), fermentation curves with slow / stuck fermentation alerts, molecular SO₂ and enrichment calculators, QR labels that open a tank’s sheet from a phone camera, optional encryption of backups and of the shared Drive file with a team password, and additive tracking with preinstalled supplier catalogues (906 oenological products, facts only, to be checked against the technical data sheet), supplier-first entry, cumulative doses inherited through blends, an estimated total SO₂ and example limits per designation (to be checked), any exceedance requiring a recorded reason, and a **winemaking plan** (the cellar’s work instruction by grape variety, claim and fraction, imported from a spreadsheet, edited cell by cell, with variants by supplier, cru or grape health; its steps are suggested when a lot is created), **tirage and second fermentation** (tirage calculator, yeast starters and liqueurs, tirage runs with several planned cuvées, mixtion tank or dosing pump, supplies, VRTP, advance and end-of-tirage declarations), disgorging, dressing and packing with your own lot coding rules, a **regulatory register of additives** (EU, AOC Champagne, organic, Demeter, Biodyvin, Nature & Progrès, Vin Méthode Nature, S.A.I.N.S.) with lot compliance, the French **customs return (DRM)**, monthly or annual, calculated from your operations with finished bottles leaving the cellar entered each month, exported as the customs XML file for CIEL (DTI+ format, checked against the customs schema), the same file with CIVC product codes, a printout or a CSV, and an **enrichment register**. A **wine-region profile** (13 French regions, 8 countries), an official register of **1,692 appellations** (France, EU, Switzerland, United States, Australia) with the cru hierarchy of each, and the **wine types** produced (red, rosé, white, sparkling, sweet and fortified wines; types no appellation allows are flagged) adapt the tabs, operations, stages, grape varieties, appellations, fractions, press rules and indicative thresholds, each change listed in a preview with tick boxes and your own settings never overwritten; Champagne-specific rules can be switched off for other wine regions (no cap, or *crémant*: 100 litres per 150 kg).
 
-The interface is available in French, English, Spanish, Italian, German and Portuguese (translated in stages: welcome page, sign-in, tabs, press house, tank room, operations and their forms, equipment, traceability and audit mode, registers, users & rights, additives — stock, products, catalogues and limits — so far). Try it at **[oenotrack.fr](https://oenotrack.fr)**. Licence: AGPL-3.0-or-later; the name and logo are not covered by the licence.
+The interface is available in French, English, Spanish, Italian, German and Portuguese (translated in stages: welcome page, sign-in, tabs, press house, tank room, operations and their forms, equipment, traceability and audit mode, registers, users & rights, additives — stock, products, catalogues and limits — so far). A guided setup and a guided tour by chapter help you get started. Try it at **[oenotrack.pages.dev](https://oenotrack.pages.dev)**. Licence: AGPL-3.0-or-later; the name and logo are not covered by the licence.

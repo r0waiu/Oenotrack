@@ -1,15 +1,21 @@
-/* ============ PAGE D'ACCUEIL (0.23.0-alpha.1) : présentation publique d'Œnotrack ============
+/* ============ PAGE D'ACCUEIL (0.23.0-alpha.1 ; textes mis à jour en 0.47.0-alpha.3) : présentation publique d'Œnotrack ============
    Nom exact, ce que fait l'application, comment elle fonctionne, ce qu'elle fait de vos données, liens vers les informations légales.
    Affichée à la toute première ouverture sur un appareil (accueilDecision, 18-mentions.js) jusqu'au clic sur « Ouvrir Œnotrack », puis
    seulement depuis le lien « Présentation » du pied de page. Sert aussi de page d'accueil publique pour les écrans de connexion
    Google, Microsoft et Dropbox (même site que la politique de confidentialité : …/#confidentialite). */
 const ACCUEIL_FONCTIONS = [
-  ['🍇', 'Pressoir et vendange', 'Registre des pesées et bons de pesée, carnet et bons de pressoir (cuvée, tailles, rebêches), entrées de moûts, crus, partenaires et analyses par lot.'],
-  ['🛢️', 'Cuverie et lots', 'Plan de cave, cuves, fûts et autres contenants avec leurs barèmes de jaugeage, lots et leur composition.'],
-  ['⚙️', 'Opérations', 'Débourbage, levurage, soutirages, assemblages, froid, filtration, tirage, remuage, dégorgement… avec des formulaires adaptables.'],
-  ['🔎', 'Traçabilité et registres', 'Traçabilité ascendante et descendante, registres et exports, fiches d’enregistrement à imprimer.'],
-  ['🧪', 'Intrants, analyses, hygiène', 'Stocks d’intrants avec leurs fiches techniques et FDS, analyses, produits et journal d’hygiène.'],
-  ['👥', 'À plusieurs', 'Opérateurs, identifiants et droits par profil, partage entre appareils et personnes par votre Drive.'],
+  ['🍇', 'Pressoir et vendange', 'Registre des pesées, carnet et bons de pressoir (cuvée, tailles, rebêches), marcs et rendements, entrées de moûts, partenaires et analyses par lot.'],
+  ['🛢️', 'Cuverie et lots', 'Plan de cave, cuves, fûts et autres contenants avec leurs barèmes de jaugeage, lots et leur composition (crus, parcelles, millésimes, revendications).'],
+  ['⚙️', 'Opérations, tous les vins', 'Champagne et vins tranquilles, rouges, rosés ou doux : débourbage, macérations, pigeage, élevage sous bois, stabilisation, électrodialyse, assemblages… avec des formulaires adaptables.'],
+  ['🗂️', 'Plan de vinification', 'Votre instruction de travail par cépage, revendication et fraction, importée d’un tableur et modifiable directement ; ses étapes sont proposées à la création de chaque lot.'],
+  ['🍾', 'Tirage et prise de mousse', 'Levains et liqueurs, chantiers de tirage et cuvées prévues, cuve de mixtion ou pompe doseuse, fournitures, VRTP, déclarations préalable et de fin de tirage.'],
+  ['🥂', 'Cave et dégorgement', 'Bouteilles sur lattes, remuage, dégorgement et liqueur d’expédition, habillage et mise en carton ; codification des lots selon vos propres règles.'],
+  ['⚖️', 'Intrants et cahiers des charges', 'Stocks avec fiches techniques et FDS, allergènes, règles de l’UE, de l’appellation et des labels (bio, Demeter…), plafonds de SO₂ et conformité des lots.'],
+  ['🧪', 'Analyses, hygiène, équipements', 'Bulletins de laboratoire lus automatiquement, plan HACCP et journal d’hygiène, équipements, maintenance et ses produits.'],
+  ['🗺️', 'Appellations et régions', 'Référentiel officiel de 1 692 appellations (France, Union européenne, Suisse, États-Unis, Australie), hiérarchie des crus de chacune, types de vins de votre région.'],
+  ['🔎', 'Traçabilité, registres, DRM', 'Traçabilité ascendante et descendante, registres et exports, DRM et DRA pour les douanes, fiches d’enregistrement à imprimer.'],
+  ['👥', 'À plusieurs', 'Opérateurs, comptes et droits par profil, clés d’accès, partage entre appareils par votre Drive ou par le dossier réseau de l’entreprise.'],
+  ['🧭', 'Prise en main guidée', 'Quelques questions configurent Œnotrack pour votre exploitation ; une visite guidée présente chaque module. En six langues.'],
 ];
 function AccueilPage({ revoir, onOuvrir, onLegal }) {
   let hote = ''; try { hote = window.location.hostname; } catch (e) { /* ignoré */ }
@@ -33,9 +39,10 @@ function AccueilPage({ revoir, onOuvrir, onLegal }) {
         <section aria-labelledby="accueil-comment"><h2 id="accueil-comment" className="accueil-h2">Comment ça marche</h2>
           <ol className="accueil-etapes">
             <li><b>Dans votre navigateur.</b> Œnotrack s’ouvre sur ordinateur, tablette ou téléphone, sans compte à créer. Il s’installe comme une application et fonctionne aussi sans connexion.</li>
-            <li><b>Vos données restent chez vous.</b> Tout ce que vous saisissez est enregistré sur votre appareil, jamais chez l’éditeur. Une sauvegarde complète tient dans un seul fichier.</li>
-            <li><b>À plusieurs, si vous le souhaitez.</b> Reliez Œnotrack à votre Google Drive, OneDrive ou Dropbox : il enregistre ses fichiers dans le dossier que vous choisissez, sur votre propre compte, et réunit les saisies de chacun.</li>
-            <li><b>Assistant IA facultatif.</b> Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…), pour reconnaître les fiches des intrants et suivre leurs mises à jour.</li>
+            <li><b>Prêt en quelques minutes.</b> Une configuration guidée vous demande votre région, vos types de vins, vos revendications et vos modules, puis une visite guidée vous montre où tout se trouve.</li>
+            <li><b>Vos données restent chez vous.</b> Tout ce que vous saisissez est enregistré et chiffré sur votre appareil, jamais chez l’éditeur. Une sauvegarde complète tient dans un seul fichier.</li>
+            <li><b>À plusieurs, si vous le souhaitez.</b> Reliez Œnotrack à votre Google Drive, OneDrive ou Dropbox, ou au dossier réseau de l’entreprise : il enregistre ses fichiers dans le dossier que vous choisissez, sur votre propre compte, et réunit les saisies de chacun.</li>
+            <li><b>Assistant IA facultatif.</b> Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…), pour lire les bulletins d’analyses, reconnaître les fiches des intrants et suivre leurs mises à jour.</li>
           </ol>
         </section>
         <section className="accueil-donnees" aria-labelledby="accueil-donnees"><h2 id="accueil-donnees" className="accueil-h2">Vos données</h2>

@@ -192,6 +192,7 @@ function CloudMdpBouton() {
 }
 function CloudCard() {
   const { cloud, confirm, db } = useApp(); const c = cloud; const e = c.etat; const cfg = c.config; const reseau = dossierReseau(db);
+  let hote = ''; try { hote = window.location.hostname; } catch (er) { /* ignoré */ } const officiel = siteOfficielIci(hote); // 0.47.0-alpha.3
   const [ids, setIds] = useState({ google: cfg.google.clientId, microsoft: cfg.microsoft.clientId, dropbox: cfg.dropbox.appKey });
   useEffect(() => { setIds({ google: cfg.google.clientId, microsoft: cfg.microsoft.clientId, dropbox: cfg.dropbox.appKey }); }, [cfg.google.clientId, cfg.microsoft.clientId, cfg.dropbox.appKey]);
   useEffect(() => { if (!c.integre) GD.precharger(); }, [cfg.google.clientId]);
@@ -225,7 +226,8 @@ function CloudCard() {
       <DossierReseauReglage />
       <details className="sync-guide" open={c.integre ? undefined : !c.lie && !cfg.google.clientId && !cfg.microsoft.clientId && !cfg.dropbox.appKey}><summary>Identifiants des services (à faire une fois)</summary>
         <div className="space-y-3">
-          <p className="text-sm">Google, Microsoft et Dropbox demandent de déclarer Œnotrack une fois. Chaque service vous donne un identifiant public à coller ici. {c.integre ? <>Adresse à déclarer : celle d’Œnotrack en ligne, par exemple <code className="cloud-code" data-adresse="">{adresse}</code> pour le site officiel.</> : <>Adresse d’Œnotrack à déclarer : <code className="cloud-code" data-adresse="">{adresse}</code> <Btn size="sm" kind="ghost" onClick={() => { try { navigator.clipboard.writeText(adresse); } catch (er) { /* ignoré */ } }}>Copier</Btn></>}</p>
+          {officiel ? <Notice tone="ok" title="Déjà en place sur le site officiel" data-ids-officiels="">Ces identifiants désignent l’application Œnotrack, pas une personne : ils servent à tout le monde. Chacun se connecte avec son propre compte Google, Microsoft ou Dropbox et n’autorise que l’accès à ses fichiers. Rien à déclarer.</Notice> : null}
+          <p className="text-sm">Sur le site officiel, ils sont déjà renseignés pour tous. Seulement si vous mettez Œnotrack en ligne à une autre adresse : Google, Microsoft et Dropbox demandent de la déclarer une fois, et chaque service vous donne un identifiant public à coller ici, valable pour tous vos utilisateurs. {c.integre ? <>Adresse à déclarer : celle d’Œnotrack en ligne, par exemple <code className="cloud-code" data-adresse="">{adresse}</code> pour le site officiel.</> : <>Adresse d’Œnotrack à déclarer : <code className="cloud-code" data-adresse="">{adresse}</code> <Btn size="sm" kind="ghost" onClick={() => { try { navigator.clipboard.writeText(adresse); } catch (er) { /* ignoré */ } }}>Copier</Btn></>}</p>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))' }}>
             <label className="block"><span className="lbl">Google : ID client OAuth</span><input className="inp" value={ids.google} onChange={(ev) => setIds({ ...ids, google: ev.target.value })} placeholder="1234…apps.googleusercontent.com" aria-label="ID client Google" /></label>
             <label className="block"><span className="lbl">Microsoft : ID d’application (client)</span><input className="inp" value={ids.microsoft} onChange={(ev) => setIds({ ...ids, microsoft: ev.target.value })} placeholder="00000000-0000-0000-0000-000000000000" aria-label="ID d’application Microsoft" /></label>

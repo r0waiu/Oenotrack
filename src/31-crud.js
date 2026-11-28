@@ -188,19 +188,45 @@ const ongletDe = (id) => Object.keys(ONGLETS_GROUPES).find((g) => ONGLETS_GROUPE
 // modules affichés (déjà filtrés : actifs, autorisés) → onglets de la barre, dans l'ordre ; un groupe apparaît une seule fois
 const ongletsBarre = (mods) => (Array.isArray(mods) ? mods : []).map(ongletDe).filter((x, i, a) => a.indexOf(x) === i);
 const ongletMembres = (onglet, mods) => (ONGLETS_GROUPES[onglet] ? (Array.isArray(mods) ? mods : []).filter((m) => ONGLETS_GROUPES[onglet].includes(m)) : [onglet]);
-/* onglet ouvert au démarrage, à la connexion et au déverrouillage : settings.ongletDefaut (identifiant d'onglet ou de groupe ; '' = le
-   premier onglet de la barre), réglage commun de la base ; ignoré s'il n'est pas affiché (module désactivé, profil sans accès).
-   Renvoie le module à ouvrir (pour un groupe : son premier module affiché). */
-function ongletOuverture(db, mods) {
-  const L = Array.isArray(mods) ? mods : modulesVisibles(db); const pref = String(((db && db.settings) || {}).ongletDefaut || '');
-  const m = pref ? ongletMembres(pref, L).filter((x) => L.includes(x)) : [];
-  return m[0] || L[0] || MODULE_FIXE;
+/* onglet ouvert au démarrage, à la connexion et au déverrouillage (0.34.0-alpha.1 ; 0.47.0-alpha.3 : un réglage par moment) — réglages
+   communs de la base, ignorés s'ils ne sont pas affichés (module désactivé, profil sans accès) :
+   - démarrage : settings.ongletDefaut (absent = premier onglet de la barre ; seul réglage lu par les versions antérieures, au démarrage
+     et à la connexion ; « derniere » y retombe sur le premier onglet) ;
+   - connexion : settings.ongletConnexion (absent = comme au démarrage) ;
+   - déverrouillage : settings.ongletDeverrouillage (absent = dernière page visitée : la page en cours reste, formulaire intact) ;
+   valeurs : identifiant d'onglet ou de groupe, « premier » (premier onglet de la barre), « derniere » (dernière page visitée par la
+   personne sur cet appareil, retenue hors de la base : oenotrack-derniere-page), « demarrage » (comme au démarrage). */
+const ONGLET_MOMENTS = [['demarrage', 'ongletDefaut', 'Au démarrage'], ['connexion', 'ongletConnexion', 'À la connexion'], ['deverrouillage', 'ongletDeverrouillage', 'Au déverrouillage']];
+const ONGLET_SPECIAUX = ['premier', 'derniere', 'demarrage'];
+const ongletCle = (moment) => (ONGLET_MOMENTS.find((x) => x[0] === moment) || ONGLET_MOMENTS[0])[1];
+// réglage effectif d'un moment : « premier », « derniere » ou un onglet (les valeurs par défaut résolues)
+function ongletReglage(db, moment) {
+  const S = (db && db.settings) || {}; const m = moment || 'demarrage'; let v = String(S[ongletCle(m)] || '');
+  if (m === 'demarrage') return !v || v === 'demarrage' ? 'premier' : v;
+  if (!v) v = m === 'deverrouillage' ? 'derniere' : 'demarrage';
+  return v === 'demarrage' ? ongletReglage(db, 'demarrage') : v;
 }
-function ongletDefautSet(db, id) {
-  const v = String(id || '');
-  if (v && !ONGLETS_GROUPES[v] && !estModule(v)) return fail('Onglet inconnu.');
+// module à ouvrir (pour un groupe : son premier module affiché) ; derniere = { tab, sub } retenu sur cet appareil (ou null)
+function ongletOuverture(db, mods, moment, derniere) {
+  return ongletOuvertureNav(db, mods, moment, derniere).tab;
+}
+function ongletOuvertureNav(db, mods, moment, derniere) {
+  const L = Array.isArray(mods) ? mods : modulesVisibles(db); let pref = ongletReglage(db, moment);
+  if (pref === 'derniere') {
+    if (derniere && derniere.tab && L.includes(derniere.tab)) return { tab: derniere.tab, sub: derniere.sub || null, derniere: true };
+    pref = moment && moment !== 'demarrage' && ongletReglage(db, 'demarrage') !== 'derniere' ? ongletReglage(db, 'demarrage') : 'premier';
+  }
+  const m = pref && pref !== 'premier' ? ongletMembres(pref, L).filter((x) => L.includes(x)) : [];
+  return { tab: m[0] || L[0] || MODULE_FIXE, sub: null };
+}
+function ongletDefautSet(db, id, moment) {
+  const v = String(id || ''); const m = moment || 'demarrage';
+  if (!ONGLET_MOMENTS.some((x) => x[0] === m)) return fail('Moment inconnu.');
+  if (v === 'demarrage' && m === 'demarrage') return fail('Onglet inconnu.');
+  if (v && !ONGLET_SPECIAUX.includes(v) && !ONGLETS_GROUPES[v] && !estModule(v)) return fail('Onglet inconnu.');
   if (v && MODULES_DANS[v]) return fail('Ce module n’a pas d’onglet propre.');
-  if (v) db.settings.ongletDefaut = v; else delete db.settings.ongletDefaut; return okr();
+  const k = ongletCle(m); const defaut = m === 'demarrage' ? (v === 'premier' || !v) : m === 'connexion' ? (!v || v === 'demarrage') : (!v || v === 'derniere');
+  if (defaut) delete db.settings[k]; else db.settings[k] = v; return okr();
 }
 // nouvel ordre des modules connus ; les ids inconnus restent à leur place
 function modulesOrdonner(db, ids) {

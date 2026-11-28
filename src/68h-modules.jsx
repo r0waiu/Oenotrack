@@ -37,7 +37,7 @@ function ModulesView() {
   const move = (e) => { if (!drag) return; const over = indexSous(e.clientY); if (over !== drag.over) setDrag({ ...drag, over }); };
   const up = () => { if (!drag) return; const from = ids.indexOf(drag.id); const to = drag.over; const id = drag.id; setDrag(null); if (to !== from && to >= 0) act((d) => moduleDeplacer(d, id, to - from), `« ${moduleNom(id)} » déplacé en position ${to + 1}.`); };
   const vue = drag ? (() => { const v = ids.filter((x) => x !== drag.id); v.splice(drag.over, 0, drag.id); return v; })() : ids;
-  const accueil = ongletOuverture(db, vue.filter((x) => moduleActif(db, x))); // onglet d'ouverture (0.34.0-alpha.1) : réglage ou premier onglet
+  const accueil = ongletReglage(db, 'demarrage') === 'derniere' ? '' : ongletOuverture(db, vue.filter((x) => moduleActif(db, x)), 'demarrage'); // onglet d'ouverture (0.34.0-alpha.1) : réglage ou premier onglet ; « dernière page visitée » : aucun
   return (
     <div className="space-y-5">
       <Notice tone="info" title="Modules de l’application">
@@ -88,22 +88,36 @@ function ModulesView() {
   );
 }
 
-/* onglet ouvert au démarrage, à la connexion et au déverrouillage (0.34.0-alpha.1) : indépendant de l'ordre des onglets ; réglage commun
-   de la base (settings.ongletDefaut) ; « Premier onglet de la barre » par défaut */
+/* onglet ouvert au démarrage, à la connexion et au déverrouillage (0.34.0-alpha.1 ; 0.47.0-alpha.3 : un choix par moment, et « dernière
+   page visitée ») : indépendant de l'ordre des onglets ; réglages communs de la base (settings.ongletDefaut, ongletConnexion,
+   ongletDeverrouillage : 31-crud.js) */
+const ONGLET_CHOIX_SPECIAUX = {
+  demarrage: [['', 'premier'], ['derniere', 'derniere']],
+  connexion: [['', 'demarrage'], ['premier', 'premier'], ['derniere', 'derniere']],
+  deverrouillage: [['', 'derniere'], ['demarrage', 'demarrage'], ['premier', 'premier']],
+};
+const ONGLET_CHOIX_ARIA = { demarrage: 'Onglet ouvert au démarrage', connexion: 'Onglet ouvert à la connexion', deverrouillage: 'Onglet ouvert au déverrouillage' };
 function OngletDefautChoix() {
-  const { db, act } = useApp(); const L = modulesVisibles(db); const barre = ongletsBarre(L); const v = String(db.settings.ongletDefaut || '');
-  const premier = barre[0] || MODULE_FIXE; const absent = v && !barre.includes(v) && !L.includes(v);
-  const choisir = (x) => act((d) => ongletDefautSet(d, x), x ? `« ${moduleNom(x)} » s’ouvrira à la connexion et au déverrouillage.` : 'Le premier onglet de la barre s’ouvrira à la connexion et au déverrouillage.');
+  const { db, act } = useApp(); const L = modulesVisibles(db); const barre = ongletsBarre(L);
+  const premier = barre[0] || MODULE_FIXE;
+  const special = (k) => (k === 'premier' ? `Premier onglet de la barre (actuellement « ${moduleNom(premier)} »)` : k === 'derniere' ? 'Dernière page visitée' : 'Comme au démarrage');
+  const nomChoix = (m, x) => { const sp = ONGLET_CHOIX_SPECIAUX[m].find((c) => c[0] === x); return sp ? special(sp[1]).replace(/ \(actuellement.*$/, '') : moduleNom(x); };
+  const choisir = (m, x) => act((d) => ongletDefautSet(d, x, m), `Onglet ouvert ${m === 'demarrage' ? 'au démarrage' : m === 'connexion' ? 'à la connexion' : 'au déverrouillage'} : ${nomChoix(m, x)}.`);
   return (
-    <div className="card p-3" data-onglet-defaut="">
-      <Field label="Onglet ouvert au démarrage, à la connexion et au déverrouillage">
-        <select className="inp" style={{ maxWidth: 420 }} value={v} onChange={(e) => choisir(e.target.value)} aria-label="Onglet ouvert au démarrage">
-          <option value="">{`Premier onglet de la barre (actuellement « ${moduleNom(premier)} »)`}</option>
-          {barre.map((o) => <option key={o} value={o}>{moduleNom(o)}</option>)}
-          {absent ? <option value={v}>{`${moduleNom(v)} (désactivé)`}</option> : null}
-        </select>
-      </Field>
-      <p className="help mt-1">Indépendant de l’ordre des onglets. Si l’onglet choisi est désactivé ou n’est pas accessible avec le profil de la personne connectée, le premier onglet de la barre s’ouvre.</p>
+    <div className="card p-3 space-y-2" data-onglet-defaut="">
+      <div className="text-sm font-semibold">Onglet ouvert</div>
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,240px),1fr))' }}>
+        {ONGLET_MOMENTS.map(([m, k, lbl]) => { const v = String(db.settings[k] || ''); const absent = v && !ONGLET_SPECIAUX.includes(v) && !barre.includes(v) && !L.includes(v);
+          return (
+            <Field key={m} label={lbl}>
+              <select className="inp" value={v} onChange={(e) => choisir(m, e.target.value)} aria-label={ONGLET_CHOIX_ARIA[m]} data-onglet-moment={m}>
+                {ONGLET_CHOIX_SPECIAUX[m].map(([val, sp]) => <option key={sp} value={val}>{special(sp)}</option>)}
+                {barre.map((o) => <option key={o} value={o}>{moduleNom(o)}</option>)}
+                {absent ? <option value={v}>{`${moduleNom(v)} (désactivé)`}</option> : null}
+              </select>
+            </Field>); })}
+      </div>
+      <p className="help">Indépendant de l’ordre des onglets. « Dernière page visitée » reprend la page où la personne était sur cet appareil (au déverrouillage : la page en cours reste, formulaire intact). Si l’onglet choisi est désactivé ou n’est pas accessible avec le profil de la personne connectée, le premier onglet de la barre s’ouvre.</p>
     </div>
   );
 }
