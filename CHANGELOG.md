@@ -2,6 +2,10 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.49.0-alpha.2 — 28/11/2026
+
+- Corrections de l’assistant IA : un certificat de jaugeage de plus de 8 pages est relu en entier, par lots de 8 pages (un tableau qui passe d’un lot à l’autre est réuni) ; la mention « 🤖 IA » apparaît aussi dans les listes d’arrivages et dans le registre des pesées.
+
 ## 0.49.0-alpha.1 — 28/11/2026
 
 - Assistant IA revu (audit validé) : chaque usage a son interrupteur et son niveau de données (0 : rien de l’exploitation, 1 : un document ou une photo, 2 : données de l’exploitation, désactivé par défaut et montré avant le premier envoi), journal des envois sur l’appareil, niveau 2 réservable à un modèle installé sur l’ordinateur ; photos lues directement ; réponses au format imposé et contrôlées ; l’IA ne fait que proposer et ce qui est enregistré garde la mention « 🤖 IA ».

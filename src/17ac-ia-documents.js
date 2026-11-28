@@ -260,12 +260,24 @@ const IA_BAREMES_SCHEMA = { type: 'object', properties: { tables: { type: 'array
   capacite: { type: ['number', 'null'] }, uniteHauteur: { type: 'string', enum: ['mm', 'cm', 'm'], nullable: true }, uniteVolume: { type: 'string', enum: ['L', 'hL', 'm3'], nullable: true },
   mesure: { type: 'string', enum: ['hauteur', 'creux'], nullable: true },
   lignes: { type: 'array', maxItems: 2000, items: { type: 'array', maxItems: 2, items: { type: 'number' } } } }, required: ['lignes'] } } }, required: ['tables'] };
-function iaBaremesPrompt() {
+// lecture par lots (0.49.0-alpha.2) : pages 1 à n découpées en lots de « parLot » pages → [{ debut, fin }] (au moins un lot)
+function iaBaremesLots(nb, parLot) {
+  const n = Math.max(1, Math.floor(Number(nb) || 1)); const k = Math.max(1, Math.floor(Number(parLot) || 8)); const L = [];
+  for (let d = 1; d <= n; d += k) L.push({ debut: d, fin: Math.min(n, d + k - 1) });
+  return L;
+}
+// numéros de page d'un lot ramenés à ceux du certificat (l'IA numérote les images du lot à partir de 1, ou donne déjà le vrai numéro)
+function iaBaremesPagesDecaler(v, lot) {
+  const T = v && Array.isArray(v.tables) ? v.tables : []; if (!lot || lot.debut <= 1) return T;
+  return T.map((t, i) => { const p = Number.isInteger(t.page) && t.page > 0 ? t.page : i + 1; return { ...t, page: p >= lot.debut && p <= lot.fin ? p : lot.debut + p - 1 }; });
+}
+function iaBaremesPrompt(lot) {
   const system = 'Tu relis les pages d’un certificat de jaugeage (barème d’épalement d’une cuve, ou barème d’une citerne mesuré par le creux) pour une cave. Tu recopies les nombres exactement tels qu’ils sont imprimés, sans interpoler, sans compléter une ligne illisible (omets-la) et sans arrondir.';
   const texte = 'Pour chaque tableau hauteur → volume (ou creux → volume) des pages : la page, le nom ou le n° du réservoir (ou le n° du compartiment et l’immatriculation de la citerne), le n° du certificat de jaugeage, la capacité totale, '
     + 'l’unité des hauteurs (mm, cm ou m) et des volumes (L, hL ou m3) telles qu’indiquées sur le document, « creux » si les hauteurs sont mesurées depuis le haut, et toutes les lignes du tableau sous la forme [hauteur, volume], dans l’ordre du tableau. '
     + 'Un tableau qui continue sur la page suivante : une entrée par page, avec le même nom. Un tableau volume → hauteur : renvoie quand même [hauteur, volume].';
-  return { system, texte, schema: IA_BAREMES_SCHEMA, nom: 'baremes', max: 16000 };
+  const texteLot = lot ? `${texte}\nLes images jointes sont les pages ${lot.debut} à ${lot.fin} du certificat : numérote les pages à partir de ${lot.debut}. Un tableau commencé avant la page ${lot.debut} : recopie seulement ses lignes visibles, avec le même nom.` : texte;
+  return { system, texte: texteLot, schema: IA_BAREMES_SCHEMA, nom: 'baremes', max: 16000 };
 }
 const IAD_H = { mm: 0.1, cm: 1, m: 100 }; const IAD_V = { L: 1, hL: 100, m3: 1000 };
 // tables lues → pages de texte (une par table) pour jaugeAnalyser (unités converties en cm et en litres) ; tables incohérentes écartées

@@ -273,10 +273,18 @@ function BaremeImport({ onClose, contIdPreset, fichiers: fichiers0 }) {
     const out = []; const journal = [...((base && base.journal) || [])]; let trace = null;
     for (const f of docs) {
       try {
-        setEtat({ phase: 'lecture', msg: `« ${f.name} » : relecture par l’IA…` });
-        const images = await iaImagesDepuisFichiers([f], { pages: IA_IMAGES_MAX, cote: 2000 }); const P = iaBaremesPrompt();
-        const r = await ia.demander('baremes', { system: P.system, texte: P.texte, images, schema: P.schema, nom: P.nom, max: P.max }); if (!r) continue;
-        const x = iaBaremesLire(r.valeur, { fichier: f.name, trace: r.trace }); trace = r.trace;
+        // 0.49.0-alpha.2 : un certificat de plus de IA_IMAGES_MAX pages est relu par lots de pages ; les tableaux de tous les lots sont
+        // réunis puis analysés ensemble (continuité d'un tableau qui passe d'un lot à l'autre, pages réunies, contrôles inchangés)
+        const nb = await iaPdfNbPages(f); const lots = iaBaremesLots(nb, IA_IMAGES_MAX); const tables = []; let rien = true;
+        for (const L of lots) {
+          setEtat({ phase: 'lecture', msg: lots.length > 1 ? `« ${f.name} » : relecture par l’IA, pages ${L.debut} à ${L.fin} sur ${nb}…` : `« ${f.name} » : relecture par l’IA…` });
+          const images = await iaImagesDepuisFichiers([f], { pages: IA_IMAGES_MAX, cote: 2000, debut: L.debut }); if (!images.length) continue;
+          const P = iaBaremesPrompt(lots.length > 1 ? L : null);
+          const r = await ia.demander('baremes', { system: P.system, texte: P.texte, images, schema: P.schema, nom: P.nom, max: P.max }); if (!r) continue;
+          rien = false; trace = r.trace; iaBaremesPagesDecaler(r.valeur, L).forEach((t) => tables.push(t));
+        }
+        if (rien) continue;
+        const x = iaBaremesLire({ tables }, { fichier: f.name, trace });
         if (!x.ok) { journal.push({ fichier: f.name, msg: x.msg, grave: true }); continue; }
         x.baremes.forEach((b) => out.push({ ...b, _fichier: f, _cle: `ia|${f.name}|${out.length}` })); (x.journal || []).forEach((j) => journal.push({ ...j, fichier: f.name }));
       } catch (er) { journal.push({ fichier: f.name, msg: (er && er.message) || 'relecture impossible', grave: true }); }

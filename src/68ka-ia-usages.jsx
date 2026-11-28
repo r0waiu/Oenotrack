@@ -65,7 +65,7 @@ function IaBouton({ usage, children, onClick, size = 'sm', busy, ...p }) {
 const IaTrace = ({ ia, propose }) => { const t = propose ? 'Proposé par l’IA, à vérifier' : iaTraceTexte(ia); return t ? <Chip tone="info" title={t} data-ia-trace="">🤖 IA</Chip> : null; };
 // photos et PDF → images JPEG (base64) pour la vision ; pages = nombre maximal de pages lues par PDF ; cote = plus grand côté en pixels
 async function iaImagesDepuisFichiers(fichiers, opts) {
-  const o = { pages: 4, cote: 1600, qualite: 0.85, ...(opts || {}) }; const out = [];
+  const o = { pages: 4, cote: 1600, qualite: 0.85, debut: 1, ...(opts || {}) }; const out = []; const debut = Math.max(1, Math.floor(Number(o.debut) || 1)); // debut : 1re page lue d'un PDF (lecture par lots, 0.49.0-alpha.2)
   const versJpeg = (canvas) => { const k = Math.min(1, o.cote / Math.max(canvas.width, canvas.height)); let c = canvas;
     if (k < 1) { c = document.createElement('canvas'); c.width = Math.round(canvas.width * k); c.height = Math.round(canvas.height * k); const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(canvas, 0, 0, c.width, c.height); }
     return { type: 'image/jpeg', data: c.toDataURL('image/jpeg', o.qualite).split(',')[1] || '' }; };
@@ -74,12 +74,18 @@ async function iaImagesDepuisFichiers(fichiers, opts) {
     const g = await gardeFichier(f0, 'ia'); if (!g.file) throw { message: `« ${f0.name} » refusé : ${(g.v.raisons || []).join(', ')}.` };
     const f = g.file;
     if (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)) {
-      await pdfAvecDocument(f, async (doc) => { for (let n = 1; n <= Math.min(doc.numPages, o.pages) && out.length < IA_IMAGES_MAX; n += 1) { const pg = await doc.getPage(n); const r = await renduPage(pg, 150); out.push(versJpeg(r.canvas)); } });
+      await pdfAvecDocument(f, async (doc) => { for (let n = debut; n <= Math.min(doc.numPages, debut + o.pages - 1) && out.length < IA_IMAGES_MAX; n += 1) { const pg = await doc.getPage(n); const r = await renduPage(pg, 150); out.push(versJpeg(r.canvas)); } });
     } else out.push(versJpeg(await imageCanvas(f)));
   }
   return out.filter((i) => i.data);
 }
 
+// nombre de pages d'un PDF (lecture par lots de IA_IMAGES_MAX pages) ; une image compte pour une page
+async function iaPdfNbPages(f) {
+  if (!(/pdf/i.test(f.type) || /\.pdf$/i.test(f.name))) return 1;
+  const g = await gardeFichier(f, 'ia'); if (!g.file) return 0;
+  return pdfAvecDocument(g.file, async (doc) => doc.numPages);
+}
 /* ---------- Paramètres › Assistant IA : usages et journal ---------- */
 function IaUsagesCard() {
   const { db, act, uid, droit } = useApp(); const [c, setC] = useState(iaConfigLire); const actif = iaActive(c); const regle = iaNiveau2Reglage(db);

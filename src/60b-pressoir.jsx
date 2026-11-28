@@ -305,7 +305,7 @@ function PeseesView({ annee }) {
         {droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouvelle-pesee="">＋ Nouvelle pesée</Btn> : null}</>}>
         {!L.length ? <PressoirVide data="pesees" titre={`Aucune pesée en ${annee}`} texte="Enregistrez une pesée à l’arrivée de chaque chargement de raisins : elle alimente le registre des pesées, le ticket de pesée et le carnet de pressoir." action="＋ Enregistrer la première pesée" onAction={droits.ecrit && !camp.figee ? () => setForm({}) : null} /> : null}
         {L.length ? <Tbl rows={rows} empty="Aucune pesée pour ces critères." cols={[
-          { h: 'N°', r: (o) => <b className="num" data-num-pesee="">{(o.pesee || {}).num || '—'}</b> },
+          { h: 'N°', r: (o) => <span className="inline-flex flex-wrap items-center gap-1"><b className="num" data-num-pesee="">{(o.pesee || {}).num || '—'}</b>{o.ia ? <IaTrace ia={o.ia} /> : null}</span> },
           { h: 'Date', r: (o) => <span className="num whitespace-nowrap">{fmtDate(o.date)} {(o.pesee || {}).heure || ''}</span> },
           { h: 'Apporteur', r: (o) => (o.apporteurId ? apporteurName(db, o.apporteurId) : <span className="text-ink2">exploitation</span>) },
           { h: 'Origine', cls: 'hm', r: (o) => { const reste0 = [o.parcelleId ? parcelleName(db, o.parcelleId) : '', (o.pesee || {}).mention || ''].filter(Boolean).join(' · '); return <span className="text-sm">{o.cruId ? <span className="inline-flex flex-wrap items-center gap-1">{cruName(db, o.cruId)}<EchelleCru cruId={o.cruId} /></span> : null}{reste0 ? <span className="block">{reste0}</span> : null}{!o.cruId && !reste0 ? '—' : null}</span>; } },
