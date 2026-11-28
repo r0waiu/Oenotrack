@@ -381,6 +381,7 @@ function arrivageSave(db, s, id) {
   if (isLocked(db, s.date)) return fail('Cette date appartient à une campagne figée.', { champ: 'date' });
   const pr = db.produits.find((p) => p.id === s.produitId);
   const item = { produitId: s.produitId, fournisseurId: s.fournisseurId || (pr && pr.fournisseurId) || '', numLot: String(s.numLot).trim(), dluo: s.dluo || '', date: s.date, qty: num(s.qty), notes: s.notes || '' };
+  if (s.ia) { const t = typeof iaTraceNorm === 'function' ? iaTraceNorm(s.ia) : null; if (t) item.ia = t; } // 0.49.0-alpha.1 : arrivage proposé par l'IA (photo de l'étiquette)
   if (id) { const a = db.arrivages.find((x) => x.id === id); if (!a) return fail('Arrivage introuvable.'); if (isLocked(db, a.date)) return fail('Arrivage verrouillé (campagne figée).'); Object.assign(a, item); }
   else { const aid = nid(db, 'ar'); db.arrivages.push({ id: aid, ...item }); return okr({ id: aid }); }
   return okr({ id });

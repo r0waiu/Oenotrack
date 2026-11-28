@@ -147,6 +147,7 @@ function buildSpec(type, f, db, Rd, old) {
   // traçabilité amont (fichier de l'expéditeur) et fichiers de traçabilité exportés : gardés avec l'opération (0.27.0-alpha.1)
   if (Array.isArray(f.amont) && f.amont.length) r.spec.amont = f.amont;
   if (Array.isArray(f.traceExports) && f.traceExports.length) r.spec.traceExports = f.traceExports;
+  if (f.ia && typeof f.ia === 'object') r.spec.ia = f.ia; // 0.49.0-alpha.1 : formulaire prérempli par l'IA, relu puis validé (trace gardée par opSave)
   if (type === 'intrant' && f.enrichissement && typeof f.enrichissement === 'object') r.spec.enrichissement = f.enrichissement; // TAP, TAV visé, méthode (simulateur, 0.29.0-alpha.1)
   // qui a réalisé l'opération (liste des opérateurs de la société) ; obligatoire si le réglage est activé (nouvelles opérations)
   const qui = operateursValides(db, f.operateurs);

@@ -1,6 +1,7 @@
 /* ============ ONGLET 2 : OPÉRATIONS & ASSEMBLAGES · ONGLET DÉCLASSEMENTS ============
    0.48.0-alpha.1 : « ＋ Nouvelle opération » (sélecteur : recherche, favoris, dernières), journal (50 lignes puis « Afficher plus »),
-   actions de ligne dans « ⋯ », filtre « à vérifier », états vides, aide repliable, sous-onglet « Journal » */
+   actions de ligne dans « ⋯ », filtre « à vérifier », états vides, aide repliable, sous-onglet « Journal »
+   0.49.0-alpha.1 : « Décrire l'opération… » (IA01, saisie en langage courant, dictée), pastille « 🤖 IA » des opérations proposées par l'IA (S4) */
 function OpWarns({ r, open, setOpen }) {
   const { act } = useApp(); const op = r.op;
   if (!r.warns.length) return <span className="text-xs text-ink2">—</span>;
@@ -30,7 +31,79 @@ function OpChoixBtn({ t, prefixe, fav, onChoisir, onFav, disabled }) {
   );
 }
 
-function NouvelleOpChoix({ groupes, versBouteilles, onChoisir, onFermer, figee }) {
+/* 0.49.0-alpha.1 (IA01, usage « saisie », niveau 2) — « Décrire l'opération… » : phrase tapée ou dictée (reconnaissance vocale du navigateur),
+   l'IA choisit l'opération, les contenants et les produits dans les listes envoyées (codes courts, 17ab-ia-chai) ; le formulaire s'ouvre
+   prérempli (encadré « Prérempli par l'IA », trace « ia » gardée à la validation) ; opération inconnue ou ambiguë : liste de choix. */
+const IA_PREREMPLI = {}; // trace.le → { phrase, notes } (souvenir de la session, jamais dans la base) : encadré du formulaire prérempli
+const iaReconnaissanceVocale = () => (typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) || null;
+function useDictee(onTexte) {
+  const [ecoute, setEcoute] = useState(false); const ref = useRef(null); const R0 = iaReconnaissanceVocale();
+  useEffect(() => () => { try { if (ref.current) ref.current.abort(); } catch (e) { /* déjà arrêtée */ } }, []);
+  const basculer = () => {
+    if (!R0) return; if (ecoute && ref.current) { try { ref.current.stop(); } catch (e) { /* déjà arrêtée */ } return; }
+    let r; try { r = new R0(); } catch (e) { return; }
+    r.lang = (LANGUES.find((l) => l.id === LANGUE) || LANGUES[0]).locale; r.interimResults = false; r.continuous = false; r.maxAlternatives = 1;
+    r.onresult = (e) => { const t = Array.from(e.results || []).map((x) => (x[0] ? x[0].transcript : '')).join(' ').trim(); if (t) onTexte(t); };
+    r.onend = () => setEcoute(false); r.onerror = () => setEcoute(false);
+    ref.current = r; setEcoute(true); try { r.start(); } catch (e) { setEcoute(false); }
+  };
+  return { dispo: !!R0, ecoute, basculer };
+}
+// encadré du formulaire prérempli par l'IA (52-opform, nouvelle opération ou opération à réaliser ouverte avec la trace « ia »)
+function IaPrerempliNotice({ ia }) {
+  const x = (ia && IA_PREREMPLI[ia.le]) || {};
+  return (
+    <div className="ia-prerempli mb-3" data-ia-prerempli="">
+      <Notice tone="warn" title="Prérempli par l’IA : relisez avant de valider">
+        {x.phrase ? <div><span>D’après : </span><q translate="no">{x.phrase}</q></div> : null}
+        {x.source === 'fiche' ? <div>Valeurs lues sur la photo de la fiche remplie.</div> : null}
+        {(x.notes || []).length ? <ul className="mt-1 list-disc pl-4">{x.notes.map((n, i) => <li key={i}>{n}</li>)}</ul> : null}
+        <div className="mt-1 text-xs">Vérifiez l’opération, les contenants, les produits et les quantités : rien n’est enregistré avant « ✓ Valider », et l’opération gardera la mention « 🤖 IA ».</div>
+      </Notice>
+    </div>
+  );
+}
+// champ « Décrire l'opération… » : opIds = opérations proposées par le sélecteur ; onOuvrir(type, preset) ouvre le formulaire prérempli
+function IaSaisieChamp({ opIds, onOuvrir, disabled, contId }) {
+  const { db, defaultDate } = useApp(); const ia = useIaUsage();
+  const [phrase, setPhrase] = useState(''); const [busy, setBusy] = useState(false); const [res, setRes] = useState(null);
+  const dictee = useDictee((t) => setPhrase((p) => (p ? `${p} ${t}` : t)));
+  const raison = ia.refus('saisie');
+  const ouvrir = (r, type) => {
+    const R1 = getR(db, iaChaiIso(r.lu.lu.date) || defaultDate);
+    const x = iaSaisiePreset(db, R1, r.codes, r.lu.lu, type, r.trace);
+    const notes = [...x.notes, ...(r.lu.question ? [r.lu.question] : [])];
+    if (x.preset.ia) IA_PREREMPLI[x.preset.ia.le] = { phrase: r.phrase, notes };
+    setRes(null); setPhrase(''); onOuvrir(type, x.preset);
+  };
+  const lancer = async () => {
+    const t = phrase.trim(); if (!t || busy) return;
+    const P = iaSaisiePrompt(db, getR(db, defaultDate), contId ? `${t} (contenant : ${(db.contenants.find((c) => c.id === contId) || {}).nom || ''})` : t, { opIds, date: defaultDate });
+    setBusy(true); const r = await ia.demander('saisie', { system: P.system, texte: P.texte, schema: P.schema, nom: P.nom }); setBusy(false);
+    if (!r) return;
+    const lu = iaSaisieLire(P.codes, r.valeur); const rr = { lu, codes: P.codes, trace: r.trace, phrase: t };
+    if (lu.type) ouvrir(rr, lu.type); else setRes(rr);
+  };
+  return (
+    <div className="ia-saisie" data-ia-saisie="">
+      <div className="flex flex-wrap items-center gap-2">
+        <input className="inp min-w-0 flex-1" style={{ minWidth: 200 }} value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder="Décrire l’opération…" aria-label="Décrire l’opération en langage courant" disabled={disabled || !!raison} title={raison || 'ex. « sulfitage de la cuve 08 à 3 g/hL », « soutirage de la cuve 05 vers la cuve 06, 20 hL »'} data-ia-saisie-phrase=""
+          onKeyDown={(e) => { if (e.key === 'Enter' && phrase.trim()) { e.preventDefault(); e.stopPropagation(); lancer(); } }} />
+        {dictee.dispo ? <Btn kind={dictee.ecoute ? 'primary' : undefined} onClick={dictee.basculer} disabled={disabled || !!raison} aria-pressed={dictee.ecoute} aria-label={dictee.ecoute ? 'Arrêter la dictée' : 'Dicter l’opération'} title="Dictée par la reconnaissance vocale du navigateur (selon le navigateur, le son peut être traité par son éditeur)" data-ia-dictee="">{dictee.ecoute ? '⏹' : '🎤'}</Btn> : null}
+        <IaBouton usage="saisie" busy={busy} disabled={disabled || !phrase.trim()} onClick={lancer} data-ia-saisie-ok="">Préremplir</IaBouton>
+      </div>
+      {res ? <div className="mt-2" data-ia-saisie-choix="">
+        <Notice tone="info" title={res.lu.choix.length ? 'Plusieurs opérations possibles : choisissez' : 'Opération non reconnue'}>
+          {res.lu.question ? <div translate="no">{res.lu.question}</div> : null}
+          {res.lu.choix.length ? <div className="mt-2 flex flex-wrap gap-2">{res.lu.choix.map((t) => <Btn key={t} size="sm" onClick={() => ouvrir(res, t)} data-ia-choix-op={t}>{(opDef(db, t) || {}).label || t}</Btn>)}</div>
+            : <div>Choisissez l’opération dans la liste ci-dessous, ou précisez la phrase.</div>}
+        </Notice>
+      </div> : null}
+    </div>
+  );
+}
+
+function NouvelleOpChoix({ groupes, versBouteilles, onChoisir, onChoisirPreset, onFermer, figee }) {
   const { db, uid, setTab } = useApp();
   const [q, setQ] = useState(''); const [choix, setChoixS] = useState(opsChoixLire); const champ = useRef(null);
   const tous = useMemo(() => groupes.flatMap((g) => g.items), [groupes]);
@@ -44,6 +117,7 @@ function NouvelleOpChoix({ groupes, versBouteilles, onChoisir, onFermer, figee }
   const btn = (t, prefixe) => <OpChoixBtn key={`${prefixe || ''}${t}`} t={t} prefixe={prefixe} fav={choix.favoris.includes(t)} onChoisir={choisir} onFav={prefixe ? null : fav} disabled={figee} />;
   return (
     <div className="nouvelle-op card p-3" data-nouvelle-op-panneau="" role="region" aria-label="Choisir une opération" onKeyDown={(e) => { if (e.key === 'Escape' && !document.querySelector('.overlay')) { e.stopPropagation(); onFermer(); } }}>
+      {onChoisirPreset ? <div className="mb-3"><IaSaisieChamp opIds={tous} disabled={figee} onOuvrir={(t, preset) => { setChoix((c) => ({ ...c, recentes: [t, ...c.recentes.filter((x) => x !== t)].slice(0, OPS_RECENTES_MAX) })); onChoisirPreset(t, preset); }} /></div> : null}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input ref={champ} className="inp min-w-0 flex-1" style={{ minWidth: 180 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher une opération…" aria-label="Rechercher une opération" data-nouvelle-op-recherche=""
           onKeyDown={(e) => { if (e.key === 'Enter' && trouves.length && !figee) { e.preventDefault(); choisir(trouves[0]); } }} />
@@ -138,7 +212,7 @@ function TabOps() {
           <button ref={btnNouv} type="button" className={cx('btn', !choixOuvert && 'btn-primary')} aria-expanded={choixOuvert} aria-controls="nouvelle-op-choix" onClick={() => (choixOuvert ? fermerChoix() : ouvrirChoix())} data-nouvelle-op="" data-vg="ops-nouvelle">{choixOuvert ? '▴ Masquer le choix' : '＋ Nouvelle opération'}</button>
           {!choixOuvert ? <span className="text-sm text-ink2">Recherche, favoris et dernières opérations utilisées.</span> : null}
         </div>
-        {choixOuvert ? <div id="nouvelle-op-choix" className="mt-3"><NouvelleOpChoix groupes={groupes} versBouteilles={versBouteilles} figee={camp.figee} onChoisir={(t) => setForm({ type: t })} onFermer={fermerChoix} /></div> : null}
+        {choixOuvert ? <div id="nouvelle-op-choix" className="mt-3"><NouvelleOpChoix groupes={groupes} versBouteilles={versBouteilles} figee={camp.figee} onChoisir={(t) => setForm({ type: t })} onChoisirPreset={(t, preset) => setForm({ type: t, preset })} onFermer={fermerChoix} /></div> : null}
         <Aide id="ops-nouvelle" className="mt-3" resume="« ✓ Valider » enregistre l’opération faite, « 📋 Planifier » la garde à réaliser.">
           <p className="text-sm">Dans chaque formulaire : « ✓ Valider » enregistre l’opération faite (stocks mis à jour) ou « 📋 Planifier (à réaliser) » la garde en attente, sans toucher aux stocks. Le journal ci-dessous garde toutes les opérations, tirage, cave et dégorgement compris. Astuce : « ⋯ », clic droit ou appui long sur un contenant du plan de cave pour lancer une opération directement dessus.</p>
         </Aide>
@@ -156,8 +230,8 @@ function TabOps() {
         <TI value={q} onChange={setQ} placeholder="Rechercher…" title="Lot, cuve, produit, opérateur, notes…" style={{ width: 200, maxWidth: '100%' }} aria-label="Rechercher" /></>}>
         {!rows.length ? vide : (<>
           <div className="hidden md:block"><div className="tblwrap"><table className="tbl"><thead><tr><th>Date</th><th>Opération</th><th>Lots</th><th>Contenants</th><th>Détail</th><th className="r">Volume</th><th>Opérateur(s)</th><th>Contrôle</th><th aria-label="Actions" /></tr></thead>
-            <tbody>{vus.map((r) => (<tr key={r.id}><td className="num whitespace-nowrap">{fmtDate(r.op.date)}</td><td><Chip tone={OP_TONE[r.op.type]}>{opNom(r.op)}</Chip>{r.op.groupe || r.op.schema || (r.op.depassement && r.op.depassement.motif) ? <div className="mt-1 flex flex-wrap gap-1"><GroupeChip x={r.op} /><DepassementChip op={r.op} /><SchemaChip x={r.op} /></div> : null}</td><td>{lotsOf(r)}</td><td>{contsOf(r)}</td><td className="max-w-md">{r.text}{r.op.notes ? <div className="text-xs text-ink2">{r.op.notes}</div> : null}</td><td className="r num whitespace-nowrap">{r.vol != null ? `${fmtL(r.vol)}` : ''}</td><td><OperateursChips ids={r.op.operateurs} />{r.op.saisiPar ? <div className="mt-0.5 text-xs text-ink2" title={r.op.modifiePar ? `corrigée par ${utilisateurNom(db, r.op.modifiePar)}` : undefined}>saisie : {utilisateurNom(db, r.op.saisiPar)}{r.op.modifiePar ? ' · corrigée' : ''}</div> : null}</td><td><OpWarns r={r} open={!!openW[r.id]} setOpen={(v) => setOpenW((s) => ({ ...s, [r.id]: v }))} /></td><td className="op-acts-td">{acts(r)}</td></tr>))}</tbody></table></div></div>
-          <div className="space-y-2 md:hidden">{vus.map((r) => (<div key={r.id} className="card p-3"><div className="flex flex-wrap items-center gap-2"><Chip tone={OP_TONE[r.op.type]}>{opNom(r.op)}</Chip><GroupeChip x={r.op} /><DepassementChip op={r.op} /><SchemaChip x={r.op} /><span className="num text-sm">{fmtDate(r.op.date)}</span>{r.vol != null ? <span className="num ml-auto text-sm">{fmtL(r.vol)}</span> : null}</div>
+            <tbody>{vus.map((r) => (<tr key={r.id}><td className="num whitespace-nowrap">{fmtDate(r.op.date)}</td><td><Chip tone={OP_TONE[r.op.type]}>{opNom(r.op)}</Chip>{r.op.groupe || r.op.schema || r.op.ia || (r.op.depassement && r.op.depassement.motif) ? <div className="mt-1 flex flex-wrap gap-1"><GroupeChip x={r.op} /><DepassementChip op={r.op} /><SchemaChip x={r.op} /><IaTrace ia={r.op.ia} /></div> : null}</td><td>{lotsOf(r)}</td><td>{contsOf(r)}</td><td className="max-w-md">{r.text}{r.op.notes ? <div className="text-xs text-ink2">{r.op.notes}</div> : null}</td><td className="r num whitespace-nowrap">{r.vol != null ? `${fmtL(r.vol)}` : ''}</td><td><OperateursChips ids={r.op.operateurs} />{r.op.saisiPar ? <div className="mt-0.5 text-xs text-ink2" title={r.op.modifiePar ? `corrigée par ${utilisateurNom(db, r.op.modifiePar)}` : undefined}>saisie : {utilisateurNom(db, r.op.saisiPar)}{r.op.modifiePar ? ' · corrigée' : ''}</div> : null}</td><td><OpWarns r={r} open={!!openW[r.id]} setOpen={(v) => setOpenW((s) => ({ ...s, [r.id]: v }))} /></td><td className="op-acts-td">{acts(r)}</td></tr>))}</tbody></table></div></div>
+          <div className="space-y-2 md:hidden">{vus.map((r) => (<div key={r.id} className="card p-3"><div className="flex flex-wrap items-center gap-2"><Chip tone={OP_TONE[r.op.type]}>{opNom(r.op)}</Chip><GroupeChip x={r.op} /><DepassementChip op={r.op} /><SchemaChip x={r.op} /><IaTrace ia={r.op.ia} /><span className="num text-sm">{fmtDate(r.op.date)}</span>{r.vol != null ? <span className="num ml-auto text-sm">{fmtL(r.vol)}</span> : null}</div>
             <div className="mt-1 text-sm">{r.text}</div><div className="mt-1 flex flex-wrap gap-x-3 text-sm">{lotsOf(r)}{contsOf(r)}</div>
             {operateursValides(db, r.op.operateurs).length ? <div className="mt-1.5"><OperateursChips ids={r.op.operateurs} /></div> : null}
             {r.op.saisiPar ? <div className="mt-1 text-xs text-ink2">saisie : {utilisateurNom(db, r.op.saisiPar)}{r.op.modifiePar ? ` · corrigée par ${utilisateurNom(db, r.op.modifiePar)}` : ''}</div> : null}
@@ -165,7 +239,7 @@ function TabOps() {
           {rows.length > vus.length ? <div className="mt-3 flex flex-wrap items-center justify-center gap-2 no-print" data-journal-plus=""><span className="text-sm text-ink2">{`${fmt(vus.length)} opérations affichées sur ${fmt(rows.length)}`}</span><Btn onClick={() => setNMax((n) => n + JOURNAL_PAGE)}>Afficher plus</Btn><Btn kind="ghost" onClick={() => setNMax(rows.length)}>Tout afficher</Btn></div> : null}
         </>)}
       </Sec>
-      {form ? <OpForm type={form.type} editId={form.editId} onClose={() => setForm(null)} /> : null}
+      {form ? <OpForm type={form.type} editId={form.editId} preset={form.preset} onClose={() => setForm(null)} /> : null}
     </div>
   );
 }

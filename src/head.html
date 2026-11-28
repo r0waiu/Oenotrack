@@ -740,6 +740,8 @@ button.chip{cursor:pointer}
   .topbar .notice-exemple{padding:4px 10px;font-size:13px}
   .fil-ariane{display:none}
 }
+.ia-apercu-texte{max-height:260px;overflow:auto;white-space:pre-wrap;background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,monospace;margin:0}
+.ia-apercu-images{display:flex;flex-wrap:wrap;gap:8px}.ia-apercu-images img{max-width:160px;max-height:160px;border:1px solid var(--line);border-radius:6px;object-fit:contain;background:#fff}
 /* (fin du bloc en-tête et navigation) */
 /* - */
 /* - */
@@ -766,6 +768,12 @@ button.chip{cursor:pointer}
 .lot-barre{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .lot-resume{font-size:14px;line-height:1.5}
 @media print{.pitem .pdots,.lot-barre{display:none!important}}
+/* 0.49.0-alpha.1 : assistant IA au chai (saisie en langage courant, fiche relue, histoire du lot) */
+.ia-saisie{padding:8px;border:1px dashed var(--line);border-radius:8px;background:color-mix(in srgb,var(--accent) 4%,var(--surface))}
+.ia-saisie .inp{min-width:0}
+.ia-prerempli q,.ia-saisie q{font-style:italic}
+.ia-histoire .rpt-item p{margin:0 0 10px;line-height:1.55;font-size:14px}
+@media (max-width:640px){.ia-saisie .flex>.inp{flex-basis:100%}}
 /* (fin du bloc opérations) */
 /* - */
 /* - */
@@ -803,6 +811,11 @@ body:has(.sheet-erreur) .toast.bad:not(.login-voile .toast){display:none}
   .sheet-f-tel{padding:8px 12px;gap:6px}
   .sheet-f-tel:has(>.sheet-plus)>.btn-primary{flex:1}
 }
+/* 0.49.0-alpha.1 : documents lus par l'IA — encadré de la lecture, champs lus avec un doute */
+.ia-lecture{border:1px solid var(--accent);border-left-width:4px;border-radius:6px;padding:8px 10px;background:var(--surface2)}
+.ia-doute>.lbl{color:var(--warn)}.ia-doute>.lbl::after{content:" ⚠"}
+.ia-doute .inp{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn)}
+@media print{.ia-lecture{display:none}}
 /* (fin du bloc formulaires) */
 /* - */
 /* - */
@@ -861,6 +874,12 @@ body:has(.sheet-erreur) .toast.bad:not(.login-voile .toast){display:none}
 .visite-sommaire .visite-pied{position:sticky;bottom:0;flex:0 0 auto;padding:.6rem 1rem;border-top:1px solid var(--line);background:var(--card)}
 .visite-bulle.visite-feuille{left:0;right:0;bottom:0;top:auto;width:auto;border-radius:14px 14px 0 0;max-height:45vh;overflow-y:auto;padding-bottom:calc(.8rem + env(safe-area-inset-bottom,0px))}
 @media print{.visite{display:none}}
+/* 0.49.0-alpha.1 : assistant « Comment faire… ? » (68ta) — fil de la conversation */
+.aide-fil{display:flex;flex-direction:column;gap:.75rem;max-height:min(55vh,520px);overflow-y:auto;overflow-wrap:anywhere}
+.aide-echange{display:flex;flex-direction:column;gap:.35rem}
+.aide-q{align-self:flex-end;max-width:85%;background:var(--accentSoft,var(--surface2));color:var(--ink);border-radius:12px 12px 2px 12px;padding:.45rem .7rem;font-size:.9rem}
+.aide-r{align-self:flex-start;max-width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:12px 12px 12px 2px;padding:.55rem .75rem;font-size:.9rem}
+@media print{.aide-fil{max-height:none;overflow:visible}}
 /* (fin du bloc paramètres) */
 /* impression : seul le rapport est imprimé */
 @page{size:A4;margin:12mm}

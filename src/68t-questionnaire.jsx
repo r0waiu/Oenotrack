@@ -22,13 +22,31 @@ function QuestionChamp({ q, v, set, err }) {
   return <TI value={v || ''} onChange={set} aria-label={q.texte} autoFocus />;
 }
 
+// 0.49.0-alpha.1 (IA11, usage configuration, niveau 0 : moteur 17ad-ia-regle.js) : description facultative de l'exploitation → réponses
+// proposées (contrôlées par persoValider ; jamais le compte ni le choix de la base) qui préremplissent le questionnaire, relu écran par écran.
+// La description n'est pas enregistrée.
+function PersoDescription({ onReponses }) {
+  const ia = useIaUsage(); const [txt, setTxt] = useState(''); const [busy, setBusy] = useState(false); const [res, setRes] = useState(null);
+  const preremplir = async () => {
+    if (busy || !txt.trim()) return; setBusy(true);
+    try { const r = await ia.demander('configuration', iaPersoPrompt(txt)); if (!r) return; const x = iaPersoReponses(r.valeur); onReponses(x.reponses); setRes({ n: Object.keys(x.reponses).length, refusees: x.refusees }); }
+    finally { setBusy(false); }
+  };
+  return (<div className="card mb-3 grid gap-2 p-3" data-perso-description="">
+    <Field label="Décrivez votre exploitation en quelques phrases (facultatif)" help="ex. « Récoltant en Champagne, 8 ha, bio, tirage par un prestataire, nous sommes trois »"><TA value={txt} onChange={setTxt} rows={3} aria-label="Description de l’exploitation" /></Field>
+    <div><IaBouton usage="configuration" busy={busy} disabled={!txt.trim()} onClick={preremplir}>Préremplir</IaBouton></div>
+    {res ? <Notice tone={res.n ? 'info' : 'warn'} title={`${res.n} réponse(s) préremplie(s)`}><span>Choisissez un mode : chaque réponse proposée est marquée « 🤖 » et se relit écran par écran ; rien n’est appliqué avant « Appliquer et commencer ».</span>{res.refusees.length ? <span>{` ${res.refusees.length} proposition(s) écartée(s) (réponse non valable).`}</span> : null}</Notice> : null}
+  </div>);
+}
 function Questionnaire({ premiere, onClose, onVisite }) {
   const app = useApp(); const { db, act, uid, toast, connecter } = app; const ctxQ = useMemo(() => ({ premiere: !!premiere }), [premiere]);
   const [mode, setMode] = useState(''); const [rep, setRep] = useState(() => persoDefauts(db, ctxQ)); const [i, setI] = useState(0); const [err, setErr] = useState('');
   const [fin, setFin] = useState(null); const [busy, setBusy] = useState(false);
+  const [proposees, setProposees] = useState([]); // 0.49.0-alpha.1 (IA11) : réponses préremplies par l'IA, à relire écran par écran
   const Q = mode ? persoQuestions(mode, rep, ctxQ) : []; const q = Q[i] || null; const apercu = mode && i >= Q.length;
   const plan = useMemo(() => (apercu ? persoPlan(db, mode, rep, ctxQ) : null), [apercu, db, mode, rep, ctxQ]);
-  const set = (v) => { setRep((x) => ({ ...x, [q.id]: v })); setErr(''); };
+  const set = (v) => { setRep((x) => ({ ...x, [q.id]: v })); setErr(''); setProposees((L) => L.filter((x) => x !== q.id)); };
+  const preremplir = (reponses) => { setRep((x) => ({ ...x, ...reponses })); setProposees(Object.keys(reponses)); };
   const suivant = () => { const m = persoValider(q, rep[q.id]); if (m) { setErr(m); return; } setErr(''); setI(i + 1); };
   const appliquer = async () => {
     const v = persoValiderTout(mode, rep, ctxQ); if (!v.ok) { const k = Object.keys(v.erreurs)[0]; setI(Math.max(0, Q.findIndex((x) => x.id === k))); setErr(v.erreurs[k]); return; }
@@ -54,18 +72,18 @@ function Questionnaire({ premiere, onClose, onVisite }) {
     footer={!mode ? <Btn onClick={onClose}>{premiere ? 'Plus tard (garder le jeu d’exemple)' : 'Fermer'}</Btn> : apercu ? <><Btn onClick={() => setI(Q.length - 1)}>← Modifier mes réponses</Btn><Btn kind="primary" onClick={appliquer} disabled={busy} data-perso-appliquer="">✓ Appliquer et commencer</Btn></>
       : <><Btn onClick={() => (i ? setI(i - 1) : setMode(''))}>← Précédent</Btn><Btn kind="primary" onClick={suivant} data-perso-suivant="">Suivant →</Btn></>}>
     <div data-questionnaire={mode || 'mode'}>
-      {!mode ? <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
+      {!mode ? <><PersoDescription onReponses={preremplir} /><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
         {PERSO_MODES.map((m) => <button key={m.id} type="button" className="card perso-mode p-4 text-left" onClick={() => { setMode(m.id); setI(0); }} data-perso-mode={m.id}>
           <div className="text-lg font-semibold">{m.label}</div><div className="text-sm text-ink2">{`${persoQuestions(m.id, rep, ctxQ).length} questions · environ ${persoDuree(m.id, rep, ctxQ)} min`}</div>
           <p className="mt-2 text-sm">{m.id === 'basique' ? 'L’essentiel : votre exploitation, vos vins, vos revendications, votre chai et votre équipe.' : 'En plus : identifiants douaniers, cave et dégorgement, plan de vinification, alertes de conformité, opérateurs, campagne, onglet d’ouverture.'}</p></button>)}
-      </div> : apercu ? <div data-perso-apercu="">
+      </div></> : apercu ? <div data-perso-apercu="">
         <h3 className="mb-2 font-semibold">Voici ce qui sera réglé</h3>
         {PERSO_SECTIONS.concat([['onglets', 'Onglets']]).map(([sid, slib]) => { const L = plan.changements.filter((c) => c.groupe === sid); return L.length ? <div key={sid} className="mb-2"><div className="lbl">{slib}</div><ul className="list-disc pl-5 text-sm">{L.map((c, k) => <li key={k}><span>{c.label}</span> : <span translate="no">{c.apres}</span></li>)}</ul></div> : null; })}
         <p className="help"><span>Rien n’est supprimé : les onglets masqués se réaffichent dans Paramètres › Modules.</span>{plan.baseVide ? <span>{' '}Le jeu d’exemple est remplacé par une base vide.</span> : null}</p>
       </div> : <div data-perso-question={q.id}>
         <div className="perso-progres" aria-hidden="true"><div style={{ width: `${Math.round((i / Q.length) * 100)}%` }} /></div>
         <div className="mb-1 text-xs text-ink2"><span>{(PERSO_SECTIONS.find((s) => s[0] === q.section) || ['', ''])[1]}</span> · <span>{`question ${i + 1} / ${Q.length}`}</span></div>
-        <h3 className="mb-1 text-lg font-semibold">{q.texte}</h3>{q.aide ? <p className="help mb-3">{q.aide}</p> : <div className="mb-3" />}
+        <h3 className="mb-1 text-lg font-semibold">{q.texte}</h3>{proposees.includes(q.id) ? <div className="mb-1"><Chip tone="info" data-perso-propose={q.id}>🤖 proposé par l’IA, à relire</Chip></div> : null}{q.aide ? <p className="help mb-3">{q.aide}</p> : <div className="mb-3" />}
         <form onSubmit={(e) => { e.preventDefault(); suivant(); }}><QuestionChamp q={q} v={rep[q.id]} set={set} err={err} /><button type="submit" hidden /></form>
         {err ? <div className="login-err mt-2" role="alert">{err}</div> : null}
       </div>}
@@ -162,10 +180,10 @@ function VisiteGuidee({ onClose }) {
 }
 // Paramètres : relancer la configuration guidée ou la visite
 function ConfigurationGuideeCard() {
-  const { db, openQuestionnaire, openVisite } = useApp(); const lect = useLectureSeule('params'); const p = (db.settings || {}).personnalisation;
+  const { db, openQuestionnaire, openVisite, openAide } = useApp(); const lect = useLectureSeule('params'); const p = (db.settings || {}).personnalisation;
   return (<div className="card mb-4 p-4" data-config-guidee="">
     <div className="mb-1 font-semibold">🧭 Configuration guidée</div>
     <p className="text-sm text-ink2">{p ? `Dernière configuration : ${fmtDate(String(p.le).slice(0, 10))} (mode ${(PERSO_MODES.find((m) => m.id === p.mode) || { label: p.mode }).label}). Vos réponses sont reprises si vous la relancez.` : 'Quelques questions pour régler l’application d’avance (basique ou avancé).'}</p>
-    <div className="mt-2 flex flex-wrap gap-2">{lect ? null : <Btn onClick={() => openQuestionnaire({ premiere: false })} data-config-relancer="">Relancer le questionnaire</Btn>}<Btn onClick={openVisite}>❓ Visite guidée</Btn></div>
+    <div className="mt-2 flex flex-wrap gap-2">{lect ? null : <Btn onClick={() => openQuestionnaire({ premiere: false })} data-config-relancer="">Relancer le questionnaire</Btn>}<Btn onClick={openVisite}>❓ Visite guidée</Btn>{openAide ? <Btn onClick={openAide} data-aide-params="">💬 Comment faire ?</Btn> : null}</div>
   </div>);
 }

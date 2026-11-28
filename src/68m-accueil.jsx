@@ -42,7 +42,7 @@ function AccueilPage({ revoir, onOuvrir, onLegal }) {
             <li><b>Prêt en quelques minutes.</b> Une configuration guidée vous demande votre région, vos types de vins, vos revendications et vos modules, puis une visite guidée vous montre où tout se trouve.</li>
             <li><b>Vos données restent chez vous.</b> Tout ce que vous saisissez est enregistré et chiffré sur votre appareil, jamais chez l’éditeur. Une sauvegarde complète tient dans un seul fichier.</li>
             <li><b>À plusieurs, si vous le souhaitez.</b> Reliez Œnotrack à votre Google Drive, OneDrive ou Dropbox, ou au dossier réseau de l’entreprise : il enregistre ses fichiers dans le dossier que vous choisissez, sur votre propre compte, et réunit les saisies de chacun.</li>
-            <li><b>Assistant IA facultatif.</b> Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…), pour lire les bulletins d’analyses, reconnaître les fiches des intrants et suivre leurs mises à jour.</li>
+            <li><b>Assistant IA facultatif.</b> Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…) ou un modèle installé sur votre ordinateur : dictez une opération, photographiez une étiquette, un ticket de pesée ou une fiche remplie, posez une question. L’IA ne fait que proposer : vous relisez avant d’enregistrer, et chaque envoi reste à votre main.</li>
           </ol>
         </section>
         <section className="accueil-donnees" aria-labelledby="accueil-donnees"><h2 id="accueil-donnees" className="accueil-h2">Vos données</h2>

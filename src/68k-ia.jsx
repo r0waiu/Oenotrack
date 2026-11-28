@@ -91,7 +91,7 @@ function IaView() {
   const { toast, confirm } = useApp(); const [c, setC] = useState(() => iaConfigLire()); const E = _iaEspace; const persoOK = !E || E.persoAutorise;
   const A = iaActive(c); const P = iaActivePerso(c); const F = iaFournisseur(P.fournisseur);
   const [voir, setVoir] = useState(false); const [modeles, setModeles] = useState([]); const [busy, setBusy] = useState(''); const [test, setTest] = useState(null);
-  const maj = (patch) => { const n = { ...c, ...patch }; setC(n); if (!iaConfigEcrire(n)) toast('Impossible d’enregistrer le réglage dans ce navigateur (stockage indisponible).', 'bad'); };
+  const maj = (patch) => { const n = { ...iaConfigLire(), ...c, usages: iaConfigLire().usages, consentements: iaConfigLire().consentements, ...patch }; setC(n); if (!iaConfigEcrire(n)) toast('Impossible d’enregistrer le réglage dans ce navigateur (stockage indisponible).', 'bad'); };
   const majCle = (v) => { maj({ cles: { ...(c.cles || {}), [F.id]: String(v || '').trim() } }); setTest(null); };
   const majModele = (v) => { maj({ modeles: { ...(c.modeles || {}), [F.id]: String(v || '').trim() } }); setTest(null); };
   const choisir = (id) => { maj({ fournisseur: id }); setModeles([]); setTest(null); setVoir(false); };
@@ -142,12 +142,14 @@ function IaView() {
           <li><b>Bulletins d’analyses.</b> L’IA complète ce que la lecture automatique n’a pas reconnu dans les bulletins importés (onglet Analyses) ; vous vérifiez avant d’enregistrer. Envoyé : le texte du bulletin et la liste de vos paramètres d’analyse (noms et unités) ; les échantillons sont rattachés à vos lots et à vos cuves sur cet appareil.</li>
           <li>Jamais envoyé : vos volumes, vos codes de lots, les noms de vos cuves, ni aucune donnée de traçabilité ; des résultats d’analyses seulement quand vous lisez un bulletin avec l’IA.</li>
         </ul>
-        <Check checked={c.completer !== false} onChange={(v) => maj({ completer: v })} label="Compléter les fiches produits avec l’IA à chaque lecture de document (FT, FDS, certificats)" />
-        <Check checked={c.bulletins !== false} onChange={(v) => maj({ bulletins: v })} label="Lire les bulletins d’analyses avec l’IA, en complément de la lecture automatique" />
+        <Check checked={iaUsageActif(c, 'completer')} onChange={(v) => maj({ completer: v, usages: { ...(c.usages || {}), completer: v } })} label="Compléter les fiches produits avec l’IA à chaque lecture de document (FT, FDS, certificats)" />
+        <Check checked={iaUsageActif(c, 'bulletins')} onChange={(v) => maj({ bulletins: v, usages: { ...(c.usages || {}), bulletins: v } })} label="Lire les bulletins d’analyses avec l’IA, en complément de la lecture automatique" />
         <Check checked={!!c.auto} onChange={(v) => maj({ auto: v })} label={<>Veille automatique : à l’ouverture d’Œnotrack sur cet appareil, vérifier en ligne les intrants non vérifiés depuis <input className="inp num mx-1 inline-block" style={{ width: 64, minHeight: 28, padding: '1px 6px' }} inputMode="numeric" value={c.autoJours || 30} onChange={(e) => maj({ autoJours: e.target.value.replace(/\D/g, '').slice(0, 3) })} onClick={(e) => e.preventDefault()} aria-label="Nombre de jours entre deux vérifications" /> jours (5 produits au plus par jour)</>} />
         <p className="help">Coût : chaque demande est facturée par le service sur votre compte (en général quelques centimes ; la recherche web est comptée en plus chez certains). Fixez une limite de dépenses dans la console du service. Sur un ordinateur partagé, effacez la clé après usage : toute personne utilisant ce navigateur peut s’en servir.</p>
         {nCles ? <div><Btn size="sm" kind="danger" onClick={effacerTout}>Effacer toutes les clés de cet appareil ({nCles})</Btn></div> : null}
       </div>
+      <IaUsagesCard />
+      <IaJournalCard />
     </div>
   );
 }

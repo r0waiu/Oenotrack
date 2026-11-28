@@ -45,7 +45,8 @@ function HygAFaire({ quoi }) {
 const QuandPlan = ({ e }) => <>{(e.quand || []).map((q, i) => <span key={i}>{i ? ' ; ' : ''}<span>{hygLibQuand(q)}</span></span>)}</>;
 const ProduitsPlan = ({ e }) => { const { db } = useApp(); const L = e.produits || []; return L.length ? <>{L.map((p, i) => { const d = p.produitId ? hygDef(db, p.produitId) : null; return <span key={i}>{i ? ' + ' : ''}{d ? <span translate="no">{d.nom}</span> : <span>{hygLib(HYG_TYPES, p.type)}</span>}{hasNum(p.conc) ? <span className="num">{` ${hygConcTxt(p.conc, p.concUnite)}`}</span> : null}</span>; })}</> : '—'; };
 function PlanNettoyageView() {
-  const { db, act, confirm } = useApp(); const [ed, setEd] = useState(null); const [imp, setImp] = useState(false); const actif = planHygieneActif(db); const P = planNettoyage(db);
+  const { db, act, confirm, uid } = useApp(); const [ed, setEd] = useState(null); const [imp, setImp] = useState(false); const actif = planHygieneActif(db); const P = planNettoyage(db);
+  const [propIa, setPropIa] = useState(false); // 0.49.0-alpha.1 (IA21)
   const charger = async () => { if (await confirm({ title: 'Rétablir le plan d’origine ?', body: 'Le plan de nettoyage reprend le modèle Œnotrack (à adapter ensuite à votre exploitation) ; vos lignes ajoutées ou modifiées sont remplacées. Le journal d’hygiène ne change pas.', ok: 'Rétablir' })) act((d) => planModeleCharger(d, 'nettoyage', true), 'Plan de nettoyage d’origine rétabli.'); };
   const del = async (e) => { if (await confirm({ title: `Retirer « ${e.libelle} » (${lbl(db, 'actionsHygiene', e.actionId)}) du plan ?`, body: 'Le journal d’hygiène ne change pas.', ok: 'Retirer', danger: true })) act((d) => planEntreeDelete(d, e.id), 'Ligne retirée du plan.'); };
   return (
@@ -54,14 +55,14 @@ function PlanNettoyageView() {
       <div className="my-3 flex flex-wrap items-center gap-2" data-plan-reglages="">
         <Check checked={actif} onChange={(v) => act((d) => planReglages(d, { actif: v }), v ? 'Plans d’hygiène actifs.' : 'Plans d’hygiène en pause.')} label="Plans actifs (tâches et alertes)" />
         <span className="inline-flex items-center gap-2 text-sm">mis en place le<DI value={planDepuis(db)} onChange={(v) => act((d) => planReglages(d, { depuis: v }))} aria-label="Date de mise en place du plan" /></span>
-        <span className="ml-auto flex flex-wrap gap-2"><Btn onClick={() => setImp(true)}>🖨 Imprimer le plan</Btn><Btn onClick={charger}>Rétablir l’origine</Btn><Btn kind="primary" onClick={() => setEd({})}>＋ Ajouter une ligne</Btn></span>
+        <span className="ml-auto flex flex-wrap gap-2"><PlanNettoyageIaBouton onOuvrir={() => setPropIa(true)} /><Btn onClick={() => setImp(true)}>🖨 Imprimer le plan</Btn><Btn onClick={charger}>Rétablir l’origine</Btn><Btn kind="primary" onClick={() => setEd({})}>＋ Ajouter une ligne</Btn></span>
       </div>
       {HYG_ZONES.map(([z, zl]) => { const L = P.filter((e) => (e.zone || 'autre') === z); if (!L.length) return null; return (
         <Sec key={z} title={`${zl} (${L.length})`}>
           <div className="space-y-2">{L.map((e) => (
             <div key={e.id} className={cx('card p-3', e.actif === false && 'opacity-60')} data-plan-ligne={e.id}>
-              <div className="flex flex-wrap items-center gap-2"><b>{e.libelle}</b><Chip tone="info">{lbl(db, 'actionsHygiene', e.actionId)}</Chip>{e.enregistrer === false ? <Chip title="Rappel de bonne pratique, sans alerte">consigne</Chip> : <Chip tone="ok" title="Trace attendue au journal : alerte si elle manque">enregistré</Chip>}{e.actif === false ? <Chip>désactivée</Chip> : null}{e.danger ? <Chip title="Danger maîtrisé">{hygLib(HYG_DANGERS, e.danger).split(' (')[0]}</Chip> : null}
-                <span className="ml-auto flex gap-1"><Btn size="sm" onClick={() => setEd({ id: e.id })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => del(e)} aria-label={`Retirer ${e.libelle}`}>✕</Btn></span></div>
+              <div className="flex flex-wrap items-center gap-2"><b>{e.libelle}</b><Chip tone="info">{lbl(db, 'actionsHygiene', e.actionId)}</Chip>{e.enregistrer === false ? <Chip title="Rappel de bonne pratique, sans alerte">consigne</Chip> : <Chip tone="ok" title="Trace attendue au journal : alerte si elle manque">enregistré</Chip>}{e.actif === false ? <Chip>désactivée</Chip> : null}{e.danger ? <Chip title="Danger maîtrisé">{hygLib(HYG_DANGERS, e.danger).split(' (')[0]}</Chip> : null}<IaTrace ia={e.ia} />{e.aVerifier ? <Chip tone="warn" data-plan-a-verifier={e.id}>proposé par l’IA, à vérifier</Chip> : null}
+                <span className="ml-auto flex gap-1">{e.aVerifier ? <Btn size="sm" onClick={() => act((d) => iaNettoyageVerifie(d, e.id, uid), 'Ligne du plan vérifiée.')} data-plan-verifiee={e.id}>✓ Vérifiée</Btn> : null}<Btn size="sm" onClick={() => setEd({ id: e.id })}>Modifier</Btn><Btn size="sm" kind="danger" onClick={() => del(e)} aria-label={`Retirer ${e.libelle}`}>✕</Btn></span></div>
               <div className="mt-1 grid gap-x-4 gap-y-0.5 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
                 <span><span className="text-ink2">Quand : </span><QuandPlan e={e} /></span><span><span className="text-ink2">Cible : </span><span>{hygCibleTexte(db, e.cible)}</span></span>
                 {(e.produits || []).length ? <span><span className="text-ink2">Produits : </span><ProduitsPlan e={e} />{e.contact ? <span>{` · ${e.contact}`}</span> : null}</span> : null}
@@ -74,8 +75,38 @@ function PlanNettoyageView() {
       {!P.length ? <p className="help">Plan vide : « Rétablir l’origine » charge le modèle Œnotrack, ou ajoutez vos lignes.</p> : null}
       {ed ? <PlanEntreeForm id={ed.id} onClose={() => setEd(null)} /> : null}
       {imp ? <PlanImpression onClose={() => setImp(false)} /> : null}
+      {propIa ? <PlanNettoyageIa onClose={() => setPropIa(false)} /> : null}
     </div>
   );
+}
+/* 0.49.0-alpha.1 (IA21, usage planNettoyage, niveau 0 : moteur 17ad-ia-regle.js) : « 🤖 Proposer un plan » → lignes au format du plan,
+   en liste à cocher ; ajoutées seulement sur « Ajouter les lignes cochées », marquées « proposé par l’IA, à vérifier » (trace ia, aVerifier).
+   Partent : types de contenants et catégories d'équipements présents, locaux et matériel à nettoyer, noms des produits d'hygiène. */
+function PlanNettoyageIaBouton({ onOuvrir }) { return <IaBouton usage="planNettoyage" onClick={onOuvrir}>Proposer un plan</IaBouton>; }
+function PlanNettoyageIa({ onClose }) {
+  const { db, act } = useApp(); const ia = useIaUsage(); const [busy, setBusy] = useState(false); const [prop, setProp] = useState(null); const [coche, setCoche] = useState([]);
+  const lancer = async () => { if (busy) return; setBusy(true); try { const r = await ia.demander('planNettoyage', iaNettoyagePrompt(iaNettoyageDonnees(db))); if (r) { const L = iaNettoyageLignes(db, r.valeur); setProp({ L, trace: r.trace }); setCoche(L.filter((x) => x.ok).map((x) => x.i)); } else onClose(); } finally { setBusy(false); } };
+  useEffect(() => { lancer(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const ajouter = () => { const S = prop.L.filter((x) => x.ok && coche.includes(x.i)).map((x) => x.spec); const r = act((d) => iaNettoyageAjouter(d, S, prop.trace), `${S.length} ligne(s) ajoutée(s) au plan, à vérifier.`); if (r && r.ok) onClose(); };
+  const nomProduit = (p) => (p.produitId ? hygNom(db, p.produitId) : hygLib(HYG_TYPES, p.type));
+  return (<Sheet wide title="Plan de nettoyage proposé" sub="Proposé par l’IA, à vérifier : cochez les lignes à ajouter au plan." onClose={onClose}
+    footer={<><Btn onClick={onClose}>Fermer sans ajouter</Btn><Btn kind="primary" disabled={!prop || !coche.length} onClick={ajouter} data-plan-ia-ajouter="">Ajouter les lignes cochées</Btn></>}>
+    <div className="space-y-2" data-plan-ia="">
+      {!prop ? <p className="help">{busy ? '⏳ L’assistant IA prépare le plan…' : ''}</p> : !prop.L.length ? <Empty>Aucune ligne proposée.</Empty> : prop.L.map((x) => (
+        <div key={x.i} className={cx('card p-3', !x.ok && 'opacity-60')} data-plan-ia-ligne={x.i}>
+          <div className="flex flex-wrap items-center gap-2"><Check disabled={!x.ok} checked={x.ok && coche.includes(x.i)} onChange={(v) => setCoche((L) => (v ? [...L, x.i] : L.filter((y) => y !== x.i)))} label={<b translate="no">{x.spec.libelle || '—'}</b>} />
+            {x.spec.actionId ? <Chip tone="info">{lbl(db, 'actionsHygiene', x.spec.actionId) || x.spec.actionId}</Chip> : null}<Chip>{hygLib(HYG_ZONES, x.spec.zone)}</Chip>{x.ok ? null : <Chip tone="bad">{x.msg}</Chip>}</div>
+          <div className="mt-1 grid gap-x-4 gap-y-0.5 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,240px),1fr))' }}>
+            <span><span className="text-ink2">Quand : </span><QuandPlan e={x.spec} /></span>{x.spec.cible ? <span><span className="text-ink2">Cible : </span><span>{hygCibleTexte(db, x.spec.cible)}</span></span> : null}
+            {x.spec.produits.length ? <span><span className="text-ink2">Produits : </span>{x.spec.produits.map((p, k) => <span key={k}>{k ? ' + ' : ''}<span translate="no">{nomProduit(p)}</span>{hasNum(p.conc) ? <span className="num">{` ${hygConcTxt(p.conc, p.concUnite)}`}</span> : null}</span>)}{x.spec.contact ? <span translate="no">{` · ${x.spec.contact}`}</span> : null}</span> : null}
+            {x.spec.controle && x.spec.controle !== 'aucun' ? <span><span className="text-ink2">Contrôle : </span>{hygLib(HYG_CONTROLES, x.spec.controle)}{x.spec.attendu ? <span translate="no">{` (${x.spec.attendu})`}</span> : null}</span> : null}
+            {x.spec.responsable ? <span><span className="text-ink2">Responsable : </span><span translate="no">{x.spec.responsable}</span></span> : null}
+          </div>
+          {x.spec.mode ? <div className="mt-1 text-xs text-ink2" translate="no">{x.spec.mode}</div> : null}
+        </div>))}
+      <p className="help">Propositions génériques : vérifiez les produits, les concentrations et les temps de contact avec les fiches techniques et les FDS de vos produits.</p>
+    </div>
+  </Sheet>);
 }
 const QUAND_VIDE = (type) => ({ type, ...(type === 'periodique' ? { jours: 7 } : type === 'vidange' ? { delai: 1 } : type === 'avantRemplissage' ? { heures: 24 } : type === 'apresOp' ? { ops: ['pressurage'] } : type === 'texte' ? { texte: '' } : {}) });
 function PlanEntreeForm({ id, onClose }) {
@@ -145,7 +176,7 @@ function PlanMaintenanceView() {
     <div>
       <Notice tone="info" title="Plan de maintenance du matériel">Préventive (planifiée pour éviter les pannes), réglementaire (imposée par la loi : vérifications, registre de sécurité) et curative (en cas de panne). Les échéances et les pannes signalées apparaissent dans l’onglet À faire.</Notice>
       <div className="my-3 flex flex-wrap gap-2"><Btn kind="primary" onClick={() => setMt({ preset: { type: 'curative', statut: 'ouverte' } })} data-signaler-panne="">⚠ Signaler une panne</Btn><Btn onClick={() => setMt({ preset: { type: 'preventive' } })}>＋ Enregistrer une intervention</Btn>
-        <span className="ml-auto flex flex-wrap gap-2"><Btn onClick={() => setImp(true)}>🖨 Imprimer le plan</Btn><Btn onClick={charger}>Rétablir l’origine</Btn><Btn onClick={() => setEd({})}>＋ Ajouter du matériel</Btn></span></div>
+        <span className="ml-auto flex flex-wrap gap-2"><PlanNettoyageIaBouton onOuvrir={() => setPropIa(true)} /><Btn onClick={() => setImp(true)}>🖨 Imprimer le plan</Btn><Btn onClick={charger}>Rétablir l’origine</Btn><Btn onClick={() => setEd({})}>＋ Ajouter du matériel</Btn></span></div>
       <Sec title={`Matériel suivi (${P.length})`}>
         <Tbl rows={P} empty="Plan vide : « Rétablir l’origine » charge le modèle Œnotrack." cols={[
           { h: 'Matériel', r: (e) => <span className={cx(e.actif === false && 'opacity-60')}><b>{e.libelle}</b>{maintEquipements(db, e).length ? <span className="block text-xs text-ink2">{maintEquipements(db, e).map((x) => x.nom).join(', ')}</span> : null}</span> },

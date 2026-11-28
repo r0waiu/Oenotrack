@@ -226,6 +226,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
         const nTab = (pid) => lignesDe(pid).length; const LA = lignesDe(actif);
         return (<>
           <TraceImport type="entree_mout" f={f} setF={setF} />
+          {old ? null : <MoutIaLecture f={f} setF={setF} nvLigne={nvLigne} actif={actif} />}
           <G n={3}><CF k="date" label="Date de réception"><DI value={f.date} onChange={(v) => upd({ date: v })} /></CF><CF k="immat" label="Immatriculation de la citerne (facultatif)" help={(() => { const L = f.immat ? baremesCiterne(db, f.immat) : []; if (!L.length) return immatNorm(f.immat).length >= 6 ? <span data-citerne-inconnue="">📏 Importez son certificat de jaugeage (Paramètres › Barèmes de jaugeage) pour saisir le creux de chaque compartiment.</span> : ''; const val = L.map((b) => (b.meta || {}).validite).filter(Boolean).sort()[0]; return <span data-citerne-connue="">📏 Certificat de jaugeage : {L.length} compartiment{L.length > 1 ? 's' : ''}{val ? (val < todayISO() ? <b className="text-bad"> · expiré le {fmtDate(val)}</b> : ` · valable jusqu’au ${fmtDate(val)}`) : ''}</span>; })()}><TI value={f.immat} onChange={(v) => upd({ immat: v.toUpperCase() })} placeholder="ex. AB-123-CD" /></CF><CF k="millesime" label="Millésime (par défaut)" help="Modifiable pour chaque moût."><TI value={f.millesime} onChange={(v) => upd({ millesime: v })} placeholder={String(yearOf(f.date))} /></CF></G>
           <div className="flex flex-wrap items-end gap-3"><div className="help" data-analyse-imposee="">🔬 Analyses des lots reçus : <b>{mod.nom}{mod.etape ? ` · ${mod.etape}` : ''}</b> ({mod.paramIds.map((x) => paramDe(db, x).nom).join(', ')})</div>
             {cfVisible(cfgv, 'e.numLot') ? <Btn size="sm" onClick={numeroter} title="Donne un n° de lot à chaque compartiment qui n’en a pas (n° de bon ou date)">№ Numéroter les lots</Btn> : null}</div>
@@ -473,6 +474,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       extraFooter={<Btn className="mr-auto" onClick={() => openFiche([prevId && plan0 ? { kind: 'prev', id: prevId } : { kind: 'draft', type, f, editId }])} title="Fiche d’enregistrement pré-remplie à imprimer pour les opérateurs">🖨 Fiche à remplir</Btn>}>
       {lecture ? <Notice tone="info" title="Consultation">Votre profil « {profilNom(db, uid)} » ne permet pas de {old ? 'corriger une opération validée' : 'valider cette opération'} : les valeurs sont affichées sans pouvoir être enregistrées.</Notice> : null}
       {tracePar}
+      {!old && f.ia ? <IaPrerempliNotice ia={f.ia} /> : old && old.ia ? <div className="mb-2"><IaTrace ia={old.ia} /></div> : null /* 0.49.0-alpha.1 : formulaire prérempli par l'IA, opération proposée par l'IA (S4) */}
       {prevId ? <Notice tone="info" title="Opération à réaliser">Après l’opération, corrigez avec les valeurs réelles relevées (sur la fiche remplie, par exemple) puis « ✓ Valider ». « Enregistrer (à réaliser) » la garde en attente.</Notice> : null}
       <FormCfgCtx.Provider value={cfgv}>
       {nMasques || !lecture ? <div className="cf-barre">

@@ -43,12 +43,34 @@ function MotifSheet({ title, body, ok = 'Confirmer', danger, onClose }) {
 
 /* ---------- pesée : saisie (formulaire personnalisable : Pressoir › Réglages ou « ⚙ Personnaliser ce formulaire », 0.25.0-alpha.1) ---------- */
 const nSaisie = (x) => (hasNum(x) ? String(x).replace('.', ',') : '');
+// 0.49.0-alpha.1 (IA03) : ticket de pesée, bon de livraison ou DAE lu par l'IA (usage « pesee », niveau 2 : aperçu avant le premier envoi)
+const PESEE_IA_LIBELLES = { date: 'Date', heure: 'Heure de la pesée', apporteur: 'Apporteur', cru: 'Cru (village)', parcelle: 'Parcelle', cepage: 'Cépage', poids: 'Poids', caisses: 'Caisses (nombre)', tap: 'TAP (% vol.)', numero: 'N° de bon / ticket' };
+function PeseeIaLecture({ upd, lu, setLu, ia: trace }) {
+  const { db, toast } = useApp(); const ia = useIaUsage(); const [busy, setBusy] = useState(false);
+  const lire = async (files) => {
+    setBusy(true);
+    try {
+      const images = await iaImagesDepuisFichiers(files, { pages: 2 }); const P = iaPeseePrompt(db, 'pesee');
+      const r = await ia.demander('pesee', { system: P.system, texte: P.texte, images, schema: P.schema, nom: P.nom, max: P.max }); if (!r) return;
+      const x = iaPeseeLire(db, r.valeur, P.codes); if (!x.ok) { toast(x.msg, 'bad'); return; }
+      // poids brut et tare lus : le poids net est recalculé par le formulaire ; poids net seul : brut et tare vidés
+      upd({ ...x.patch, ...(x.patch.brutKg ? { kg: '' } : x.patch.kg ? { brutKg: '', tareKg: '' } : {}), ia: r.trace }); setLu(x);
+      toast('Document lu : pesée préremplie, à vérifier avant de la valider.');
+    } catch (e) { toast((e && e.message) || 'Lecture impossible.', 'bad'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-2" data-pesee-ia="">
+      <div className="flex flex-wrap items-center gap-2"><IaFichierBouton usage="pesee" photo busy={busy} onFichiers={lire}>Lire le ticket / le bon / le DAE</IaFichierBouton>{trace ? <IaTrace ia={trace} /> : null}</div>
+      <IaLectureNotice x={lu} libelles={PESEE_IA_LIBELLES} />
+    </div>
+  );
+}
 function PeseeForm({ id, onClose, onTicket }) {
   const { db, defaultDate, moi, uid } = useApp(); const act = useActFiche(); /* 0.48.0-alpha.1 : erreur sous le champ */ const o = id ? db.ops.find((x) => x.id === id) : null; const p0 = (o && o.pesee) || {};
   const droits = usePressoirDroits(); const P = pressoirParams(db); const bal = balancesDe(db);
   const valide = !!p0.valide; const lecture = !droits.ecrit || (valide && !droits.corriger) || (o && isLocked(db, o.date));
   const fcfg = formulaireDe(db, 'pesee'); const persoD = fcfg.perso.filter((x) => x.position === 'debut'); const persoF = fcfg.perso.filter((x) => x.position !== 'debut');
-  const [tout, setTout] = useState(false); const [cfgEd, setCfgEd] = useState(false);
+  const [tout, setTout] = useState(false); const [cfgEd, setCfgEd] = useState(false); const [iaLu, setIaLu] = useState(null); const dt = (...k) => iaDoute(iaLu, ...k);
   const [f, set, setF] = useDraft(() => {
     if (o) return { date: o.date, heure: p0.heure || '', apporteurId: o.apporteurId || '', cruId: o.cruId || '', parcelleId: o.parcelleId || '', cepageId: o.cepageId, qualifId: o.qualifId || 'conv', mention: p0.mention || '', brutKg: hasNum(p0.brutKg) ? String(p0.brutKg) : '', tareKg: hasNum(p0.tareKg) ? String(p0.tareKg) : '', kg: String(o.kg), caisses: p0.caisses ? String(p0.caisses) : '', etat: p0.etat || '', pourritureAcide: nSaisie(p0.pourritureAcide), tap: nSaisie(p0.tap), heureCueillette: p0.heureCueillette || '', balanceId: p0.balanceId || '', ref: o.ref || '', notes: o.notes || '', operateurs: o.operateurs || [], champs: champsEtat(o), valider: true, motif: '' };
     const s0 = { date: defaultDate, heure: heureNow(), apporteurId: '', cruId: '', parcelleId: '', cepageId: (db.lists.cepages[0] || {}).id || '', qualifId: 'conv', mention: '', brutKg: '', tareKg: '', kg: '', caisses: '', etat: champEffectif(fcfg, 'pesee', 'etat').vis === 'masque' ? '' : 'sain', pourritureAcide: '', tap: '', heureCueillette: '', balanceId: (bal[0] || {}).id || '', ref: '', notes: '', operateurs: moi ? [moi] : [], champs: {}, valider: true, motif: '' };
@@ -82,29 +104,30 @@ function PeseeForm({ id, onClose, onTicket }) {
         {nMasques ? <button type="button" className="linkish" onClick={() => setTout(!tout)} aria-pressed={tout}>{tout ? 'Cacher les champs masqués' : `Afficher tous les champs (${nMasques} masqué${nMasques > 1 ? 's' : ''})`}</button> : null}
         {!lecture && droits.params ? <button type="button" className="linkish" onClick={() => setCfgEd(true)} data-personnaliser-pesee="" title="Choisir les champs affichés, obligatoires, leurs valeurs par défaut, et ajouter vos propres relevés (les mentions obligatoires du ticket de pesée restent affichées)">⚙ Personnaliser ce formulaire</button> : null}
       </div> : null}
+      {!lecture && !valide ? <PeseeIaLecture upd={upd} lu={iaLu} setLu={setIaLu} ia={f.ia || (o && o.ia)} /> : o && o.ia ? <div><IaTrace ia={o.ia} /></div> : null}
       <ChampsPerso defs={persoD.filter(vuPerso)} tous={fcfg.perso} f={f} upd={upd} type="pesee" />
-      <G n={3}><CF k="date" label="Date"><DI value={f.date} onChange={(v) => set('date', v)} /></CF><CF k="heure" label="Heure de la pesée"><input className="inp num" type="time" value={f.heure} onChange={(e) => set('heure', e.target.value)} aria-label="Heure de la pesée" data-heure="" /></CF>
+      <G n={3}><CF k="date" label="Date" className={dt('date')}><DI value={f.date} onChange={(v) => set('date', v)} /></CF><CF k="heure" label="Heure de la pesée" className={dt('heure')}><input className="inp num" type="time" value={f.heure} onChange={(e) => set('heure', e.target.value)} aria-label="Heure de la pesée" data-heure="" /></CF>
         <CF k="balanceId" label="Balance / bascule">{bal.length ? <SI value={f.balanceId} onChange={(v) => set('balanceId', v)} placeholder="Choisir…" options={bal.map((b) => ({ value: b.id, label: `${b.nom}${b.valideJusquau ? ` (vignette au ${fmtDate(b.valideJusquau)})` : ''}` }))} /> : <div className="help pt-2">Ajoutez la bascule dans Pressoir › Réglages.</div>}</CF></G>
-      <G><CF k="apporteurId" label="Apporteur" help="Vide : raisins de l’exploitation. Pressurage à façon : le nom de l’apporteur est obligatoire au registre."><ApporteurSelect value={f.apporteurId} role="apporteur" onChange={(v) => setF((x) => ({ ...x, apporteurId: v, ...(v && !x.cruId && apporteurCruAuto(db, v) ? { cruId: apporteurCruAuto(db, v) } : {}) }))} /></CF>
-        <CF k="cruId" label="Cru (village)"><CruSelect value={f.cruId} onChange={(v) => set('cruId', v)} /><CrusProposes ids={[f.apporteurId]} cruId={f.cruId} onPick={(c) => set('cruId', c)} />{f.cruId ? <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-ink2" data-echelle-pesee=""><span>{`${ECH.nom} :`}</span><EchelleCru cruId={f.cruId} /></div> : null}</CF></G>
-      <G n={3}><CF k="parcelleId" label={fac('parcelleId', 'Parcelle')}><ParcelleSelect value={f.parcelleId} preset={{ cruId: f.cruId, cepageId: f.cepageId, apporteurId: f.apporteurId }} onChange={(v) => { const pc = (db.parcelles || []).find((x) => x.id === v); setF((x) => ({ ...x, parcelleId: v, ...(pc ? { cruId: pc.cruId || x.cruId, ...(pc.cepageId ? { cepageId: pc.cepageId } : {}), ...(pc.apporteurId ? { apporteurId: pc.apporteurId } : {}) } : {}) })); }} /></CF>
-        <CF k="cepageId" label="Cépage"><SI value={f.cepageId} onChange={(v) => set('cepageId', v)} options={opts(db, 'cepages')} /></CF>
+      <G><CF k="apporteurId" label="Apporteur" className={dt('apporteur')} help="Vide : raisins de l’exploitation. Pressurage à façon : le nom de l’apporteur est obligatoire au registre."><ApporteurSelect value={f.apporteurId} role="apporteur" onChange={(v) => setF((x) => ({ ...x, apporteurId: v, ...(v && !x.cruId && apporteurCruAuto(db, v) ? { cruId: apporteurCruAuto(db, v) } : {}) }))} /></CF>
+        <CF k="cruId" label="Cru (village)" className={dt('cru')}><CruSelect value={f.cruId} onChange={(v) => set('cruId', v)} /><CrusProposes ids={[f.apporteurId]} cruId={f.cruId} onPick={(c) => set('cruId', c)} />{f.cruId ? <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-ink2" data-echelle-pesee=""><span>{`${ECH.nom} :`}</span><EchelleCru cruId={f.cruId} /></div> : null}</CF></G>
+      <G n={3}><CF k="parcelleId" label={fac('parcelleId', 'Parcelle')} className={dt('parcelle')}><ParcelleSelect value={f.parcelleId} preset={{ cruId: f.cruId, cepageId: f.cepageId, apporteurId: f.apporteurId }} onChange={(v) => { const pc = (db.parcelles || []).find((x) => x.id === v); setF((x) => ({ ...x, parcelleId: v, ...(pc ? { cruId: pc.cruId || x.cruId, ...(pc.cepageId ? { cepageId: pc.cepageId } : {}), ...(pc.apporteurId ? { apporteurId: pc.apporteurId } : {}) } : {}) })); }} /></CF>
+        <CF k="cepageId" label="Cépage" className={dt('cepage')}><SI value={f.cepageId} onChange={(v) => set('cepageId', v)} options={opts(db, 'cepages')} /></CF>
         <CF k="qualifId" label="Revendication"><SI value={f.qualifId} onChange={(v) => set('qualifId', v)} options={qualifOptions(db, f.qualifId)} /></CF></G>
       <CF k="mention" label="Revendication particulière : mention, lieu-dit…" help={P.registre ? 'Inscrite au registre et reprise au carnet de pressoir (origine des raisins).' : ''}><TI value={f.mention} onChange={(v) => set('mention', v)} placeholder="ex. lieu-dit « Les Chétillons », mention premier cru…" /></CF>
-      <Group label="Poids">
+      <Group label="Poids" className={dt('poids')}>
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))' }}>
           {bt ? (btReplie ? <details className="cf-replie" data-champ="brutTare"><summary>{E('brutTare').libelle || 'Poids brut et tare'}{E('brutTare').obligatoire ? ' *' : ''}</summary><div className="mt-2 grid gap-2">{btChamps}</div></details> : btChamps) : null}
           {bt && hasNum(f.brutKg) && hasNum(f.tareKg) ? <Field label="Poids net"><div className="disp text-2xl" data-net="">{kgTxt(net)}</div></Field>
             : <CF k="kg" label={bt ? 'ou poids net (kg)' : 'Poids net (kg)'}><NI value={f.kg} onChange={(v) => set('kg', v)} placeholder="ex. 4 000" aria-label="Poids net" data-netkg="" /></CF>}
-          <CF k="caisses" label="Caisses (nombre)"><NI value={f.caisses} onChange={(v) => set('caisses', v)} aria-label="Nombre de caisses" /></CF>
+          <CF k="caisses" label="Caisses (nombre)" className={dt('caisses')}><NI value={f.caisses} onChange={(v) => set('caisses', v)} aria-label="Nombre de caisses" /></CF>
         </div>
       </Group>
       <G n={3}><CF k="etat" label="État sanitaire" help={sain && condPourriture ? 'Les relevés de pourriture apparaissent si l’état n’est pas « Sain ».' : undefined}><SI value={f.etat} onChange={(v) => set('etat', v)} placeholder="—" options={ETATS_SANITAIRES.map((e) => ({ value: e.id, label: e.label }))} aria-label="État sanitaire" data-etat="" /></CF>
         {paVu ? <CF k="pourritureAcide" label="Pourriture acide (%)" help="Part estimée des raisins atteints (baies vinaigrées, moucherons)."><NI value={f.pourritureAcide} onChange={(v) => set('pourritureAcide', v)} placeholder="ex. 2" aria-label="Pourriture acide" data-pourriture="" /></CF> : null}
-        <CF k="tap" label="TAP (% vol.)" help="Titre alcoométrique volumique en puissance des raisins (réfractomètre ou densimètre sur un échantillon de jus)."><NI value={f.tap} onChange={(v) => set('tap', v)} placeholder="ex. 10,2" aria-label="TAP" data-tap="" /></CF></G>
+        <CF k="tap" label="TAP (% vol.)" className={dt('tap')} help="Titre alcoométrique volumique en puissance des raisins (réfractomètre ou densimètre sur un échantillon de jus)."><NI value={f.tap} onChange={(v) => set('tap', v)} placeholder="ex. 10,2" aria-label="TAP" data-tap="" /></CF></G>
       {alertesTap.map((m) => <Notice key={m} tone="warn">{m}</Notice>)}
       <G><CF k="heureCueillette" label={fac('heureCueillette', 'Heure de cueillette')}><input className="inp num" type="time" value={f.heureCueillette} onChange={(e) => set('heureCueillette', e.target.value)} aria-label="Heure de cueillette" /></CF>
-        <CF k="ref" label={fac('ref', 'N° de bon / ticket')}><TI value={f.ref} onChange={(v) => set('ref', v)} /></CF></G>
+        <CF k="ref" label={fac('ref', 'N° de bon / ticket')} className={dt('numero')}><TI value={f.ref} onChange={(v) => set('ref', v)} /></CF></G>
       <ChampsPerso defs={persoF.filter(vuPerso)} tous={fcfg.perso} f={f} upd={upd} type="pesee" />
       <CF k="operateurs" label="Pesée faite par" bare><OperateursPicker value={f.operateurs} onChange={(v) => set('operateurs', v)} label={<>{E('operateurs').libelle || 'Pesée faite par'}{E('operateurs').obligatoire ? <CfReq /> : null}</>} help={E('operateurs').aide || ((db.settings.operateurObligatoire || E('operateurs').obligatoire) && !o ? 'Obligatoire (réglage de la société).' : '')} /></CF>
       <CF k="notes" label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} rows={2} /></CF>
@@ -282,7 +305,7 @@ function PeseesView({ annee }) {
         {droits.ecrit ? <Btn kind="primary" disabled={camp.figee} onClick={() => setForm({})} data-nouvelle-pesee="">＋ Nouvelle pesée</Btn> : null}</>}>
         {!L.length ? <PressoirVide data="pesees" titre={`Aucune pesée en ${annee}`} texte="Enregistrez une pesée à l’arrivée de chaque chargement de raisins : elle alimente le registre des pesées, le ticket de pesée et le carnet de pressoir." action="＋ Enregistrer la première pesée" onAction={droits.ecrit && !camp.figee ? () => setForm({}) : null} /> : null}
         {L.length ? <Tbl rows={rows} empty="Aucune pesée pour ces critères." cols={[
-          { h: 'N°', r: (o) => <b className="num" data-num-pesee="">{(o.pesee || {}).num || '—'}</b> },
+          { h: 'N°', r: (o) => <span className="inline-flex flex-wrap items-center gap-1"><b className="num" data-num-pesee="">{(o.pesee || {}).num || '—'}</b>{o.ia ? <IaTrace ia={o.ia} /> : null}</span> },
           { h: 'Date', r: (o) => <span className="num whitespace-nowrap">{fmtDate(o.date)} {(o.pesee || {}).heure || ''}</span> },
           { h: 'Apporteur', r: (o) => (o.apporteurId ? apporteurName(db, o.apporteurId) : <span className="text-ink2">exploitation</span>) },
           { h: 'Origine', cls: 'hm', r: (o) => { const reste0 = [o.parcelleId ? parcelleName(db, o.parcelleId) : '', (o.pesee || {}).mention || ''].filter(Boolean).join(' · '); return <span className="text-sm">{o.cruId ? <span className="inline-flex flex-wrap items-center gap-1">{cruName(db, o.cruId)}<EchelleCru cruId={o.cruId} /></span> : null}{reste0 ? <span className="block">{reste0}</span> : null}{!o.cruId && !reste0 ? '—' : null}</span>; } },

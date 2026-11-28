@@ -345,8 +345,9 @@ function opSave(db, spec, editingId, opts) {
   const neuf = old && num(old.av) > APP_NUM;
   // qui a saisi (et corrigé) l'opération : gardé quand on la modifie (la garde des droits ajoute « corrigée par »)
   // saisie groupée (0.29.0-alpha.1) : une opération corrigée seule reste dans son groupe
-  const marques = {}; if (old) ['saisiPar', 'saisiLe', 'modifiePar', 'modifieLe', 'groupe', 'depassement', 'schema'].forEach((k) => { if (old[k] !== undefined && spec[k] === undefined) marques[k] = old[k]; });
+  const marques = {}; if (old) ['saisiPar', 'saisiLe', 'modifiePar', 'modifieLe', 'groupe', 'depassement', 'schema', 'ia'].forEach((k) => { if (old[k] !== undefined && spec[k] === undefined) marques[k] = old[k]; });
   const op = { ...(neuf ? old : {}), ...marques, ...spec, ...(old && old.ficheOrdre ? { ficheOrdre: old.ficheOrdre } : {}), id: old ? old.id : nid(db, 'op'), seq: old ? old.seq : ++db.meta.opSeq, av: neuf ? num(old.av) : APP_NUM };
+  if (spec.ia !== undefined) { const t = typeof iaTraceNorm === 'function' ? iaTraceNorm(spec.ia) : null; if (t) op.ia = t; else delete op.ia; } // 0.49.0-alpha.1 : proposé par l'IA, relu et validé
   // registre des pesées et carnet de pressoir : n° continu, données gardées, motif exigé pour corriger une saisie validée (journal)
   const rg = registreAvantEnregistrer(db, old, op, opts); if (!rg.ok) return rg;
   if (op.type === 'entree_mout') { const ex = entreesExtraDe(op.entrees); if (ex) op.entreesExtra = ex; else if (!neuf) delete op.entreesExtra; }

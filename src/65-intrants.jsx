@@ -1,15 +1,47 @@
 /* ============ ONGLET 5 : INTRANTS & STOCKS (produits, fournisseurs, arrivages, règles par revendication) ============ */
 // produitId0, onSaved (0.30.0-alpha.1) : réception lancée depuis une ligne d'intrant d'une opération
+// 0.49.0-alpha.1 (IA02) : « 📷 Photo de l'étiquette » (usage « reception ») : produit, fabricant, n° de lot, DDM et quantité lus par l'IA,
+// produit rapproché de ceux en stock (puis des catalogues) ; formulaire prérempli, champs incertains signalés, trace « ia » enregistrée
+const RECEPTION_IA_LIBELLES = { produit: 'Produit', fabricant: 'Fabricant', numLot: 'N° de lot fournisseur', ddm: 'DDM', quantite: 'Quantité reçue', unite: 'Unité' };
 function ArrivageForm({ id, onClose, produitId0, onSaved }) {
-  const { db, defaultDate, openDocs } = useApp(); const act = useActFiche(); /* 0.48.0-alpha.1 : erreur sous le champ */ const a = id ? db.arrivages.find((x) => x.id === id) : null;
+  const { db, defaultDate, openDocs, toast } = useApp(); const act = useActFiche(); /* 0.48.0-alpha.1 : erreur sous le champ */ const a = id ? db.arrivages.find((x) => x.id === id) : null;
   const [f, set, setF] = useDraft({ produitId: a ? a.produitId : produitId0 || '', fournisseurId: a ? a.fournisseurId : (produitId0 ? prodOf(db, produitId0).fournisseurId || '' : ''), numLot: a ? a.numLot : '', date: a ? a.date : defaultDate, dluo: a ? a.dluo : '', qty: a ? String(a.qty) : '', notes: a ? a.notes : '' });
   const pr = prodOf(db, f.produitId);
+  const ia = useIaUsage(); const [iaBusy, setIaBusy] = useState(false); const [iaLu, setIaLu] = useState(null); const dt = (...k) => iaDoute(iaLu, ...k);
+  const lirePhoto = async (files) => {
+    setIaBusy(true);
+    try {
+      const images = await iaImagesDepuisFichiers(files, { pages: 2 }); const P = iaReceptionPrompt(db);
+      const r = await ia.demander('reception', { system: P.system, texte: P.texte, images, schema: P.schema, nom: P.nom, max: P.max }); if (!r) return;
+      const x = iaReceptionLire(db, r.valeur, P.codes, { aujourdhui: todayISO(), produitUnite: produitId0 ? prodOf(db, produitId0).unite : '' });
+      if (!x.ok) { toast(x.msg, 'bad'); return; }
+      const patch = { ...x.patch }; const alertes = [...x.alertes];
+      if (produitId0 && patch.produitId && patch.produitId !== produitId0) { delete patch.produitId; delete patch.fournisseurId; alertes.push('Le produit lu n’est pas celui de la ligne d’intrant : produit gardé, vérifiez l’étiquette.'); }
+      setF((y) => ({ ...y, ...patch, ia: r.trace })); setIaLu({ ...x, alertes });
+      toast('Étiquette lue : arrivage prérempli, à vérifier avant d’enregistrer.');
+    } catch (e) { toast((e && e.message) || 'Lecture impossible.', 'bad'); } finally { setIaBusy(false); }
+  };
+  // produit absent du stock mais trouvé dans un catalogue : créé à la demande (catégorie, unité, fournisseur et règles d'exemple à vérifier)
+  const creerDepuisCatalogue = () => {
+    const c = iaLu && iaLu.catalogue; if (!c) return; let pid = ''; let fo = ''; let u = 'g';
+    const r = act((d) => { const r1 = produitDepuisCatalogue(d, c.id); if (r1.ok) { pid = r1.id; const p = d.produits.find((x) => x.id === r1.id) || {}; fo = p.fournisseurId || ''; u = p.unite || u; } return r1; }, 'Produit créé depuis le catalogue (à vérifier).');
+    if (!r || !r.ok || !pid) return;
+    const q = iaLu.quantite; const conv = q && q.unite ? iadConvertir(q.total, q.unite, u) : null;
+    setF((y) => ({ ...y, produitId: pid, fournisseurId: y.fournisseurId || fo, ...(conv != null ? { qty: iadSaisie(conv) } : {}) })); setIaLu((x) => ({ ...x, catalogue: null }));
+  };
   const save = (withDocs) => { const r = act((d) => arrivageSave(d, f, id), id ? 'Arrivage modifié.' : 'Arrivage enregistré.'); if (r.ok) { if (onSaved && r.id) onSaved(r.id); onClose(); if (withDocs === true && r.id) openDocs({ type: 'arrivage', id: r.id }, 'arrivage', `${prodOf(db, f.produitId).nom || 'Intrant'} · lot ${f.numLot}`); } };
   return (
     <FormSheet title={id ? 'Modifier l’arrivage' : 'Nouvel arrivage (lot fournisseur)'} sub="La quantité restante se décrémente automatiquement à chaque utilisation." onClose={onClose} onSave={save} extraFooter={!id ? <Btn className="mr-auto" onClick={() => save(true)}>Enregistrer et joindre des documents</Btn> : null}>
-      <Field label="Produit" champ="produitId"><SI value={f.produitId} onChange={(v) => setF((x) => ({ ...x, produitId: v, fournisseurId: x.fournisseurId || prodOf(db, v).fournisseurId || '' }))} placeholder="Produit…" options={db.produits.filter((p) => p.actif !== false || p.id === f.produitId).sort((x, y) => x.nom.localeCompare(y.nom, 'fr')).map((p) => ({ value: p.id, label: `${p.nom} (${p.unite})` }))} /></Field>
-      <G><Field label="Fournisseur"><SI value={f.fournisseurId} onChange={(v) => set('fournisseurId', v)} placeholder="Fournisseur…" options={db.fournisseurs.map((x) => ({ value: x.id, label: x.nom }))} /></Field><Field label="N° de lot fournisseur" champ="numLot"><TI value={f.numLot} onChange={(v) => set('numLot', v)} placeholder="ex. SK-2609" /></Field></G>
-      <G n={3}><Field label="Date de réception" champ="date"><DI value={f.date} onChange={(v) => set('date', v)} /></Field><Field label="DDM (date de durabilité minimale)" help="Ancienne DLUO. Alerte visuelle à 30 jours et après péremption."><DI value={f.dluo} onChange={(v) => set('dluo', v)} /></Field><Field label={`Quantité reçue${pr.unite ? ` (${pr.unite})` : ''}`} champ="qty"><NI value={f.qty} onChange={(v) => set('qty', v)} /></Field></G>
+      {!id ? <div className="space-y-2" data-reception-ia="">
+        <div className="flex flex-wrap items-center gap-2"><IaFichierBouton usage="reception" icone="📷" photo busy={iaBusy} onFichiers={lirePhoto}>Photo de l’étiquette</IaFichierBouton>{f.ia ? <IaTrace ia={f.ia} /> : null}</div>
+        <IaLectureNotice x={iaLu} libelles={RECEPTION_IA_LIBELLES} />
+        {iaLu && !f.produitId && iaLu.lu.produit ? <Notice tone="warn" title="Produit à choisir"><span>Lu sur l’étiquette :</span> « <span translate="no">{iaLu.lu.produit}</span> »{iaLu.lu.fabricant ? <> · <span translate="no">{iaLu.lu.fabricant}</span></> : null}
+          {iaLu.catalogue ? <div className="mt-2 flex flex-wrap items-center gap-2" data-reception-catalogue=""><span>Trouvé dans les catalogues :</span> <b translate="no">{`${iaLu.catalogue.nom} (${iaLu.catalogue.marque})`}</b><Btn size="sm" kind="primary" onClick={creerDepuisCatalogue}>Créer ce produit depuis le catalogue</Btn></div> : <div className="mt-1">Absent du stock et des catalogues : choisissez le produit, ou créez-le dans Intrants.</div>}</Notice> : null}
+      </div> : a && a.ia ? <div><IaTrace ia={a.ia} /></div> : null}
+      <Field label="Produit" champ="produitId" className={dt('produit')}><SI value={f.produitId} onChange={(v) => setF((x) => ({ ...x, produitId: v, fournisseurId: x.fournisseurId || prodOf(db, v).fournisseurId || '' }))} placeholder="Produit…" options={db.produits.filter((p) => p.actif !== false || p.id === f.produitId).sort((x, y) => x.nom.localeCompare(y.nom, 'fr')).map((p) => ({ value: p.id, label: `${p.nom} (${p.unite})` }))} /></Field>
+      <G><Field label="Fournisseur" className={dt('fabricant')}><SI value={f.fournisseurId} onChange={(v) => set('fournisseurId', v)} placeholder="Fournisseur…" options={db.fournisseurs.map((x) => ({ value: x.id, label: x.nom }))} /></Field><Field label="N° de lot fournisseur" champ="numLot" className={dt('numLot')}><TI value={f.numLot} onChange={(v) => set('numLot', v)} placeholder="ex. SK-2609" /></Field></G>
+      <G n={3}><Field label="Date de réception" champ="date"><DI value={f.date} onChange={(v) => set('date', v)} /></Field><Field label="DDM (date de durabilité minimale)" help="Ancienne DLUO. Alerte visuelle à 30 jours et après péremption." className={dt('ddm')}><DI value={f.dluo} onChange={(v) => set('dluo', v)} /></Field><Field label={`Quantité reçue${pr.unite ? ` (${pr.unite})` : ''}`} champ="qty" className={dt('quantite', 'unite')}><NI value={f.qty} onChange={(v) => set('qty', v)} /></Field></G>
+      {iaLu && iaLu.quantite && iaLu.quantite.unite && pr.unite && iaLu.quantite.unite !== pr.unite ? <p className="help" data-reception-conversion="">{`Lu sur l’étiquette : ${iadSaisie(iaLu.quantite.total)} ${iaLu.quantite.unite}, converti en ${pr.unite}.`}</p> : null}
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
       {id ? <Group label="Documents : certificat de conformité, fiche technique, FDS, bon de livraison…"><DocsPanel cible={{ type: 'arrivage', id }} kind="arrivage" locked={isLocked(db, a.date)} /></Group> : <div className="help">Certificats de conformité, fiches techniques et FDS : « Enregistrer et joindre des documents ».</div>}
     </FormSheet>
@@ -23,7 +55,9 @@ function ProduitForm({ id, onClose, categorie0 }) {
   const { uid } = useApp();
   const [depot, setDepot] = useState(null); const [veille, setVeille] = useState(false);
   const nomCasse = nomProduitCasse(f.nom.trim()); // nouveau produit : casse du nom harmonisée (0.26.0-alpha.1)
-  const save = () => { const s = { ...f, nom: id ? f.nom : nomCasse, ...(f.fourniture === undefined ? { fourniture: undefined } : {}), revendications: f.categorie === 'sec' ? null : f.rev, uid, composes: composesDepuisChoix(f.composesL) }; delete s.composesL; if (!id && s.composes === null) delete s.composes; const r = act((d) => produitSave(d, s, id), id ? 'Produit modifié.' : 'Produit créé (autorisé en Conventionnel par défaut : ajustez les règles).'); if (r.ok) onClose(); };
+  const save = () => { const s = { ...f, nom: id ? f.nom : nomCasse, ...(f.fourniture === undefined ? { fourniture: undefined } : {}), revendications: f.categorie === 'sec' ? null : f.rev, uid, composes: composesDepuisChoix(f.composesL) }; delete s.composesL; delete s.composesIa; if (!id && s.composes === null) delete s.composes;
+    // 0.49.0-alpha.1 (IA13) : composés proposés par l'IA puis relus : trace gardée avec le produit (p.composesIa) ; retour aux composés reconnus : trace retirée
+    const r = act((d) => { const r1 = produitSave(d, s, id); if (!r1.ok) return r1; const pp = d.produits.find((x) => x.id === (id || r1.id)); if (pp && f.composesL && f.composesIa) { const t = iaTraceNorm(f.composesIa); if (t) pp.composesIa = t; } else if (pp && !f.composesL) delete pp.composesIa; return r1; }, id ? 'Produit modifié.' : 'Produit créé (autorisé en Conventionnel par défaut : ajustez les règles).'); if (r.ok) onClose(); };
   const lienOk = lienNorm(f.lien); const foNom = (db.fournisseurs.find((x) => x.id === f.fournisseurId) || {}).nom || '';
   const fds = p ? prodFdsEtat(db, { ...p, categorie: f.categorie, fdsNonRequise: f.fdsNonRequise }) : null;
   return (
@@ -60,7 +94,8 @@ function ProduitForm({ id, onClose, categorie0 }) {
       </div>
       {f.categorie !== 'sec' ? <div className="rounded-md border border-line px-3 py-2" data-produit-composes=""><div className="mb-1 text-sm font-semibold">Composés actifs (référentiel réglementaire)</div>
         <p className="help">Servent aux doses maximales et aux teneurs dans le vin (acide sorbique, cuivre…) : indiquez la teneur des produits formulés (ex. citrate de cuivre à 2 %).</p>
-        <ComposesChoix auto={refComposesDe({ categorie: f.categorie, nom: f.nom, famille: f.famille, composition: f.composition })} liste={f.composesL} onChange={(L) => set('composesL', L)} /></div> : null}
+        <ComposesChoix auto={refComposesDe({ categorie: f.categorie, nom: f.nom, famille: f.famille, composition: f.composition })} liste={f.composesL} onChange={(L) => set('composesL', L)} />
+        <ComposesIa p={p} f={f} trace={f.composesL ? f.composesIa || (p && p.composesIa) || null : null} onProposition={(L, t) => setF((x) => ({ ...x, composesL: iaComposesChoix(L, x.composesL || composesAutoChoix(refComposesDe({ categorie: x.categorie, nom: x.nom, famille: x.famille, composition: x.composition }))), composesIa: t }))} /></div> : null}
       <FournitureProduitBox f={f} set={set} />
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} /></Field>
       {p ? (<Group label={`Fiches techniques, FDS et certificats${fds ? ` — ${fds.label}` : ''}`}>
@@ -131,7 +166,7 @@ function TabIntrants() {
         {sub === 'stocks' ? <><Check checked={onlyStock} onChange={setOnlyStock} label="En stock seulement" /><SI value={view} onChange={setView} style={{ width: 'auto' }} options={[{ value: 'lots', label: 'Par lot fournisseur' }, { value: 'prod', label: 'Par produit' }, { value: 'mouv', label: 'Historique des mouvements' }]} aria-label="Vue" /><span className="ml-auto" /><Btn onClick={() => setRecap(true)} data-recap-ouvrir="">🖨 Fiche récapitulative</Btn><Btn disabled={camp.figee} onClick={() => setForm({ t: 'regul' })} data-regul-ouvrir="">± Régulariser</Btn><Btn kind="primary" disabled={camp.figee} onClick={() => setForm({ t: 'arr' })}>＋ Nouvel arrivage</Btn></> : <><span className="ml-auto" /><Btn onClick={() => setRecap(true)} data-recap-ouvrir="">🖨 Fiche récapitulative</Btn><Btn kind="primary" onClick={() => setForm({ t: 'prod' })}>＋ Nouveau produit</Btn></>}</div> : null}
       {sub === 'stocks' && view === 'mouv' ? <MouvementsView onRegul={(o) => setForm({ t: 'regul', ...o })} /> : null}
       {sub === 'stocks' && view === 'lots' ? <Tbl rows={arrs} empty="Aucun arrivage pour ces critères." cols={[
-        { h: 'Produit', r: (r) => <b translate="no">{r.pr.nom}</b> }, { h: 'Fournisseur', r: (r) => <span translate="no">{fo(r.a.fournisseurId)}</span> }, { h: 'N° lot fournisseur', r: (r) => <span className="num" translate="no">{r.a.numLot}</span> }, { h: 'Reçu le', r: (r) => <span className="num">{fmtDate(r.a.date)}</span> },
+        { h: 'Produit', r: (r) => <b translate="no">{r.pr.nom}</b> }, { h: 'Fournisseur', r: (r) => <span translate="no">{fo(r.a.fournisseurId)}</span> }, { h: 'N° lot fournisseur', r: (r) => <span className="inline-flex flex-wrap items-center gap-1"><span className="num" translate="no">{r.a.numLot}</span>{r.a.ia ? <IaTrace ia={r.a.ia} /> : null}</span> }, { h: 'Reçu le', r: (r) => <span className="num">{fmtDate(r.a.date)}</span> },
         { h: 'DDM', r: (r) => dChip(r.a, r.rest) }, { h: 'Reçu', cls: 'r', r: (r) => <span className="num">{fmt(r.a.qty, 2)} {r.pr.unite}</span> }, { h: 'Utilisé', cls: 'r', r: (r) => <span className="num">{fmt(r.used, 2)}</span> },
         { h: 'Docs', r: (r) => <DocsButton cible={{ type: 'arrivage', id: r.a.id }} kind="arrivage" title={`${r.pr.nom} · lot ${r.a.numLot}`} /> },
         { h: 'Restant', r: (r) => <div style={{ minWidth: 120 }}><b className={`num ${r.rest < -0.001 ? 'text-bad' : ''}`}>{fmt(r.rest, 2)} {r.pr.unite}</b><div className="bar mt-1" style={{ height: 6 }}><i style={{ width: `${clamp((r.rest / r.a.qty) * 100, 0, 100)}%`, background: 'var(--accent)' }} /></div></div> },

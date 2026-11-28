@@ -125,6 +125,22 @@ function CodifApercu({ db, R, stade, briques }) {
   </div>);
 }
 
+// 0.49.0-alpha.1 (IA10, usage codification, niveau 0 : moteur 17ad-ia-regle.js) : la règle dite en une phrase → briques contrôlées
+// (codifValider), chargées dans l'éditeur avec l'aperçu habituel ; seuls la phrase et les noms des tables partent
+function CodifDicter({ db, stade, onBriques }) {
+  const ia = useIaUsage(); const [phrase, setPhrase] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState(null);
+  const decrire = async () => {
+    if (busy || !phrase.trim()) return; setBusy(true); setErr(null);
+    try { const P = iaCodifPrompt(db, stade, phrase); const r = await ia.demander('codification', P); if (!r) return; const x = iaCodifBriques(db, stade, r.valeur, P.codes);
+      if (x.ok) { onBriques(x.briques, r.trace); if (x.ignores.length) setErr({ avert: true, msg: 'Des éléments de la proposition ont été écartés :', ignores: x.ignores }); } else setErr({ msg: x.msg, ignores: x.ignores }); }
+    finally { setBusy(false); }
+  };
+  return (<div className="grid gap-2" data-codif-dicter="">
+    <Field label="Décrire la règle en une phrase" help="ex. « P, l’année sur deux chiffres, un tiret, puis un compteur sur deux chiffres remis à zéro chaque année »"><TA value={phrase} onChange={setPhrase} rows={2} aria-label="Règle de codification en une phrase" /></Field>
+    <div><IaBouton usage="codification" busy={busy} disabled={!phrase.trim()} onClick={decrire}>Décrire la règle</IaBouton></div>
+    {err ? <Notice tone={err.avert ? 'warn' : 'bad'} title={err.avert ? 'Briques chargées, à vérifier' : 'Briques proposées refusées'}><span>{err.msg}</span>{(err.ignores || []).length ? <ul className="list-disc pl-5">{err.ignores.map((x, k) => <li key={k}>{x}</li>)}</ul> : null}</Notice> : null}
+  </div>);
+}
 function CodifStadeEditeur({ stade, lect }) {
   const { db, R, act, uid, confirm } = useApp(); const st = codifStadeDef(stade) || { label: stade }; const r = codifRegleDe(db, stade) || {}; const V = codifVersions(db, stade);
   const vNow = codifVersion(db, stade, todayISO()); const [ed, setEd] = useState(null); const [ouv, setOuv] = useState(-1); const [ajout, setAjout] = useState('');
@@ -154,6 +170,8 @@ function CodifStadeEditeur({ stade, lect }) {
         <Field label="S’applique à partir du" help="Les lots créés avant cette date gardent leur code."><DI value={ed.des} onChange={(v) => setEd({ ...ed, des: v })} aria-label="Date d’effet" /></Field>
         <Field label="Note"><TI value={ed.note} onChange={(v) => setEd({ ...ed, note: v })} placeholder="ex. nouvelle étiquette 2027" /></Field>
       </div>
+      <CodifDicter db={db} stade={stade} onBriques={(B, t) => { setEd((e) => ({ ...e, briques: B, ia: t })); setOuv(-1); }} />
+      {ed.ia ? <Notice tone="info" title="Briques proposées par l’IA">Vérifiez chaque brique et l’aperçu ci-dessous : la règle n’est enregistrée que par « Enregistrer la règle ».</Notice> : null}
       <div className="grid gap-2" data-codif-briques="">
         {ed.briques.map((b, i) => { const autres = ed.briques.filter((x, k) => k !== i).map((x) => codifNomBrique(x, ed.briques.indexOf(x))); return (<div key={i} className="grid gap-2">
           <div className="flex flex-wrap items-center gap-2" data-codif-brique={i}><span className="chip">{i + 1}</span><span className="text-sm"><b>{(CODIF_BRIQUES.find((x) => x.id === b.type) || {}).label}</b> — {codifBriqueTexte(db, b)}{b.si && b.si.variable ? ' · conditionnelle' : ''}</span>
