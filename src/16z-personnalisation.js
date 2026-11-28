@@ -176,6 +176,7 @@ const VISITE_CHAPITRES = [
     { cible: '[data-recherche-globale]', titre: 'Recherche', texte: 'Cherchez un lot, une cuve ou une pesée depuis n’importe quel onglet (Ctrl+K) : la fiche s’ouvre directement.' },
     { cible: '#tab-vinification', titre: 'Les onglets', texte: 'Chaque module a son onglet ; les modules masqués ou non autorisés n’apparaissent pas (Paramètres › Modules).' },
     { cible: '.hdr-status', titre: 'État de l’appareil', texte: 'Qui saisit, sauvegarde, synchronisation et thème de l’affichage.' },
+    { cible: '[data-aide-bouton]', titre: 'Comment faire ?', texte: 'Posez une question sur l’utilisation d’Œnotrack : l’assistant IA répond et propose d’ouvrir le bon écran (service d’IA à régler dans Paramètres).' },
     { cible: '[data-visite-bouton]', titre: 'Revoir la visite', texte: 'Ce bouton rouvre la visite : choisissez un chapitre ou faites tout le tour.' },
   ] },
   { id: 'cuverie', titre: 'Cuverie & lots', module: 'cuverie', etapes: [
@@ -191,7 +192,7 @@ const VISITE_CHAPITRES = [
     { cible: '@onglets', titre: 'Pressurages et carnet', texte: 'Marcs et carnet de pressoir (cuvée, tailles, rebêches), relevés par partenaire, bilan, journal et réglages.' },
   ] },
   { id: 'ops', titre: 'Opérations & assemblages', module: 'ops', etapes: [
-    { cible: '[data-nouvelle-op] || [data-groupe]', titre: 'Saisir une opération', texte: 'Bouton « ＋ Nouvelle opération » : recherche, favoris, dernières opérations utilisées et familles d’opérations.', sub: 'journal' },
+    { cible: '[data-nouvelle-op] || [data-groupe]', titre: 'Saisir une opération', texte: 'Bouton « ＋ Nouvelle opération » : recherche, favoris, dernières opérations utilisées et familles d’opérations ; avec l’assistant IA, décrivez ou dictez l’opération en une phrase, le formulaire s’ouvre prérempli.', sub: 'journal' },
     { cible: 'select[aria-label="Type d’opération"]', titre: 'Journal des opérations', texte: 'Sous-onglet « Journal » : toutes les opérations de la campagne, filtrables, modifiables avec un motif tracé.' },
     { cible: '[data-vg="declass"] .sec-t || [data-vg="declass"]', titre: 'Déclassements', texte: 'Un intrant non autorisé propose un déclassement : rien n’est appliqué sans votre validation.', sub: 'declass' },
     { cible: '[data-vg="ops-catalogue"] || [data-ops-catalogue]', titre: 'Catalogue des opérations', texte: 'Vos opérations, leurs champs, le changement de stade et la fiche imprimée.', sub: 'catalogue' },
@@ -243,6 +244,7 @@ const VISITE_CHAPITRES = [
   ] },
   { id: 'trace', titre: 'Traçabilité', module: 'trace', etapes: [
     { cible: '[data-trace-etapes]', titre: 'Recherche', texte: 'De la bouteille à la parcelle : une seule recherche (lot, cuve, code, date…), filtrée par intrant, cru, parcelle ou partenaire.', clic: 0 },
+    { cible: '[data-ia-recherche-question]', titre: 'Poser la question', texte: 'Avec l’assistant IA : « les lots qui ont reçu la bentonite lot BT-12 » devient une recherche, faite sur l’appareil.' },
     { cible: '@onglets', titre: 'Rappels et audits', texte: 'Échelle des crus, conformité réglementaire, mode audit et sommaire de tous les documents imprimables.' },
   ] },
   { id: 'registres', titre: 'Registres & DRM', module: 'registres', etapes: [
@@ -254,6 +256,7 @@ const VISITE_CHAPITRES = [
     { cible: '[data-params-item="listes"]', titre: 'Revendications', texte: 'Revendications et leur rang ; pour le bio, le code d’agrément de l’organisme certificateur.' },
     { cible: '[data-params-item="crus"]', titre: 'Crus et parcelles', texte: 'Chaque parcelle porte son appellation et son niveau dans la hiérarchie de cette appellation.' },
     { cible: '[data-params-item="codification"]', titre: 'Codification des lots', texte: 'Vos règles de codes de lots, stade par stade.' },
+    { cible: '[data-params-item="ia"]', titre: 'Assistant IA', texte: 'Votre service d’IA, l’interrupteur de chaque usage, ce qu’il envoie et le journal des envois ; l’IA ne fait que proposer.' },
     { cible: '[data-params-item="utilisateurs"]', titre: 'Utilisateurs & droits', texte: 'Comptes, profils de droits, clés d’accès et verrouillage.' },
     { cible: '[data-params-item="sauvegarde"]', titre: 'Sauvegardes et synchronisation', texte: 'Drive, dossier partagé ou réseau, chiffrement de l’équipe.' },
     { cible: '[data-region-societe]', titre: 'Région et types de vins', texte: 'Votre région et vos types de vins règlent les opérations, cépages, appellations et fractions proposés.', sub: 'entreprise' },

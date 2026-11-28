@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.48.0--alpha.1-8C6E2F">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.49.0--alpha.1-8C6E2F">
   <img alt="Licence" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-1E242B">
   <img alt="Langues" src="https://img.shields.io/badge/langues-FR%20%C2%B7%20EN%20%C2%B7%20ES%20%C2%B7%20IT%20%C2%B7%20DE%20%C2%B7%20PT-5B636D">
 </p>
@@ -76,7 +76,7 @@
 | 🛠 **Équipements** | Parc de matériel (une fiche par équipement, documents), maintenance préventive et réglementaire, pannes, vérifications périodiques des bascules, balances, instruments et extincteurs. |
 | 👥 **À plusieurs** | Opérateurs, identifiants et droits par profil, connexion par empreinte, visage ou code PIN sur les appareils acceptés (gérés utilisateur par utilisateur), journal des accès ; partage entre appareils et personnes par votre Google Drive, OneDrive, Dropbox ou le dossier réseau de l’entreprise. |
 | 🧭 **Prise en main guidée** | Une configuration guidée (basique ou avancée) règle Œnotrack pour votre exploitation ; une visite guidée par chapitres présente chaque module ; onglet ouvert au démarrage, à la connexion et au déverrouillage au choix (dont « dernière page visitée »). |
-| 🤖 **Assistant IA facultatif** | Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…) : identification et lecture des FT, FDS et certificats (fiches produits complétées), suivi de leurs mises à jour. |
+| 🤖 **Assistant IA facultatif** | Avec votre propre compte et votre clé (Claude, ChatGPT, Gemini, Mistral…) ou un modèle installé sur votre ordinateur : opération dictée en une phrase, photo d’une fiche remplie, d’une étiquette, d’un ticket de pesée ou d’un DAE, barèmes et protocoles difficiles à lire, FT et FDS lues et suivies, bulletins lus et commentés, alerte de fermentation expliquée, question de traçabilité, histoire d’un lot, veille des textes réglementaires, préparation d’audit, « 💬 Comment faire ? ». Chaque usage a son interrupteur et son niveau de données ; ceux qui envoient des données de l’exploitation sont désactivés par défaut et montrés avant le premier envoi ; l’IA ne fait que proposer, vous relisez avant d’enregistrer. |
 
 ## Le pressoir
 
@@ -238,7 +238,7 @@ Français, English, Español, Italiano, Deutsch, Português : la langue se chois
 - **À plusieurs** : reliez Œnotrack à votre Google Drive, OneDrive ou Dropbox, ou au dossier réseau de l’entreprise (serveur interne, NAS) ; il lit et écrit ses fichiers dans le dossier que vous choisissez, directement depuis votre navigateur. Vous pouvez retirer cet accès à tout moment.
 - **Chiffrement** (facultatif, **Paramètres › Sauvegarde & Drive**) : un mot de passe commun à l’équipe chiffre les sauvegardes, le fichier du Drive, ses copies et documents (AES-256). Le mot de passe et la clé restent sur chaque appareil : un mot de passe perdu rend les fichiers chiffrés illisibles.
 - Quand les données ne sont que dans ce navigateur, un **rappel de sauvegarde** propose « ⬇ Sauvegarder maintenant » si aucune sauvegarde n’est récente.
-- Les clés des assistants IA restent sur votre appareil ; elles ne vont ni dans la base, ni dans les sauvegardes, ni sur le Drive.
+- Les clés des assistants IA restent sur votre appareil ; elles ne vont ni dans la base, ni dans les sauvegardes, ni sur le Drive. Chaque envoi à l’IA est noté dans un journal gardé sur l’appareil (jamais son contenu) ; l’administrateur peut réserver les usages qui envoient des données de l’exploitation à un modèle installé sur l’ordinateur.
 
 Détails : [politique de confidentialité](https://oenotrack.pages.dev/confidentialite.html).
 

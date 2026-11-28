@@ -72,7 +72,6 @@ TRAD_TABLE.push(...[
   // IA18 : commentaire d'un bulletin
   ['Commenter', 'Comment', 'Comentar', 'Commentare', 'Kommentieren', 'Comentar'],
   ['🤖 Commentaire du bulletin', '🤖 Comment on the report', '🤖 Comentario del boletín', '🤖 Commento del bollettino', '🤖 Kommentar zum Bericht', '🤖 Comentário do boletim'],
-  ['À vérifier avec votre œnologue', 'To be checked with your oenologist', 'A verificar con su enólogo', 'Da verificare con il vostro enologo', 'Mit Ihrem Önologen zu prüfen', 'A verificar com o seu enólogo'],
   ['L’IA complète les règles d’Œnotrack ; elle peut se tromper. Ce commentaire n’est pas enregistré.', 'The AI supplements Œnotrack’s rules; it can be wrong. This comment is not saved.', 'La IA completa las reglas de Œnotrack; puede equivocarse. Este comentario no se guarda.', 'L’IA completa le regole di Œnotrack; può sbagliare. Questo commento non viene salvato.', 'Die KI ergänzt die Regeln von Œnotrack; sie kann sich irren. Dieser Kommentar wird nicht gespeichert.', 'A IA completa as regras do Œnotrack; pode enganar-se. Este comentário não é guardado.'],
   ['Règles d’Œnotrack', 'Œnotrack’s rules', 'Reglas de Œnotrack', 'Regole di Œnotrack', 'Regeln von Œnotrack', 'Regras do Œnotrack'],
   ['Plafond de SO₂ total :', 'Total SO₂ limit:', 'Límite de SO₂ total:', 'Limite di SO₂ totale:', 'Grenzwert für Gesamt-SO₂:', 'Limite de SO₂ total:'],

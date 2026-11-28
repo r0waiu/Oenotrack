@@ -2,6 +2,12 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.49.0-alpha.1 — 28/11/2026
+
+- Assistant IA revu (audit validé) : chaque usage a son interrupteur et son niveau de données (0 : rien de l’exploitation, 1 : un document ou une photo, 2 : données de l’exploitation, désactivé par défaut et montré avant le premier envoi), journal des envois sur l’appareil, niveau 2 réservable à un modèle installé sur l’ordinateur ; photos lues directement ; réponses au format imposé et contrôlées ; l’IA ne fait que proposer et ce qui est enregistré garde la mention « 🤖 IA ».
+- Au chai et à la réception : opération dite ou tapée en une phrase (formulaire prérempli), photo d’une fiche remplie relue ligne par ligne, alerte de fermentation expliquée, photo d’une étiquette à la réception, ticket de pesée, bon de livraison ou DAE lus, barèmes de jaugeage difficiles relus, protocole d’œnologue transformé en plan de vinification, composés actifs d’un produit proposés, bulletin d’analyses commenté.
+- Recherche, réglementaire et configuration : question de traçabilité en langage courant, histoire d’un lot rédigée, assistant « 💬 Comment faire ? », veille en ligne des textes réglementaires (règles signalées à relire, aucune valeur changée), préparation d’un audit, règle de codification dictée, configuration guidée depuis une description, plan de nettoyage proposé.
+
 ## 0.48.0-alpha.1 — 28/11/2026
 
 - Interface revue (audit validé) : en-tête compact au téléphone (statuts, thème et visite derrière « ⋯ »), recherche dans l’en-tête (Ctrl+K) qui ouvre directement la fiche d’un lot, d’une cuve ou d’une opération, figer la campagne depuis sa pastille, sous-onglets distincts des boutons d’action, flèches aux bords des onglets qui défilent, tuiles et pastilles d’alerte qui disent ce qu’elles comptent et mènent à la liste à traiter.

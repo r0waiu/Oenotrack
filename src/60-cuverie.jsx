@@ -356,6 +356,12 @@ function TabCuverie() {
 TABS_REG.cuverie = TabCuverie;
 
 /* ---------- fiche contenant : contenu, composition (tous lots), intrants cumulés ---------- */
+// saisie en langage courant depuis la fiche d'un contenant (0.49.0-alpha.1, IA01) : affichée seulement quand l'usage « saisie » est possible
+function IaSaisieContenant({ contId }) {
+  const { openOp, camp } = useApp(); const ia = useIaUsage();
+  if (ia.refus('saisie')) return null;
+  return <div className="mb-4" data-ia-saisie-cont=""><IaSaisieChamp opIds={null} contId={contId} disabled={camp.figee} onOuvrir={(t, p) => openOp(t, p)} /></div>;
+}
 function ContSheet({ id, onClose, onBack, backLabel, onCloseAll }) {
   const { db, R, act, confirm, showLot, camp, openMenu, openReport, editCont, openAnalyse, openHyg } = useApp();
   const [perso, setPerso] = useState(false); const [calc, setCalc] = useState(null); const [etiq, setEtiq] = useState(false);
@@ -407,6 +413,7 @@ function ContSheet({ id, onClose, onBack, backLabel, onCloseAll }) {
   return (
     <Sheet title={c.nom} sub={`${lbl(db, 'typesContenant', c.type)} · ${lbl(db, 'matieres', c.matiere)}${c.fabricant || c.annee ? ` · fabriqué${c.fabricant ? ` par ${c.fabricant}` : ''}${c.annee ? ` en ${c.annee}` : ''}` : ''}${db.sites.length > 1 ? ` · ${siteName(db, c.siteId)}` : ''}`} onClose={onClose} onBack={onBack} backLabel={backLabel} onCloseAll={onCloseAll} wide
       footer={<><Btn kind="danger" onClick={del} className="mr-auto">Supprimer</Btn><Btn onClick={() => setEtiq(true)} title="Étiquette QR de ce contenant (fiche ouverte d’un scan)">🏷 Étiquette QR</Btn><Btn onClick={() => openReport({ kind: 'cont', ids: [id] })}>🖨 Rapport…</Btn><Btn onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openMenu(id, r.left, r.top - 8, true); }}>Opérations ▾</Btn><Btn onClick={() => act((d) => contSave(d, { ...c, statut: c.statut === 'archive' ? 'actif' : 'archive' }, id), c.statut === 'archive' ? 'Contenant réactivé.' : 'Contenant archivé.')}>{c.statut === 'archive' ? 'Réactiver' : 'Archiver'}</Btn><Btn kind="primary" onClick={() => editCont(id)}>Modifier</Btn></>}>
+      {c.statut !== 'archive' ? <IaSaisieContenant contId={id} /> : null}
       <div className="mb-5 flex flex-wrap items-center gap-5">
         <ContainerGlyph db={db} R={R} c={c} width={Math.max(96, tileSize(db, c).sw)} />
         <dl className="kv"><dt>Contenu</dt><dd className="num">{fmtL(vol)} / {fmtL(c.volMax)} ({pct(vol / c.volMax)})</dd><dt>Statut</dt><dd>{c.statut === 'archive' ? 'Archivé' : 'Actif'}</dd>

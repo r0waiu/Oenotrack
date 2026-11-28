@@ -61,7 +61,8 @@ function IaBouton({ usage, children, onClick, size = 'sm', busy, ...p }) {
   if (!u) return null;
   return <Btn size={size} {...p} disabled={!!raison || busy || p.disabled} title={raison || `${u.nom} — ${u.envoie}`} onClick={onClick} data-ia-bouton={usage}>{busy ? '⏳ ' : '🤖 '}{children || u.nom}</Btn>;
 }
-const IaTrace = ({ ia }) => { const t = iaTraceTexte(ia); return t ? <Chip tone="info" title={t} data-ia-trace="">🤖 IA</Chip> : null; };
+// pastille « 🤖 IA » : enregistrement relu et validé (par défaut) ; propose : réponse affichée, jamais enregistrée (« à vérifier »)
+const IaTrace = ({ ia, propose }) => { const t = propose ? 'Proposé par l’IA, à vérifier' : iaTraceTexte(ia); return t ? <Chip tone="info" title={t} data-ia-trace="">🤖 IA</Chip> : null; };
 // photos et PDF → images JPEG (base64) pour la vision ; pages = nombre maximal de pages lues par PDF ; cote = plus grand côté en pixels
 async function iaImagesDepuisFichiers(fichiers, opts) {
   const o = { pages: 4, cote: 1600, qualite: 0.85, ...(opts || {}) }; const out = [];
