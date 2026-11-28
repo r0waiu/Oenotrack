@@ -44,9 +44,9 @@ function ReferentielView({ partie }) {
   const rows = M.filter((x) => !q || norm(x.compose.label).includes(norm(q)));
   return (
     <div data-referentiel="">
-      {voir('revendications') ? <><Notice tone="info" title="Labels et cahiers des charges préétablis">
+      {voir('revendications') ? <><Aide id="labels-referentiel" titre="ℹ Labels et cahiers des charges préétablis" resume="Chaque valeur cite son texte ; « ✓ vérifié » seulement si relue dans le texte officiel en vigueur.">
         <span>Chaque valeur cite son texte et son article. « ✓ vérifié » : relue dans le texte officiel en vigueur (règlement de l’UE consolidé, Code OIV, cahier des charges de l’appellation ou du label) ; « à vérifier » : non confirmée. Les textes évoluent : revérifiez avant un contrôle. La règle la plus restrictive l’emporte ; une correction de l’exploitation remplace la valeur.</span>
-      </Notice>
+      </Aide>
       <Sec title="Activation" right={lect ? null : <Check checked={rg.actif} onChange={(v) => act((d) => refActiver(d, v), v ? 'Référentiel activé.' : 'Référentiel désactivé.')} label={rg.actif ? 'Activé (alertes à la saisie et sur les lots)' : 'Désactivé'} />}>
         <div className="text-sm"><span>Appellation du vignoble (profil régional) :</span> <b translate="no">{ap ? refLabelNom(ap) : '—'}</b></div>
       </Sec>

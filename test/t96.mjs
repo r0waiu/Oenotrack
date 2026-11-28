@@ -94,7 +94,7 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   await page.locator('[data-visite-retour]').click(); await page.waitForTimeout(300);
   await page.locator('[data-visite-chapitre="ops"]').click(); await page.waitForTimeout(1300);
   bul = await page.locator('.visite-bulle').boundingBox(); halo = await page.locator('.visite-cible').boundingBox();
-  ok('… cible haute (familles d’opérations) : bulle hors du halo', halo && bul && halo.height > 300 && !inter(bul, halo), { bul, halo });
+  ok('… « Saisir une opération » : bouton « ＋ Nouvelle opération » (ou familles) mis en avant, bulle hors du halo', halo && bul && !inter(bul, halo), { bul, halo });
   for (let i = 0; i < 3; i += 1) { await page.locator('[data-visite-suivant]').click(); await page.waitForTimeout(900); }
   const b3 = await page.locator('.visite-bulle').boundingBox(); const h3 = await page.locator('.visite-cible').boundingBox();
   ok('… catalogue des opérations : petite cible (pas toute la page), halo dans l’écran, bulle hors du halo', h3 && h3.height < 600 && h3.y >= 0 && h3.y + h3.height <= 900 && !inter(b3, h3), { b3, h3 });

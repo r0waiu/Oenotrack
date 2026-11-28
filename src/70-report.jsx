@@ -94,6 +94,20 @@ function useReportOutput(ref, filename, opts = {}) {
 function BoutonsSortie({ out, html = true }) {
   return <>{html ? <Btn onClick={out.download} title="Page web prête à imprimer, à garder ou à envoyer">⬇ HTML</Btn> : null}<Btn onClick={out.pdf} title="Enregistrer le PDF (à envoyer, archiver ou imprimer plus tard)" data-sortie-pdf="">⬇ PDF</Btn><Btn kind="primary" onClick={out.print} title="Ouvrir la boîte d’impression de l’appareil" data-sortie-imprimer="">🖨 Imprimer</Btn></>;
 }
+// « 🖨 Imprimer / PDF » en haut à droite d'une liste (0.48.0-alpha.1, U32) : aperçu (en-tête de l'exploitation, un tableau par section),
+// puis impression, PDF ou HTML ; `sections` (fonction) n'est calculée qu'à l'ouverture
+function ImprimerListe({ nom, titre, sub, sections, orientation = 'paysage', label = '🖨 Imprimer / PDF' }) {
+  const [ouvert, setOuvert] = useState(false);
+  return <><Btn onClick={() => setOuvert(true)} data-imprimer-liste={nom} title="Aperçu à imprimer ou à enregistrer en PDF">{label}</Btn>{ouvert ? <ImprimerListeFeuille nom={nom} titre={titre} sub={sub} sections={sections} orientation={orientation} onClose={() => setOuvert(false)} /> : null}</>;
+}
+function ImprimerListeFeuille({ nom, titre, sub, sections, orientation, onClose }) {
+  const ref = useRef(null); const out = useReportOutput(ref, `oenotrack-${nom}-${todayISO()}`, { orientation });
+  const S = typeof sections === 'function' ? sections() : sections || [];
+  return (<Sheet wide title={titre} sub={`${sub ? `${sub} · ` : ''}A4 ${orientation === 'portrait' ? 'portrait' : 'paysage'}`} onClose={onClose} footer={<><Btn onClick={onClose}>Fermer</Btn><BoutonsSortie out={out} /></>}>
+    <div className="fiche-scroll"><div ref={ref} className="report" data-liste-impression={nom}><ReportHead title={titre} sub={sub || titre} />
+      {S.map((x, i) => <div key={i}>{x.titre ? <h3>{x.titre}</h3> : null}<RTable head={x.head} rows={x.rows} empty={x.vide || 'Aucun.'} /></div>)}</div></div>
+  </Sheet>);
+}
 const ReportHead = ({ title, sub }) => { const { db } = useApp(); const e = db.entreprise || {}; return (<div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>{e.logo ? <img src={e.logo} alt={e.nom || 'Logo'} style={{ maxHeight: 54, maxWidth: 170, objectFit: 'contain' }} /> : <Logo size={40} />}<div><h1>{title}</h1><div className="muted" style={{ fontSize: 12 }}>{e.nom ? `${e.nom} · ` : ''}Œnotrack · {sub} · édité le {fmtDate(todayISO())}{db.sites.length ? ` · ${db.sites.map((s) => s.nom).join(', ')}` : ''}</div></div></div>); };
 
 function ReportDialog({ init, onClose }) {

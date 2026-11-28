@@ -118,8 +118,8 @@ function RegistresView() {
   const [scope, setScope] = useState('camp'); const [asOf, setAsOf] = useState(todayISO()); const [sel, setSel] = useState('operations');
   const regs = useMemo(() => buildRegisters(db, R, { camp, scope, asOf }), [db, R, camp, scope, asOf]); const reg = regs.find((r) => r.id === sel) || regs[0]; const tag = scope === 'all' ? 'toutes-campagnes' : camp.nom;
   return (
-    <div>
-      <Notice tone="info" title="Exports CSV / Excel des registres">Choisissez un registre, vérifiez l’aperçu puis exportez-le en CSV (séparateur « ; », ouvre directement dans Excel) ou en Excel. « Tout exporter » produit un classeur avec un onglet par registre. Aucun format officiel n’est imposé : ce sont des exports génériques.</Notice>
+    <div data-col-figee="">
+      <Aide id="registres-exports" titre="ℹ Exports CSV / Excel des registres" resume="Aperçu de chaque registre, puis export en CSV ou en Excel."><span>Choisissez un registre, vérifiez l’aperçu puis exportez-le en CSV (séparateur « ; », ouvre directement dans Excel) ou en Excel. « Tout exporter » produit un classeur avec un onglet par registre. Aucun format officiel n’est imposé : ce sont des exports génériques.</span></Aide>
       <div className="my-3 flex flex-wrap items-end gap-3"><Field label="Période" className="w-56"><SI value={scope} onChange={setScope} options={[{ value: 'camp', label: `Campagne ${camp.nom}` }, { value: 'all', label: 'Toutes les campagnes' }]} /></Field>
         {reg.asOf ? <Field label="Stocks au" className="w-44"><DI value={asOf} onChange={setAsOf} /></Field> : null}
         <div className="ml-auto flex flex-wrap gap-2"><Btn kind="primary" onClick={() => exportWorkbook(regs, `registres-${tag}.xlsx`, toast)} data-vg="registres-export">Tout exporter (Excel, 1 onglet par registre)</Btn></div></div>
