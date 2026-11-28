@@ -75,6 +75,7 @@ function ParcelleForm({ id, preset, onClose, onSaved }) {
       <div className="grid2"><Field label="Lieu-dit"><TI value={f.lieuDit} onChange={(v) => set('lieuDit', v)} /></Field><Field label="Référence cadastrale" help="ex. AB 123"><TI value={f.cadastre} onChange={(v) => set('cadastre', v)} /></Field></div>
       <div className="grid3"><Field label="Surface (ares)"><NI value={f.surface} onChange={(v) => set('surface', v)} placeholder="ex. 35,20" /></Field><Field label="Cépage principal"><SI value={f.cepageId} onChange={(v) => set('cepageId', v)} placeholder="—" options={opts(db, 'cepages')} /></Field><Field label="Année de plantation"><TI value={f.annee} onChange={(v) => set('annee', v)} inputMode="numeric" placeholder="ex. 1998" /></Field></div>
       <ParcelleAppellation f={f} set={set} />
+      <CdcParcelleNotice f={f} id={id} />
       <Field label="Exploitant / apporteur" help="Proposé automatiquement dans les apports de cette parcelle."><ApporteurSelect value={f.apporteurId} onChange={(v) => set('apporteurId', v)} /></Field>
       <Field label="Notes"><TA value={f.notes} onChange={(v) => set('notes', v)} placeholder="Porte-greffe, clone, mode de conduite, exposition…" /></Field>
       <Check checked={f.masque} onChange={(v) => set('masque', v)} label="Masquer cette parcelle dans les listes de saisie" />

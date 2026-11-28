@@ -101,7 +101,7 @@ function VignobleRefLigne({ a, sous, deja, lect, onAjouter }) {
 /* ---------- 2. Appellations produites ---------- */
 function VignobleAppellationsEtape() {
   const { db, act, uid } = useApp(); const lect = useLectureSeule('params'); const pv = profilViticole(db);
-  const [q, setQ] = useState(''); const [tout, setTout] = useState(false);
+  const [q, setQ] = useState(''); const [tout, setTout] = useState(false); const [cdcOuv, setCdcOuv] = useState(null);
   const mes = useMemo(() => vignobleAppellations(db), [db]); const pris = new Set(mes.filter((a) => a.ref).map((a) => a.ref.id)); const prisNom = new Set(mes.map((a) => norm(a.label)));
   const aRelier = useMemo(() => vignobleAReliers(db), [db]);
   const ajouter = (id) => act((d) => vignobleAppellationAjouter(d, id, uid), 'Appellation ajoutée.');
@@ -121,7 +121,7 @@ function VignobleAppellationsEtape() {
               <b translate="no">{a.label}</b><Chip tone={a.genre === 'main' ? 'warn' : 'info'}>{VIGNOBLE_GENRES[vignobleGenre(a)]}</Chip>
               {a.types.length ? <span className="text-xs text-ink2">{a.types.map((t) => TYPES_COURTS[t]).join(' · ')}</span> : null}
               {a.usage ? <span className="text-xs text-ink2">{`${a.usage} parcelle(s)`}</span> : null}
-              <span className="ml-auto" />{lect ? null : <Btn size="sm" kind="ghost" disabled={a.usage > 0} title={a.usage ? 'Rattachée à des parcelles : retirez-la d’abord des parcelles.' : undefined} onClick={() => retirer(a.id)} data-vignoble-retirer={a.id}>Retirer</Btn>}
+              <span className="ml-auto" />{a.ref && cdcDe(a.ref.id) ? <Btn size="sm" onClick={() => setCdcOuv({ refId: a.ref.id, appId: a.id })} data-vignoble-cdc={a.id}>📜 Cahier des charges</Btn> : null}{lect ? null : <Btn size="sm" kind="ghost" disabled={a.usage > 0} title={a.usage ? 'Rattachée à des parcelles : retirez-la d’abord des parcelles.' : undefined} onClick={() => retirer(a.id)} data-vignoble-retirer={a.id}>Retirer</Btn>}
             </li>))}</ul>)}
         {aRelier && !lect ? <div className="mt-2 flex flex-wrap items-center gap-2 text-sm"><span>{`${aRelier} appellation(s) saisie(s) à la main portent le nom d’une appellation du référentiel.`}</span><Btn size="sm" onClick={() => act((d) => vignobleAppellationsRelier(d, uid), 'Appellations reliées au référentiel.')} data-vignoble-relier="">Relier au référentiel</Btn></div> : null}
       </Sec>
@@ -135,6 +135,7 @@ function VignobleAppellationsEtape() {
         {autres.length ? <div className="mt-3"><div className="lbl mb-1">Autres régions</div><ul className="space-y-1">{autres.map((a) => <VignobleRefLigne key={a.id} a={a} deja={dejaDe(a)} lect={lect} onAjouter={ajouter} />)}</ul></div> : null}
         <p className="help mt-2">Référentiel officiel (INAO, registre de l’UE) complété des dénominations rattachées et de quelques ajouts marqués « à vérifier ».</p>
       </Sec>
+      {cdcOuv ? <CdcSheet refId={cdcOuv.refId} appId={cdcOuv.appId} onClose={() => setCdcOuv(null)} /> : null}
     </div>
   );
 }

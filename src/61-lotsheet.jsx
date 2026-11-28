@@ -229,6 +229,7 @@ function LotSheet({ id, onClose }) {
 
       <CodesLot kind="lot" x={db.lots.find((y) => y.id === id) || lot} />
       <ConformiteBloc lotId={id} modifiable />
+      <CdcAlertesLot lotId={id} />
       <RubriquesRendu dispo={dispo} blocs={blocs} />
       {perso ? <FicheRubriquesSheet kind="lot" onClose={() => setPerso(false)} /> : null}
       {calc ? <CalculsSheet lotId={id} onglet={calc} onClose={() => setCalc(null)} /> : null}
