@@ -130,6 +130,34 @@ function AuditPoint({ a, p, i }) {
     </div>
   );
 }
+// 0.49.0-alpha.1 (IA09, usage audit, niveau 2 : moteur 17ad-ia-regle.js) : « 🤖 Préparer » → synthèse, points faibles, pièces à préparer et
+// brouillon de notes par chapitre ; parties cochées reprises dans les notes générales de l'audit seulement sur « Reprendre dans les notes »
+function AuditPreparer({ a, m, regs }) {
+  const { db, act, toast } = useApp(); const ia = useIaUsage(); const [busy, setBusy] = useState(false); const [prop, setProp] = useState(null);
+  const preparer = async () => {
+    if (busy) return; setBusy(true);
+    try { const D = iaAuditDonnees(db, a, m, iaAuditPiecesEtat(db, a, m, regs)); const r = await ia.demander('audit', iaAuditPrompt(D)); if (r) { const x = iaAuditLire(r.valeur, m); setProp({ x, trace: r.trace, choix: { synthese: !!x.synthese, faibles: x.pointsFaibles.length > 0, pieces: x.piecesAPreparer.length > 0, chapitres: x.chapitres.map((c) => c.chapitre) } }); } }
+    finally { setBusy(false); }
+  };
+  const reprendre = () => { const t = iaAuditNotesTexte(prop.x, prop.choix, m); const r = act((d) => iaAuditNotesAjouter(d, a.id, t, prop.trace), 'Préparation reprise dans les notes de l’audit.'); if (r && r.ok) { if (r.tronque) toast('Notes limitées à 3 000 caractères : la fin a été coupée.', 'warn'); setProp(null); } };
+  const setC = (k, v) => setProp((p) => ({ ...p, choix: { ...p.choix, [k]: v } }));
+  const chapNom = (c) => (c === 'synthese' ? 'Points de contrôle' : auditPieceNom(c));
+  return (<div className="flex flex-wrap items-center gap-2" data-audit-preparer="">
+    <IaBouton usage="audit" busy={busy} onClick={preparer}>Préparer</IaBouton><span className="help">Synthèse, points faibles, pièces à préparer et brouillon de notes ; rien n’est ajouté aux notes sans votre accord.</span>
+    {prop ? <Sheet wide title="Préparation de l’audit" sub="Proposée par l’IA : relisez, cochez ce que vous gardez." onClose={() => setProp(null)}
+      footer={<><Btn onClick={() => setProp(null)}>Fermer sans reprendre</Btn><Btn kind="primary" onClick={reprendre} data-audit-reprendre="">Reprendre dans les notes</Btn></>}>
+      <div className="space-y-3" data-audit-proposition="">
+        {prop.x.synthese ? <div><Check checked={prop.choix.synthese} onChange={(v) => setC('synthese', v)} label={<b>Synthèse</b>} /><p className="mt-1 text-sm" translate="no">{prop.x.synthese}</p></div> : null}
+        {prop.x.pointsFaibles.length ? <div><Check checked={prop.choix.faibles} onChange={(v) => setC('faibles', v)} label={<b>Points faibles</b>} /><ul className="mt-1 list-disc pl-5 text-sm">{prop.x.pointsFaibles.map((x, k) => <li key={k}>{x.point ? <span className="text-ink2" translate="no">{`${m.points.findIndex((p) => p.id === x.point) + 1}. `}</span> : null}<span translate="no">{x.texte}</span></li>)}</ul></div> : null}
+        {prop.x.piecesAPreparer.length ? <div><Check checked={prop.choix.pieces} onChange={(v) => setC('pieces', v)} label={<b>Pièces à préparer</b>} /><ul className="mt-1 list-disc pl-5 text-sm">{prop.x.piecesAPreparer.map((x, k) => <li key={k}>{x.piece ? <><b>{auditPieceNom(x.piece)}</b> — </> : null}<span translate="no">{x.texte}</span></li>)}</ul></div> : null}
+        {prop.x.chapitres.length ? <div><div className="lbl">Brouillon de notes par chapitre</div><div className="space-y-2">{prop.x.chapitres.map((c) => <div key={c.chapitre} className="rounded-md border border-line p-2" data-audit-chapitre-ia={c.chapitre}>
+          <Check checked={prop.choix.chapitres.includes(c.chapitre)} onChange={(v) => setC('chapitres', v ? [...prop.choix.chapitres, c.chapitre] : prop.choix.chapitres.filter((y) => y !== c.chapitre))} label={<b>{chapNom(c.chapitre)}</b>} />
+          <p className="mt-1 text-sm" translate="no">{c.notes}</p></div>)}</div></div> : null}
+        <p className="help">Pistes à vérifier : les types d’audit fournis sont des aide-mémoire, pas les référentiels officiels.</p>
+      </div>
+    </Sheet> : null}
+  </div>);
+}
 // mode audit : chapitres, pièces, points, dossier imprimable
 function ModeAudit({ id, onClose }) {
   const { db, R, act, confirm } = useApp(); const ref = useRef(null); const [chap, setChap] = useState('synthese');
@@ -151,7 +179,8 @@ function ModeAudit({ id, onClose }) {
         <div className="min-w-0 flex-1">
           <h3 className="mb-2 text-lg font-semibold">{(chaps.find((x) => x[0] === chap) || chaps[0])[1]}</h3>
           {chap === 'synthese' ? <div className="space-y-2">{m.points.map((p, i) => <AuditPoint key={p.id} a={a} p={p} i={i} />)}{!m.points.length ? <p className="help">Aucun point de contrôle : personnalisez le type d’audit.</p> : null}
-            {!clos ? <Field label="Notes générales de l’audit"><TAD value={a.notes || ''} onChange={(v) => act((d) => auditSave(d, a.id, { notes: v }))} rows={3} aria-label="Notes de l’audit" /></Field> : a.notes ? <p className="text-sm">{a.notes}</p> : null}</div>
+            {!clos ? <AuditPreparer a={a} m={m} regs={regs} /> : null}
+            {!clos ? <Field label={<span className="inline-flex items-center gap-2"><span>Notes générales de l’audit</span><IaTrace ia={a.ia} /></span>}><TAD value={a.notes || ''} onChange={(v) => act((d) => auditSave(d, a.id, { notes: v }))} rows={3} aria-label="Notes de l’audit" /></Field> : a.notes ? <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{a.notes}</p> : null}</div>
             : <>{m.points.filter((p) => (p.pieces || []).includes(chap)).length ? <div className="mb-3 space-y-2">{m.points.map((p, i) => ((p.pieces || []).includes(chap) ? <AuditPoint key={p.id} a={a} p={p} i={i} /> : null))}</div> : null}
               <AuditPiece piece={chap} a={a} m={m} regs={regs} /></>}
         </div>

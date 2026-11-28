@@ -863,6 +863,12 @@ body:has(.sheet-erreur) .toast.bad:not(.login-voile .toast){display:none}
 .visite-sommaire .visite-pied{position:sticky;bottom:0;flex:0 0 auto;padding:.6rem 1rem;border-top:1px solid var(--line);background:var(--card)}
 .visite-bulle.visite-feuille{left:0;right:0;bottom:0;top:auto;width:auto;border-radius:14px 14px 0 0;max-height:45vh;overflow-y:auto;padding-bottom:calc(.8rem + env(safe-area-inset-bottom,0px))}
 @media print{.visite{display:none}}
+/* 0.49.0-alpha.1 : assistant « Comment faire… ? » (68ta) — fil de la conversation */
+.aide-fil{display:flex;flex-direction:column;gap:.75rem;max-height:min(55vh,520px);overflow-y:auto;overflow-wrap:anywhere}
+.aide-echange{display:flex;flex-direction:column;gap:.35rem}
+.aide-q{align-self:flex-end;max-width:85%;background:var(--accentSoft,var(--surface2));color:var(--ink);border-radius:12px 12px 2px 12px;padding:.45rem .7rem;font-size:.9rem}
+.aide-r{align-self:flex-start;max-width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:12px 12px 12px 2px;padding:.55rem .75rem;font-size:.9rem}
+@media print{.aide-fil{max-height:none;overflow:visible}}
 /* (fin du bloc paramètres) */
 /* impression : seul le rapport est imprimé */
 @page{size:A4;margin:12mm}
