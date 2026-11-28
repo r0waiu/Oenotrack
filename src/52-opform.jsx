@@ -473,6 +473,7 @@ function OpFormSaisie({ type: t0, editId, preset, onClose, prevId: prevId0, from
       extraFooter={<Btn className="mr-auto" onClick={() => openFiche([prevId && plan0 ? { kind: 'prev', id: prevId } : { kind: 'draft', type, f, editId }])} title="Fiche d’enregistrement pré-remplie à imprimer pour les opérateurs">🖨 Fiche à remplir</Btn>}>
       {lecture ? <Notice tone="info" title="Consultation">Votre profil « {profilNom(db, uid)} » ne permet pas de {old ? 'corriger une opération validée' : 'valider cette opération'} : les valeurs sont affichées sans pouvoir être enregistrées.</Notice> : null}
       {tracePar}
+      {!old && f.ia ? <IaPrerempliNotice ia={f.ia} /> : old && old.ia ? <div className="mb-2"><IaTrace ia={old.ia} /></div> : null /* 0.49.0-alpha.1 : formulaire prérempli par l'IA, opération proposée par l'IA (S4) */}
       {prevId ? <Notice tone="info" title="Opération à réaliser">Après l’opération, corrigez avec les valeurs réelles relevées (sur la fiche remplie, par exemple) puis « ✓ Valider ». « Enregistrer (à réaliser) » la garde en attente.</Notice> : null}
       <FormCfgCtx.Provider value={cfgv}>
       {nMasques || !lecture ? <div className="cf-barre">

@@ -1,6 +1,7 @@
 /* ============ ONGLET TRAÇABILITÉ : rappel de lot d'intrant (HACCP), crus, apporteurs, échelle ; conformité réglementaire (0.40.0-alpha.1) ============
    0.48.0-alpha.1 : une seule recherche filtrée par pastilles (Tout · Intrant · Cru · Parcelle · Partenaire ; anciens sous-onglets repris par
-   setTab('trace', id)), recherche reprise de l'en-tête (TRACE_RECHERCHE_DEMANDE), « Rapports imprimables » = sommaire de tous les documents. */
+   setTab('trace', id)), recherche reprise de l'en-tête (TRACE_RECHERCHE_DEMANDE), « Rapports imprimables » = sommaire de tous les documents.
+   0.49.0-alpha.1 : « Poser la question… » (IA12, recherche en langage courant, exécutée sur l'appareil). */
 // registre des alertes a posteriori : lots dont les intrants, les teneurs ou le SO₂ total ne respectent pas les référentiels de leur revendication et de leurs labels visés
 function ConformiteRegistre({ liste }) {
   const { db, R } = useApp();
@@ -96,6 +97,30 @@ function RapportsPanel({ onRecherche }) {
 const TRACE_FILTRES = [{ id: 'tout', label: 'Tout', aide: 'Toutes les étapes, du raisin au dégorgé' }, { id: 'intrant', label: 'Intrant', aide: 'Rappel de lot d’un intrant' }, { id: 'cru', label: 'Cru', aide: 'Cru (village)' }, { id: 'parcelle', label: 'Parcelle', aide: 'Parcelle' }, { id: 'apporteur', label: 'Partenaire', aide: 'Partenaire (apporteur, vendeur de vins)' }];
 const TRACE_VUES = ['etapes', 'echelle', 'conformite', 'audit', 'rapports'];
 const traceNavDe = (sub) => (sub === 'etapes' || sub === 'recherche' ? { vue: 'etapes', filtre: 'tout' } : TRACE_FILTRES.some((x) => x.id === sub && x.id !== 'tout') ? { vue: 'etapes', filtre: sub } : TRACE_VUES.includes(sub) ? { vue: sub } : null);
+/* 0.49.0-alpha.1 (IA12, usage « traceRecherche », niveau 0) — « Poser la question… » : l'IA reçoit la question et la liste des filtres
+   possibles (jamais les résultats ni les noms de la base) et renvoie le filtre et le texte à chercher ; les noms dits sont retrouvés sur
+   l'appareil (iaRechercheAppliquer) et la recherche s'exécute sur l'appareil. */
+function IaRechercheChamp({ onAppliquer }) {
+  const { db } = useApp(); const ia = useIaUsage(); const [q, setQ] = useState(''); const [busy, setBusy] = useState(false); const [compris, setCompris] = useState(null);
+  const raison = ia.refus('traceRecherche');
+  const lancer = async () => {
+    const t = q.trim(); if (!t || busy) return; const P = iaRecherchePrompt(t, { aujourdhui: todayISO() });
+    setBusy(true); const r = await ia.demander('traceRecherche', P); setBusy(false); if (!r) return;
+    const x = iaRechercheAppliquer(db, r.valeur); setCompris(x); onAppliquer(x);
+  };
+  const nomFiltre = (f) => (f === 'echelle' ? ECH.nom : (TRACE_FILTRES.find((y) => y.id === f) || TRACE_FILTRES[0]).label);
+  return (
+    <div className="mb-3" data-ia-recherche="">
+      <div className="flex flex-wrap items-center gap-2">
+        <input className="inp min-w-0 flex-1" style={{ minWidth: 200 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Poser la question…" aria-label="Poser une question de traçabilité" disabled={!!raison} title={raison || 'ex. « quels lots ont reçu la bentonite lot B-1234 ? », « tout ce qui vient d’Avize »'} data-ia-recherche-question=""
+          onKeyDown={(e) => { if (e.key === 'Enter' && q.trim()) { e.preventDefault(); lancer(); } }} />
+        <IaBouton usage="traceRecherche" busy={busy} disabled={!q.trim()} onClick={lancer} data-ia-recherche-ok="">Chercher</IaBouton>
+      </div>
+      {compris ? <div className="mt-1 flex flex-wrap items-center gap-2 text-sm" data-ia-recherche-compris=""><span className="text-ink2">Compris :</span><Chip tone="info">{nomFiltre(compris.filtre)}</Chip>{compris.q ? <q translate="no">{compris.q}</q> : null}{compris.explication ? <span className="text-ink2" translate="no">{compris.explication}</span> : null}
+        {compris.avert.map((a, i) => <Chip key={i} tone="warn">{a}</Chip>)}<span className="text-xs text-ink2">La recherche s’exécute sur cet appareil.</span></div> : null}
+    </div>
+  );
+}
 function TabTrace() {
   const { db, R, toast, nav } = useApp();
   // recherche demandée par l'en-tête (« Tout voir dans Traçabilité ») : texte repris une fois, filtre « Tout »
@@ -113,6 +138,14 @@ function TabTrace() {
   const [prod, setProd] = useState(''); const [arrs, setArrs] = useState([]);
   const [cru, setCru] = useState(''); const [app, setApp] = useState(''); const [parc, setParc] = useState(''); const [ech, setEch] = useState(() => echTop() || 'grand');
   const [printing, setPrinting] = useState(false); const ref = useRef(null);
+  // recherche posée en langage courant (IA12) : filtre, élément retrouvé sur l'appareil, texte à chercher
+  const iaAppliquer = (x) => {
+    if (x.filtre === 'echelle') { setVue('echelle'); if (x.ech) setEch(x.ech); return; }
+    setVue('etapes'); setFiltre(x.filtre);
+    if (x.filtre === 'tout') setDemande((d) => ({ q: x.q, n: d.n + 1 }));
+    if (x.filtre === 'intrant') { setProd(x.prod); setArrs(x.arrs || []); }
+    if (x.filtre === 'cru') setCru(x.cru); if (x.filtre === 'parcelle') setParc(x.parc); if (x.filtre === 'apporteur') setApp(x.app);
+  };
   const nonConf = useMemo(() => lotsNonConformes(db, R, true), [db, R]); const nNonConf = nonConf.filter((x) => x.alertes.some((a) => !a.justifie)).length; // 0.40.0-alpha.1
   const prods = db.produits.filter((p) => db.arrivages.some((a) => a.produitId === p.id)).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   const res = useMemo(() => {
@@ -150,6 +183,7 @@ function TabTrace() {
   return (
     <div>
       <SubNav value={vue} onChange={setVue} items={[{ id: 'etapes', label: '🔎 Recherche' }, { id: 'echelle', label: ECH.nom }, { id: 'conformite', label: '⚖ Conformité réglementaire', badge: nNonConf || null }, { id: 'audit', label: '🧾 Mode audit' }, { id: 'rapports', label: '🖨 Rapports imprimables' }]} />
+      {vue === 'etapes' || vue === 'echelle' ? <IaRechercheChamp onAppliquer={iaAppliquer} /> : null}
       {vue === 'etapes' ? <div className="trace-filtres mb-3" role="group" aria-label="Filtre de la recherche" data-trace-filtres="">{TRACE_FILTRES.map((x) => <button key={x.id} type="button" className={cx('trf', filtre === x.id && 'on')} aria-pressed={filtre === x.id} title={x.aide} onClick={() => setFiltre(x.id)} data-trace-filtre={x.id}>{x.label}</button>)}</div> : null}
       {mode === 'etapes' ? <TraceEtapes key={demande.n} qInit={demande.q} /> : mode === 'conformite' ? <ConformiteRegistre liste={nonConf} /> : mode === 'audit' ? <AuditsView /> : mode === 'rapports' ? <RapportsPanel onRecherche={() => { setVue('etapes'); setFiltre('tout'); }} /> : <>
         <div className="panel mb-5">

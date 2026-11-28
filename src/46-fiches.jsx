@@ -2,7 +2,8 @@
    0.19.0-alpha.1 : modèles génériques pour tous les vignerons (plus de codes ni de réglages propres à une entreprise), en-tête compact.
    Colonnes : une par ligne, sous-colonnes indentées de 2 espaces ; « {clé} » = colonne pré-remplie (voir FICHE_KEYS) ;
    sous-colonnes « prévu » (valeur calculée par Œnotrack, en gris) et « relevé » (à noter par l'opérateur, case teintée).
-   Champs sous l'en-tête : « Libellé {clé} » = pré-rempli (voir ficheChampVal), sinon à écrire à la main. */
+   Champs sous l'en-tête : « Libellé {clé} » = pré-rempli (voir ficheChampVal), sinon à écrire à la main.
+   0.49.0-alpha.1 : « 🤖 Relire » une fiche imprimée remplie (photo, IA17 : FicheRelueDialog, 47-previsions). */
 const FICHE_FILLS = {
   aucun: 'Aucun pré-remplissage', apport: 'Apports de vendange', charges: 'Pressurage : raisins chargés', fractions: 'Pressurage : moûts obtenus (fractions)',
   reception: 'Réception de moûts (un compartiment par ligne)', debourbage: 'Débourbage (moût, clair, bourbes)', mouvements: 'Mouvements (soutirage, transfert)', assemblage: 'Assemblage (une ligne par cuve source)',
@@ -625,9 +626,11 @@ function ModelesView() {
 
 function FichesLogView() {
   const { db, openFiche } = useApp(); const M = fichesModeles(db); const rows = [...(db.fiches || [])].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  return <Tbl rows={rows} empty="Aucune fiche imprimée pour l’instant." cols={[
+  const [relire, setRelire] = useState(''); // 0.49.0-alpha.1 (IA17) : relire la fiche remplie (photo)
+  const aRelire = (x) => (x.sources || []).some((s) => s.kind === 'prev' && (db.previsions || []).some((p) => p.id === s.id && p.statut === 'prevue'));
+  return <>{relire ? <FicheRelueDialog ficheId={relire} onClose={() => setRelire('')} /> : null}<Tbl rows={rows} empty="Aucune fiche imprimée pour l’instant." cols={[
     { h: 'N° de fiche', r: (x) => <b className="num">{x.ordre}</b> }, { h: 'Modèle', r: (x) => ficheTitre(M, x.modele) }, { h: 'Date', r: (x) => fmtDate(x.date) },
     { h: 'Éléments', r: (x) => (x.sources || []).map((s) => (s.kind === 'op' ? (db.ops.find((o) => o.id === s.id) ? opNom(db.ops.find((o) => o.id === s.id)) : 'opération supprimée') : (() => { const pv = (db.previsions || []).find((p) => p.id === s.id); return pv ? `${opNom(pv)} (${PREV_STATUT[pv.statut] ? PREV_STATUT[pv.statut].label.toLowerCase() : 'à réaliser'})` : 'opération planifiée supprimée'; })())).join(', ') || '—' },
     { h: 'Éditée le', cls: 'hm', r: (x) => fmtDate(x.creeLe) },
-    { h: '', r: (x) => ((x.sources || []).length ? <Btn size="sm" onClick={() => openFiche(x.sources)}>Réimprimer</Btn> : null) }]} />;
+    { h: '', r: (x) => <div className="flex flex-wrap gap-1">{(x.sources || []).length ? <Btn size="sm" onClick={() => openFiche(x.sources)}>Réimprimer</Btn> : null}{aRelire(x) ? <IaBouton usage="ficheRelue" onClick={() => setRelire(x.id)} data-ia-relire={x.id}>Relire</IaBouton> : null}</div> }]} /></>;
 }
