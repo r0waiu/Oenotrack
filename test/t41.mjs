@@ -67,6 +67,7 @@ ok('XR-200 non rattaché : « produit à choisir », bouton IA proposé', /produ
 await page.screenshot({ path: SC + '/shots/t41-depot-revue.png', fullPage: false });
 // 4. identification par l'IA (simulée) : le document est rattaché à la gélatine, daté
 IA.appels.length = 0; await top().locator('button', { hasText: /Identifier avec l’IA/ }).click(); await page.waitForTimeout(1200);
+for (let i = 0; i < 20 && !IA.appels.some((a) => a.url.endsWith('/v1/messages')); i += 1) await page.waitForTimeout(250); // charge de la suite en parallèle : réponse attendue jusqu'à 5 s de plus
 const idn = IA.appels.find((a) => a.url.endsWith('/v1/messages')); const corps = idn ? JSON.parse(idn.body) : {};
 ok('IA : début du texte et liste des produits envoyés, rien d’autre', !!idn && /CLARIFIANT XR-200/.test(corps.messages[0].content) && /\| Gélatine liquide \|/.test(corps.messages[0].content) && !corps.tools && !/Cuve|cuve 0/.test(corps.messages[0].content));
 ok('IA : document identifié (produit, date, confiance), à vérifier', /^Gélatine liquide/.test(await produitDe('SDS_XR-200.pdf')) && (await carte('SDS_XR-200.pdf').locator('input[type=date]').inputValue()) === '2025-06-20' && /Identifié par Claude \(confiance 82 %\)/.test(await carte('SDS_XR-200.pdf').innerText()));
