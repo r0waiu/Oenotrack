@@ -1,7 +1,7 @@
 // 0.46.0-alpha.1 : région et types de vins réglés à un seul endroit (résumé dans l'identité de la société et les réglages du pressoir,
 // lien vers Paramètres › Région & types de vins) ; profil Bordeaux rouges → opérations de vinification en rouge proposées ; électrodialyse
 // proposée d'office ; méthode ancestrale au tirage ; anglais. Données fictives (jeu d'exemple).
-import { open } from './ui.mjs'; import fs from 'fs';
+import { open, vignoble, vignobleRegion, reglerVignoble } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests'); fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 900) : ''); };
 let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
@@ -13,14 +13,11 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   t = await txt(page.locator('[data-region-societe]'));
   ok('identité de la société : « Région et types de vins » en résumé (plus de choix Champagne / autre)', /Champagne/.test(t) && /Spécificités champenoises actives/.test(t) && (await page.locator('[data-region-societe] [data-region]').count()) === 0, t);
   await page.locator('[data-region-societe] [data-profil-regler]').click(); await page.waitForTimeout(500);
-  ok('… le lien ouvre Paramètres › Région & types de vins', (await page.locator('[data-params-rubrique="profil"] [data-profil]').count()) === 1);
+  ok('… le lien ouvre Paramètres › Vignoble', (await page.locator('[data-params-rubrique="profil"] [data-profil]').count()) === 1);
   // ---- profil Bordeaux rouges
-  await page.locator('select[aria-label="Région viticole"]').selectOption('bordeaux'); await page.waitForTimeout(200);
-  for (const ty of ['effervescent', 'blanc', 'rose', 'ancestrale', 'doux']) { const c = page.locator(`[data-profil-types] input[data-type="${ty}"]`); if (await c.isChecked()) await c.uncheck(); }
-  const rouge = page.locator('[data-profil-types] input[data-type="rouge"]'); if (!(await rouge.isChecked())) await rouge.check(); await page.waitForTimeout(300);
-  t = await txt(page.locator('[data-profil-plan]'));
-  ok('aperçu Bordeaux rouges : pigeage, macération carbonique, thermovinification, pressurage des marcs proposés', /Pigeage/.test(t) && /Macération carbonique/.test(t) && /Thermovinification/.test(t) && /Pressurage des marcs/.test(t), t.slice(0, 600));
-  await page.locator('[data-profil-appliquer]').click(); await page.waitForTimeout(700);
+  await reglerVignoble(page, 'bordeaux', ['rouge']); await vignoble(page, 'Adaptations'); // 0.50.0-alpha.1 : en direct
+  t = await txt(page.locator('[data-vignoble-adaptations]'));
+  ok('adaptations Bordeaux rouges : pigeage, macération carbonique, thermovinification, pressurage des marcs proposés', (await Promise.all(['pigeage', 'mac_carbonique', 'thermovinification', 'pressurage_marcs'].map(async (id) => /proposée/.test(await txt(page.locator(`[data-adaptation="op:${id}"]`)))))).every(Boolean) && /Pigeage/.test(t) && /Macération carbonique/.test(t) && /Thermovinification/.test(t) && /Pressurage des marcs/.test(t), t.slice(0, 600));
   ok('… appliqué : pigeage proposé dans le catalogue', (await db()).lists.operations.find((o) => o.id === 'pigeage').masque === false);
   // ---- opérations : nouvelles opérations proposées
   await page.click('#tab-vinification'); await page.waitForTimeout(300); await page.click('#tab-ops'); await page.waitForTimeout(500);
@@ -54,7 +51,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   const { browser, page, errors } = await open({ init: { content: "try { if (!localStorage.getItem('oenotrack-langue')) localStorage.setItem('oenotrack-langue', 'en'); } catch (e) {}" }, viewport: { width: 1280, height: 900 } });
   await page.click('#tab-params'); await page.waitForTimeout(300); await page.locator('[data-params-item="entreprise"]').click(); await page.waitForTimeout(400);
   t = await txt(page.locator('[data-region-societe]'));
-  ok('en anglais : « Set the region and wine types », « Champagne specifics active »', /Set the region and wine types/.test(t) && /Champagne specifics active/.test(t), t);
+  ok('en anglais : « Set up the vineyard », « Champagne specifics active »', /Set up the vineyard/.test(t) && /Champagne specifics active/.test(t), t);
   ok('aucune erreur (anglais)', errors.length === 0, errors); await browser.close();
 }
 console.log(ko ? `\n${ko} ÉCHEC(S)` : '\nTOUS LES TESTS D’INTERFACE PASSENT (t87)'); process.exitCode = ko ? 1 : 0;

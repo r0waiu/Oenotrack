@@ -67,7 +67,7 @@ function AppRefAjout() {
     <input id="appref-q" className="inp" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ex. Chablis, Rioja, Napa…" aria-label="Chercher une appellation" />
     {q.trim() ? <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto" data-appref-resultats="">{R.length ? R.map((a) => <li key={a.id} className="flex flex-wrap items-center gap-2 text-sm">
       <span translate="no"><b>{a.nom}</b></span><span className="text-xs text-ink2" translate="no">{[a.signe, a.sousRegion, (PROFIL_REGIONS.find((x) => x.id === a.region) || {}).nom].filter(Boolean).join(' · ')}</span>{a.etat ? <Chip tone="warn">{APP_ETATS[a.etat] || a.etat}</Chip> : null}
-      <span className="ml-auto" />{pris.has(norm(a.nom)) ? <Chip tone="ok">déjà dans la liste</Chip> : <Btn size="sm" onClick={() => act((d) => appellationDepuisRef(d, a.id), 'Appellation ajoutée.')} data-appref-ajouter={a.id}>＋ Ajouter</Btn>}</li>) : <li className="help">Aucune appellation trouvée.</li>}</ul> : <p className="help mt-1">{`${appRef().length} appellations : France (AOP, IGP), Italie, Espagne, Portugal, Allemagne, Autriche, Suisse, États-Unis, Australie — relevé officiel du 27/11/2026.`}</p>}
+      <span className="ml-auto" />{pris.has(norm(a.nom)) ? <Chip tone="ok">déjà dans la liste</Chip> : <Btn size="sm" onClick={() => act((d) => appellationDepuisRef(d, a.id), 'Appellation ajoutée.')} data-appref-ajouter={a.id}>＋ Ajouter</Btn>}</li>) : <li className="help">Aucune appellation trouvée.</li>}</ul> : <p className="help mt-1">{`${appRef().filter((a) => !a.complement).length} appellations : France (AOP, IGP), Italie, Espagne, Portugal, Allemagne, Autriche, Suisse, États-Unis, Australie — relevé officiel du 27/11/2026.`}</p>}
   </div>);
 }
 function ListCard({ meta, q, replie, onBasculer }) {
@@ -186,11 +186,11 @@ TABS_REG.registres = TabRegistres;
 /* 0.48.0-alpha.1 : une icône par rubrique ; groupe « Réglages des modules » (dernier sous-onglet « ⚙ Réglages » de chaque module, ouvert dans
    son onglet, ↗) à la place des trois rubriques qui faisaient sortir de Paramètres ; au téléphone, liste simple des rubriques puis la rubrique
    choisie (« ‹ Rubriques » pour revenir). Identifiants inchangés : setTab('params', 'operations' | 'schemas' | 'jaugeage') marche toujours. */
-const PARAMS_ITEMS = [{ id: 'entreprise', label: '🏢 Société & opérateurs' }, { id: 'codification', label: '🏷 Codification des lots' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Région & types de vins' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: '📅 Campagnes' }, { id: 'sites', label: '📍 Sites' }, { id: 'contenants', label: '🎨 Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: '🗺 Crus & parcelles' }, { id: 'apporteurs', label: '🤝 Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '🗂 Plan de vinification' }, { id: 'listes', label: '📋 Revendications, stades & listes' }, { id: 'calculs', label: '🧪 Calculs œnologiques' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: '🖥 Affichage & application' },
+const PARAMS_ITEMS = [{ id: 'entreprise', label: '🏢 Société & opérateurs' }, { id: 'codification', label: '🏷 Codification des lots' }, { id: 'utilisateurs', label: '🔐 Utilisateurs & droits' }, { id: 'modules', label: '🧩 Modules' }, { id: 'profil', label: '🍇 Vignoble' }, { id: 'sauvegarde', label: '💾 Sauvegarde & Drive' }, { id: 'garde', label: '🛡 Sécurité des importations' }, { id: 'campagnes', label: '📅 Campagnes' }, { id: 'sites', label: '📍 Sites' }, { id: 'contenants', label: '🎨 Contenants & couleurs' }, { id: 'jaugeage', label: '📏 Barèmes de jaugeage' }, { id: 'crus', label: '🗺 Crus & parcelles' }, { id: 'apporteurs', label: '🤝 Partenaires' }, { id: 'operations', label: '⚙ Opérations' }, { id: 'schemas', label: '🗂 Plan de vinification' }, { id: 'listes', label: '📋 Revendications, stades & listes' }, { id: 'calculs', label: '🧪 Calculs œnologiques' }, { id: 'ia', label: '🤖 Assistant IA' }, { id: 'base', label: '🖥 Affichage & application' },
   { id: 'reglages-pressoir', label: '🍇 Pressoir', module: true }, { id: 'reglages-analyses', label: '🔬 Analyses', module: true }, { id: 'reglages-hygiene', label: '🧽 Hygiène', module: true }, { id: 'reglages-equipements', label: '🛠 Équipements', module: true }];
 const PARAMS_GROUPES = [
-  { id: 'exploitation', label: 'Exploitation', items: ['entreprise', 'sites', 'apporteurs', 'crus', 'campagnes'] },
-  { id: 'vin', label: 'Vin & cuverie', items: ['profil', 'listes', 'codification', 'contenants', 'calculs'] },
+  { id: 'exploitation', label: 'Exploitation', items: ['entreprise', 'sites', 'apporteurs', 'profil', 'campagnes'] },
+  { id: 'vin', label: 'Vin & cuverie', items: ['listes', 'codification', 'contenants', 'calculs'] },
   { id: 'equipe', label: 'Équipe & sécurité', items: ['utilisateurs', 'garde', 'ia'] },
   { id: 'donnees', label: 'Données & application', items: ['sauvegarde', 'modules', 'base'] },
   { id: 'modules-reglages', label: 'Réglages des modules', items: ['operations', 'schemas', 'jaugeage', 'reglages-pressoir', 'reglages-analyses', 'reglages-hygiene', 'reglages-equipements'] },
@@ -205,7 +205,7 @@ function ParamsLecture() {
   const { db, uid, secu } = useApp(); if (!secu || niveauModule(db, uid, 'params') !== 'lecture') return null;
   return <div className="mb-4"><Notice tone="info" title="Consultation des paramètres">Votre profil « {profilNom(db, uid)} » permet de consulter ces réglages, pas de les modifier.</Notice></div>;
 }
-const PARAMS_VUES = { codification: CodificationView, utilisateurs: UtilisateursView, modules: ModulesView, profil: ProfilViticoleView, sauvegarde: SauvegardeView, garde: GardeView, campagnes: CampagnesView, listes: ListesView, operations: OperationsView, schemas: PlanVinifVue, crus: CrusEtParcelles, apporteurs: ApporteursView, sites: SitesView, contenants: StudioView, jaugeage: BaremesView, base: BaseView, calculs: CalculsView, ia: IaView, entreprise: EntrepriseView };
+const PARAMS_VUES = { codification: CodificationView, utilisateurs: UtilisateursView, modules: ModulesView, profil: ProfilViticoleView, sauvegarde: SauvegardeView, garde: GardeView, campagnes: CampagnesView, listes: ListesView, operations: OperationsView, schemas: PlanVinifVue, crus: ProfilViticoleView, /* 0.50.0-alpha.1 : crus et parcelles réunis dans « Vignoble » */ apporteurs: ApporteursView, sites: SitesView, contenants: StudioView, jaugeage: BaremesView, base: BaseView, calculs: CalculsView, ia: IaView, entreprise: EntrepriseView };
 function TabParams() {
   const { db, uid, secu, setTab, nav } = useApp();
   // identifiants activés : paramètres selon le profil (sauvegarde et utilisateurs : droits particuliers ; « Utilisateurs & droits » montre au moins son compte)
@@ -226,8 +226,8 @@ function TabParams() {
             <div className="lbl mb-1">{g.label}</div>
             <div className="params-menu-liste flex flex-col gap-1" role="tablist" aria-label={g.label}>
               {g.L.map((it) => { const ail = paramsDeplaceOk(db, uid, it.id); return (
-                <button key={it.id} type="button" role="tab" aria-selected={sub === it.id} onClick={() => choisir(it.id)} data-params-item={it.id} title={ail ? `Réglage rangé dans ${PARAMS_DEPLACES[it.id].ou}` : undefined}
-                  className={cx('btn w-full justify-start text-left', sub === it.id && 'btn-primary')}>{it.label}{ail ? <span className="ml-auto pl-1 text-xs opacity-70" aria-hidden="true">↗</span> : null}</button>); })}
+                <button key={it.id} type="button" role="tab" aria-selected={sub === it.id || (sub === 'crus' && it.id === 'profil')} onClick={() => choisir(it.id)} data-params-item={it.id} title={ail ? `Réglage rangé dans ${PARAMS_DEPLACES[it.id].ou}` : undefined}
+                  className={cx('btn w-full justify-start text-left', (sub === it.id || (sub === 'crus' && it.id === 'profil')) && 'btn-primary')}>{it.label}{ail ? <span className="ml-auto pl-1 text-xs opacity-70" aria-hidden="true">↗</span> : null}</button>); })}
             </div>
           </div>))}
       </nav>

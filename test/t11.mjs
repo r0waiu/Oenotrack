@@ -17,7 +17,7 @@ const ap = sh.locator('input[aria-label="Partenaire"]'); await ap.click(); await
 log('apporteur, option création :', await sh.locator('.combo-new').innerText().catch(() => '-'));
 await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
 // paramètres : masquer tous les « Autres » crus, puis vérifier la liste de saisie
-await page.click('#tab-params'); await page.click('main button:has-text("Crus & parcelles")'); await page.waitForTimeout(300);
+await page.click('#tab-params'); await page.click('[data-params-item="profil"]'); await page.click('[data-vignoble] [role=tab]:has-text("Crus")'); await page.waitForTimeout(300);
 await page.click('main button:has-text("Autres")'); await page.waitForTimeout(200);
 await page.locator('main button', { hasText: /Masquer les \d+ crus affichés/ }).click(); await page.waitForTimeout(300);
 log('après masquage :', (await page.locator('main .card').first().innerText()).replace(/\n/g, ' '), '|', await page.locator('.toast').innerText().catch(() => ''));

@@ -239,12 +239,15 @@ function moduleDeplacer(db, id, delta) {
   const j = Math.max(0, Math.min(c.length - 1, i + delta)); if (j === i) return okr();
   c.splice(i, 1); c.splice(j, 0, id); return modulesOrdonner(db, c);
 }
-function moduleActiver(db, id, actif) {
+function moduleActiver(db, id, actif, opts) {
   if (id === MODULE_FIXE) return fail('Le module « Paramètres » reste toujours actif : c’est là qu’on réactive les autres.');
   if (!estModule(id)) return fail('Module inconnu.');
   const off = (Array.isArray(db.settings.modulesOff) ? db.settings.modulesOff : []).filter((x) => x !== id);
   if (!actif) off.push(id);
-  db.settings.modulesOff = off; return okr();
+  db.settings.modulesOff = off;
+  // 0.50.0-alpha.1 : changé à la main contre le réglage Vignoble (en direct) → exception notée (16oe)
+  if (!(opts && opts.profil) && typeof profilNoterMain === 'function' && PROFIL_MODULES_MOUSSE.includes(id)) profilNoterMain(db, `module:${id}`, !!actif);
+  return okr();
 }
 function modulesReinitialiser(db, quoi) { // 'ordre' | 'activation' | (les deux)
   if (quoi !== 'activation') delete db.settings.modulesOrdre;
@@ -269,7 +272,7 @@ function fractionCont(db, op, id, patch) {
   if (op === 'edit') {
     if (patch.label != null) { if (!lab) return fail('Libellé requis.'); if (L.some((x) => x.id !== id && norm(x.label) === norm(lab))) return fail('Ce libellé existe déjà.'); it.label = lab; }
     if (patch.suffix != null) { if (sfx && L.some((x) => x.id !== id && x.suffix === sfx)) return fail(`Le suffixe « ${sfx} » est déjà utilisé.`); it.suffix = sfx; }
-    if (patch.pressurage != null) it.pressurage = !!patch.pressurage;
+    if (patch.pressurage != null) { if (!!patch.pressurage !== (it.pressurage !== false) && typeof profilNoterMain === 'function' && PROFIL_FRACTIONS_CHAMPAGNE.includes(it.id)) profilNoterMain(db, `pressfrac:${it.id}`, !!patch.pressurage); it.pressurage = !!patch.pressurage; } // 0.50.0-alpha.1 : exception notée
     if (patch.role != null) { if (!fracRoleOk(patch.role)) return fail('Rôle de la fraction inconnu.'); it.role = patch.role; } // 0.38.0-alpha.3
     return okr();
   }
@@ -537,6 +540,7 @@ function opCatSave(db, x, opts) {
     let pos = -1; L.forEach((y, k2) => { if (y.groupe === it.groupe) pos = k2; }); if (pos >= 0) L.splice(pos + 1, 0, it); else L.push(it);
     syncOps(db); return okr({ id: it.id });
   }
+  if ('masque' in x && !!x.masque !== !!cur.masque && typeof profilNoterMain === 'function') profilNoterMain(db, `op:${it.id}`, !x.masque); // 0.50.0-alpha.1
   L[i] = it; syncOps(db); return okr({ id: it.id });
 }
 function opCatDelete(db, id) {

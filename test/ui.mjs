@@ -74,3 +74,20 @@ export async function pick(page, input, text, choice) {
   const opt = box.locator('[role=option]', { hasText: choice || text }).first();
   await opt.click(); await page.waitForTimeout(80);
 }
+// 0.50.0-alpha.1 : Paramètres › 🍇 Vignoble — ouvrir une étape (texte de l'onglet : « Région », « Types de vins », « Communes »,
+// « Parcelles », « Adaptations »…) ; régler la région (confirmation acceptée) et les types de vins cochés à la main
+export async function vignoble(page, etape) {
+  if (!(await page.locator('[data-vignoble]').count())) { await page.click('#tab-params'); await page.waitForTimeout(300); await page.locator('[data-params-item="profil"]').click(); await page.waitForTimeout(400); }
+  if (etape) { await page.locator('[data-vignoble] [role=tab]', { hasText: etape }).first().click(); await page.waitForTimeout(300); }
+}
+export async function vignobleRegion(page, region) {
+  await vignoble(page, 'Région'); const sel = page.locator('select[data-vignoble-region]');
+  if ((await sel.inputValue()) !== region) { await sel.selectOption(region); await page.waitForTimeout(300); if (await page.locator('[data-cfm-ok]').count()) { await page.locator('[data-cfm-ok]').click(); await page.waitForTimeout(500); } }
+}
+export async function reglerVignoble(page, region, types) {
+  await vignobleRegion(page, region); await vignoble(page, 'Types de vins');
+  const auto = page.locator('[data-types-auto]'); if (await auto.isChecked()) { await auto.uncheck(); await page.waitForTimeout(400); }
+  const T = ['effervescent', 'blanc', 'rose', 'rouge', 'ancestrale', 'doux'];
+  for (const ty of T.filter((x) => types.includes(x))) { const c = page.locator(`[data-profil-types] input[data-type="${ty}"]`); if (!(await c.isChecked())) { await c.click(); await page.waitForTimeout(300); } }
+  for (const ty of T.filter((x) => !types.includes(x))) { const c = page.locator(`[data-profil-types] input[data-type="${ty}"]`); if (await c.isChecked()) { await c.click(); await page.waitForTimeout(300); } }
+}

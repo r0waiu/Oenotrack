@@ -254,7 +254,7 @@ const VISITE_CHAPITRES = [
   { id: 'params', titre: 'Paramètres', module: 'params', etapes: [
     { cible: '[data-params-menu]', titre: 'Rubriques', texte: 'Exploitation, vin et cuverie, équipe et sécurité, données et application.' },
     { cible: '[data-params-item="listes"]', titre: 'Revendications', texte: 'Revendications et leur rang ; pour le bio, le code d’agrément de l’organisme certificateur.' },
-    { cible: '[data-params-item="crus"]', titre: 'Crus et parcelles', texte: 'Chaque parcelle porte son appellation et son niveau dans la hiérarchie de cette appellation.' },
+    { cible: '[data-params-item="profil"]', titre: 'Vignoble', texte: 'Région, appellations, types de vins, communes et parcelles : Œnotrack s’adapte aussitôt (onglets, opérations, fractions), avec des exceptions possibles.' },
     { cible: '[data-params-item="codification"]', titre: 'Codification des lots', texte: 'Vos règles de codes de lots, stade par stade.' },
     { cible: '[data-params-item="ia"]', titre: 'Assistant IA', texte: 'Votre service d’IA, l’interrupteur de chaque usage, ce qu’il envoie et le journal des envois ; l’IA ne fait que proposer.' },
     { cible: '[data-params-item="utilisateurs"]', titre: 'Utilisateurs & droits', texte: 'Comptes, profils de droits, clés d’accès et verrouillage.' },

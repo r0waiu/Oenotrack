@@ -2,7 +2,7 @@
 // Sauvegarde, menu au téléphone : liste puis rubrique), « ⚙ Réglages » de chaque module, visite guidée (sommaire dans l'écran au téléphone,
 // voile, bulle à côté d'une cible haute, parcours « L’essentiel », durée annoncée), recherche et repli dans Crus & parcelles et dans
 // Listes, plan de vinification (« Tableau du plan », aide repliable), budget de temps sous ralentissement ×4, anglais. Jeu d'exemple (fictif).
-import { open } from './ui.mjs'; import fs from 'fs';
+import { open, vignoble, vignobleRegion, reglerVignoble } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests'); fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 700) : ''); };
 const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
@@ -14,7 +14,7 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   const groupes = await page.locator('[data-params-groupe]').evaluateAll((L) => L.map((x) => x.getAttribute('data-params-groupe')));
   ok('Paramètres : cinq groupes, « Réglages des modules » en dernier', groupes.join() === 'exploitation,vin,equipe,donnees,modules-reglages', groupes);
   const libs = await page.locator('[data-params-groupe]:not([data-params-groupe="modules-reglages"]) [data-params-item]').allInnerTexts();
-  ok('… une icône devant chaque rubrique', libs.length >= 16 && libs.every((l) => /^\P{L}/u.test(l.trim())), libs);
+  ok('… une icône devant chaque rubrique', libs.length >= 15 && libs.every((l) => /^\P{L}/u.test(l.trim())), libs);
   const reg = await page.locator('[data-params-groupe="modules-reglages"] [data-params-item]').evaluateAll((L) => L.map((x) => [x.getAttribute('data-params-item'), x.innerText.includes('↗')]));
   ok('… « Réglages des modules » : opérations, plan, barèmes, pressoir, analyses, hygiène, équipements, tous ↗', reg.map((x) => x[0]).join() === 'operations,schemas,jaugeage,reglages-pressoir,reglages-analyses,reglages-hygiene,reglages-equipements' && reg.every((x) => x[1]), reg);
   ok('… plus de rubrique ↗ dans « Vin & cuverie »', (await page.locator('[data-params-groupe="vin"] [data-params-item]', { hasText: '↗' }).count()) === 0);
@@ -53,8 +53,8 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   ok('… recherche sans résultat : message', /Aucune liste ne contient ce texte/.test(await txt(page.locator('[data-params-rubrique]'))));
   await page.locator('[data-listes-recherche]').fill(''); await page.locator('[data-listes-deplier]').click(); await page.waitForTimeout(300);
   ok('… « Tout déplier » : éditeur des revendications de nouveau visible', (await page.locator('[data-qualifs-editor] [data-qualif]').count()) >= 2);
-  // Crus & parcelles : repli par département, recherche
-  await page.locator('[data-params-item="crus"]').click(); await page.waitForTimeout(400);
+  // Crus & parcelles (0.50.0-alpha.1 : Vignoble › Communes & crus) : repli par département, recherche
+  await vignoble(page, 'Crus'); 
   const deps = await page.locator('[data-crus-groupe]').evaluateAll((L) => L.map((x) => x.getAttribute('data-crus-groupe')));
   ok('Crus : regroupés par département, repliés (liste longue)', deps.length >= 3 && deps.includes('Marne') && (await page.locator('[data-crus-groupe] tbody tr').count()) === 0, deps);
   await page.locator('[data-crus-recherche]').fill('Ambonnay'); await page.waitForTimeout(300);
@@ -110,9 +110,9 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   const { browser, page, errors } = await open({ viewport: { width: 390, height: 844 }, mobile: true });
   await page.click('#tab-params'); await page.waitForTimeout(400);
   ok('téléphone : Paramètres s’ouvre sur la liste des rubriques (toutes visibles, pas de défilement horizontal)', (await page.locator('[data-params-vue-tel="liste"]').count()) === 1 && (await page.locator('[data-params-rubrique]').isVisible()) === false
-    && (await page.locator('[data-params-item="campagnes"]').isVisible()) && (await page.locator('[data-params-item="crus"]').isVisible()) && (await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)));
-  await page.locator('[data-params-item="crus"]').click(); await page.waitForTimeout(400);
-  ok('… une rubrique choisie : liste masquée, contenu et « ‹ Rubriques »', (await page.locator('[data-params-menu]').isVisible()) === false && (await page.locator('[data-crus-recherche]').isVisible()) && /Crus & parcelles/.test(await txt(page.locator('.params-retour'))));
+    && (await page.locator('[data-params-item="campagnes"]').isVisible()) && (await page.locator('[data-params-item="profil"]').isVisible()) && (await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)));
+  await page.locator('[data-params-item="profil"]').click(); await page.waitForTimeout(400); await vignoble(page, 'Crus');
+  ok('… une rubrique choisie : liste masquée, contenu et « ‹ Rubriques »', (await page.locator('[data-params-menu]').isVisible()) === false && (await page.locator('[data-crus-recherche]').isVisible()) && /Vignoble/.test(await txt(page.locator('.params-retour'))));
   await page.screenshot({ path: SC + '/shots/t96-tel-crus.png' });
   await page.locator('[data-params-retour]').click(); await page.waitForTimeout(300);
   ok('… « ‹ Rubriques » : retour à la liste', await page.locator('[data-params-item="listes"]').isVisible());
@@ -146,7 +146,7 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   const onglets = await page.locator('nav [id^="tab-"]').evaluateAll((L) => L.filter((x) => x.getClientRects().length).map((x) => x.id));
   for (const id of onglets) { T[id] = await mesure(`#${id}`); await page.waitForTimeout(250); }
   await page.click('#tab-params'); await page.waitForTimeout(300);
-  for (const id of ['listes', 'crus', 'entreprise', 'sauvegarde']) { T[`params:${id}`] = await mesure(`[data-params-item="${id}"]`); await page.waitForTimeout(250); await page.locator('[data-params-retour]').click(); await page.waitForTimeout(200); }
+  for (const id of ['listes', 'profil', 'entreprise', 'sauvegarde']) { T[`params:${id}`] = await mesure(`[data-params-item="${id}"]`); await page.waitForTimeout(250); await page.locator('[data-params-retour]').click(); await page.waitForTimeout(200); }
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
   const lents = Object.entries(T).filter(([, v]) => v > 500 || v < 0);
   console.log('   temps (ms, ×4) :', JSON.stringify(T));
@@ -163,7 +163,7 @@ const inter = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + 
   await page.locator('[data-params-item="listes"]').click(); await page.waitForTimeout(400);
   const l = await txt(page.locator('[data-listes-outils]'));
   ok('… listes : « Collapse all », « Expand all »', /Collapse all/.test(l) && /Expand all/.test(l), l);
-  await page.locator('[data-params-item="crus"]').click(); await page.waitForTimeout(400);
+  await vignoble(page, 'Crus'); 
   ok('… crus : « departments »', /departments/i.test(await txt(page.locator('[data-crus-replis]'))));
   await page.click('#tab-pressoir'); await page.waitForTimeout(300);
   ok('… « ⚙ Settings » dans Pressoir', /⚙ Settings/.test(await txt(page.locator('[data-pressoir] [role=tablist]').first())));

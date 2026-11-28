@@ -1,7 +1,7 @@
 // 0.47.0-alpha.1 : échelle par appellation — Paramètres › Listes : hiérarchie de chaque appellation (proposée, confirmée, changée) ;
 // parcelle : appellation et niveau dans la hiérarchie de l'appellation ; fiche d'un lot : appellation et niveau d'après ses parcelles ;
 // anglais. Données fictives (jeu d'exemple ; test/fixtures/base-0.47.0-alpha.1-echelles.json).
-import { open } from './ui.mjs'; import fs from 'fs';
+import { open, vignoble, vignobleRegion, reglerVignoble } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests'); fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 900) : ''); };
 let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
@@ -20,8 +20,7 @@ const semer = { content: `if (!sessionStorage.getItem('semee')) { localStorage.s
   ok('… hiérarchie changée (générique)', (await db()).lists.appellations.find((a) => a.id === idRioja).echelle === 'generique');
   await page.screenshot({ path: `${SC}/shots/t89-hierarchies.png` });
   // ---- parcelle : appellation et niveau
-  await page.locator('[data-params-item="crus"]').click(); await page.waitForTimeout(500);
-  await page.getByRole('tab', { name: /Parcelles/ }).click().catch(() => {}); await page.waitForTimeout(300);
+  await vignoble(page, 'Parcelles'); // 0.50.0-alpha.1 : Paramètres › Vignoble › Parcelles
   await page.locator('tr', { hasText: 'Les Crayères' }).first().click(); await page.waitForTimeout(500);
   const f = page.locator('.overlay').last();
   ok('fiche de la parcelle : appellation Champagne, niveau Grand cru (échelle des crus)', (await f.getByLabel('Appellation de la parcelle').inputValue()) === fx.lists.appellations.find((a) => a.label === 'Champagne').id && (await f.getByLabel('Niveau de la parcelle').inputValue()) === 'grand');

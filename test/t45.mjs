@@ -1,7 +1,7 @@
 // 0.24.0-alpha.1 : onglet Pressoir — registre des pesées (ticket), carnet de pressoir (marc chargé puis complété et validé), contrôles AOC Champagne,
 // pesées proposées dans le pressurage de l'onglet Opérations, lots créés dans les cuves, journal, annulation avec motif, exports CSV, réglages,
 // région « autre » (spécificités champenoises désactivées), téléphone
-import { open, pick } from './ui.mjs'; import fs from 'fs';
+import { open, pick, reglerVignoble } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + ''; fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 400) : ''); };
 const init = () => { window.__saved = []; const downloads = { save: async ({ filename, data }) => { const text = typeof data === 'string' ? data : await data.text(); window.__saved.push({ filename, text }); return { status: 'saved' }; } }; window.claude = { use: async (n) => (n === 'downloads' ? downloads : null) }; };
@@ -97,11 +97,9 @@ await sub('Relevés par apporteur'); ok('relevés par apporteur : Lefèvre Père
 await sub('Réglages'); const tr = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
 ok('réglages : région (résumé), profil, valeurs (102 L / 160 kg), pressoirs et balances', /Région et types de vins/.test(tr) && /Champagne/.test(tr) && /Profil de pressurage/.test(tr) && (await page.locator('[data-reglage="ratioL"]').getAttribute('placeholder')) === '102' && /Pressoir 4 000 kg/.test(tr) && /Bascule du pressoir/.test(tr));
 await page.screenshot({ path: SC + '/shots/t45-reglages.png', fullPage: true });
-// 0.46.0-alpha.1 : la région se règle à un seul endroit (Paramètres › Région & types de vins), depuis le lien du résumé
+// 0.46.0-alpha.1 : la région se règle à un seul endroit (Paramètres › Vignoble depuis 0.50.0-alpha.1), depuis le lien du résumé
 const profil = async (region, types) => { await page.locator('[data-region-pressoir] [data-profil-regler]').click(); await page.waitForTimeout(500);
-  await page.locator('select[aria-label="Région viticole"]').selectOption(region); await page.waitForTimeout(200);
-  for (const ty of ['effervescent', 'blanc', 'rose', 'rouge', 'ancestrale', 'doux']) { const c = page.locator(`[data-profil-types] input[data-type="${ty}"]`); if ((await c.isChecked()) !== types.includes(ty)) await c.click(); }
-  await page.waitForTimeout(300); await page.locator('[data-profil-appliquer]').click(); await page.waitForTimeout(700);
+  await reglerVignoble(page, region, types); // 0.50.0-alpha.1 : Paramètres › Vignoble, en direct
   await page.click('#tab-pressoir'); await page.waitForTimeout(300); await sub('Réglages'); };
 await profil('bourgogne', ['blanc']);
 d = await db();

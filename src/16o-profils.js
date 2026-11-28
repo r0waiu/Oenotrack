@@ -156,9 +156,9 @@ function profilAppliquer(db, region, types, ids, uid) {
   const plan = profilPlan(db, region, T); const pris = plan.filter((x) => (ids == null ? true : ids.includes(x.id)));
   const pv = profilViticole(db); const opsCh = Array.isArray(pv.ops) ? [...pv.ops] : []; const frCh = Array.isArray(pv.fractions) ? [...pv.fractions] : [];
   const champ = region === 'champagne'; let chaptalMax = hasNum(pv.chaptalMax) ? pv.chaptalMax : undefined;
-  const k = (x) => x.id.slice(x.id.indexOf(':') + 1);
+  const k = (x) => x.id.slice(x.id.indexOf(':') + 1); const p0 = clone(db.settings.pressoir || {});
   pris.forEach((x) => {
-    if (x.id.startsWith('module:')) moduleActiver(db, k(x), x.apres === 'affiché');
+    if (x.id.startsWith('module:')) moduleActiver(db, k(x), x.apres === 'affiché', { profil: true });
     else if (x.id.startsWith('op:')) { const o = db.lists.operations.find((y) => y.id === k(x)); if (o) { o.masque = x.apres === 'masquée'; if (!opsCh.includes(o.id)) opsCh.push(o.id); } }
     else if (x.id === 'stade:maceration') db.lists.stades.push({ ...PROFIL_STADE_MACERATION });
     else if (x.id.startsWith('cepage:')) { const c = R.cepages.find((y) => y[0] === k(x)); db.lists.cepages.push({ id: c[0], label: c[1] }); }
@@ -172,7 +172,10 @@ function profilAppliquer(db, region, types, ids, uid) {
     else if (x.id === 'acidite') { const au = profilAciditeUnites(db, R); if (au) au.ids.forEach((id) => { const p = db.analysesParams.find((y) => y.id === id); if (p) p.unite = au.cible[id]; }); }
   });
   // profil de pressurage en dernier (le changement de région le remet à sa valeur par défaut)
-  if (pris.some((x) => x.id === 'pressoir')) { const profP = champ ? 'champagne' : (T.some((t) => t === 'effervescent' || t === 'ancestrale') && R.pays === 'France' ? 'cremant' : 'libre'); const p = db.settings.pressoir || {}; db.settings.pressoir = { ...p, profil: profP, valeurs: p.profil === profP ? (p.valeurs || {}) : {} }; }
+  // 0.50.0-alpha.1 : valeurs réglées d'un profil de pressurage gardées (valeursProfils) et reprises quand on y revient
+  if (pris.some((x) => x.id === 'pressoir')) { const profP = champ ? 'champagne' : (T.some((t) => t === 'effervescent' || t === 'ancestrale') && R.pays === 'France' ? 'cremant' : 'libre'); const p = db.settings.pressoir || {};
+    const prev = { ...(p0.valeursProfils || {}) }; if (p0.profil && p0.valeurs && Object.keys(p0.valeurs).length) prev[p0.profil] = p0.valeurs;
+    db.settings.pressoir = { ...p, profil: profP, valeurs: p0.profil === profP ? (p0.valeurs || {}) : (prev[profP] || {}), ...(Object.keys(prev).length ? { valeursProfils: prev } : {}) }; }
   db.settings.profilViticole = { ...((db.settings || {}).profilViticole || {}), region, types: T, le: todayISO(), par: uid || '', ops: opsCh, fractions: frCh, ...(chaptalMax !== undefined ? { chaptalMax } : {}) };
   return okr({ n: pris.length });
 }

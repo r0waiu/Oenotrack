@@ -4,7 +4,7 @@ const SH = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests') + '/shots';
 const { browser, page, errors } = await open();
 const top = () => page.locator('.overlay').last(); const log = (...a) => console.log(...a);
 // 1. registre des parcelles
-await page.click('#tab-params'); await page.click('main button:has-text("Crus & parcelles")'); await page.waitForTimeout(300);
+await page.click('#tab-params'); await page.click('[data-params-item="profil"]'); await page.click('[data-vignoble] [role=tab]:has-text("Crus")'); await page.waitForTimeout(300);
 await page.locator('main button', { hasText: 'Parcelles ·' }).click(); await page.waitForTimeout(300);
 log('parcelles :', (await page.locator('main tbody tr').allInnerTexts()).map((r) => r.replace(/\s+/g, ' ').slice(0, 90)).join(' || '));
 await page.locator('main button', { hasText: '＋ Nouvelle parcelle' }).click(); await page.waitForTimeout(300);

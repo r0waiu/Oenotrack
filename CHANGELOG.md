@@ -2,6 +2,12 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.50.0-alpha.1 — 28/11/2026
+
+- Paramètres › 🍇 Vignoble : région, appellations, types de vins, communes et crus, parcelles réunis en une rubrique ; région choisie sur une carte de France, appellations produites cochées dans le référentiel officiel, types de vins déduits des appellations (ou cochés à la main) ; les raccourcis sont retirés.
+- Adaptations en direct : onglets Tirages, Cave et Dégorgement, opérations des rouges, rosés, effervescents et vins doux, tailles et rebêche au pressurage, spécificités champenoises et déclarations de tirage (AIDAC, Innov OI) apparaissent ou disparaissent aussitôt selon la région et les types de vins ; chaque élément peut être forcé « toujours affiché » ou « toujours masqué », rien n’est supprimé.
+- Référentiel des appellations complété (à vérifier) : Crémant de Savoie, Vin de France, Beaujolais-Villages, Blanquette de Limoux, dénominations rattachées (Côtes du Rhône Villages + commune, Côtes de Provence Sainte-Victoire, Muscadet Sèvre et Maine + cru communal, Val de Loire + département, Bourgogne Hautes Côtes, crus de Savoie…) et anciens noms retrouvés par la recherche (Corbières-Boutenac, Minervois-La Livinière…).
+
 ## 0.49.0-alpha.2 — 28/11/2026
 
 - Corrections de l’assistant IA : un certificat de jaugeage de plus de 8 pages est relu en entier, par lots de 8 pages (un tableau qui passe d’un lot à l’autre est réuni) ; la mention « 🤖 IA » apparaît aussi dans les listes d’arrivages et dans le registre des pesées.

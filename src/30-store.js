@@ -204,6 +204,7 @@ function listUsage(db, key, id) {
     case 'couleursVin': return db.lots.filter((l) => l.couleur === id).length + db.ops.filter((o) => o.couleur === id || (o.entrees || []).some((e) => e.couleur === id)).length + (db.lotsFinis || []).filter((l) => l.couleur === id).length;
     case 'echelles': return db.crus.filter((c) => c.echelle === id).length + db.lots.filter((l) => l.origine && l.origine.echelle === id).length + db.ops.filter((o) => o.lotSpec && o.lotSpec.echelle === id).length;
     case 'qualifs': return qualifUsage(db, id);
+    case 'appellations': return (db.parcelles || []).filter((p) => p && p.appellationId === id).length; // 0.50.0-alpha.1 : parcelles rattachées
     default: return 0;
   }
 }

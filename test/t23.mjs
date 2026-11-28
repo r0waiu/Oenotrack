@@ -50,7 +50,7 @@ await page.click('#tab-params'); await page.click('main button:has-text("Revendi
 await page.screenshot({ path: SH + '/t23-listes.png', fullPage: false });
 await page.locator('main input[aria-label^="Nouveau stade"]').fill('Sur lies'); await page.locator('main input[aria-label^="Nouveau stade"]').press('Enter'); await page.waitForTimeout(200);
 log('stades :', (await page.locator('main input[aria-label="Libellé"]').evaluateAll((els) => els.map((e) => e.value))).join(' · '));
-await page.click('main button:has-text("Crus & parcelles")'); await page.waitForTimeout(300);
+await page.click('[data-params-item="profil"]'); await page.click('[data-vignoble] [role=tab]:has-text("Crus")'); await page.waitForTimeout(300);
 await page.locator('main details summary').click(); await page.waitForTimeout(200);
 await page.locator('main details button', { hasText: 'Bourgogne' }).click(); await page.waitForTimeout(300);
 await top().locator('button', { hasText: 'Appliquer' }).click(); await page.waitForTimeout(400);

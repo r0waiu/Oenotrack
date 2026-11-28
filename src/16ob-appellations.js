@@ -1,4 +1,4 @@
-/* ============ RÉFÉRENTIEL DES APPELLATIONS VITICOLES (0.46.0-alpha.2) ============
+/* ============ RÉFÉRENTIEL DES APPELLATIONS VITICOLES (0.46.0-alpha.2 ; 0.50.0-alpha.1 : compléments, alias, Vin de France) ============
    Données dans le code (16oa-appellations-donnees.js, relevé officiel du 27/11/2026), jamais dans la base : France (AOP, IGP),
    Italie, Espagne, Portugal, Allemagne, Autriche (registre de l'UE eAmbrosia), Suisse (AOC), États-Unis (AVA), Australie (IG).
    - appRef() : toutes les appellations { id, nom, region, pays, signe, eu, sousRegion, cats, couleurs, libre, verifie, etat, source }
@@ -18,6 +18,9 @@ function appRef() {
     return { id: `${region}:${norm(nom)}`, nom, region, pays, signe, eu, sousRegion, libre: c === '*', cats: c === '*' ? [] : c.split('').map((x) => APP_CATS[x]).filter(Boolean),
       couleurs: (k || '').split('').map((x) => APP_COUL[x]).filter(Boolean), verifie: v === '1', etat: etat || '', source: (typeof APP_REF_SOURCES !== 'undefined' && APP_REF_SOURCES[num(s)]) || '' };
   });
+  // 0.50.0-alpha.1 : anciens noms (alias), compléments écrits à la main (16od : dénominations rattachées, Vin de France), sans doublon d'id
+  if (typeof appAliasDe === 'function') _appRef.forEach((a) => { a.genre = 'aop'; a.alias = appAliasDe(a); a.parentId = ''; });
+  if (typeof appComplements === 'function') { const ids = new Set(_appRef.map((a) => a.id)); appComplements().forEach((a) => { if (!ids.has(a.id)) { ids.add(a.id); _appRef.push(a); } }); }
   return _appRef;
 }
 const appRefDef = (id) => appRef().find((a) => a.id === id) || null;
@@ -36,7 +39,7 @@ function appTypes(a) {
 }
 // types possibles d'une région d'après ses appellations en vigueur
 function appTypesRegion(region) {
-  const L = appRefRegion(region).filter(appEnVigueur);
+  const L = appRefRegion(region).filter((a) => appEnVigueur(a) && a.genre !== 'vsig');
   const libre = !L.length || L.some((a) => a.libre);
   const parType = {}; L.forEach((a) => appTypes(a).forEach((t) => { (parType[t] = parType[t] || []).push(a.nom); }));
   return { libre, possibles: libre ? PROFIL_TYPES.map((x) => x[0]) : Object.keys(parType), parType, nb: { aop: L.filter((a) => a.eu === 'AOP').length, igp: L.filter((a) => a.eu === 'IGP').length, ig: L.filter((a) => a.eu === 'IG').length, total: L.length } };
@@ -45,8 +48,9 @@ const profilTypeHorsAppellation = (region, type) => { const r = appTypesRegion(r
 // recherche dans le référentiel (nom, sous-région) : la région choisie d'abord, puis les autres ; noms qui commencent par la recherche d'abord
 function appChercher(q, opts) {
   const o = opts || {}; const n = norm(q || ''); if (!n) return []; const lim = o.limite || 30;
-  return appRef().filter((a) => (!o.pays || a.pays === o.pays) && (norm(a.nom).includes(n) || norm(a.sousRegion).includes(n)))
-    .map((a) => ({ a, k: (a.region === o.region ? 0 : 2) + (norm(a.nom).startsWith(n) ? 0 : 1) + (appEnVigueur(a) ? 0 : 4) }))
+  const al = (a) => (a.alias || []).map(norm); // 0.50.0-alpha.1 : anciens noms et noms courts des dénominations
+  return appRef().filter((a) => (!o.pays || a.pays === o.pays) && (norm(a.nom).includes(n) || norm(a.sousRegion).includes(n) || al(a).some((x) => x.includes(n))))
+    .map((a) => ({ a, k: (a.region === o.region || (a.genre === 'vsig' && (profilRegionDef(o.region) || {}).pays === 'France') ? 0 : 2) + (norm(a.nom).startsWith(n) || al(a).some((x) => x.startsWith(n)) ? 0 : 1) + (appEnVigueur(a) ? 0 : 4) + (a.genre === 'dgc' ? 0.5 : 0) }))
     .sort((x, y) => x.k - y.k || x.a.nom.localeCompare(y.a.nom, 'fr')).slice(0, lim).map((x) => x.a);
 }
 // ajout d'une appellation du référentiel à la liste de l'exploitation (sans doublon : même nom déjà présent → rien)

@@ -1,25 +1,25 @@
 // 0.46.0-alpha.2 : types de vins « hors appellation » dans Paramètres › Région & types de vins (Champagne : méthode ancestrale et vins
 // moelleux ; Suisse : rien), nombre d'appellations de la région ; Paramètres › Listes › Appellations : recherche dans le référentiel
 // officiel et ajout ; anglais. Données fictives (jeu d'exemple).
-import { open } from './ui.mjs'; import fs from 'fs';
+import { open, vignoble, vignobleRegion, reglerVignoble } from './ui.mjs'; import fs from 'fs';
 const SC = (process.env.OENOTRACK_TESTS || '/tmp/oenotrack-tests'); fs.mkdirSync(SC + '/shots', { recursive: true });
 let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗ ÉCHEC', n, x !== undefined && !c ? JSON.stringify(x).slice(0, 900) : ''); };
 let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
 {
   const { browser, page, errors } = await open({ viewport: { width: 1360, height: 900 } });
   const db = () => page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')));
-  await page.click('#tab-params'); await page.waitForTimeout(300); await page.locator('[data-params-item="profil"]').click(); await page.waitForTimeout(500);
+  await vignoble(page, 'Types de vins'); // 0.50.0-alpha.1 : Paramètres › Vignoble, étape des types
   const hors = async () => page.locator('[data-hors-appellation]').evaluateAll((e) => e.map((x) => x.getAttribute('data-hors-appellation')));
   let h = await hors(); t = await txt(page.locator('[data-profil-appellations]'));
   ok('Champagne : méthode ancestrale et vins moelleux « hors appellation », pas l’effervescent ni les tranquilles ; 6 appellations dans le référentiel', h.sort().join() === 'ancestrale,doux' && /6 appellation\(s\)/.test(t) && /AOP : 3/.test(t), { h, t });
   await page.screenshot({ path: `${SC}/shots/t88-profil.png` });
-  await page.locator('select[aria-label="Région viticole"]').selectOption('rhone'); await page.waitForTimeout(300);
+  await vignobleRegion(page, 'rhone'); await vignoble(page, 'Types de vins');
   h = await hors(); ok('Vallée du Rhône : méthode ancestrale possible (Clairette de Die) ; rien hors appellation', h.length === 0, h);
-  await page.locator('select[aria-label="Région viticole"]').selectOption('suisse'); await page.waitForTimeout(300);
+  await vignobleRegion(page, 'suisse'); await vignoble(page, 'Types de vins');
   h = await hors(); t = await txt(page.locator('[data-profil-appellations]'));
   ok('Suisse : indications qui ne restreignent pas le type de vin, rien de signalé', h.length === 0 && /ne restreignent pas/.test(t), { h, t });
-  await page.locator('select[aria-label="Région viticole"]').selectOption('charentes'); await page.waitForTimeout(300);
-  ok('nouvelle région Charentes proposée', (await page.locator('select[aria-label="Région viticole"]').inputValue()) === 'charentes' && /2 appellation\(s\)/.test(await txt(page.locator('[data-profil-appellations]'))));
+  await vignobleRegion(page, 'charentes'); await vignoble(page, 'Types de vins');
+  ok('nouvelle région Charentes proposée', (await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')).settings.profilViticole.region)) === 'charentes' && /2 appellation\(s\)/.test(await txt(page.locator('[data-profil-appellations]'))));
   // ---- appellations : référentiel
   await page.locator('[data-params-item="listes"]').click(); await page.waitForTimeout(500);
   const box = page.locator('[data-appref]');
@@ -38,7 +38,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
 }
 {
   const { browser, page, errors } = await open({ init: { content: "try { if (!localStorage.getItem('oenotrack-langue')) localStorage.setItem('oenotrack-langue', 'en'); } catch (e) {}" }, viewport: { width: 1280, height: 900 } });
-  await page.click('#tab-params'); await page.waitForTimeout(300); await page.locator('[data-params-item="profil"]').click(); await page.waitForTimeout(500);
+  await vignoble(page, 'Wine types');
   t = await txt(page.locator('[data-profil-types]'));
   ok('en anglais : « outside any appellation »', /outside any appellation/.test(t), t.slice(0, 300));
   ok('aucune erreur (anglais)', errors.length === 0, errors); await browser.close();

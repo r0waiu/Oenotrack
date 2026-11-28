@@ -78,9 +78,11 @@ function TabTirage() {
   const [form, setForm] = useState(null);
   const choisir = (v) => { setVue(v); try { window.localStorage.setItem('oenotrack-tirage-vue', v); } catch (e) { /* stockage indisponible */ } };
   useEffect(() => { if (nav && VUES.includes(nav.sub)) choisir(nav.sub); }, [nav]); // setTab('tirage', 'declarations'…) : sommaire des documents imprimables (0.48.0-alpha.1)
+  // 0.50.0-alpha.1 : déclarations de tirage (AIDAC, Innov OI) propres à la Champagne — sous-onglet selon le réglage Vignoble (exception possible)
+  const decl = profilElementVisible(db, 'sub:declarationsTirage'); const vueV = vue === 'declarations' && !decl ? 'preparer' : vue;
   return (<div>
-    <div className="no-print"><SubNav value={vue} onChange={choisir} items={[{ id: 'preparer', label: '⚗ Préparer' }, { id: 'tirer', label: '🍾 Tirer' }, { id: 'fournitures', label: '📦 Fournitures' }, { id: 'declarations', label: '📄 Déclarations' }]} /></div>
-    {vue === 'declarations' ? <TirageDeclarations /> : vue === 'fournitures' ? <TirageFournitures /> : vue === 'tirer' ? <TabTirageTirer onPreparer={() => choisir('preparer')} /> : <TiragePreparer onForm={camp.figee ? () => {} : setForm} />}
+    <div className="no-print"><SubNav value={vueV} onChange={choisir} items={[{ id: 'preparer', label: '⚗ Préparer' }, { id: 'tirer', label: '🍾 Tirer' }, { id: 'fournitures', label: '📦 Fournitures' }, ...(decl ? [{ id: 'declarations', label: '📄 Déclarations' }] : [])]} /></div>
+    {vueV === 'declarations' ? <TirageDeclarations /> : vueV === 'fournitures' ? <TirageFournitures /> : vueV === 'tirer' ? <TabTirageTirer onPreparer={() => choisir('preparer')} /> : <TiragePreparer onForm={camp.figee ? () => {} : setForm} />}
     {form ? <OpForm type={form.type} editId={form.editId} preset={form.preset} onClose={() => setForm(null)} /> : null}
   </div>);
 }

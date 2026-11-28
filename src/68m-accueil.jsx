@@ -12,7 +12,7 @@ const ACCUEIL_FONCTIONS = [
   ['🥂', 'Cave et dégorgement', 'Bouteilles sur lattes, remuage, dégorgement et liqueur d’expédition, habillage et mise en carton ; codification des lots selon vos propres règles.'],
   ['⚖️', 'Intrants et cahiers des charges', 'Stocks avec fiches techniques et FDS, allergènes, règles de l’UE, de l’appellation et des labels (bio, Demeter…), plafonds de SO₂ et conformité des lots.'],
   ['🧪', 'Analyses, hygiène, équipements', 'Bulletins de laboratoire lus automatiquement, plan HACCP et journal d’hygiène, équipements, maintenance et ses produits.'],
-  ['🗺️', 'Appellations et régions', 'Référentiel officiel de 1 692 appellations (France, Union européenne, Suisse, États-Unis, Australie), hiérarchie des crus de chacune, types de vins de votre région.'],
+  ['🗺️', 'Votre vignoble', 'Région sur la carte de France, appellations cochées dans le référentiel officiel (1 692 appellations, dénominations, Vin de France), types de vins déduits : Œnotrack s’adapte aussitôt à vos vins.'],
   ['🔎', 'Traçabilité, registres, DRM', 'Traçabilité ascendante et descendante, registres et exports, DRM et DRA pour les douanes, fiches d’enregistrement à imprimer.'],
   ['👥', 'À plusieurs', 'Opérateurs, comptes et droits par profil, clés d’accès, partage entre appareils par votre Drive ou par le dossier réseau de l’entreprise.'],
   ['🧭', 'Prise en main guidée', 'Quelques questions configurent Œnotrack pour votre exploitation ; une visite guidée présente chaque module. En six langues.'],
