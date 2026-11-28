@@ -169,6 +169,7 @@ function FicheRelueDialog({ ficheId: f0, selection, onClose }) {
               <Field key={c.id} label={`${c.label}${c.unite ? ` (${c.unite})` : ''}`} help={<span className="flex flex-wrap gap-x-2">{c.prevu ? <span><span>prévu : </span><span translate="no">{c.prevu}</span></span> : null}{e.lus[c.id] !== undefined && e.lus[c.id] !== e.vals[c.id] ? <span><span>lu par l’IA : </span><span translate="no">{e.lus[c.id]}</span></span> : null}{e.douteux.includes(c.id) ? <span className="text-warn">à vérifier</span> : null}</span>}>
                 <TI value={e.vals[c.id] || ''} onChange={(v) => maj(l.n, { vals: { ...e.vals, [c.id]: v } })} aria-label={`${c.label}, ligne ${l.n}`} data-ia-fiche-val={`${l.n}:${c.id}`} />
               </Field>))}</div> : <p className="mt-1 text-sm text-ink2">{l.formulaire ? 'Opération à valider dans son formulaire (volumes et lots à vérifier).' : 'Case « fait » seulement.'}</p>}
+            {l.kind === 'prev' ? iaFicheForm(db, l, e.vals, '', null).avert.map((a, i) => <div key={i} className="mt-1 text-sm text-warn" data-ia-fiche-avert={l.n}>{a}</div>) : null}
             <div className="mt-2"><TI value={e.remarque || ''} onChange={(v) => maj(l.n, { remarque: v })} placeholder="Remarque écrite sur la ligne" aria-label={`Remarque, ligne ${l.n}`} /></div>
           </div>); })}</div>
         {erreurs.length ? <Notice tone="bad" title="À corriger avant de valider">{erreurs.map((x, i) => <div key={i}>{x}</div>)}</Notice> : null}
