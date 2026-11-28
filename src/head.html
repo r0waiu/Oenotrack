@@ -805,6 +805,11 @@ body:has(.sheet-erreur) .toast.bad:not(.login-voile .toast){display:none}
   .sheet-f-tel{padding:8px 12px;gap:6px}
   .sheet-f-tel:has(>.sheet-plus)>.btn-primary{flex:1}
 }
+/* 0.49.0-alpha.1 : documents lus par l'IA — encadré de la lecture, champs lus avec un doute */
+.ia-lecture{border:1px solid var(--accent);border-left-width:4px;border-radius:6px;padding:8px 10px;background:var(--surface2)}
+.ia-doute>.lbl{color:var(--warn)}.ia-doute>.lbl::after{content:" ⚠"}
+.ia-doute .inp{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn)}
+@media print{.ia-lecture{display:none}}
 /* (fin du bloc formulaires) */
 /* - */
 /* - */

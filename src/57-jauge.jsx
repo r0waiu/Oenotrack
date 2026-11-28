@@ -256,9 +256,33 @@ function BaremeImport({ onClose, contIdPreset, fichiers: fichiers0 }) {
         if (r.sansTexte && r.sansTexte.length) { sansTexte = [...sansTexte, ...r.sansTexte.map((n) => ({ fichier: f.name, n }))]; pdfOcr = pdfOcr || []; pdfOcr.push(f); }
       } catch (er) { const reseau = !er || !er.message || /fetch|import|module|réseau|network|script|worker/i.test(er.message || ''); journal.push({ fichier: f.name, msg: reseau && (estImage(f) || estPdf(f)) ? 'module de lecture injoignable (connexion internet ? page affichée dans claude.ai ?)' : er.message || 'lecture impossible', grave: true, ocr: estImage(f) || estPdf(f) }); }
     }
+    const props = propsDe(out); const e2 = { phase: 'revue', props, journal, sansTexte, pdfOcr, fichiers: fs };
+    // 0.49.0-alpha.1 (IA04) : ni le script ni la reconnaissance de caractères n'ont trouvé de table exploitable → relecture par l'IA
+    if (!opts.sansIa && (!props.length || props.every((p) => p.b.fiabilite === 'faible')) && !sansTexte.length && fs.some((f) => estPdf(f) || estImage(f)) && !ia.refus('baremes')) { await relireIa(fs, e2, true); return; }
+    setEtat(e2);
+  };
+  const propsDe = (out) => {
     const pris = new Set(); // un contenant reconnu une seule fois par import (deux réservoirs du même nom → le second à créer)
-    const props = out.map((b) => { const p = proposition(db, b, contIdPreset && out.length === 1 ? contIdPreset : null); if (p.lien) { if (pris.has(p.lien)) return { ...p, lien: '', creer: true }; pris.add(p.lien); } return p; });
-    setEtat({ phase: 'revue', props, journal, sansTexte, pdfOcr, fichiers: fs });
+    return out.map((b) => { const p = proposition(db, b, contIdPreset && out.length === 1 ? contIdPreset : null); if (p.lien) { if (pris.has(p.lien)) return { ...p, lien: '', creer: true }; pris.add(p.lien); } return p; });
+  };
+  // relecture des pages par l'IA (usage « baremes », niveau 1 : seules les pages partent) ; les tables relues passent par jaugeAnalyser
+  // (continuité, réunion des pages, fiabilité) et par la même revue avant enregistrement ; trace gardée dans meta.ia de chaque barème
+  const ia = useIaUsage();
+  const relireIa = async (fs, base, auto) => {
+    const docs = (fs || []).filter((f) => estPdf(f) || estImage(f)); if (!docs.length) { toast('Relecture par l’IA : déposez un PDF ou une photo du certificat.', 'bad'); return; }
+    const out = []; const journal = [...((base && base.journal) || [])]; let trace = null;
+    for (const f of docs) {
+      try {
+        setEtat({ phase: 'lecture', msg: `« ${f.name} » : relecture par l’IA…` });
+        const images = await iaImagesDepuisFichiers([f], { pages: IA_IMAGES_MAX, cote: 2000 }); const P = iaBaremesPrompt();
+        const r = await ia.demander('baremes', { system: P.system, texte: P.texte, images, schema: P.schema, nom: P.nom, max: P.max }); if (!r) continue;
+        const x = iaBaremesLire(r.valeur, { fichier: f.name, trace: r.trace }); trace = r.trace;
+        if (!x.ok) { journal.push({ fichier: f.name, msg: x.msg, grave: true }); continue; }
+        x.baremes.forEach((b) => out.push({ ...b, _fichier: f, _cle: `ia|${f.name}|${out.length}` })); (x.journal || []).forEach((j) => journal.push({ ...j, fichier: f.name }));
+      } catch (er) { journal.push({ fichier: f.name, msg: (er && er.message) || 'relecture impossible', grave: true }); }
+    }
+    if (!out.length) { setEtat({ ...(base || { phase: 'revue', props: [], sansTexte: [], fichiers: fs }), phase: 'revue', journal, iaEssai: true }); if (!auto) toast('L’IA n’a relu aucune table exploitable.', 'bad'); return; }
+    setEtat({ phase: 'revue', props: propsDe(out), journal, sansTexte: [], fichiers: fs, ia: trace, iaAuto: !!auto });
   };
   const deposer = (fs) => lire(fs);
   useEffect(() => { if (fichiers0 && fichiers0.length) lire(fichiers0); }, []); // fichiers déposés sur la page des barèmes
@@ -308,7 +332,7 @@ function BaremeImport({ onClose, contIdPreset, fichiers: fichiers0 }) {
       ) : etat.phase === 'lecture' ? (
         <div className="jg-lecture" role="status"><div className="jg-sablier" aria-hidden="true">📏</div><div className="font-semibold">Lecture en cours…</div><div className="text-sm text-ink2">{etat.msg}</div></div>
       ) : (
-        <BaremeRevue etat={etat} setP={setP} fusionP={fusionP} site={site} setSite={setSite} garderDoc={garderDoc} setGarderDoc={setGarderDoc} relireOcr={() => lire(etat.fichiers, { ocr: true })} />
+        <BaremeRevue etat={etat} setP={setP} fusionP={fusionP} site={site} setSite={setSite} garderDoc={garderDoc} setGarderDoc={setGarderDoc} relireOcr={() => lire(etat.fichiers, { ocr: true })} relireIa={() => relireIa(etat.fichiers, etat, false)} />
       )}
     </Sheet>
   );
@@ -319,12 +343,15 @@ function proposition(db, b, contId) {
   const c = contId ? db.contenants.find((x) => x.id === contId) : contenantPourReservoir(db, b.reservoir || b.nom);
   return { b, ok: b.fiabilite !== 'faible', lien: c ? c.id : '', creer: !c, nomCree: b.reservoir || b.nom, mesure: b.mesure };
 }
-function BaremeRevue({ etat, setP, fusionP, site, setSite, garderDoc, setGarderDoc, relireOcr }) {
+function BaremeRevue({ etat, setP, fusionP, site, setSite, garderDoc, setGarderDoc, relireOcr, relireIa }) {
   const { db } = useApp(); const [ouvert, setOuvert] = useState(null); const props = etat.props || [];
   const graves = (etat.journal || []).filter((j) => j.grave); const creer = props.some((p) => p.ok && p.creer);
   const contOpts = [{ value: '', label: 'Contenant…' }, ...db.contenants.filter((c) => c.statut !== 'archive').map((c) => ({ value: c.id, label: `${c.nom}${baremeDe(db, c.id) ? ' (a déjà un barème)' : ''}` }))];
+  const docsIa = (etat.fichiers || []).some((f) => estPdf(f) || estImage(f)); // 0.49.0-alpha.1 (IA04) : relecture par l'IA à la demande
   return (
     <div className="space-y-3" data-bareme-revue="">
+      {etat.ia ? <Notice tone="info" title={etat.iaAuto ? '🤖 Tables relues par l’IA (le script et la reconnaissance de caractères n’ont rien trouvé d’exploitable)' : '🤖 Tables relues par l’IA'}><span data-bareme-ia-relu="">Les contrôles habituels s’appliquent (continuité, pages réunies, fiabilité) : ouvrez chaque tableau et comparez-le au certificat avant d’enregistrer.</span></Notice> : null}
+      {docsIa && relireIa && !etat.ia ? <div className="flex flex-wrap items-center gap-2" data-bareme-ia=""><IaBouton usage="baremes" onClick={relireIa}>Relire avec l’IA</IaBouton>{etat.iaEssai ? <span className="text-sm text-ink2">L’IA n’a relu aucune table exploitable.</span> : <span className="text-sm text-ink2">Pages illisibles ou valeurs douteuses : seules les pages du certificat partent.</span>}</div> : null}
       {!props.length ? <Notice tone="bad" title="Aucun barème reconnu">{graves.length ? graves.map((j) => `« ${j.fichier} » : ${j.msg}`).join(' · ') : 'Ce document ne contient pas de tableau hauteur / volume lisible.'}{(etat.sansTexte || []).length ? ' Le document est une image scannée.' : ''}</Notice> : <p className="text-sm">{props.length} barème{props.length > 1 ? 's' : ''} reconnu{props.length > 1 ? 's' : ''}. Vérifiez le rattachement de chacun, ouvrez le tableau pour contrôler les valeurs signalées, puis enregistrez.</p>}
       {(etat.sansTexte || []).length ? <Notice tone="info" title={`${etat.sansTexte.length} page${etat.sansTexte.length > 1 ? 's' : ''} scannée${etat.sansTexte.length > 1 ? 's' : ''} sans texte`}>
         Pages {etat.sansTexte.map((x) => x.n).join(', ')}{uniq(etat.sansTexte.map((x) => x.fichier)).length > 1 ? ' (plusieurs fichiers)' : ''} : Œnotrack peut en lire les chiffres (reconnaissance de caractères, quelques secondes par page ; le module de lecture se télécharge la première fois).

@@ -125,3 +125,79 @@ function BulletinMoutsGuide({ g, reste, onAnnuler, onValider }) {
     </Sheet>
   );
 }
+
+/* ---------- 0.49.0-alpha.1 : documents lus par l'IA — composants communs (IA02 réception, IA03 pesée et entrée de moûts, IA04 barèmes,
+   IA05 plan, IA13 composés, IA18 commentaire) ; moteur : 17ac-ia-documents.js. L'IA ne fait que proposer : le formulaire est prérempli,
+   les champs incertains signalés (classe ia-doute), et rien n'est enregistré avant « Enregistrer » ; la trace « ia » suit l'enregistrement. ---------- */
+const IA_DOC_ACCEPT = 'image/*,application/pdf,.pdf';
+// bouton de lecture d'un document : photo (appareil photo du téléphone, capture="environment") et / ou fichier (photo ou PDF) ;
+// désactivé avec sa raison quand l'usage n'est pas possible (IA non configurée, usage désactivé, niveau 2 réservé au modèle local)
+function IaFichierBouton({ usage, icone = '🤖', children, accept = IA_DOC_ACCEPT, photo, busy, onFichiers, kind, size = 'sm', fichierLabel }) {
+  const ia = useIaUsage(); const raison = ia.refus(usage); const u = iaUsageDef(usage); const refP = useRef(null); const refF = useRef(null);
+  if (!u) return null;
+  const choisi = (e) => { const L = Array.from(e.target.files || []); e.target.value = ''; if (L.length) onFichiers(L); };
+  const titre = raison || `${u.nom} — ${u.envoie}`;
+  const ouvrir = (r) => { if (r.current) r.current.click(); };
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1" data-ia-lire={usage}>
+      <Btn size={size} kind={kind} disabled={!!raison || busy} title={titre} onClick={() => ouvrir(photo ? refP : refF)} data-ia-bouton={usage}>{busy ? '⏳ ' : `${icone} `}{children || u.nom}</Btn>
+      {photo ? <Btn size={size} kind="ghost" disabled={!!raison || busy} title={titre} onClick={() => ouvrir(refF)} data-ia-bouton-fichier={usage}>{fichierLabel || '📎 Photo ou PDF…'}</Btn> : null}
+      {photo ? <input ref={refP} type="file" hidden accept="image/*" capture="environment" onChange={choisi} data-ia-photo={usage} /> : null}
+      <input ref={refF} type="file" hidden accept={accept} onChange={choisi} data-ia-fichier={usage} />
+    </span>
+  );
+}
+// ce que l'IA a prérempli : champs à vérifier, noms non trouvés dans les listes, alertes (valeurs écartées) ; libelles : { champ: libellé }
+function IaLectureNotice({ x, libelles, titre }) {
+  if (!x) return null; const L = libelles || {}; const lib = (k) => L[k] || L[String(k).replace(/\d+$/, '')] || '';
+  const inc = uniq((x.incertains || []).map(lib).filter(Boolean)); const nr = Object.keys(x.nonReconnus || {});
+  return (
+    <div className="ia-lecture" data-ia-lecture="">
+      <div className="text-sm font-semibold">{titre || '🤖 Prérempli par l’IA : relisez chaque champ avant d’enregistrer.'}</div>
+      {inc.length ? <div className="mt-1 flex flex-wrap items-center gap-1 text-sm" data-ia-incertains=""><span>Lu avec un doute :</span>{inc.map((k) => <Chip key={k} tone="warn">{k}</Chip>)}</div> : null}
+      {nr.length ? <div className="mt-1 text-sm" data-ia-non-reconnus=""><span>Absent de vos listes (à choisir à la main) :</span> {nr.map((k, i) => <span key={k}>{i ? ' · ' : ''}<span>{lib(k) || k}</span> « <span translate="no">{x.nonReconnus[k]}</span> »</span>)}</div> : null}
+      {(x.alertes || []).length ? <ul className="mt-1 list-disc pl-5 text-sm" data-ia-alertes="">{x.alertes.map((a) => <li key={a}>{a}</li>)}</ul> : null}
+    </div>
+  );
+}
+const iaDoute = (x, ...champs) => (x && champs.some((c) => (x.incertains || []).includes(c)) ? 'ia-doute' : undefined);
+
+/* ---------- IA03 : entrée de moûts depuis le bon de livraison ou le DAE (onglet du partenaire affiché) ---------- */
+const MOUT_IA_LIBELLES = { date: 'Date', apporteur: 'Partenaire', numero: 'N° de bon / DAE', immatriculation: 'Immatriculation', volume: 'Volume', cepage: 'Cépage', cru: 'Cru', fraction: 'Fraction', compartiment: 'Compartiment' };
+// formulaire prérempli : en-tête (date, citerne), partenaire et n° de bon de l'onglet affiché, moûts de cet onglet (ses moûts vides sont
+// remplacés, les autres gardés) ; rien n'est enregistré
+function moutIaAppliquer(f0, lu, nvLigne, actif, trace) {
+  const P = moutOnglets(f0); const k = Math.max(0, P.findIndex((p) => p.id === actif)); const pid = P[k].id; const multi = P.length > 1; const e = lu.entete || {};
+  const f = { ...f0, ia: trace }; if (e.date) f.date = e.date; if (e.immat) f.immat = e.immat;
+  const val = (p, j) => (j === 0 ? { apporteurId: f0.apporteurId || '', ref: f0.ref || '' } : { apporteurId: p.apporteurId || '', ref: p.ref || '' });
+  const tab = { ...val(P[k], k), ...(e.apporteurId ? { apporteurId: e.apporteurId } : {}), ...(e.ref ? { ref: e.ref } : {}) };
+  if (k === 0) { f.apporteurId = tab.apporteurId; f.ref = tab.ref; }
+  if (multi || (Array.isArray(f0.partenaires) && f0.partenaires.length)) f.partenaires = P.map((p, j) => ({ id: p.id, ...(j === k ? tab : val(p, j)) }));
+  const vide = (x) => !String(x.compartiment || '').trim() && !(x.dests || []).some((d) => num(d.volL) > 0);
+  const garde = (f0.entrees || []).filter((x) => moutOngletDe(P, x) !== pid || !vide(x));
+  const cuves = (f0.entrees || []).filter((x) => moutOngletDe(P, x) === pid && vide(x)).map((x) => ((x.dests || [])[0] || {}).contenantId || ''); // cuve déjà choisie d'un moût vide : reprise
+  const nouveaux = (lu.mouts || []).map((m, i) => { const b = nvLigne(); const d0 = { ...((b.dests || [])[0] || {}), ...(cuves[i] ? { contenantId: cuves[i] } : {}) };
+    return { ...b, ...(multi ? { partId: pid } : {}), compartiment: m.compartiment || '', ...(m.cepageId ? { cepageId: m.cepageId } : {}), ...(m.fractionId ? { fractionId: m.fractionId } : {}), cruId: m.cruId || '', millesime: m.millesime || '',
+      apporteurs: tab.apporteurId ? [{ id: tab.apporteurId, pct: '' }] : (b.apporteurs || []), dests: [{ contenantId: d0.contenantId || '', volL: String(m.volL) }] }; });
+  f.entrees = garde.length || nouveaux.length ? [...garde, ...nouveaux] : f0.entrees;
+  return f;
+}
+function MoutIaLecture({ f, setF, nvLigne, actif }) {
+  const { db, toast } = useApp(); const ia = useIaUsage(); const [busy, setBusy] = useState(false); const [lu, setLu] = useState(null);
+  const lire = async (files) => {
+    setBusy(true);
+    try {
+      const images = await iaImagesDepuisFichiers(files, { pages: 3 }); const P = iaPeseePrompt(db, 'mout');
+      const r = await ia.demander('pesee', { system: P.system, texte: P.texte, images, schema: P.schema, nom: P.nom, max: P.max }); if (!r) return;
+      const x = iaMoutLire(db, r.valeur, P.codes); if (!x.ok) { toast(x.msg, 'bad'); return; }
+      setF((y) => moutIaAppliquer(y, x, nvLigne, actif, r.trace)); setLu(x);
+      toast(`Document lu : ${x.mouts.length} moût(s) prérempli(s), à vérifier avant d’enregistrer.`);
+    } catch (e) { toast((e && e.message) || 'Lecture impossible.', 'bad'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-2" data-mout-ia="">
+      <div className="flex flex-wrap items-center gap-2"><IaFichierBouton usage="pesee" photo busy={busy} onFichiers={lire}>Lire le bon / le DAE</IaFichierBouton>{f.ia ? <IaTrace ia={f.ia} /> : null}</div>
+      <IaLectureNotice x={lu} libelles={MOUT_IA_LIBELLES} />
+    </div>
+  );
+}

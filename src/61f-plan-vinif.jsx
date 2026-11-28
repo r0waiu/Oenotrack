@@ -70,7 +70,36 @@ async function planVinifLireFichier(db, file) {
 function PlanVinifImport({ onPlan }) {
   const { db, toast } = useApp(); const [busy, setBusy] = useState(false);
   const lire = async (files) => { const f = files[0]; if (!f) return; setBusy(true); try { const L = await planVinifLireFichier(db, f); toast(L.length > 1 ? `${L.length} plans lus : vérifiez le premier, puis importez les autres.` : 'Plan lu : vérifiez-le puis enregistrez.'); onPlan(L[0]); } catch (e) { toast(`Import impossible : ${(e && e.message) || e}`, 'bad'); } setBusy(false); };
-  return <ZoneDepot onFiles={lire} busy={busy} multiple={false} accept=".xlsx,.xls,.ods,.csv,text/csv" icon="🗂" label="Importer un plan de vinification (tableur)" sub="Excel, LibreOffice ou CSV : titre, en-têtes (cépages, revendications, fractionnement), étapes, produits et doses" inputLabel="Tableur du plan de vinification" />;
+  return <div className="space-y-3"><ZoneDepot onFiles={lire} busy={busy} multiple={false} accept=".xlsx,.xls,.ods,.csv,text/csv" icon="🗂" label="Importer un plan de vinification (tableur)" sub="Excel, LibreOffice ou CSV : titre, en-têtes (cépages, revendications, fractionnement), étapes, produits et doses" inputLabel="Tableur du plan de vinification" />
+    <PlanProtocoleIa onPlan={onPlan} /></div>;
+}
+// 0.49.0-alpha.1 (IA05) : plan depuis un protocole libre (PDF, photo, texte) lu par l'IA (usage « planProtocole », niveau 1 : seul le
+// document part) ; le plan lu est vérifié dans le même formulaire que l'import d'un tableur, marqué « à vérifier », trace « ia » gardée
+function PlanProtocoleIa({ onPlan }) {
+  const { db, toast } = useApp(); const ia = useIaUsage(); const [busy, setBusy] = useState(false); const [texte, setTexte] = useState(''); const [ouvert, setOuvert] = useState(false);
+  const envoyer = async (o, fichier) => {
+    const P = iaPlanPrompt(o.texte || '');
+    const r = await ia.demander('planProtocole', { system: P.system, texte: P.texte, images: o.images || [], schema: P.schema, nom: P.nom, max: P.max }); if (!r) return;
+    const x = iaPlanLire(db, r.valeur, { fichier, trace: r.trace }); if (!x.ok) { toast(x.msg, 'bad'); return; }
+    toast(`Protocole lu : ${x.lignes} ligne(s), ${x.colonnes} colonne(s). Vérifiez le plan avant de l’enregistrer.`); onPlan(x.plan);
+  };
+  const lireFichiers = async (files) => {
+    const f = files[0]; if (!f) return; setBusy(true);
+    try {
+      if (/^text\//.test(f.type || '') || /\.txt$/i.test(f.name || '')) { const g = await gardeFichier(f, 'document'); if (!g.file) throw { message: `« ${f.name} » refusé.` }; await envoyer({ texte: String(await lectureFichier(g.file) || '').slice(0, 15000) }, f.name); }
+      else await envoyer({ images: await iaImagesDepuisFichiers([f], { pages: 6 }) }, f.name);
+    } catch (e) { toast((e && e.message) || 'Lecture impossible.', 'bad'); } finally { setBusy(false); }
+  };
+  const lireTexte = async () => { if (!texte.trim()) return; setBusy(true); try { await envoyer({ texte }, ''); } finally { setBusy(false); } };
+  return (
+    <div className="rounded-md border border-line p-3 space-y-2" data-planv-protocole="">
+      <div className="flex flex-wrap items-center gap-2"><IaFichierBouton usage="planProtocole" accept={`${IA_DOC_ACCEPT},.txt,text/plain`} busy={busy} onFichiers={lireFichiers}>Depuis un protocole (PDF, photo, texte)</IaFichierBouton>
+        <button type="button" className="linkish text-sm" onClick={() => setOuvert(!ouvert)} aria-expanded={ouvert}>Ou coller le texte du protocole</button></div>
+      <p className="help">L’IA met le protocole en tableau (groupes de cépages, revendications, fractions, étapes, produits et doses) ; vous vérifiez le plan lu avant de l’enregistrer, et il reste « à vérifier ».</p>
+      {ouvert ? <div className="space-y-2"><TA value={texte} onChange={setTexte} rows={6} placeholder="Collez ici le protocole de vinification…" aria-label="Texte du protocole" data-planv-protocole-texte="" />
+        <IaBouton usage="planProtocole" busy={busy} disabled={!texte.trim()} onClick={lireTexte}>Lire ce texte</IaBouton></div> : null}
+    </div>
+  );
 }
 
 /* ---------- formulaire ---------- */
@@ -93,6 +122,7 @@ function PlanVinifForm({ id, base, onClose }) {
     <FormSheet wide title={id ? 'Colonnes et propriétés du plan' : 'Nouveau plan de vinification'} sub={p0 && !id ? 'Vérifiez le plan lu avant de l’enregistrer.' : undefined} onClose={onClose} onSave={save}
       extraFooter={<Btn className="mr-auto" onClick={() => setVoir(!voir)} disabled={!apercu}>{voir ? 'Masquer l’aperçu' : '👁 Aperçu'}</Btn>}>
       <div data-planv-form="">
+        {!id && f.ia ? <div className="mb-3"><Notice tone="info" title="🤖 Plan lu par l’IA depuis un protocole"><span data-planv-ia="">Comparez chaque ligne et chaque dose au protocole avant d’enregistrer : le plan reste « à vérifier ».</span></Notice></div> : null}
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
           <Field label="Nom du plan"><TI value={f.nom} onChange={(v) => set('nom', v)} placeholder="ex. Vinification en blanc" autoFocus aria-label="Nom du plan" /></Field>
           <Field label="Référence (document qualité)"><TI value={f.reference} onChange={(v) => set('reference', v)} placeholder="ex. OE-INS-01" /></Field>
