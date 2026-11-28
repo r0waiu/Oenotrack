@@ -73,13 +73,65 @@ function ReferentielView({ partie }) {
           { h: '', r: (x) => <span className="flex flex-wrap gap-1">{x.r.exception ? <Chip tone="info">corrigé</Chip> : x.r.aVerifier ? <Chip tone="warn">à vérifier</Chip> : <Chip tone="good">vérifié</Chip>}{lect ? null : <Btn size="sm" onClick={() => setEx(`${x.l.id}|so2t|${x.v.id}`)}>Corriger</Btn>}</span> },
         ]} /></div>
       </Sec> : null}
-      {voir('textes') ? <Sec title="Textes de référence">
-        <ul className="list-disc pl-5 text-sm">{REG_LABELS.map((l) => <li key={l.id}><b translate="no">{l.label}</b> : <span translate="no">{REG_TEXTES[l.texte]}</span>{l.note ? <span className="text-ink2" translate="no"> — {l.note}</span> : null}</li>)}</ul>
-      </Sec> : null}
+      {voir('textes') ? <TextesReferenceSec /> : null}
       {ex ? <RefExceptionForm cle={ex} onClose={() => setEx(null)} /> : null}
       {cc ? <ComposeCatalogueSheet composeId={cc} onClose={() => setCc(null)} /> : null}
     </div>
   );
+}
+/* ---------- textes de référence et veille (0.49.0-alpha.1, IA14 : usage veilleTextes, moteur 17ad-ia-regle.js) ----------
+   « 🤖 Vérifier les textes » : pour chaque texte de REG_TEXTES, l'IA cherche en ligne une version plus récente (lien, date, sources) ;
+   le résultat s'affiche d'abord, puis il est gardé (settings.referentiel.veille) sur « Garder ce résultat ». Un texte plus récent marque
+   ses règles « à relire » à l'affichage : aucune valeur du référentiel ne change (une correction se fait, tracée, dans la matrice). */
+function VeilleEtatChip({ e }) {
+  if (!e) return <span className="text-xs text-ink2">non vérifié</span>;
+  if (e.trouve && !e.relu) return <Chip tone="warn" data-veille-etat="plus-recent">version plus récente</Chip>;
+  if (e.trouve && e.relu) return <Chip tone="ok" data-veille-etat="relu">relu</Chip>;
+  return <Chip tone="ok" data-veille-etat="a-jour">à jour</Chip>;
+}
+function VeilleTrouve({ e }) {
+  if (!e || !e.trouve) return null;
+  return (<div className="mt-1 text-xs"><span translate="no">{e.version || ''}</span>{e.date ? <span>{` (${fmtDate(e.date)})`}</span> : null}
+    {e.url ? <> · <a className="linkish" href={e.url} target="_blank" rel="noopener noreferrer" translate="no">{lienCourt(e.url)}</a>{e.sourceVue ? null : <span className="text-warn"> · adresse non retrouvée dans les sources consultées</span>}</> : null}
+    {e.remarque ? <div className="text-ink2" translate="no">{e.remarque}</div> : null}</div>);
+}
+function VeilleProposition({ prop, onGarder, onClose, lect }) {
+  const L = veilleTextesListe(); const n = Object.values(prop.res).filter((x) => x.trouve).length;
+  return (<Sheet wide title="Veille des textes réglementaires" sub="Résultat de la recherche : rien n’est encore enregistré." onClose={onClose}
+    footer={<><Btn onClick={onClose}>Fermer sans garder</Btn>{lect ? null : <Btn kind="primary" onClick={onGarder} data-veille-garder="">Garder ce résultat</Btn>}</>}>
+    <div className="space-y-3" data-veille-proposition="">
+      <Notice tone={n ? 'warn' : 'ok'} title={n ? `${n} texte(s) dont une version plus récente a été trouvée` : 'Aucune version plus récente trouvée'}>Le résultat sert à relire les règles concernées : aucune valeur du référentiel ne change. Vérifiez chaque lien avant de corriger une valeur (correction tracée, dans la matrice des composés).</Notice>
+      <div className="tblwrap"><table className="tbl text-sm"><thead><tr><th>Texte</th><th>Version relue</th><th>Résultat</th></tr></thead><tbody>
+        {L.map((t) => { const e = prop.res[t.id]; return <tr key={t.id} data-veille-texte={t.id}><td><span translate="no">{t.intitule}</span></td><td className="num">{t.dateRelue ? fmtDate(t.dateRelue) : '—'}</td><td>{e ? <><VeilleEtatChip e={e} /><VeilleTrouve e={e} /></> : <span className="text-xs text-ink2">sans réponse</span>}</td></tr>; })}
+      </tbody></table></div>
+      {(prop.sources || []).length ? <div data-veille-sources=""><div className="lbl">Sources consultées</div><ul className="list-disc pl-5 text-sm">{prop.sources.map((s) => <li key={s.url}><a className="linkish" href={s.url} target="_blank" rel="noopener noreferrer" translate="no">{s.titre || lienCourt(s.url)}</a></li>)}</ul></div> : <p className="help">Le service n’a pas renvoyé la liste des pages consultées : vérifiez chaque lien.</p>}
+      {prop.trace ? <p className="help"><span>Réponse de</span> <span translate="no">{`${prop.trace.fournisseur}${prop.trace.modele ? ` · ${prop.trace.modele}` : ''}`}</span></p> : null}
+    </div>
+  </Sheet>);
+}
+function TextesReferenceSec() {
+  const { db, act, uid } = useApp(); const lect = useLectureSeule('intrants'); const ia = useIaUsage();
+  const [busy, setBusy] = useState(false); const [prop, setProp] = useState(null); const [ouvert, setOuvert] = useState('');
+  const V = veilleReglage(db); const T = useMemo(() => veilleTextesListe().map((t) => ({ ...t, regles: veilleReglesDuTexte(t.id) })), []);
+  const nRelire = T.filter((t) => veilleTexteARelire(db, t.id)).length; const derniere = Object.values(V).map((e) => e.le || '').sort().pop() || '';
+  const verifier = async () => { if (busy) return; setBusy(true); try { const r = await ia.demander('veilleTextes', iaVeilleTextesPrompt()); if (r) setProp({ res: iaVeilleTextesLire(r.valeur, r.sources, { par: uid }), sources: r.sources || [], trace: r.trace }); } finally { setBusy(false); } };
+  const garder = () => { const x = act((d) => veilleTextesSet(d, prop.res, uid), 'Résultat de la veille gardé : aucune valeur du référentiel n’a changé.'); if (x && x.ok) setProp(null); };
+  return (<Sec title="Textes de référence" right={lect ? null : <IaBouton usage="veilleTextes" busy={busy} onClick={verifier}>Vérifier les textes</IaBouton>} data-textes-reference="">
+    <p className="help">{derniere ? `Dernière vérification : ${fmtDate(String(derniere).slice(0, 10))}.` : 'Jamais vérifiés en ligne.'} L’assistant IA cherche, pour chaque texte, une version plus récente (consolidation, nouvelle charte, nouveau cahier) ; seuls les intitulés et les dates des textes partent.</p>
+    {nRelire ? <div className="mb-2"><Notice tone="warn" title={`${nRelire} texte(s) à relire`}>Une version plus récente existe : relisez les règles qui le citent, puis corrigez au besoin leur valeur (correction tracée de l’exploitation). Les valeurs affichées restent celles du texte relu.</Notice></div> : null}
+    <div className="tblwrap" data-veille-textes=""><table className="tbl text-sm"><thead><tr><th>Texte</th><th>Labels</th><th>Version relue</th><th>Veille</th><th>Règles</th></tr></thead><tbody>
+      {T.map((t) => { const e = V[t.id]; const relire = veilleTexteARelire(db, t.id); return (<React.Fragment key={t.id}><tr data-veille-ligne={t.id} data-a-relire={relire ? 'oui' : 'non'}>
+        <td><span translate="no">{t.intitule}</span></td>
+        <td className="text-xs"><span translate="no">{t.labels.map(refLabelNom).join(', ') || '—'}</span></td>
+        <td className="num">{t.dateRelue ? fmtDate(t.dateRelue) : '—'}</td>
+        <td><VeilleEtatChip e={e} /><VeilleTrouve e={e} />{e && e.le ? <div className="text-xs text-ink2">{`vérifié le ${fmtDate(String(e.le).slice(0, 10))}`}</div> : null}{relire && !lect ? <div className="mt-1"><Btn size="sm" onClick={() => act((d) => veilleTexteRelu(d, t.id, uid), 'Texte marqué comme relu.')} data-veille-relu={t.id}>✓ Relu</Btn></div> : null}</td>
+        <td>{t.regles.length ? <button type="button" className="linkish text-xs" onClick={() => setOuvert(ouvert === t.id ? '' : t.id)} aria-expanded={ouvert === t.id}>{`${t.regles.length} règle(s)`}</button> : <span className="text-xs text-ink2">—</span>}{relire && t.regles.length ? <div><Chip tone="warn" data-regles-a-relire={t.id}>à relire</Chip></div> : null}</td>
+      </tr>{ouvert === t.id ? <tr><td colSpan={5}><ul className="list-disc pl-5 text-xs" data-veille-regles={t.id}>{t.regles.map((r, k) => <li key={k}><span translate="no">{`${refLabelNom(r.label)} · ${r.type === 'so2' ? `SO₂ total, ${vinTypeLabel(r.vin)}` : (refCompose(r.compose) || {}).label || r.compose}${r.ref ? ` — ${r.ref}` : ''}`}</span>{relire ? <> <Chip tone="warn">à relire</Chip></> : null}</li>)}</ul></td></tr> : null}</React.Fragment>); })}
+    </tbody></table></div>
+    <div className="lbl mt-4">Labels et cahiers des charges</div>
+    <ul className="list-disc pl-5 text-sm">{REG_LABELS.map((l) => <li key={l.id}><b translate="no">{l.label}</b> : <span translate="no">{REG_TEXTES[l.texte]}</span>{l.note ? <span className="text-ink2" translate="no"> — {l.note}</span> : null}</li>)}</ul>
+    {prop ? <VeilleProposition prop={prop} lect={lect} onGarder={garder} onClose={() => setProp(null)} /> : null}
+  </Sec>);
 }
 // avis du référentiel dans une cellule de règle (Produits & règles par revendication)
 function RefAvisChip({ avis }) {
