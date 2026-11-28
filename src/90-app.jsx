@@ -228,7 +228,7 @@ function App() {
     openGroupe: (x) => { setMenu(null); setGroupeDlg(x ? { ...x, k: Date.now() } : null); },
     openSchema: (x) => { setMenu(null); setSchemaDlg(x ? { ...x, k: Date.now() } : null); },
     openQuestionnaire: (x) => setQuestionnaire(x || { premiere: false }), openVisite: () => setVisite(true),
-    openMenu: (cid, x, y) => setMenu({ cid, x, y, k: Date.now() }), editCont: (id) => { setMenu(null); setContEdit(id); }, openReport: (init) => { setMenu(null); setReport(init || { kind: 'lot', ids: [] }); },
+    openMenu: (cid, x, y, o) => setMenu({ cid, x, y, k: Date.now(), ...(o && typeof o === 'object' ? o : {}) }), editCont: (id) => { setMenu(null); setContEdit(id); }, openReport: (init) => { setMenu(null); setReport(init || { kind: 'lot', ids: [] }); },
   };
 
   /* ----- sauvegarde / restauration / réinitialisation ----- */
