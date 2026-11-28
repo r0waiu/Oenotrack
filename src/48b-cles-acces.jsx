@@ -30,6 +30,10 @@ function cleAppareil() {
   return { nom: 'Appareil', moyen: 'empreinte, visage ou code PIN' };
 }
 const cleErreur = (e) => (e && e.name === 'NotAllowedError' ? 'Opération annulée ou délai dépassé.' : e && e.name === 'InvalidStateError' ? 'Cet appareil est déjà enregistré pour ce compte.' : e && e.name === 'SecurityError' ? 'Clés d’accès refusées sur cette adresse (domaine non sécurisé).' : e && e.name === 'NotSupportedError' ? 'Cet appareil ne propose pas d’empreinte, de visage ni de code PIN pour les clés d’accès : activez le verrouillage de l’écran, ou utilisez une clé de sécurité ou un autre téléphone.' : `Clé d’accès impossible : ${(e && e.message) || e}`);
+// 0.49.0-alpha.2 : clés intégrées à cet appareil (créées ou utilisées ici) — commodité de l'appareil, jamais dans la base
+const CLES_ICI_KEY = 'oenotrack-cles-ici';
+function clesIciLire() { try { const o = JSON.parse(window.localStorage.getItem(CLES_ICI_KEY) || '{}'); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } }
+function clesIciMarquer(k) { if (!k || !k.id || k.type === 'externe') return; try { const o = clesIciLire(); o[k.id] = 1; window.localStorage.setItem(CLES_ICI_KEY, JSON.stringify(o)); } catch (e) { /* ignoré */ } }
 // une seule demande à la fois : une nouvelle demande annule celle restée ouverte (fenêtre du système fermée sans réponse, double appui)
 let _cleDemande = null;
 function cleSignal() { try { if (_cleDemande) _cleDemande.abort(); } catch (e) { /* rien */ } _cleDemande = typeof AbortController === 'function' ? new AbortController() : null; return _cleDemande ? _cleDemande.signal : undefined; }
@@ -58,7 +62,8 @@ async function cleCreer(db, u, mode = 'appareil') {
   let transports = []; try { transports = r && typeof r.getTransports === 'function' ? r.getTransports() : []; } catch (e) { transports = []; }
   const att = cred.authenticatorAttachment; const type = att === 'platform' ? 'appareil' : att === 'cross-platform' ? 'externe' : mode === 'auto' ? '' : mode;
   const nom = type === 'externe' ? (clesTransports(transports).includes('hybrid') ? 'Autre téléphone' : 'Clé de sécurité') : ap.nom;
-  return { id: clesB64u(new Uint8Array(cred.rawId)), cle: clesB64(new Uint8Array(spki)), alg, rp: E.rp, nom, appareil: ap.nom, type, transports: clesTransports(transports), le: new Date().toISOString() };
+  const k = { id: clesB64u(new Uint8Array(cred.rawId)), cle: clesB64(new Uint8Array(spki)), alg, rp: E.rp, nom, appareil: ap.nom, type, transports: clesTransports(transports), le: new Date().toISOString() };
+  clesIciMarquer(k); return k;
 }
 // connexion : l'appareil signe un défi ; la signature est vérifiée avec la clé publique enregistrée
 async function cleConnexion(db, uid) {
@@ -75,11 +80,11 @@ async function cleConnexion(db, uid) {
   return t;
 }
 // bouton de l'écran de connexion (et du verrouillage)
-function CleBoutonConnexion({ uid, onOk, onErr, disabled }) {
+function CleBoutonConnexion({ uid, onOk, onErr, disabled, principal }) {
   const { db } = useApp(); const [busy, setBusy] = useState(false); const E = clesEtat();
   if (!securiteActive(db) || !clesReglages(db).actif || !E.ok || !clesUtilisables(db, E.rp, uid).length) return null;
-  const go = async () => { if (busy) return; setBusy(true); try { const t = await cleConnexion(db, uid); onOk(t); } catch (e) { if (e && e.name === 'AbortError') { setBusy(false); return; } onErr(e && e.name ? cleErreur(e) : (e && e.message) || String(e)); } setBusy(false); };
-  return <Btn className="w-full" onClick={go} disabled={disabled || busy} data-cle-connexion="">{busy ? 'Vérification sur l’appareil…' : uid ? '🔑 Déverrouiller par empreinte, visage ou code PIN' : '🔑 Se connecter par empreinte, visage ou code PIN'}</Btn>;
+  const go = async () => { if (busy) return; setBusy(true); try { const t = await cleConnexion(db, uid); clesIciMarquer(t.k); onOk(t); } catch (e) { if (e && e.name === 'AbortError') { setBusy(false); return; } onErr(e && e.name ? cleErreur(e) : (e && e.message) || String(e)); } setBusy(false); };
+  return <Btn kind={principal ? 'primary' : undefined} className="w-full" onClick={go} disabled={disabled || busy} autoFocus={!!principal} data-cle-connexion="" data-cle-principal={principal ? '' : undefined}>{busy ? 'Vérification sur l’appareil…' : uid ? '🔑 Déverrouiller par empreinte, visage ou code PIN' : '🔑 Se connecter par empreinte, visage ou code PIN'}</Btn>;
 }
 // état d'une clé, en clair
 const CLE_ETATS = { acceptee: ['ok', 'acceptée'], attente: ['warn', 'en attente d’un administrateur'], revoquee: ['bad', 'accès retiré'], 'autre-compte': ['bad', 'rattachée à un autre compte'], doublon: ['bad', 'enregistrée sous plusieurs comptes'] };

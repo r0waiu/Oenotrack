@@ -49,6 +49,13 @@ function clesUtilisables(db, rp, uid) {
   if (!securiteActive(db) || !clesReglages(db).actif) return []; const dbl = clesDoublons(db);
   return (db.utilisateurs || []).filter((u) => u && u.actif !== false && (!uid || u.id === uid)).flatMap((u) => (u.cles || []).filter((k) => k && k.id && cleEtat(db, u, k, dbl) === 'acceptee' && (!rp || !k.rp || k.rp === rp)).map((k) => ({ u, k })));
 }
+// 0.49.0-alpha.2 : l'empreinte d'abord ? Oui si l'une des clés utilisables du compte est intégrée à CET appareil (empreinte, visage ou
+// code PIN) : clé créée ou utilisée ici (ici[id], mémoire de l'appareil), ou clé « appareil » enregistrée avant cette mémoire sous le même
+// nom d'appareil quand l'appareil a un authentificateur intégré. Une clé de sécurité ou un autre téléphone (externe) ne compte pas.
+function clesEmpreinteDabord(L, o) {
+  const x = o || {}; const ici = x.ici || {};
+  return (L || []).some((t) => { const k = t && (t.k || t); if (!k || !k.id || k.type === 'externe') return false; return !!ici[k.id] || (x.integre === true && !!k.appareil && k.appareil === x.appareil); });
+}
 // identifiant d'utilisateur renvoyé par l'appareil (userHandle) : doit être celui du compte de la clé (clé d'un autre compte refusée)
 function cleProprietaireOk(u, userHandle) {
   if (!userHandle || !u) return true; let h = ''; try { h = new TextDecoder().decode(userHandle instanceof Uint8Array ? userHandle : new Uint8Array(userHandle)); } catch (e) { return false; }

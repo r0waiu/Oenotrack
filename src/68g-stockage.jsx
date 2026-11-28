@@ -12,6 +12,15 @@ const CLOUD_INFOS = {
 
 // champs de suivi d'une synchronisation (reportés sur l'état courant, voir reporter)
 const CLOUD_CHAMPS_SUIVI = ['rev', 'syncId', 'lignee', 'empreinteDistante', 'docsDistants', 'docsCle', 'ecritPar', 'ecritLe', 'historiqueJour'];
+// 0.49.0-alpha.2 : un clic peut-il ouvrir la fenêtre de renouvellement de Google ? Non sur l'écran de connexion ou de verrouillage
+// (connexion d'abord), ni dans un champ de saisie, ni sur les boutons du Drive (qui ont leur propre connexion)
+const CLOUD_CLIC_EXCLUS = '[data-cloud-etat],[data-cloud-reco],[data-fournisseur],[data-connexion],[data-verrou],input,textarea,select,[contenteditable=""],[contenteditable="true"]';
+function cloudClicRenouvelle(cible) {
+  try { if (document.querySelector('[data-connexion],[data-verrou]')) return false; } catch (e) { /* ignoré */ }
+  const el = cible && cible.nodeType === 3 ? cible.parentElement : cible;
+  if (el && el.closest && el.closest(CLOUD_CLIC_EXCLUS)) return false;
+  return true;
+}
 function useCloud({ db, dbRef, applyDb, toast }) {
   const [etat, setEtat0] = useState(cloudEtatLire); const etatRef = useRef(etat);
   const setEtat = useCallback((p) => { const n = typeof p === 'function' ? p(etatRef.current) : { ...etatRef.current, ...p }; etatRef.current = n; cloudEtatEcrire(n); setEtat0(n); }, []);
@@ -112,10 +121,12 @@ function useCloud({ db, dbRef, applyDb, toast }) {
   }, [lie, etat.suspendu, etat.fournisseur, etat.dossier && etat.dossier.id]);
   useEffect(() => { if (!lie || etat.suspendu || empreinte === etat.empreinteDistante) return undefined; const t = setTimeout(() => synchroRef.current(), 3000); return () => clearTimeout(t); }, [lie, etat.suspendu, empreinte, etat.empreinteDistante]);
 
-  // Google donne un jeton d'une heure : il est renouvelé au clic suivant dans Œnotrack (petite fenêtre Google qui se referme seule)
+  // Google donne un jeton d'une heure : il est renouvelé au clic suivant dans Œnotrack (petite fenêtre Google qui se referme seule) ;
+  // 0.49.0-alpha.2 : jamais sur l'écran de connexion ou de verrouillage, ni dans un champ de saisie (la fenêtre prenait la main pendant
+  // la saisie du mot de passe) — cloudClicRenouvelle
   useEffect(() => {
     if (!lie || etat.fournisseur !== 'google') return undefined; let dernier = 0;
-    const clic = (ev) => { if (ev && ev.target && ev.target.closest && ev.target.closest('[data-cloud-etat],[data-cloud-reco],[data-fournisseur]')) return; const j = jetonsLire('google'); if (j && j.exp > Date.now() + 120000) return; if (Date.now() - dernier < 30000) return; dernier = Date.now(); GD.connecter().then(() => { setStatut(''); synchroRef.current(); }).catch(() => null); };
+    const clic = (ev) => { if (!cloudClicRenouvelle(ev && ev.target)) return; const j = jetonsLire('google'); if (j && j.exp > Date.now() + 120000) return; if (Date.now() - dernier < 30000) return; dernier = Date.now(); GD.connecter().then(() => { setStatut(''); synchroRef.current(); }).catch(() => null); };
     document.addEventListener('click', clic, true); return () => document.removeEventListener('click', clic, true);
   }, [lie, etat.fournisseur]);
   const aEnvoyer = lie && !etat.suspendu && empreinte !== etat.empreinteDistante;

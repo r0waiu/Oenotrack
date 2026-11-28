@@ -49,6 +49,15 @@ function EcranConnexion({ verrou, onConnecte, onChanger, onPresentation }) {
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [attente, setAttente] = useState(0); const essais = useRef(0);
   const [code, setCode] = useState(''); const [n1, setN1] = useState(''); const [n2, setN2] = useState(''); const [nouveauCode, setNouveauCode] = useState(''); const [uidSecours, setUidSecours] = useState('');
   useEffect(() => { if (!attente) return undefined; const t = setTimeout(() => setAttente((x) => Math.max(0, x - 1)), 1000); return () => clearTimeout(t); }, [attente]);
+  // 0.49.0-alpha.2 : l'empreinte d'abord quand cet appareil a une clé du compte (session verrouillée : ce compte ; connexion : la dernière
+  // personne identifiée ici) ; le mot de passe reste à un clic (« Utiliser le mot de passe »)
+  const integre = useClesIntegre(); const [voirMdp, setVoirMdp] = useState(false);
+  const empreinte = useMemo(() => {
+    const Ec = clesEtat(); if (!Ec.ok) return false;
+    const u1 = verrou && u0 ? u0 : utilisateurParIdentifiant(db, dernierIdent()); if (!u1) return false;
+    return clesEmpreinteDabord(clesUtilisables(db, Ec.rp, u1.id), { ici: clesIciLire(), appareil: cleAppareil().nom, integre });
+  }, [db, verrou, u0 && u0.id, integre]);
+  const mdpCache = mode === 'connexion' && empreinte && !voirMdp;
   const journal = (e) => act((d) => auditAjouter(d, { ...e, appareil: appareilNom() }), null, { systeme: true });
   const echec = (msg, resume) => { essais.current += 1; journal({ action: 'echec', resume }); if (essais.current >= 5) { setAttente(30); essais.current = 0; setErr('5 essais manqués : patientez 30 secondes.'); } else setErr(msg); };
   const connexion = async (e) => {
@@ -62,6 +71,8 @@ function EcranConnexion({ verrou, onConnecte, onChanger, onPresentation }) {
     journal({ uid: u.id, action: 'connexion', resume: verrou ? 'Déverrouillage' : 'Connexion' });
     onConnecte(u.id, garder);
   };
+  const cleOk = ({ u, k }) => { essais.current = 0; setErr(''); dernierIdentEcrire(u.identifiant); journal({ uid: u.id, action: 'connexion', type: 'cle', cibleId: k.id, resume: `${verrou ? 'Déverrouillage' : 'Connexion'} par clé d’accès (${k.nom})` }); onConnecte(u.id, garder); };
+  const cleErr = (m) => { setErr(m); if (!/annulée/.test(m)) journal({ action: 'echec', resume: `Clé d’accès : ${m}` }); };
   const secours = async (e) => {
     if (e) e.preventDefault(); if (busy || attente) return; setErr('');
     const sec = (db.settings.securite || {}).secours; const u = utilisateurParIdentifiant(db, ident);
@@ -83,21 +94,26 @@ function EcranConnexion({ verrou, onConnecte, onChanger, onPresentation }) {
           <Btn kind="primary" className="w-full" onClick={() => onConnecte(uidSecours, garder)}>Continuer</Btn>
         </> : <>
           <div><h1 className="login-titre">{verrou && u0 ? 'Session verrouillée' : mode === 'secours' ? 'Code de secours' : 'Connexion'}</h1>
-            <p className="text-sm text-ink2">{verrou && u0 ? <>{u0.nom || u0.identifiant} : saisissez votre mot de passe pour reprendre.</> : mode === 'secours' ? 'Réinitialisez le mot de passe d’un administrateur avec le code de secours remis à l’activation des identifiants.' : <>{E.nom ? <b>{E.nom}</b> : 'Œnotrack'} : identifiez-vous pour accéder à la traçabilité.</>}</p></div>
-          {!(verrou && u0) || mode === 'secours' ? <Field label={mode === 'secours' ? 'Identifiant de l’administrateur' : 'Identifiant'}><input className="inp" value={ident} onChange={(e) => setIdent(e.target.value)} autoComplete="username" autoCapitalize="off" spellCheck={false} autoFocus={!ident || mode === 'secours'} aria-label="Identifiant" /></Field> : null}
+            <p className="text-sm text-ink2">{mdpCache ? (verrou && u0 ? `${u0.nom || u0.identifiant} : déverrouillez avec votre empreinte, votre visage ou votre code PIN.` : `${E.nom || 'Œnotrack'} : connectez-vous avec votre empreinte, votre visage ou votre code PIN.`) : verrou && u0 ? <>{u0.nom || u0.identifiant} : saisissez votre mot de passe pour reprendre.</> : mode === 'secours' ? 'Réinitialisez le mot de passe d’un administrateur avec le code de secours remis à l’activation des identifiants.' : <>{E.nom ? <b>{E.nom}</b> : 'Œnotrack'} : identifiez-vous pour accéder à la traçabilité.</>}</p></div>
+          {mdpCache ? null : !(verrou && u0) || mode === 'secours' ? <Field label={mode === 'secours' ? 'Identifiant de l’administrateur' : 'Identifiant'}><input className="inp" value={ident} onChange={(e) => setIdent(e.target.value)} autoComplete="username" autoCapitalize="off" spellCheck={false} autoFocus={!ident || mode === 'secours'} aria-label="Identifiant" /></Field> : null}
           {mode === 'secours' ? <>
             <Field label="Code de secours"><input className="inp num" value={code} onChange={(e) => setCode(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX" autoCapitalize="characters" spellCheck={false} aria-label="Code de secours" /></Field>
             <Field label="Nouveau mot de passe"><MdpInput value={n1} onChange={setN1} label="Nouveau mot de passe" autoComplete="new-password" /><MdpJauge mdp={n1} min={securiteReglages(db).longueurMin} /></Field>
             <Field label="Confirmer le mot de passe"><MdpInput value={n2} onChange={setN2} label="Confirmer le mot de passe" autoComplete="new-password" /></Field>
-          </> : <>
+          </> : mdpCache ? null : <>
             <Field label="Mot de passe"><MdpInput value={mdp} onChange={setMdp} label="Mot de passe" autoFocus={!!ident} /></Field>
             <Check checked={garder} onChange={setGarder} label="Rester connecté sur cet appareil" />
           </>}
+          {mdpCache ? <>
+            <CleBoutonConnexion principal uid={verrou && u0 ? u0.id : ''} disabled={busy || attente > 0} onOk={cleOk} onErr={cleErr} />
+            <Check checked={garder} onChange={setGarder} label="Rester connecté sur cet appareil" />
+          </> : null}
           {err ? <div className="login-err" role="alert">{err}</div> : null}
-          <Btn kind="primary" type="submit" className="w-full" disabled={busy || attente > 0}>{busy ? 'Vérification…' : attente ? `Patientez ${attente} s` : mode === 'secours' ? 'Réinitialiser et se connecter' : verrou && u0 ? 'Déverrouiller' : 'Se connecter'}</Btn>
-          {mode === 'connexion' ? <CleBoutonConnexion uid={verrou && u0 ? u0.id : ''} disabled={busy || attente > 0} onOk={({ u, k }) => { essais.current = 0; setErr(''); dernierIdentEcrire(u.identifiant); journal({ uid: u.id, action: 'connexion', type: 'cle', cibleId: k.id, resume: `${verrou ? 'Déverrouillage' : 'Connexion'} par clé d’accès (${k.nom})` }); onConnecte(u.id, garder); }} onErr={(m) => { setErr(m); if (!/annulée/.test(m)) journal({ action: 'echec', resume: `Clé d’accès : ${m}` }); }} /> : null}
+          {mdpCache ? null : <Btn kind="primary" type="submit" className="w-full" disabled={busy || attente > 0}>{busy ? 'Vérification…' : attente ? `Patientez ${attente} s` : mode === 'secours' ? 'Réinitialiser et se connecter' : verrou && u0 ? 'Déverrouiller' : 'Se connecter'}</Btn>}
+          {mode === 'connexion' && !mdpCache ? <CleBoutonConnexion uid={verrou && u0 ? u0.id : ''} disabled={busy || attente > 0} onOk={cleOk} onErr={cleErr} /> : null}
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             {mode === 'secours' ? <button type="button" className="linkish" onClick={() => { setMode('connexion'); setErr(''); }}>← Retour à la connexion</button>
+              : mdpCache ? <button type="button" className="linkish" onClick={() => { setVoirMdp(true); setErr(''); }} data-mdp-afficher="">Utiliser le mot de passe</button>
               : <details className="login-aide"><summary className="linkish">Mot de passe oublié ?</summary><p className="text-xs text-ink2">Demandez à un administrateur de réinitialiser votre mot de passe (Paramètres › Utilisateurs & droits). Administrateur : <button type="button" className="linkish" onClick={() => { setMode('secours'); setErr(''); }}>utiliser le code de secours</button>.</p></details>}
             {verrou && u0 && mode === 'connexion' ? <button type="button" className="linkish" onClick={onChanger}>Changer d’utilisateur</button> : null}
           </div>

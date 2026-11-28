@@ -5,6 +5,8 @@ Toutes les versions publiées, de la plus récente à la plus ancienne (numérot
 ## 0.49.0-alpha.2 — 28/11/2026
 
 - Corrections de l’assistant IA : un certificat de jaugeage de plus de 8 pages est relu en entier, par lots de 8 pages (un tableau qui passe d’un lot à l’autre est réuni) ; la mention « 🤖 IA » apparaît aussi dans les listes d’arrivages et dans le registre des pesées.
+- Google Drive : la petite fenêtre de Google qui renouvelle la connexion ne s’ouvre plus sur l’écran de connexion ou de verrouillage ni pendant une saisie ; elle attend le premier clic sur un bouton ou un onglet une fois connecté.
+- Connexion : sur un appareil qui a sa clé d’accès, l’empreinte, le visage ou le code PIN est proposé en premier à la connexion et au déverrouillage ; le mot de passe reste à un clic (« Utiliser le mot de passe »).
 
 ## 0.49.0-alpha.1 — 28/11/2026
 
