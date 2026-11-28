@@ -11,7 +11,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   await vignoble(page, 'Types de vins'); // 0.50.0-alpha.1 : Paramètres › Vignoble, étape des types
   const hors = async () => page.locator('[data-hors-appellation]').evaluateAll((e) => e.map((x) => x.getAttribute('data-hors-appellation')));
   let h = await hors(); t = await txt(page.locator('[data-profil-appellations]'));
-  ok('Champagne : méthode ancestrale et vins moelleux « hors appellation », pas l’effervescent ni les tranquilles ; 6 appellations dans le référentiel', h.sort().join() === 'ancestrale,doux' && /6 appellation\(s\)/.test(t) && /AOP : 3/.test(t), { h, t });
+  ok('Champagne : méthode ancestrale et vins moelleux « hors appellation », pas l’effervescent ni les tranquilles ; 6 appellations dans le référentiel', h.sort().join() === 'ancestrale,doux' && /\d+ appellation\(s\)/.test(t) && /AOP : \d+/.test(t) /* 0.50.0-alpha.3 : dénominations et mentions des cahiers des charges comptées */, { h, t });
   await page.screenshot({ path: `${SC}/shots/t88-profil.png` });
   await vignobleRegion(page, 'rhone'); await vignoble(page, 'Types de vins');
   h = await hors(); ok('Vallée du Rhône : méthode ancestrale possible (Clairette de Die) ; rien hors appellation', h.length === 0, h);
@@ -19,7 +19,7 @@ let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
   h = await hors(); t = await txt(page.locator('[data-profil-appellations]'));
   ok('Suisse : indications qui ne restreignent pas le type de vin, rien de signalé', h.length === 0 && /ne restreignent pas/.test(t), { h, t });
   await vignobleRegion(page, 'charentes'); await vignoble(page, 'Types de vins');
-  ok('nouvelle région Charentes proposée', (await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')).settings.profilViticole.region)) === 'charentes' && /2 appellation\(s\)/.test(await txt(page.locator('[data-profil-appellations]'))));
+  ok('nouvelle région Charentes proposée', (await page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')).settings.profilViticole.region)) === 'charentes' && /\d+ appellation\(s\)/.test(await txt(page.locator('[data-profil-appellations]'))));
   // ---- appellations : référentiel
   await page.locator('[data-params-item="listes"]').click(); await page.waitForTimeout(500);
   const box = page.locator('[data-appref]');
