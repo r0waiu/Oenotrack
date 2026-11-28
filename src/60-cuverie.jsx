@@ -303,7 +303,7 @@ function TabCuverie() {
           <span className="ml-auto text-sm text-ink2">{lots.length} lot(s){siteActif !== 'all' && lotF === 'stock' ? ' présents sur ce site' : ''} — les lots naissent des opérations (pressurage, entrée de moûts, assemblage, tirage, reprise de stock).</span>
         </div>
         <Tbl rows={lots} onRow={(l) => showLot(l.id)} empty="Aucun lot pour ce filtre." cols={[
-          { h: 'Code', r: (l) => <b>{l.code}</b> }, { h: 'Désignation', r: (l) => l.designation }, { h: 'Millésime', cls: 'hm', r: (l) => l.millesime || '—' }, { h: 'Stade', r: (l) => <StadeChip id={l.stade} compact /> }, { h: 'Couleur', cls: 'hm', r: (l) => <CouleurChip id={l.couleur} /> }, { h: 'Nature', cls: 'hm', r: (l) => LOT_TYPES[l.type] },
+          { h: 'Code', r: (l) => <b>{l.code}</b> }, { h: 'Désignation', r: (l) => l.designation }, { h: 'Millésime', cls: 'hm', r: (l) => millesimeAffiche(l.millesime) || '—' }, { h: 'Stade', r: (l) => <StadeChip id={l.stade} compact /> }, { h: 'Couleur', cls: 'hm', r: (l) => <CouleurChip id={l.couleur} /> }, { h: 'Nature', cls: 'hm', r: (l) => LOT_TYPES[l.type] },
           { h: 'Revendication', r: (l) => <QChip id={l.qualif} /> }, { h: ECH.nom, r: (l) => <EChip info={lotEchelle(db, R, l.id)} /> },
           { h: 'Volume / stock', cls: 'r', r: (l) => <span className="num">{(R.lotVol[l.id] || 0) > 0 ? fmtL(R.lotVol[l.id]) : ''}{R.tir[l.id] && R.tir[l.id].nb > 0 ? ` ${fmt(R.tir[l.id].nb)} btl` : ''}{!(R.lotVol[l.id] > 0) && !(R.tir[l.id] && R.tir[l.id].nb > 0) ? '—' : ''}</span> },
           { h: 'Contenants', cls: 'hm', r: (l) => uniq(Object.values(R.portions).filter((p) => p.lotId === l.id).map((p) => contName(db, p.contenantId))).join(', ') || '—' },

@@ -48,7 +48,7 @@ function CouleursEditor() {
   const { db, act } = useApp(); const L = couleurList(db);
   return (
     <div className="space-y-2">
-      <p className="help">La couleur suit le lot dans toutes ses opérations. Couleur « d’assemblage » : celle obtenue quand on assemble des couleurs différentes (blanc + rouge = rosé d’assemblage, comme en Champagne).</p>
+      <p className="help">La couleur suit le lot dans toutes ses opérations. Couleur « d’assemblage » : celle obtenue quand on assemble des couleurs différentes (blanc + rouge = rosé d’assemblage, comme en Champagne). Pour un vin tranquille, l’assemblage avertit : rosé par coupage interdit sans AOP / IGP qui l’autorise (règlement délégué (UE) 2019/934, art. 8) — pas d’avertissement si la Côte-Rôtie figure dans vos appellations.</p>
       {L.map((x, i) => (
         <RichRow key={x.id} k="couleursVin" x={x} i={i} n={L.length}>{(ed) => (<>
           <label className="flex items-center gap-1.5 text-sm"><input type="radio" name="coul-melange" checked={!!x.melange} onChange={() => ed({ melange: true })} style={{ accentColor: 'var(--accent)' }} />couleur d’assemblage</label>

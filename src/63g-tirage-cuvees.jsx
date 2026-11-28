@@ -3,7 +3,7 @@
    vins de base ; la cuve de mixtion ou le lot tiré par pompe doseuse se créent depuis la ligne, qui passe « en mixtion » puis « tirée »,
    avec l'écart au prévu. La déclaration préalable du chantier en reprend une ligne par cuvée. */
 
-const cuveeQualiteTexte = (db, ce) => [couleurLabel(db, ce.couleur), ce.qualif ? qLabel(ce.qualif) : '', ce.echelle ? (eDef(ce.echelle) || { label: ce.echelle }).label : '', ce.millesime || ''].filter(Boolean).join(' · ');
+const cuveeQualiteTexte = (db, ce) => [couleurLabel(db, ce.couleur), ce.qualif ? qLabel(ce.qualif) : '', ce.echelle ? (eDef(ce.echelle) || { label: ce.echelle }).label : '', millesimeAffiche(ce.millesime)].filter(Boolean).join(' · ');
 function CuveeForm({ chantierId, id, onClose }) {
   const { db, R, act, uid } = useApp(); const ch = chantierTirage(db, chantierId); const c0 = id ? chantierCuvee(db, chantierId, id) : null;
   const [f, setF] = useState(() => ({ nom: c0 ? c0.nom : '', sources: c0 && c0.sources.length ? c0.sources.map((s) => ({ portionId: s.portionId, volL: s.volL ? String(r2(s.volL)) : '' })) : [{ portionId: '', volL: '' }], vinHL: c0 && hasNum(c0.vinHL) ? String(c0.vinHL) : '', pointGL: c0 && c0.pointGL != null ? String(c0.pointGL) : '',

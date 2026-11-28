@@ -114,7 +114,7 @@ function previsionsGroupeEnregistrer(db, gid, items, anciensIds) {
 
 /* ---------- fermentation : relevés de densité et de température, alerte de ralentissement ---------- */
 const fermReglages = (db) => { const s = ((db && db.settings) || {}).fermentation || {}; const n = (k, d) => (hasNum(s[k]) ? num(s[k]) : d);
-  return { actif: s.actif !== false, lente: n('lente', 0.002), arret: n('arret', 0.0005), fin: n('fin', 0.998), recent: n('recent', 3) }; };
+  return { actif: s.actif !== false, lente: n('lente', 0.002), arret: n('arret', 0.0005), fin: n('fin', 0.994), recent: n('recent', 3) }; };
 const densiteLue = (x) => { if (!hasNum(x)) return null; const v = num(x); return v > 100 ? v / 1000 : v; }; // 1085 (saisi sans virgule) = 1,085
 // lot en fermentation alcoolique (la densité doit baisser) : stade « En FA » ou stade de fermentation personnalisé autre que la FML
 const enFA = (db, stadeId) => { const d = stadeDef(db, stadeId) || {}; return d.role === 'levurage' || (d.phase === 'ferm' && d.role !== 'bacteries'); };
@@ -139,7 +139,7 @@ const joursEntre = (a, b) => Math.round((Date.parse(`${String(b).slice(0, 10)}T0
 function fermentationEtat(pts, reg, aujourdhui) {
   const g = reg || {}; const D = (pts || []).filter((p) => p.densite != null); if (D.length < 2) return null;
   const der = D[D.length - 1]; const age = joursEntre(der.date, aujourdhui || der.date);
-  if (der.densite <= num(g.fin != null ? g.fin : 0.998)) return { etat: 'finie', vitesse: null, jours: 0, dernier: der, age, ancien: false };
+  if (der.densite <= num(g.fin != null ? g.fin : 0.994)) return { etat: 'finie', vitesse: null, jours: 0, dernier: der, age, ancien: false };
   const ref = [...D].reverse().find((p) => joursEntre(p.date, der.date) >= 1 && joursEntre(p.date, der.date) <= 7); if (!ref) return null;
   const j = joursEntre(ref.date, der.date); const v = (ref.densite - der.densite) / j;
   const etat = v <= num(g.arret != null ? g.arret : 0.0005) ? 'arretee' : v <= num(g.lente != null ? g.lente : 0.002) ? 'lente' : 'active';
@@ -165,9 +165,10 @@ function so2Moleculaire({ libre, ph, tav, temp }) {
 const so2LibrePour = ({ cible, ph, tav, temp }) => (!hasNum(cible) || !hasNum(ph) || num(ph) <= 0 ? null : num(cible) * (1 + Math.pow(10, num(ph) - so2Pka(tav, temp))));
 
 /* ---------- simulateur d'enrichissement (sucre ou MCR) ---------- */
-// sucre : quantité = écart × coefficient (g/L par % vol) × volume, le volume augmente d'environ 0,62 L par kg ;
+// sucre : quantité = écart × coefficient (g/L par % vol) × volume, le volume augmente de 0,6329 L par kg (valeur physique, réglable :
+// sucreVolPhysique, la même que pour le tirage — 0.47.0-alpha.2) ;
 // MCR (moût concentré rectifié, S g/L de sucres) : bilan de sucre avec le volume ajouté, q = V × (s1 − s0) / (S − s1)
-const ENRICH_VOL_KG = 0.62;
+const ENRICH_VOL_KG = SUCRE_VOL_PHYSIQUE_LKG; // valeur par défaut (0.47.0-alpha.2 : 0,62 auparavant)
 function enrichSimuler(db, p) {
   const g = chaptalReglages(db); const k = num(p.coef) > 0 ? num(p.coef) : g.coef; const V = num(p.volL);
   if (!hasNum(p.tap) || !hasNum(p.tav) || !(V > 0)) return null;
@@ -178,7 +179,7 @@ function enrichSimuler(db, p) {
     if (S <= s1 + 1) return { ...r, sucreMCR: S, impossible: true };
     const q = (V * (s1 - s0)) / (S - s1); return { ...r, sucreMCR: S, mcrL: q, sucreKg: (q * S) / 1000, volFinalL: V + q };
   }
-  const kg = (ecart * k * V) / 1000; return { ...r, sucreKg: kg, volFinalL: V + kg * ENRICH_VOL_KG };
+  const kg = (ecart * k * V) / 1000; return { ...r, sucreKg: kg, volFinalL: V + kg * sucreVolPhysique(db) };
 }
 
 /* ---------- étiquettes QR et liens directs vers une fiche de cuve ---------- */

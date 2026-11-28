@@ -48,7 +48,7 @@ const AUDIT_MODELES = [
   { id: 'aoc', nom: 'Appellation d’origine (ODG, contrôle AOC)', icone: '🏷', desc: 'Contrôle du cahier des charges de l’appellation : registres des pesées et de pressoir, rendements, pratiques œnologiques, élevage et durée sur lattes, déclarations.',
     pieces: ['identite', 'pesees', 'carnet', 'apports', 'operations', 'intrants', 'lotsfinis', 'lattes', 'analyses', 'declassements', 'stocks'],
     points: [['Habilitation de l’opérateur à jour', ['identite']], ['Registre des pesées tenu (mentions obligatoires)', ['pesees']], ['Carnet de pressoir tenu ; rendement au pressurage respecté ; rebêches séparées', ['carnet']],
-      ['Pratiques œnologiques et intrants autorisés par le cahier des charges', ['operations', 'intrants']], ['Durée minimale d’élevage sur lattes respectée', ['lattes', 'lotsfinis']],
+      ['Pratiques œnologiques et intrants autorisés par le cahier des charges', ['operations', 'intrants']], ['Durées minimales respectées : 12 mois en bouteille avant dégorgement, 15 mois (36 mois millésimés) depuis le tirage avant mise en marché', ['lattes', 'lotsfinis']],
       ['Déclarations (récolte, revendication) cohérentes avec les registres', ['apports', 'stocks']], ['Déclassements enregistrés', ['declassements']]].map(([texte, pieces], i) => ({ id: `p${i + 1}`, texte, pieces })),
     reglages: { lattesMois: 15, lattesMillesimeMois: 36 } },
 ];

@@ -64,7 +64,7 @@ const CODIF_DATES = [
 // variables du lot : valeur (libellé), code court de la liste quand il existe, ou table de correspondance
 const CODIF_VARS = [
   { id: 'cepage', label: 'Cépage (majoritaire)', liste: true }, { id: 'cepages', label: 'Cépages (tous, du plus présent au moins présent)', liste: true, ensemble: true },
-  { id: 'fraction', label: 'Fraction de presse (majoritaire)', liste: true }, { id: 'fractions', label: 'Fractions (toutes)', liste: true, ensemble: true },
+  { id: 'fraction', label: 'Fraction de pressurage (majoritaire)', liste: true }, { id: 'fractions', label: 'Fractions (toutes)', liste: true, ensemble: true },
   { id: 'cru', label: 'Cru (majoritaire)', liste: true }, { id: 'echelle', label: 'Échelle des crus', liste: true }, { id: 'revendication', label: 'Revendication / label', liste: true },
   { id: 'couleur', label: 'Couleur du vin', liste: true }, { id: 'stade', label: 'Stade du vin', liste: true }, { id: 'site', label: 'Site / dépôt', liste: true },
   { id: 'contenant', label: 'Cuve ou fût', liste: true }, { id: 'apporteur', label: 'Partenaire (majoritaire)', liste: true },

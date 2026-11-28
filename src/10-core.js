@@ -12,8 +12,9 @@ const APP_ID = 'oenotrack';
 //   utilisateurs), -rc.N (candidate à la production) ; N + 1 à chaque itération de la même version dans la même phase, N = 1 à chaque changement
 //   de phase ; retirée à la version finale. Toutes les versions publiées jusqu'ici sont des alpha (aucune version finale) : une nouvelle
 //   fonctionnalité ouvre une nouvelle version mineure (-alpha.1), une correction de la version en test est une nouvelle itération (-alpha.N + 1).
-const APP_VERSION = '0.47.0-alpha.1';
+const APP_VERSION = '0.47.0-alpha.2';
 const CHANGELOG = [
+  { v: '0.47.0-alpha.2', date: '2026-11-27', notes: ["Vocabulaire technique revu avec l’exploitation : TAV acquis pour les vins (SO₂ moléculaire) et TAP pour les moûts, TAV naturel et indice de Folin-Ciocalteu distincts dans les bulletins, enrichissement (saccharose, moût concentré, MCR), vin clarifié, fractions Cuvée, Taille et Rebêche d’une base neuve (sous-fractions ajoutées avec leur rôle), DDM au lieu de DLUO, ticket de pesée, revendication, apte au contact alimentaire, Premier Cru et Grand Cru, « non millésimé », déclaration d’intention de tirage et déclaration de revendication ; les libellés d’origine de vos listes sont mis à jour, ceux que vous avez changés sont gardés.", "Coefficients corrigés (à vérifier) : un seul coefficient de 2,5 g/L de sucre par point de densité (0,4 point par g/L pour la correction du point de tirage), augmentation de volume du saccharose de 0,6329 L/kg pour les calculs (tirage, enrichissement) et de 0,66 L/kg pour les déclarations, conversion sucres → TAP de 16,83 g/L par % vol, fin de FA à 0,994, VRTP en % des volumes mis en œuvre (vins et liqueurs) ; avertissement pour un rosé par coupage de vin blanc et de vin rouge d’un vin tranquille (règlement délégué (UE) 2019/934, art. 8), sauf Côte-Rôtie."] },
   { v: '0.47.0-alpha.1', date: '2026-11-27', notes: ["Échelle par appellation : chaque appellation de votre liste a sa hiérarchie, proposée d’après son nom et sa région puis confirmée ou changée (Paramètres › Listes) — Champagne, Bourgogne, Chablis, Alsace, Beaujolais, Côtes du Rhône, Saint-Émilion, Médoc, Sauternes et Barsac, Graves, Languedoc, Val de Loire, Italie, Espagne, Allemagne (loi de 2021), Autriche (DAC), Portugal, Suisse, générique ; repères réglementaires à vérifier.", "Parcelles : appellation et niveau dans sa hiérarchie (par exemple Chablis premier cru) ; la fiche d’un lot montre ses appellations et niveaux au prorata de ses parcelles. L’échelle des crus de l’exploitation reste en place."] },
   { v: '0.46.0-alpha.2', date: '2026-11-27', notes: ["Référentiel des appellations viticoles (relevé officiel du 27/11/2026) : France — 365 AOP et 74 IGP (INAO, registre de l’UE eAmbrosia, cahiers des charges), Italie, Espagne, Portugal, Allemagne, Autriche (registre eAmbrosia), Suisse (AOC), États-Unis (AVA) et Australie (indications géographiques), soit 1 692 appellations avec leurs catégories et couleurs de vins ; Paramètres › Listes › Appellations : recherche et ajout depuis le référentiel, la région du profil d’abord.", "Région et types de vins : un type qu’aucune appellation de la région n’autorise est signalé « hors appellation » (vin sans indication géographique, toujours choisissable), par exemple la méthode ancestrale et les vins moelleux en Champagne ; nouvelle région Charentes (Pineau des Charentes, IGP Charentais)."] },
   { v: '0.46.0-alpha.1', date: '2026-11-27', notes: ["Opérations des autres vins : vinification en rouge et rosé (éraflage / foulage, macération préfermentaire à froid, macérations carbonique et semi-carbonique, thermovinification, flash-détente, pigeage séparé du remontage, macération finale à chaud, pressurage des marcs), vins doux (arrêt de fermentation, mutage), élevage (contrôle d’élevage sous bois, élevage sous voile, micro-oxygénation, morceaux de bois de chêne), stabilisation (électrodialyse, échangeurs de cations, stabilisation protéique) et assemblage de millésimes ; proposées par le profil viticole selon vos types de vins.", "Tirage en méthode ancestrale : vin mis en bouteille en cours de fermentation, sans liqueur de tirage (ni cuve de mixtion ni pompe doseuse pour ce lot) ; dégorgement facultatif.", "Région et types de vins : un seul réglage (Paramètres › Région & types de vins) ; l’identité de la société et les réglages du pressoir en montrent le résumé, avec un lien."] },
@@ -112,7 +113,7 @@ const minQualif = (ids) => ids.length ? ids.reduce((m, id) => (rang(id) < rang(m
 /* Échelle des crus (villages) : un assemblage prend le rang le plus bas des crus qui le composent (Grand Cru + 1er Cru → 1er Cru). */
 const ECHELLES = [
   { id: 'autre', label: 'Autres', un: 'Autre cru', court: 'AUT', rang: 1 },
-  { id: 'premier', label: '1ers Crus', un: '1er Cru', court: '1ER', rang: 2 },
+  { id: 'premier', label: 'Premiers Crus', un: 'Premier Cru', court: '1ER', rang: 2 },
   { id: 'grand', label: 'Grands Crus', un: 'Grand Cru', court: 'GC', rang: 3 },
 ];
 const eDef = (id) => ECHELLES.find((e) => e.id === id) || null;
@@ -122,12 +123,11 @@ const minEchelle = (ids) => { const k = ids.filter((i) => eDef(i)); return k.len
 const DEPARTEMENTS = ['Marne', 'Aisne', 'Aube', 'Haute-Marne', 'Seine-et-Marne'];
 
 // Nature du lot (comment il a été créé) — distincte du stade (où en est le vin : moût, FA, vin clair…)
-const LOT_TYPES = { mout: 'Moût reçu', pressee: 'Pressée', fraction: 'Fraction de presse', vin_clair: 'Vin', assemblage: 'Assemblage', vin_reserve: 'Vin de réserve', cuvee_tirage: 'Cuvée de tirage' };
+const LOT_TYPES = { mout: 'Moût reçu', pressee: 'Pressée', fraction: 'Fraction de pressurage', vin_clair: 'Vin', assemblage: 'Assemblage', vin_reserve: 'Vin de réserve', cuvee_tirage: 'Cuvée de tirage' };
 // Fractions de moût : liste personnalisable (Paramètres › Listes). « pressurage » = proposée dans le formulaire de pressurage.
 const DEFAULT_FRACTIONS = () => ([
   { id: 'cuvee', label: 'Cuvée', suffix: 'C', pressurage: true },
-  { id: 'taille1', label: '1ère taille', suffix: 'T1', pressurage: true },
-  { id: 'taille2', label: '2ème taille', suffix: 'T2', pressurage: true },
+  { id: 'taille1', label: 'Taille', suffix: 'T', pressurage: true }, // 0.47.0-alpha.2 : « Taille » seule (2e taille retirée des valeurs d'une base neuve)
   { id: 'rebeche', label: 'Rebêche', suffix: 'R', pressurage: true },
   { id: 'lies', label: 'Lies', suffix: 'L', pressurage: false },
   { id: 'bourbes', label: 'Bourbes', suffix: 'B', pressurage: false },
@@ -137,7 +137,7 @@ const fracDef = (db, id) => fracList(db).find((x) => x.id === id) || null;
 const fracLabel = (db, id) => { const f = id ? fracDef(db, id) : null; return f ? f.label : (id && id !== '?' ? `(${id})` : 'Non précisée'); };
 const fracPress = (db, keep) => fracList(db).filter((x) => x.pressurage !== false || (keep || []).includes(x.id));
 const PREP_TYPES = { levain: 'Levain levurien', pied_mlf: 'Pied de cuve malolactique', liqueur_tirage: 'Liqueur de tirage', liqueur_exp: "Liqueur d'expédition" };
-const CATEGORIES = { oeno: 'Œnologique', aux: 'Auxiliaire', sec: 'Matière sèche' };
+const CATEGORIES = { oeno: 'Produit de traitement', aux: 'Auxiliaire technologique', sec: 'Matière sèche' }; // 0.47.0-alpha.2 : libellés (identifiants inchangés)
 const UNITES = ['g', 'kg', 'mL', 'L', 'u'];
 const OP_LABELS = {
   apport: 'Pesée de vendange', pressurage: 'Pressurage', debourbage: 'Débourbage', soutirage: 'Soutirage', transfert: 'Transfert',
@@ -150,14 +150,14 @@ const OP_TONE = { alimentation: 'info', apport: 'ok', pressurage: 'ok', debourba
 const DEFAULT_LISTS = () => ({
   fractions: DEFAULT_FRACTIONS(),
   appellations: [], // 0.33.0-alpha.1 : appellations de la région (profil viticole), proposées pour les produits de la DRM
-  cepages: [{ id: 'chard', label: 'Chardonnay' }, { id: 'pn', label: 'Pinot Noir' }, { id: 'pm', label: 'Meunier' }, { id: 'autre', label: 'Autre (Arbane, Petit Meslier…)' }],
+  cepages: [{ id: 'chard', label: 'Chardonnay' }, { id: 'pn', label: 'Pinot noir' }, { id: 'pm', label: 'Meunier' }, { id: 'autre', label: 'Autre (Arbane, Petit Meslier…)' }],
   matieres: [{ id: 'inox', label: 'Inox', couleur: '#B9C4CC', finition: 'metal' }, { id: 'chene', label: 'Chêne', couleur: '#A9743F', finition: 'bois' }, { id: 'beton', label: 'Béton', couleur: '#A7A39A', finition: 'mineral' }, { id: 'fibre', label: 'Fibre / résine', couleur: '#8FB3C7', finition: 'lisse' }, { id: 'verre', label: 'Verre', couleur: '#9CC9B5', finition: 'verre' }, { id: 'gres', label: 'Grès', couleur: '#B79A78', finition: 'mineral' }, { id: 'terrecuite', label: 'Terre cuite', couleur: '#C0653D', finition: 'terre' }, { id: 'ceramique', label: 'Céramique', couleur: '#E8E2D2', finition: 'email' }],
   typesContenant: [{ id: 'cuve', label: 'Cuve', forme: 'cuve' }, { id: 'fut', label: 'Fût', forme: 'fut' }, { id: 'foudre', label: 'Foudre', forme: 'foudre' }, { id: 'citerne', label: 'Citerne', forme: 'citerne' }, { id: 'jarre', label: 'Jarre', forme: 'jarre' }, { id: 'amphore', label: 'Amphore', forme: 'amphore' }, { id: 'oeuf', label: 'Œuf œnologique', forme: 'oeuf' }, { id: 'bombonne', label: 'Bombonne', forme: 'bombonne' }],
-  typesPerte: [{ id: 'bourbes', label: 'Bourbes' }, { id: 'lies', label: 'Lies' }, { id: 'ouillage', label: 'Évaporation / ouillage' }, { id: 'echantillon', label: 'Échantillons' }, { id: 'casse', label: 'Casse / fuite' }, { id: 'ecart', label: 'Écart de jaugeage' }, { id: 'autre', label: 'Autre' }],
-  methodesFiltration: [{ id: 'diato', label: 'Terre diatomée' }, { id: 'plaques', label: 'Plaques' }, { id: 'tangentiel', label: 'Tangentielle' }, { id: 'cartouches', label: 'Cartouches / membrane' }, { id: 'centrif', label: 'Centrifugation' }],
+  typesPerte: [{ id: 'bourbes', label: 'Bourbes' }, { id: 'lies', label: 'Lies' }, { id: 'ouillage', label: 'Évaporation (part des anges)' }, { id: 'echantillon', label: 'Échantillons' }, { id: 'casse', label: 'Casse / fuite' }, { id: 'ecart', label: 'Écart de jaugeage' }, { id: 'autre', label: 'Autre' }],
+  methodesFiltration: [{ id: 'diato', label: 'Terre de diatomées' }, { id: 'plaques', label: 'Plaques' }, { id: 'tangentiel', label: 'Tangentielle' }, { id: 'cartouches', label: 'Cartouches / membrane' }], // centrifugation : opération distincte (0.47.0-alpha.2)
   equipements: [{ id: 'pressoir', label: 'Pressoir 4 000 kg' }, { id: 'pompe', label: 'Pompe à pistons' }, { id: 'filtre', label: 'Filtre à plaques' }, { id: 'tangent', label: 'Filtre tangentiel' }, { id: 'tireuse', label: 'Tireuse' }, { id: 'degorgeuse', label: 'Ligne de dégorgement' }],
   stades: DEFAULT_STADES(), couleursVin: DEFAULT_COULEURS_VIN(), echelles: DEFAULT_ECHELLES(), stadesMelanges: DEFAULT_STADES_MELANGES(), operations: DEFAULT_OPERATIONS(),
-  actionsHygiene: [{ id: 'nettoyage', label: 'Nettoyage' }, { id: 'rincage', label: 'Rinçage' }, { id: 'desinfection', label: 'Désinfection' }, { id: 'detartrage', label: 'Détartrage' }, { id: 'vapeur', label: 'Passage vapeur' }, { id: 'soufrage', label: 'Mèchage / SO₂' }],
+  actionsHygiene: [{ id: 'nettoyage', label: 'Nettoyage' }, { id: 'rincage', label: 'Rinçage' }, { id: 'desinfection', label: 'Désinfection' }, { id: 'detartrage', label: 'Détartrage' }, { id: 'vapeur', label: 'Passage vapeur' }, { id: 'soufrage', label: 'Méchage / SO₂' }],
   // locaux et matériel nettoyés sans être des contenants ni des équipements (plan de nettoyage, 0.26.0-alpha.1)
   locaux: [{ id: 'sol_pressoir', label: 'Sol et murs du pressoir' }, { id: 'caisses', label: 'Caisses à vendanges' }, { id: 'palettes', label: 'Palettes de vendanges' }, { id: 'laveuse', label: 'Laveuse de caisses' }, { id: 'materiel_transfert', label: 'Matériel de transfert (pompes, tuyaux, raccords)' }, { id: 'sol_cuverie', label: 'Sol de la cuverie' }, { id: 'murs_cuverie', label: 'Murs et extérieurs des cuves' }, { id: 'petit_materiel', label: 'Petit matériel (seaux, robinets, brosses…)' }, { id: 'chaine_tirage', label: 'Chaîne de tirage' }, { id: 'chaine_degorgement', label: 'Chaîne de dégorgement' }],
   qualifs: DEFAULT_QUALIFS(),

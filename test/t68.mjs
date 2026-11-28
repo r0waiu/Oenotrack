@@ -53,7 +53,7 @@ ok('« + Partenaire » : deuxième onglet actif, avec son propre moût (Moût 1)
   && (await s.locator('[role=tabpanel] [data-mout]').count()) === 1 && /Moût 1/.test(await s.locator('[role=tabpanel] [data-mout] .chip-info').innerText()));
 await pick(page, s.locator('input[aria-label="Partenaire 2"]'), 'Henn', 'Domaine Hennequin'); await page.waitForTimeout(200);
 await s.locator('[aria-label="N° de bon / DAE du partenaire 2"]').fill('DAE-T67-2');
-await s.locator('[aria-label="Cépage du moût 3"]').selectOption({ label: 'Pinot Noir' });
+await s.locator('[aria-label="Cépage du moût 3"]').selectOption({ label: 'Pinot noir' });
 await pick(page, s.locator('input[aria-label="Cuve de destination 1 du moût 3"]'), 'Cuve 03', 'Cuve 03'); await page.waitForTimeout(150);
 await s.locator('[aria-label="Hauteur en cuve 1 du moût 3 (cm)"]').fill('123,8'); await page.waitForTimeout(200);
 t = await txt(s.locator('[data-hauteur-cuve="3-1"]'));

@@ -10,7 +10,7 @@ function SnapshotView({ snap, live }) {
       <SnapTable title="Vin en contenants" rows={snap.portions} cols={[{ h: 'Contenant', r: (p) => p.contenant }, { h: 'Lot', r: (p) => <b>{p.code}</b> }, { h: 'Revendication', r: (p) => (p.qualif ? <QChip id={p.qualif} /> : '—') }, { h: 'Volume', cls: 'r', r: (p) => <span className="num">{fmtL(p.volL)}</span> }]} />
       <SnapTable title="Bouteilles sur lattes" rows={snap.bouteilles} cols={[{ h: 'Lot de tirage', r: (b) => <b>{b.code}</b> }, { h: 'Bouteilles', cls: 'r', r: (b) => <span className="num">{fmt(b.nb)}</span> }]} />
       <SnapTable title="Préparations" rows={snap.preparations} cols={[{ h: 'Code', r: (p) => <b>{p.code}</b> }, { h: 'Type', r: (p) => PREP_TYPES[p.type] }, { h: 'Revendication', r: (p) => <QChip id={p.qualif} /> }, { h: 'Reste', cls: 'r', r: (p) => <span className="num">{fmtL(p.restantL)}</span> }]} />
-      <SnapTable title="Intrants en stock" rows={snap.intrants} cols={[{ h: 'Produit', r: (i) => i.produit }, { h: 'N° lot fournisseur', r: (i) => <span className="num">{i.numLot}</span> }, { h: 'DLUO', r: (i) => fmtDate(i.dluo) }, { h: 'Restant', cls: 'r', r: (i) => <span className="num">{fmt(i.restant, 2)} {i.unite}</span> }]} />
+      <SnapTable title="Intrants en stock" rows={snap.intrants} cols={[{ h: 'Produit', r: (i) => i.produit }, { h: 'N° lot fournisseur', r: (i) => <span className="num">{i.numLot}</span> }, { h: 'DDM', r: (i) => fmtDate(i.dluo) }, { h: 'Restant', cls: 'r', r: (i) => <span className="num">{fmt(i.restant, 2)} {i.unite}</span> }]} />
     </div>
   );
 }
@@ -113,13 +113,14 @@ function CalculsView() {
   return (
     <div className="space-y-6" data-params-calculs="">
       <Sec title="Paramètres de calcul" right={moduleActif(db, 'tirage') && moduleAutorise(db, uid, 'tirage') ? <Btn size="sm" kind="ghost" onClick={() => setTab('tirage')}>🍾 Onglet Tirages</Btn> : null}><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
-        <Setting label="Sucre : g/L par point de densité" k="coefSucre" help="Sucre mixtion = (densité mixtion − densité base) × 1000 × ce coefficient (≈ 2,6)." /><Setting label="Volume d’une bouteille (L)" k="volBouteilleL" /></div></div></Sec>
+        <Setting label="Sucre : g/L par point de densité" k="coefSucre" defaut={COEF_SUCRE_DEFAUT} help="Un seul coefficient : sucre de la mixtion = (densité mixtion − densité base) × 1000 × ce coefficient ; la correction du point de tirage en déduit les points de densité par g/L (1 ÷ coefficient). 2,5 par défaut (0,4 point par g/L), à vérifier." /><Setting label="Volume d’une bouteille (L)" k="volBouteilleL" /></div></div></Sec>
       <Sec title="Tirage : levain, liqueur et calculateur"><TirageProfilCard /></Sec>
-      <Sec title="Enrichissement des moûts (chaptalisation)"><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
+      <Sec title="Enrichissement des moûts (saccharose, MCR)"><div className="card p-4"><div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
         <Setting label="TAV visé après enrichissement (% vol)" k="chaptalTAV" defaut={10.5} help="Valeur proposée par défaut (10,5) ; modifiable sur chaque fiche de cuve." />
-        <Setting label="Sucre pour 1 % vol (g/L)" k="chaptalCoef" defaut={17} help="Usage courant : 17 g/L pour 1 % vol (vins blancs) ; sert aussi à déduire le TAP des sucres." />
+        <Setting label="Sucre à ajouter pour +1 % vol, enrichissement (g/L)" k="chaptalCoef" defaut={17} help="Rendement pratique d’un enrichissement : environ 17 g/L pour 1 % vol (vins blancs), 18 g/L (vins rouges)." />
+        <Setting label="Conversion sucres → TAP (g/L par % vol)" k="sucresTapCoef" defaut={16.83} help="Titre alcoométrique volumique en puissance déduit des sucres analysés : 16,83 g/L par % vol (convention réglementaire, à vérifier)." />
         <Setting label="Enrichissement maximal (% vol)" k="chaptalMax" defaut={2} zero help="Avertissement au-delà ; 0 = pas de contrôle. À adapter à la réglementation de la campagne." /></div>
-        <p className="help mt-2">Le calcul part de la moyenne pondérée des analyses saisies à l’entrée des moûts (TAP, ou sucres en g/L) : sucre à ajouter = (TAV visé − TAP) × g/L par % vol × volume. <span>Simulateur (sucre ou MCR) : bouton « 🧪 Calculs » des fiches de cuve et de lot.</span></p></div></Sec>
+        <p className="help mt-2">Le calcul part de la moyenne pondérée des analyses saisies à l’entrée des moûts (TAP, ou sucres en g/L) : sucre à ajouter = (TAV visé − TAP) × g/L par % vol × volume ; augmentation de volume du saccharose : valeur physique du profil de tirage ci-dessus (0,6329 L/kg). <span>Simulateur (sucre ou MCR) : bouton « 🧪 Calculs » des fiches de cuve et de lot.</span></p></div></Sec>
       <FermReglagesCard />
     </div>
   );

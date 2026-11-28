@@ -7,7 +7,7 @@
    reconnues ; assistant IA s'il est configuré : il complète ce que le script n'a pas trouvé). Jamais imposées : l'utilisateur coche ce qu'il
    reprend. Champs des intrants (facultatifs, gardés par les versions précédentes) : fabricant, composition, doseEmploi, modeEmploi,
    stockage, conservation, allergenes, usageBio. */
-const NOM_SIGLES = new Set(['AA', 'AB', 'AOC', 'AOP', 'ATP', 'CE', 'CMC', 'CO2', 'DAP', 'DLC', 'DLUO', 'EU', 'FA', 'FML', 'HACCP', 'HVE', 'ICV', 'IGP', 'INAO', 'IOC', 'KPA', 'LSA', 'OGM', 'OIV', 'PH', 'PVI', 'PVP', 'PVPP', 'SO2', 'SP', 'TAV', 'UE', 'UV', 'VDF']);
+const NOM_SIGLES = new Set(['AA', 'AB', 'AOC', 'AOP', 'ATP', 'CE', 'CMC', 'CO2', 'DAP', 'DDM', 'DLC', 'DLUO', 'EU', 'FA', 'FML', 'HACCP', 'HVE', 'ICV', 'IGP', 'INAO', 'IOC', 'KPA', 'LSA', 'OGM', 'OIV', 'PH', 'PVI', 'PVP', 'PVPP', 'SO2', 'SP', 'TAV', 'UE', 'UV', 'VDF']);
 const NOM_PETITS = new Set(['de', 'du', 'des', 'd', 'la', 'le', 'les', 'l', 'et', 'en', 'à', 'au', 'aux', 'pour', 'sur', 'avec', 'sans', 'ou', 'par', 'of', 'and']);
 const NOM_LETTRE = /[A-Za-zÀ-ÖØ-öø-ÿŒœÆæ]/;
 const NOM_JETONS = /[A-Za-zÀ-ÖØ-öø-ÿŒœÆæ0-9]+(?:[.,][0-9]+)?%?|[^A-Za-zÀ-ÖØ-öø-ÿŒœÆæ0-9]+/g;
@@ -76,7 +76,7 @@ function ficheInfosScript(texte, genre) {
 const IA_INFOS_DESC = {
   fabricant: '"<société qui fabrique ou commercialise le produit>"', composition: '"<composition ou matières actives, en une ou deux phrases>"',
   doseEmploi: '"<doses d’emploi conseillées (et dose légale maximale si indiquée), avec leurs unités>"', modeEmploi: '"<préparation et mise en œuvre, en deux ou trois phrases>"',
-  stockage: '"<conditions de stockage>"', conservation: '"<durée de conservation, DLUO, conservation après ouverture>"', allergenes: '"<allergènes présents, ou « aucun » si le document l’affirme>"',
+  stockage: '"<conditions de stockage>"', conservation: '"<durée de conservation, DDM (DLUO), conservation après ouverture>"', allergenes: '"<allergènes présents, ou « aucun » si le document l’affirme>"',
   usageBio: '"<utilisation en agriculture biologique d’après le document (règlement (UE) 2018/848…)>"',
 };
 function iaPromptInfos(lu, champs, produitNom, connu) {

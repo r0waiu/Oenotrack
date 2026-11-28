@@ -2,6 +2,11 @@
 
 Toutes les versions publiées, de la plus récente à la plus ancienne (numérotation `X.Y.Z-étiquette.N` : voir le [README](README.md#numérotation-des-versions)). Le même journal est dans l’application : *Nouveautés*, en bas de l’écran.
 
+## 0.47.0-alpha.2 — 27/11/2026
+
+- Vocabulaire technique revu avec l’exploitation : TAV acquis pour les vins (SO₂ moléculaire) et TAP pour les moûts, TAV naturel et indice de Folin-Ciocalteu distincts dans les bulletins, enrichissement (saccharose, moût concentré, MCR), vin clarifié, fractions Cuvée, Taille et Rebêche d’une base neuve (sous-fractions ajoutées avec leur rôle), DDM au lieu de DLUO, ticket de pesée, revendication, apte au contact alimentaire, Premier Cru et Grand Cru, « non millésimé », déclaration d’intention de tirage et déclaration de revendication ; les libellés d’origine de vos listes sont mis à jour, ceux que vous avez changés sont gardés.
+- Coefficients corrigés (à vérifier) : un seul coefficient de 2,5 g/L de sucre par point de densité (0,4 point par g/L pour la correction du point de tirage), augmentation de volume du saccharose de 0,6329 L/kg pour les calculs (tirage, enrichissement) et de 0,66 L/kg pour les déclarations, conversion sucres → TAP de 16,83 g/L par % vol, fin de FA à 0,994, VRTP en % des volumes mis en œuvre (vins et liqueurs) ; avertissement pour un rosé par coupage de vin blanc et de vin rouge d’un vin tranquille (règlement délégué (UE) 2019/934, art. 8), sauf Côte-Rôtie.
+
 ## 0.47.0-alpha.1 — 27/11/2026
 
 - Échelle par appellation : chaque appellation de votre liste a sa hiérarchie, proposée d’après son nom et sa région puis confirmée ou changée (Paramètres › Listes) — Champagne, Bourgogne, Chablis, Alsace, Beaujolais, Côtes du Rhône, Saint-Émilion, Médoc, Sauternes et Barsac, Graves, Languedoc, Val de Loire, Italie, Espagne, Allemagne (loi de 2021), Autriche (DAC), Portugal, Suisse, générique ; repères réglementaires à vérifier.

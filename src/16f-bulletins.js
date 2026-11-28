@@ -14,7 +14,9 @@
    0.40.0-alpha.2 : paramètres répartis sur plusieurs tableaux et plusieurs pages (un en-tête par tableau, morceaux d'un même échantillon réunis
    par n° de laboratoire : bulletinColonnesReunir), azote ammoniacal et alpha-aminé, chaptalisation calculée, renvois « (**) » après une valeur. */
 const BULLETIN_CATALOGUE = [
-  { cle: 'tap', nom: 'TAP', unite: '% vol.', dec: 1, motifs: [/\btap\b/, /\btavn\b/, /titre alcoometrique (?:volumique )?(?:potentiel|naturel)/, /alcool (?:probable|potentiel)/, /degre (?:probable|potentiel)/] },
+  // 0.47.0-alpha.2 : TAV naturel (titre total avant enrichissement) distinct du TAP (égal au TAP seulement sur un moût non fermenté)
+  { cle: 'tavn', nom: 'TAV naturel', unite: '% vol.', dec: 2, motifs: [/\btavn\b/, /titre alcoometrique (?:volumique )?naturel/, /\btav naturel\b/] },
+  { cle: 'tap', nom: 'TAP (titre alcoométrique volumique en puissance)', unite: '% vol.', dec: 1, motifs: [/\btap\b/, /titre alcoometrique (?:volumique )?(?:potentiel|en puissance)/, /alcool (?:probable|potentiel)/, /degre (?:probable|potentiel)/] },
   { cle: 'tav', nom: 'TAV acquis', unite: '% vol.', dec: 2, motifs: [/\btava?\b/, /titre alcoometrique/, /alcool (?:acquis|reel)/, /degre alcoolique/, /^alcool\b/] },
   { cle: 'sucres', nom: 'Sucres (glucose + fructose)', unite: 'g/L', dec: 1, motifs: [/glucose ?\+? ?fructose/, /sucres? ?(?:residuels?|reducteurs?|fermentescibles|totaux)/, /^sucres?\b/] },
   { cle: 'saccharose', nom: 'Saccharose', unite: 'g/L', dec: 1, motifs: [/^saccharose\b/, /\bsucrose\b/] },
@@ -37,10 +39,11 @@ const BULLETIN_CATALOGUE = [
   { cle: 'cuivre', nom: 'Cuivre', unite: 'mg/L', dec: 2, motifs: [/^cuivre\b/] },
   { cle: 'turbidite', nom: 'Turbidité', unite: 'NTU', dec: 0, motifs: [/turbidite/] },
   { cle: 'co2', nom: 'CO₂', unite: 'mg/L', dec: 0, motifs: [/^co2\b/, /gaz carbonique/, /dioxyde de carbone/] },
-  { cle: 'densite', nom: 'Densité', unite: '', dec: 4, motifs: [/^densite\b/, /^masse volumique/] },
+  { cle: 'densite', nom: 'Densité (masse volumique à 20 °C)', unite: 'g/mL', dec: 4, motifs: [/^densite\b/, /^masse volumique/] },
   { cle: 'glycerol', nom: 'Glycérol', unite: 'g/L', dec: 1, motifs: [/glycerol/] },
   { cle: 'ethanal', nom: 'Éthanal', unite: 'mg/L', dec: 0, motifs: [/^ethanal/, /acetaldehyde/] },
-  { cle: 'ipt', nom: 'IPT', unite: '', dec: 0, motifs: [/\bipt\b/, /indice (?:de )?polyphenols/, /indice de folin/] },
+  { cle: 'folin', nom: 'Indice de Folin-Ciocalteu', unite: '', dec: 0, motifs: [/indice de folin/, /\bfolin\b/] }, // 0.47.0-alpha.2 : méthode et échelle distinctes de l'IPT
+  { cle: 'ipt', nom: 'IPT', unite: '', dec: 0, motifs: [/\bipt\b/, /indice (?:de |des )?polyphenols/] },
 ];
 // texte comparable : minuscules, sans accents, indices et exposants ramenés aux chiffres, ponctuation → espaces
 const bulNorm = (s) => norm(String(s || '').replace(/[₀-₉]/g, (c) => String(c.charCodeAt(0) - 0x2080)).replace(/[⁰¹²³⁴-⁹]/g, (c) => ({ '⁰': '0', '¹': '1', '²': '2', '³': '3' }[c] || String(c.charCodeAt(0) - 0x2070))))
@@ -72,7 +75,10 @@ function bulletinConvertir(v, uniteTexte, unitePar, nomPar) {
   // 0.38.0-alpha.3 : valeur déjà en H₂SO₄ (son unité vient avant toute mention de l'acide tartrique, p. ex. « 3,43 g/L H2SO4 5,25 g/L
   // acide tartrique ») : gardée telle quelle — elle était divisée une seconde fois par 1,531
   if (/h2so4/.test(up)) { const ih = u.search(/h2so4/); const it = u.search(/tartrique|h2t\b|\bth2\b|meq|acetique/); if (ih >= 0 && (it < 0 || ih < it)) return v; if (/meq/.test(u)) return v * 0.049; if (/tartrique|h2t\b|\bth2\b/.test(u)) return v / 1.531; if (/acetique/.test(u)) return v * 0.8167; }
-  if (/densite|masse volumique/.test(bulNorm(nomPar)) && v > 100 && v < 2000) return v / 1000;
+  // 0.47.0-alpha.2 : paramètre exprimé en acide tartrique (AT) ou acétique (acidité volatile), profils hors de France
+  if (/tartrique/.test(up)) { if (/h2so4/.test(u)) return v * ACIDITE_TARTRIQUE_PAR_H2SO4; if (/meq/.test(u)) return v * 0.075; return v; }
+  if (/acetique/.test(up)) { if (/h2so4/.test(u)) return v * ACIDITE_ACETIQUE_PAR_H2SO4; if (/meq/.test(u)) return v * 0.06; return v; }
+  if (/densite|masse volumique/.test(bulNorm(nomPar)) && v > 100 && v < 2000) return v / 1000; // g/L (g/dm³) → g/mL
   if (/^g l$/.test(up) && /\bmg l\b/.test(u)) return v / 1000;
   if (/^mg l$/.test(up) && /\bg l\b/.test(u) && !/\bmg l\b/.test(u) && v < 5) return v * 1000;
   return v;
@@ -275,7 +281,15 @@ function bulletinFormatLong(db, lignes) {
   return null;
 }
 // lignes → { labo, numero, date, echantillons: [{ ref, lot/cont trouvés, date, valeurs: { paramId: { v, op, label } }, nouveaux: { cle: { … } } }] }
-function bulletinAnalyser(db, R, lignes, opts) {
+// 0.47.0-alpha.2 : « TAV naturel » d'un échantillon de moût (densité > 1,010 ou sucres > 30 g/L, sans TAP) = son TAP ; d'un vin : paramètre distinct
+function bulletinTavnMout(db, e) {
+  if (!e || !e.valeurs) return e; const V = e.valeurs; const N = e.nouveaux || {}; const x = V.tavn || N.tavn; if (!x || V.tap) return e;
+  const val = (k) => (V[k] ? num(V[k].v) : N[k] ? num(N[k].v) : null); const mout = (val('densite') != null && val('densite') > 1.01) || (val('sucres') != null && val('sucres') > 30);
+  if (!mout || !(db.analysesParams || []).some((p) => p && p.id === 'tap')) return e;
+  V.tap = { v: x.v, op: x.op || '', label: x.label || 'TAV naturel', src: x.src || 'script' }; if (V.tavn) delete V.tavn; else delete N.tavn; return e;
+}
+function bulletinAnalyser(db, R, lignes, opts) { const b = bulletinAnalyser0(db, R, lignes, opts); ((b && b.echantillons) || []).forEach((e) => bulletinTavnMout(db, e)); return b; }
+function bulletinAnalyser0(db, R, lignes, opts) {
   const o = opts || {}; const cands = o.candidats || bulletinCandidats(db, R); const texte = lignes.map((l) => l.texte).join('\n');
   const ent = bulletinEntete(texte); const dateG = bulletinDate(texte);
   const E = []; let cur = null; let cols = null;
@@ -333,7 +347,7 @@ function iaPromptBulletin(db, texte, ocr) {
   const t = `Paramètres d’analyse de la cave (identifiant : nom (unité attendue)) :\n${P}\n\nBulletin d’analyses${ocr ? ' (texte reconnu sur un scan ou une photo : il peut contenir des erreurs de lecture)' : ''} :\n"""\n${String(texte || '').slice(0, 15000)}\n"""\n\n`
     + 'Réponds par un objet JSON de la forme : {"laboratoire": "<nom ou null>", "numero": "<n° du bulletin ou null>", "echantillons": [{"numero_echantillon": "<n° d’échantillon donné par le laboratoire, ou null>", "reference": "<référence du client telle qu’écrite : cuve, lot, désignation>", "date_prelevement": "<AAAA-MM-JJ ou null>", "resultats": {"<identifiant du paramètre>": <nombre dans l’unité attendue>}, "autres": [{"nom": "<paramètre absent de la liste>", "valeur": <nombre>, "unite": "<unité>"}]}]}.\n'
     + 'Un même bulletin contient souvent plusieurs échantillons (une ligne ou une colonne chacun, avec un n° d’échantillon du laboratoire et une référence du client) : renvoie-les tous, séparément, dans l’ordre du bulletin, sans mélanger leurs valeurs. '
-    + 'Valeur suivie de son incertitude (« 3,25 / », « 12,06 / 0,13 », « 3,25 ± 0,05 ») : la valeur seule. Masse volumique en g/dm³ ou g/L → densité : diviser par 1000. Titre alcoométrique volumique naturel (moût) → TAP. Acide acétique → acidité volatile (× 0,817 en g/L H₂SO₄). '
+    + 'Valeur suivie de son incertitude (« 3,25 / », « 12,06 / 0,13 », « 3,25 ± 0,05 ») : la valeur seule. Masse volumique en g/dm³ ou g/L → masse volumique en g/mL : diviser par 1000. Titre alcoométrique volumique naturel (moût) → TAP. Acide acétique → acidité volatile (× 0,817 en g/L H₂SO₄). '
     + 'Acidités exprimées en acide tartrique (g/L TH2) → g/L H₂SO₄ : diviser par 1,531 ; en acide acétique → × 0,817. Valeur écrite « < x » : x. Date de prélèvement absente : date de réception. Seulement les résultats présents dans le bulletin.';
   return { system, texte: t, max: 6000 };
 }

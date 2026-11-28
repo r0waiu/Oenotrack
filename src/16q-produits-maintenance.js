@@ -91,7 +91,7 @@ function maintContactDetecter(texte) {
 }
 
 /* ---------- fiche récapitulative des produits de maintenance ---------- */
-const RECAP_MAINT_COLS = [['nom', 'Produit'], ['fournisseur', 'Fournisseur'], ['fabricant', 'Fabricant'], ['reference', 'Référence'], ['usage', 'Usage'], ['contactAlimentaire', 'Agréé contact alimentaire'],
+const RECAP_MAINT_COLS = [['nom', 'Produit'], ['fournisseur', 'Fournisseur'], ['fabricant', 'Fabricant'], ['reference', 'Référence'], ['usage', 'Usage'], ['contactAlimentaire', 'Apte au contact alimentaire'],
   ['caveVinif', 'Utilisation en cave de vinification'], ['composition', 'Composition'], ['stockage', 'Stockage'], ['stock', 'Stock actuel'], ['seuil', 'Stock minimal'], ['fds', 'FDS'], ['ft', 'Fiche technique'], ['champs', 'Champs personnalisés'], ['notes', 'Notes']];
 const RECAP_MAINT_DEFAUT = ['nom', 'fournisseur', 'usage', 'contactAlimentaire', 'caveVinif', 'stock', 'fds'];
 function recapMaintenance(db, cols, o = {}) {

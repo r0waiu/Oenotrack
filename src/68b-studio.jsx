@@ -201,6 +201,7 @@ function FractionsEditor() {
         <Btn kind="primary" size="sm" onClick={() => { const r = act((d) => fractionCont(d, 'add', null, { label: nv.label, suffix: nv.suffix, pressurage: nv.pressurage, role: nv.role }), 'Fraction ajoutée.'); if (r.ok) setNv({ label: '', suffix: '', pressurage: true, role: 'autre', roleManuel: false }); }}>+ Ajouter</Btn>
       </div>
       <p className="help">Toutes les fractions sont proposées à l’entrée de moûts ; celles cochées « au pressurage » apparaissent aussi dans le formulaire de pressurage. Le suffixe complète le code lot (P26-01-<b>C</b>, M26-02-<b>T1</b>). Le rôle (cuvée, taille, rebêche ou autre) compte la fraction dans les marcs, les plafonds et les rendements : il est proposé d’après le nom, vérifiez-le. Une fraction déjà utilisée peut être renommée mais pas supprimée.</p>
+      <p className="help" data-sous-fractions="">Sous-fractions (cœur de cuvée, tête de cuvée, 1re / 2e taille…) : ajoutez-les avec leur rôle (cuvée ou taille) ; elles comptent alors avec leur fraction dans les marcs, les plafonds et les rendements.</p>
       <Btn size="sm" onClick={() => act((d) => fractionCont(d, 'reset'), 'Fractions par défaut réajoutées.')}>Réajouter les fractions par défaut manquantes</Btn>
     </div>
   );

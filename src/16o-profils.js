@@ -13,7 +13,7 @@
    champs inconnus gardés ; settings.region (champagne | autre) reste celui que lisent les versions antérieures. */
 const PROFIL_TYPES = [
   ['blanc', 'Vins tranquilles blancs'], ['rose', 'Vins tranquilles rosés'], ['rouge', 'Vins tranquilles rouges'],
-  ['effervescent', 'Vins effervescents (méthode traditionnelle)'], ['ancestrale', 'Effervescents en méthode ancestrale (pétillant naturel)'],
+  ['effervescent', 'Vins effervescents (méthode traditionnelle)'], ['ancestrale', 'Effervescents en méthode ancestrale (une seule fermentation, finie en bouteille)'],
   ['doux', 'Vins moelleux, liquoreux, vins doux naturels et vins de liqueur'],
 ];
 const PROFIL_RACCOURCIS = [
@@ -29,18 +29,19 @@ const PROFIL_C = (s) => s.split('|').map((x) => x.split(':'));
 // années exceptionnelles (point A.3), sucrage à sec exclu dans certains départements du Sud (point B.3)
 const PROFIL_REGIONS = [
   { id: 'champagne', nom: 'Champagne', pays: 'France', types: ['effervescent', 'blanc'], echelle: 'champagne', enrichMax: 2,
-    cepages: PROFIL_C('chard:Chardonnay|pn:Pinot Noir|pm:Meunier'), appellations: ['Champagne', 'Coteaux champenois', 'Rosé des Riceys'] },
+    cepages: PROFIL_C('chard:Chardonnay|pn:Pinot noir|pm:Meunier'), appellations: ['Champagne', 'Coteaux champenois', 'Rosé des Riceys'] },
   { id: 'alsace', nom: 'Alsace', pays: 'France', types: ['blanc', 'effervescent'], echelle: 'alsace', enrichMax: 2,
-    cepages: PROFIL_C('riesling:Riesling|gewurztraminer:Gewurztraminer|pinot_gris:Pinot Gris|pinot_blanc:Pinot Blanc|muscat:Muscat|sylvaner:Sylvaner|pn:Pinot Noir'), appellations: ['Alsace', 'Alsace grand cru', 'Crémant d’Alsace'] },
+    cepages: PROFIL_C('riesling:Riesling|gewurztraminer:Gewurztraminer|pinot_gris:Pinot gris|pinot_blanc:Pinot blanc|muscat:Muscat|sylvaner:Sylvaner|pn:Pinot noir'), appellations: ['Alsace', 'Alsace grand cru', 'Crémant d’Alsace'] },
   { id: 'bourgogne', nom: 'Bourgogne', pays: 'France', types: ['blanc', 'rouge'], echelle: 'bourgogne', enrichMax: 1.5,
-    cepages: PROFIL_C('chard:Chardonnay|pn:Pinot Noir|aligote:Aligoté|gamay:Gamay'), appellations: ['Bourgogne', 'Bourgogne Aligoté', 'Chablis', 'Mâcon', 'Crémant de Bourgogne'] },
+    cepages: PROFIL_C('chard:Chardonnay|pn:Pinot noir|aligote:Aligoté|gamay:Gamay'), appellations: ['Bourgogne', 'Bourgogne Aligoté', 'Chablis', 'Mâcon', 'Crémant de Bourgogne'] },
   { id: 'beaujolais', nom: 'Beaujolais', pays: 'France', types: ['rouge'], echelle: 'generique', enrichMax: 1.5,
     cepages: PROFIL_C('gamay:Gamay|chard:Chardonnay'), appellations: ['Beaujolais', 'Beaujolais-Villages', 'Morgon', 'Fleurie'] },
-  { id: 'bordeaux', nom: 'Bordeaux', pays: 'France', types: ['rouge', 'blanc'], echelle: 'saint-emilion', enrichMax: 1.5,
-    cepages: PROFIL_C('merlot:Merlot|cab_sauv:Cabernet-Sauvignon|cab_franc:Cabernet Franc|petit_verdot:Petit Verdot|malbec:Malbec (Côt)|sauvignon:Sauvignon Blanc|semillon:Sémillon|muscadelle:Muscadelle'),
+  { id: 'bordeaux', nom: 'Bordeaux', pays: 'France', types: ['rouge', 'blanc'], echelle: 'generique', // 0.47.0-alpha.2 : Saint-Émilion seulement par l'appellation (16oc)
+    enrichMax: 1.5,
+    cepages: PROFIL_C('merlot:Merlot|cab_sauv:Cabernet-Sauvignon|cab_franc:Cabernet franc|petit_verdot:Petit Verdot|malbec:Malbec (Côt)|sauvignon:Sauvignon blanc|semillon:Sémillon|muscadelle:Muscadelle'),
     appellations: ['Bordeaux', 'Bordeaux supérieur', 'Médoc', 'Saint-Émilion', 'Sauternes', 'Crémant de Bordeaux'] },
   { id: 'loire', nom: 'Val de Loire', pays: 'France', types: ['blanc', 'rouge', 'rose', 'effervescent'], echelle: 'generique', enrichMax: 2,
-    cepages: PROFIL_C('chenin:Chenin|sauvignon:Sauvignon Blanc|melon:Melon de Bourgogne|cab_franc:Cabernet Franc|gamay:Gamay|grolleau:Grolleau'), appellations: ['Muscadet', 'Anjou', 'Saumur', 'Touraine', 'Vouvray', 'Sancerre', 'Crémant de Loire'] },
+    cepages: PROFIL_C('chenin:Chenin|sauvignon:Sauvignon blanc|melon:Melon de Bourgogne|cab_franc:Cabernet franc|gamay:Gamay|grolleau:Grolleau'), appellations: ['Muscadet', 'Anjou', 'Saumur', 'Touraine', 'Vouvray', 'Sancerre', 'Crémant de Loire'] },
   { id: 'rhone', nom: 'Vallée du Rhône', pays: 'France', types: ['rouge', 'blanc'], echelle: 'generique', enrichMax: 1.5,
     cepages: PROFIL_C('syrah:Syrah|grenache:Grenache|mourvedre:Mourvèdre|cinsault:Cinsault|viognier:Viognier|marsanne:Marsanne|roussanne:Roussanne'), appellations: ['Côtes du Rhône', 'Côtes du Rhône Villages', 'Châteauneuf-du-Pape', 'Crozes-Hermitage', 'Clairette de Die'] },
   { id: 'languedoc', nom: 'Languedoc-Roussillon', pays: 'France', types: ['rouge', 'rose', 'blanc'], echelle: 'generique', enrichMax: 1.5,
@@ -50,26 +51,26 @@ const PROFIL_REGIONS = [
   { id: 'sud_ouest', nom: 'Sud-Ouest', pays: 'France', types: ['rouge', 'blanc'], echelle: 'generique', enrichMax: 1.5,
     cepages: PROFIL_C('malbec:Malbec (Côt)|tannat:Tannat|negrette:Négrette|fer_servadou:Fer Servadou|colombard:Colombard|gros_manseng:Gros Manseng|petit_manseng:Petit Manseng'), appellations: ['Cahors', 'Madiran', 'Jurançon', 'Gaillac', 'Bergerac'] },
   { id: 'jura_savoie', nom: 'Jura et Savoie', pays: 'France', types: ['blanc', 'rouge'], echelle: 'generique', enrichMax: 2,
-    cepages: PROFIL_C('savagnin:Savagnin|chard:Chardonnay|poulsard:Poulsard|trousseau:Trousseau|pn:Pinot Noir|jacquere:Jacquère|mondeuse:Mondeuse|altesse:Altesse'), appellations: ['Côtes du Jura', 'Arbois', 'Château-Chalon', 'Crémant du Jura', 'Savoie', 'Roussette de Savoie'] },
+    cepages: PROFIL_C('savagnin:Savagnin|chard:Chardonnay|poulsard:Poulsard|trousseau:Trousseau|pn:Pinot noir|jacquere:Jacquère|mondeuse:Mondeuse|altesse:Altesse'), appellations: ['Côtes du Jura', 'Arbois', 'Château-Chalon', 'Crémant du Jura', 'Savoie', 'Roussette de Savoie'] },
   // 0.46.0-alpha.2 : bassin Charentes-Cognac (Pineau des Charentes, IGP Charentais) ; zone viticole de l'UE à vérifier (C I supposée)
   { id: 'charentes', nom: 'Charentes', pays: 'France', types: ['blanc', 'doux'], echelle: 'generique', enrichMax: 1.5,
-    cepages: PROFIL_C('ugni_blanc:Ugni blanc|colombard:Colombard|folle_blanche:Folle blanche|montils:Montils|merlot:Merlot|cab_sauv:Cabernet-Sauvignon|cab_franc:Cabernet Franc'), appellations: ['Pineau des Charentes', 'Charentais'] },
+    cepages: PROFIL_C('ugni_blanc:Ugni blanc|colombard:Colombard|folle_blanche:Folle blanche|montils:Montils|merlot:Merlot|cab_sauv:Cabernet-Sauvignon|cab_franc:Cabernet franc'), appellations: ['Pineau des Charentes', 'Charentais'] },
   { id: 'corse', nom: 'Corse', pays: 'France', types: ['rouge', 'rose', 'blanc'], echelle: 'generique', enrichMax: 1.5,
     cepages: PROFIL_C('nielluccio:Nielluccio|sciaccarellu:Sciaccarellu|rolle:Rolle (Vermentino)'), appellations: ['Corse', 'Patrimonio', 'Ajaccio'] },
   { id: 'italie', nom: 'Italie', pays: 'Étranger', types: ['rouge', 'blanc'], echelle: 'generique', enrichMax: 1.5,
-    cepages: PROFIL_C('sangiovese:Sangiovese|nebbiolo:Nebbiolo|barbera:Barbera|montepulciano:Montepulciano|glera:Glera|pinot_gris:Pinot Gris|trebbiano:Trebbiano'), appellations: ['Chianti', 'Barolo', 'Prosecco', 'Franciacorta'] },
+    cepages: PROFIL_C('sangiovese:Sangiovese|nebbiolo:Nebbiolo|barbera:Barbera|montepulciano:Montepulciano|glera:Glera|pinot_gris:Pinot gris|trebbiano:Trebbiano'), appellations: ['Chianti', 'Barolo', 'Prosecco', 'Franciacorta'] },
   { id: 'espagne', nom: 'Espagne', pays: 'Étranger', types: ['rouge', 'blanc'], echelle: 'generique', enrichMax: 1.5,
     cepages: PROFIL_C('tempranillo:Tempranillo|grenache:Grenache|mourvedre:Mourvèdre|albarino:Albariño|verdejo:Verdejo|macabeo:Macabeo|xarello:Xarel·lo'), appellations: ['Rioja', 'Ribera del Duero', 'Rías Baixas', 'Cava'] },
   { id: 'portugal', nom: 'Portugal', pays: 'Étranger', types: ['rouge', 'blanc'], echelle: 'generique', enrichMax: 1.5,
     cepages: PROFIL_C('touriga_nacional:Touriga Nacional|touriga_franca:Touriga Franca|tempranillo:Tempranillo|baga:Baga|alvarinho:Alvarinho|arinto:Arinto'), appellations: ['Douro', 'Porto', 'Vinho Verde', 'Dão'] },
   { id: 'allemagne', nom: 'Allemagne', pays: 'Étranger', types: ['blanc', 'rouge'], echelle: 'generique', enrichMax: 3,
-    cepages: PROFIL_C('riesling:Riesling|pn:Pinot Noir|muller_thurgau:Müller-Thurgau|sylvaner:Sylvaner|pinot_gris:Pinot Gris|dornfelder:Dornfelder'), appellations: ['Mosel', 'Rheingau', 'Pfalz', 'Sekt'] },
+    cepages: PROFIL_C('riesling:Riesling|pn:Pinot noir|muller_thurgau:Müller-Thurgau|sylvaner:Sylvaner|pinot_gris:Pinot gris|dornfelder:Dornfelder'), appellations: ['Mosel', 'Rheingau', 'Pfalz', 'Sekt'] },
   { id: 'suisse', nom: 'Suisse', pays: 'Étranger', types: ['blanc', 'rouge'], echelle: 'generique', enrichMax: 0,
-    cepages: PROFIL_C('chasselas:Chasselas|pn:Pinot Noir|gamay:Gamay|merlot:Merlot|petite_arvine:Petite Arvine'), appellations: ['Valais', 'Vaud', 'Genève', 'Tessin'] },
+    cepages: PROFIL_C('chasselas:Chasselas|pn:Pinot noir|gamay:Gamay|merlot:Merlot|petite_arvine:Petite Arvine'), appellations: ['Valais', 'Vaud', 'Genève', 'Tessin'] },
   { id: 'autriche', nom: 'Autriche', pays: 'Étranger', types: ['blanc', 'rouge'], echelle: 'generique', enrichMax: 2,
     cepages: PROFIL_C('gruner:Grüner Veltliner|blaufrankisch:Blaufränkisch|zweigelt:Zweigelt|riesling:Riesling'), appellations: ['Wachau', 'Kamptal', 'Burgenland'] },
   { id: 'etats_unis', nom: 'États-Unis', pays: 'Étranger', types: ['rouge', 'blanc'], echelle: 'generique', enrichMax: 0,
-    cepages: PROFIL_C('cab_sauv:Cabernet-Sauvignon|chard:Chardonnay|pn:Pinot Noir|zinfandel:Zinfandel|merlot:Merlot'), appellations: ['Napa Valley', 'Sonoma County', 'Willamette Valley'] },
+    cepages: PROFIL_C('cab_sauv:Cabernet-Sauvignon|chard:Chardonnay|pn:Pinot noir|zinfandel:Zinfandel|merlot:Merlot'), appellations: ['Napa Valley', 'Sonoma County', 'Willamette Valley'] },
   { id: 'australie', nom: 'Australie', pays: 'Étranger', types: ['rouge', 'blanc'], echelle: 'generique', enrichMax: 0,
     cepages: PROFIL_C('syrah:Syrah (Shiraz)|chard:Chardonnay|cab_sauv:Cabernet-Sauvignon|riesling:Riesling|semillon:Sémillon'), appellations: ['Barossa Valley', 'Hunter Valley', 'Margaret River'] },
   { id: 'autre', nom: 'Autre région', pays: 'Autre', types: ['blanc', 'rouge'], echelle: '', enrichMax: 0, cepages: [], appellations: [] },
@@ -136,9 +137,18 @@ function profilPlan(db, region, types) {
   // seuil de la zone viticole : enrichissement maximal (règlement (UE) 1308/2013), sauf s'il a été réglé à la main
   const st = (db.settings || {}); const libreE = !hasNum(st.chaptalMax) || (hasNum(pv.chaptalMax) && num(pv.chaptalMax) === num(st.chaptalMax));
   if (R.enrichMax > 0 && libreE && chaptalReglages(db).max !== R.enrichMax) pousser('chaptal', 'seuils', 'Enrichissement maximal', `+${fmt(chaptalReglages(db).max, 1)} % vol`, `+${fmt(R.enrichMax, 1)} % vol`, { aVerifier: true });
+  // 0.47.0-alpha.2 : unités d'acidité selon le pays (France : g/L H₂SO₄ ; ailleurs : acide tartrique, acide acétique), paramètres encore inutilisés
+  const au = profilAciditeUnites(db, R); if (au) pousser('acidite', 'analyses', 'Unités d’acidité (AT, acidité volatile)', au.avant, au.apres);
   return out;
 }
-const PROFIL_GROUPES = [['onglets', 'Onglets'], ['operations', 'Opérations'], ['stades', 'Stades'], ['cepages', 'Cépages'], ['appellations', 'Appellations'], ['fractions', 'Fractions'], ['pressoir', 'Pressoir, région et classement'], ['seuils', 'Seuils indicatifs (à vérifier)']];
+// paramètres AT et acidité volatile à leur unité d'origine et sans analyse : unités du pays proposées
+function profilAciditeUnites(db, R) {
+  const cible = ACIDITE_UNITES[R.pays === 'France' || R.pays === 'Autre' ? 'france' : 'etranger']; const P = db.analysesParams || [];
+  const ids = ['at', 'av'].filter((id) => { const p = P.find((x) => x.id === id); return p && Object.values(ACIDITE_UNITES).some((u) => u[id] === p.unite) && p.unite !== cible[id] && !(db.analyses || []).some((a) => a && a.valeurs && hasNum(a.valeurs[id])); });
+  if (!ids.length) return null; const u = (id) => (P.find((x) => x.id === id) || {}).unite;
+  return { ids, cible, avant: ids.map((id) => u(id)).join(' · '), apres: ids.map((id) => cible[id]).join(' · ') };
+}
+const PROFIL_GROUPES = [['onglets', 'Onglets'], ['operations', 'Opérations'], ['stades', 'Stades'], ['cepages', 'Cépages'], ['appellations', 'Appellations'], ['fractions', 'Fractions'], ['pressoir', 'Pressoir, région et classement'], ['seuils', 'Seuils indicatifs (à vérifier)'], ['analyses', 'Unités d’analyse']];
 // application : seuls les changements cochés (ids) ; profil enregistré (région, types, date, auteur)
 function profilAppliquer(db, region, types, ids, uid) {
   const R = profilRegionDef(region); if (!R) return fail('Région inconnue.');
@@ -159,6 +169,7 @@ function profilAppliquer(db, region, types, ids, uid) {
     else if (x.id === 'crus' && !pris.some((y) => y.id === 'region')) (db.crus || []).forEach((c) => { if (!c.custom && !c.masque && !cruUsage(db, c.id)) { c.masque = true; c.masqueRegion = true; } });
     else if (x.id === 'echelle') echellePreset(db, R.echelle);
     else if (x.id === 'chaptal') { db.settings.chaptalMax = R.enrichMax; chaptalMax = R.enrichMax; }
+    else if (x.id === 'acidite') { const au = profilAciditeUnites(db, R); if (au) au.ids.forEach((id) => { const p = db.analysesParams.find((y) => y.id === id); if (p) p.unite = au.cible[id]; }); }
   });
   // profil de pressurage en dernier (le changement de région le remet à sa valeur par défaut)
   if (pris.some((x) => x.id === 'pressoir')) { const profP = champ ? 'champagne' : (T.some((t) => t === 'effervescent' || t === 'ancestrale') && R.pays === 'France' ? 'cremant' : 'libre'); const p = db.settings.pressoir || {}; db.settings.pressoir = { ...p, profil: profP, valeurs: p.profil === profP ? (p.valeurs || {}) : {} }; }

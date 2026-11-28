@@ -7,7 +7,7 @@ let ko = 0; const ok = (n, c, x) => { if (!c) ko++; console.log(c ? '✓' : '✗
 let t; const txt = async (l) => (await l.innerText()).replace(/\s+/g, ' ');
 
 {
-  const { browser, page, errors } = await open({ viewport: { width: 1360, height: 900 } });
+  const { browser, page, errors } = await open({ viewport: { width: 1360, height: 900 }, date: '2026-11-27T10:00:00' }); // date fixée : codes datés attendus (quantième 331)
   const ov = () => page.locator('.overlay').last(); const db = () => page.evaluate(() => JSON.parse(localStorage.getItem('oenotrack-db-v2')));
   // ---- Paramètres › Codification des lots
   await page.click('#tab-params'); await page.waitForTimeout(300);

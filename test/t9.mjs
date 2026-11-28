@@ -18,8 +18,8 @@ await sh.locator('[aria-label="Volume vers la cuve 2 du moût 1"]').fill('5');
 // moût 2 : C2 Pinot Noir taille, Bouzy, Bio → Bac D1 300 (mélange)
 await sh.locator('button:has-text("+ Ajouter un moût")').click(); await page.waitForTimeout(150);
 await sh.locator('[aria-label="Compartiment du moût 2"]').fill('C2');
-await sh.locator('[aria-label="Cépage du moût 2"]').selectOption({ label: 'Pinot Noir' });
-await sh.locator('[aria-label="Fraction du moût 2"]').selectOption({ label: '1ère taille' });
+await sh.locator('[aria-label="Cépage du moût 2"]').selectOption({ label: 'Pinot noir' });
+await sh.locator('[aria-label="Fraction du moût 2"]').selectOption({ label: 'Taille' });
 await sh.locator('[aria-label="Revendication du moût 2"]').selectOption('bio');
 await pick(page, sh.locator('input[aria-label="Cru (village)"]').nth(1), 'Bouz', 'Bouzy');
 await pick(page, sh.locator('input[aria-label="Cuve de destination 1 du moût 2"]'), 'Bac D1', 'Bac D1');

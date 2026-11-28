@@ -39,7 +39,7 @@ function AncTree({ lotId, depth = 0, vol, share }) {
   const tot = sum(srcs, (s) => s.volL); const preps = R.prepUse.filter((u) => u.lotId === lotId && l.type === 'cuvee_tirage');
   return (
     <li>
-      <LotLink id={lotId} /> <span className="text-xs text-ink2">{stadeCourt(db, l.stade)} · {couleurLabel(db, l.couleur).toLowerCase()}{l.millesime ? ` · ${l.millesime}` : ''}</span> <QChip id={l.qualif} />
+      <LotLink id={lotId} /> <span className="text-xs text-ink2">{stadeCourt(db, l.stade)} · {couleurLabel(db, l.couleur).toLowerCase()}{l.millesime ? ` · ${millesimeAffiche(l.millesime)}` : ''}</span> <QChip id={l.qualif} />
       {vol != null ? <span className="num ml-1 text-xs">{fmtL(vol)}{share != null ? ` · ${pct(share)}` : ''}</span> : null}
       {l.apports && l.apports.length ? <ul>{l.apports.map((a, i) => <li key={i} className="text-sm text-ink2">🍇 Apport : {fmt(a.kg)} kg {lbl(db, 'cepages', a.cepageId)} · {qLabel(a.qualifId)}</li>)}</ul> : null}
       {depth < 8 && (srcs.length || preps.length) ? <ul>{srcs.map((s) => <AncTree key={s.lotId} lotId={s.lotId} depth={depth + 1} vol={s.volL} share={tot > 0 && s.volL != null ? s.volL / tot : null} />)}{preps.map((u, i) => { const p = prepOf(R, u.prepId); return <li key={'p' + i} className="text-sm text-ink2">⚗ {PREP_TYPES[p.ptype]} <b>{p.code}</b> · {qLabel(p.qualif)} · {fmtL(u.volL)}</li>; })}</ul> : null}
@@ -154,7 +154,7 @@ function LotSheet({ id, onClose }) {
       </Sec>,
   };
   return (
-    <Sheet wide title={<span>{lot.code} <span className="font-normal text-ink2">— {lot.designation}</span></span>} sub={`${stadeLabel(db, lot.stade)} · ${couleurLabel(db, lot.couleur).toLowerCase()} · ${LOT_TYPES[lot.type].toLowerCase()} · millésime ${lot.millesime || '—'}`} onClose={onClose}
+    <Sheet wide title={<span>{lot.code} <span className="font-normal text-ink2">— {lot.designation}</span></span>} sub={`${stadeLabel(db, lot.stade)} · ${couleurLabel(db, lot.couleur).toLowerCase()} · ${LOT_TYPES[lot.type].toLowerCase()} · millésime ${millesimeAffiche(lot.millesime) || '—'}`} onClose={onClose}
       footer={<><Btn onClick={() => openReport({ kind: 'lot', ids: [id] })}>🖨 Rapport…</Btn><Btn onClick={() => setEdit(true)}>Modifier code / désignation</Btn><Btn onClick={onClose}>Fermer</Btn></>}>
       <div className="mb-5 flex flex-wrap items-center gap-2"><StadeChip id={lot.stade} /><CouleurChip id={lot.couleur} /><QChip id={lot.qualif} /><EChip info={echelleInfo(comp)} />{lotAppellations(db, R, id).filter((x) => x.appId).map((x) => <Chip key={`${x.appId}|${x.niveau}`} tone="info" title="Appellation et niveau d’après les parcelles du lot" data-lot-appellation={x.appId}><span translate="no">{[x.label, x.niveauLabel].filter(Boolean).join(' · ')}</span>{x.part < 0.999 ? ` ${fmt(x.part * 100, 0)} %` : ''}</Chip>)}{lot.fractionId ? <Chip tone="info">{fracLabel(db, lot.fractionId)}</Chip> : null}<Chip title="Nature du lot">{LOT_TYPES[lot.type]}</Chip><Chip>{fmtL(vol)} en cuves</Chip>{tir ? <Chip tone="info">{fmt(tir.nb)} bouteilles sur lattes{tir.deg ? ` · ${fmt(tir.deg)} dégorgées` : ''}</Chip> : null}{(R.opsByLot[id] || []).some((oid) => (R.warn[oid] || []).length) ? <Chip tone="warn">⚠ opérations à vérifier</Chip> : null}<span className="ml-auto flex flex-wrap gap-1 no-print"><Btn size="sm" onClick={() => setCalc('so2')} title="SO₂ moléculaire, enrichissement">🧪 Calculs</Btn><Btn size="sm" onClick={() => setPerso(true)} title="Rubriques affichées et leur ordre">⚙ Personnaliser la fiche</Btn></span></div>
 
@@ -182,7 +182,7 @@ function FiniSheet({ id, onClose }) {
       <dl className="kv mb-5"><dt>Lot de tirage d’origine</dt><dd><LotLink id={f.sourceLotId} /> — {(R.lots[f.sourceLotId] || {}).designation}</dd><dt>Date du dégorgement</dt><dd>{fmtDate(f.date)}</dd>{operateursValides(db, op.operateurs).length ? <><dt>Dégorgé par</dt><dd><OperateursChips ids={op.operateurs} /></dd></> : null}</dl>
       <CodesLot kind="fini" x={f} />
       <HabillagesDuFini fini={f} />
-      <Sec title="Liqueur d’expédition" className="mb-5"><Tbl rows={preps} empty="Aucune liqueur d’expédition enregistrée." cols={[{ h: 'Préparation', r: (p) => <b>{p.code}</b> }, { h: 'Type', r: (p) => PREP_TYPES[p.ptype] }, { h: 'Qualification', r: (p) => <QChip id={p.qualif} /> }, { h: 'Volume utilisé', cls: 'r', r: (p) => <span className="num">{fmtL(p.use)}</span> }]} />
+      <Sec title="Liqueur d’expédition" className="mb-5"><Tbl rows={preps} empty="Aucune liqueur d’expédition enregistrée." cols={[{ h: 'Préparation', r: (p) => <b>{p.code}</b> }, { h: 'Type', r: (p) => PREP_TYPES[p.ptype] }, { h: 'Revendication', r: (p) => <QChip id={p.qualif} /> }, { h: 'Volume utilisé', cls: 'r', r: (p) => <span className="num">{fmtL(p.use)}</span> }]} />
         {preps.map((p) => { const pa = R.apps.filter((a) => a.prepId === p.id && a.produitId); return pa.length ? <div key={p.id} className="mt-2"><div className="lbl">Ingrédients de {p.code}</div><Tbl rows={pa} cols={[{ h: 'Produit', r: (a) => prodOf(db, a.produitId).nom }, { h: 'Quantité', cls: 'r', r: (a) => <span className="num">{fmt(a.qty, 2)} {a.unite}</span> }, { h: 'N° lot fournisseur', r: (a) => <b className="num">{a.numLot || '—'}</b> }]} /></div> : null; })}
       </Sec>
       <ConformiteBloc lotId={f.id} modifiable />

@@ -217,7 +217,7 @@ function peseeSpec(db, f) {
   const rempli = (x) => x !== undefined && x !== null && String(x).trim() !== '';
   // état « Sain » : la pourriture acide est sans objet (champ masqué, valeur non gardée), sauf si le formulaire la propose toujours
   const pa = rempli(f.pourritureAcide) && !(etatSain(f) && champSiAltere(formulaireDe(db, 'pesee'), 'pourritureAcide'));
-  if (rempli(f.tap) && !tapOK(f.tap)) return fail('TAP invalide : titre alcoométrique probable entre 0 et 20 % vol.');
+  if (rempli(f.tap) && !tapOK(f.tap)) return fail('TAP invalide : titre alcoométrique volumique en puissance entre 0 et 20 % vol.');
   if (pa && !pourritureOK(f.pourritureAcide)) return fail('Pourriture acide : pourcentage entre 0 et 100.');
   const pesee = { heure: f.heure };
   if (rempli(f.tap)) pesee.tap = Math.round(num(f.tap) * 100) / 100; if (pa) pesee.pourritureAcide = Math.round(num(f.pourritureAcide) * 10) / 10;

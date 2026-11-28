@@ -673,8 +673,10 @@ function moutAnalysesCuve(db, R, cid) {
   return out;
 }
 // enrichissement (chaptalisation) pour atteindre le TAV visé : réglages Paramètres › 🧪 Calculs œnologiques
-const chaptalReglages = (db) => { const s = (db && db.settings) || {}; return { tav: hasNum(s.chaptalTAV) ? num(s.chaptalTAV) : 10.5, coef: num(s.chaptalCoef) > 0 ? num(s.chaptalCoef) : 17, max: hasNum(s.chaptalMax) ? num(s.chaptalMax) : 2 }; };
-const tapMoyen = (db, moy) => (moy && moy.tap ? moy.tap.moy : moy && moy.sucres ? moy.sucres.moy / chaptalReglages(db).coef : null);
+// 0.47.0-alpha.2 : deux réglages distincts — sucre à ajouter pour +1 % vol (enrichissement, 17 g/L) et conversion analytique sucres → TAP
+// (16,83 g/L par % vol, convention réglementaire à vérifier : settings.sucresTapCoef)
+const chaptalReglages = (db) => { const s = (db && db.settings) || {}; return { tav: hasNum(s.chaptalTAV) ? num(s.chaptalTAV) : 10.5, coef: num(s.chaptalCoef) > 0 ? num(s.chaptalCoef) : 17, max: hasNum(s.chaptalMax) ? num(s.chaptalMax) : 2, sucresTap: num(s.sucresTapCoef) > 0 ? num(s.sucresTapCoef) : 16.83 }; };
+const tapMoyen = (db, moy) => (moy && moy.tap ? moy.tap.moy : moy && moy.sucres ? moy.sucres.moy / chaptalReglages(db).sucresTap : null);
 function enrichissement(db, tap, volL, tavVise) {
   const g = chaptalReglages(db); const tav = hasNum(tavVise) ? num(tavVise) : g.tav;
   if (tap == null || !(num(volL) > 0)) return null;
