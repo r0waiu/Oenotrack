@@ -3,7 +3,7 @@
    (rubrique « mentions », déposé à côté d'index.html ; celles du site officiel y seront mises à sa mise en ligne, chaque copie
    mise en ligne par quelqu'un d'autre y met les siennes). Plus de réglage dans les Paramètres (retiré en 0.22.0-alpha.1). Rien dans la base.
    Le code d'Œnotrack est sous licence GNU AGPL v3 (ou ultérieure) ; le nom et le logo « Œnotrack » ne sont pas couverts par la licence. */
-const LEGAL_DATE = '2026-11-19'; // dernière mise à jour des textes
+const LEGAL_DATE = '2026-11-28'; // dernière mise à jour des textes (0.49.0-alpha.1 : assistant IA, niveaux de données)
 const OENOTRACK_AUTEUR = ''; // titulaire des droits sur le code (à compléter) ; à défaut : « l'auteur d'Œnotrack »
 const OENOTRACK_DEPOT = 'https://github.com/r0waiu/Oenotrack'; // dépôt officiel du code source (GitHub, depuis 0.24.0-alpha.1)
 const OENOTRACK_SITE = 'https://oenotrack.pages.dev'; // site officiel (0.23.0-alpha.1 ; adresse en ligne depuis 0.47.0-alpha.3, déclarée chez Google, Microsoft et Dropbox)
